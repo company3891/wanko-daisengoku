@@ -1125,7 +1125,9 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 .dc.card .cf{display:block;width:100%;height:100%;object-fit:cover}
 .dc.card:active{transform:scale(.97)}
 
-.sheet.cards{align-items:center;flex-direction:column;justify-content:center;gap:10px;padding:12px;
+.sheet.cards{align-items:center;flex-direction:column;justify-content:center;gap:10px;
+  /* 札が上に寄りすぎて、時計や島に近すぎた。50px 下げる（2026-09-30） */
+  padding:62px 12px 12px;
   overflow-y:auto;touch-action:pan-y}
 .cardwrap{display:flex;gap:8px;width:100%;max-width:520px;align-items:flex-start;
   justify-content:center}
@@ -4426,3 +4428,24 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
 .field.tilt .cell,
 .field.tilt .pawn,
 .field.tilt .stand{-webkit-transform-style:preserve-3d}
+
+/* ---- 画面いちばん上の黒帯（2026-09-30）----
+   ホーム画面から開くと、時計・電波・カメラの島の下まで絵が回り込んで読みにくい。
+   安全域のぶんだけ黒く塗り、その下からヘッダーを始める。
+   --safetop は端末の安全域。ふつうのブラウザでは 0 なので何も起きない */
+:root{--safetop:env(safe-area-inset-top, 0px)}
+body::before{content:'';position:fixed;left:0;right:0;top:0;height:var(--safetop);
+  z-index:99;background:#000;pointer-events:none}
+header{padding-top:calc(var(--safetop) + 8px)}
+/* ヘッダーを出さない画面（スタート・くじ・はじまり）でも、島の下は黒く塗る */
+.home .hmenu.topleft{top:var(--safetop)}
+
+/* 3D が落ちた端末（iPhone で起きる）むけの逃げ道（2026-09-30）。
+   倒しも起こしも2Dの縦つぶしになってしまうので、
+   起こす側を「縦の引き伸ばし」に置き換えて、犬の背丈を取り戻す。
+   1 / cos(32°) ＝ 1.179 */
+.field.tilt.flat3d .stand,
+.field.tilt.flat3d .popwrap{transform:scaleY(var(--flatfix,1.179));transform-origin:50% 100%}
+.field.tilt.flat3d .terwrap.terstand{transform:scaleY(var(--flatfix,1.179)) scale(var(--st,1.18))}
+/* 切り取りは clip にしておく（hidden より 3D を落としにくい） */
+.boardwrap:has(.field.tilt){overflow:clip}

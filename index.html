@@ -1140,7 +1140,9 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 .dc.card .cf{display:block;width:100%;height:100%;object-fit:cover}
 .dc.card:active{transform:scale(.97)}
 
-.sheet.cards{align-items:center;flex-direction:column;justify-content:center;gap:10px;padding:12px;
+.sheet.cards{align-items:center;flex-direction:column;justify-content:center;gap:10px;
+  /* 札が上に寄りすぎて、時計や島に近すぎた。50px 下げる（2026-09-30） */
+  padding:62px 12px 12px;
   overflow-y:auto;touch-action:pan-y}
 .cardwrap{display:flex;gap:8px;width:100%;max-width:520px;align-items:flex-start;
   justify-content:center}
@@ -4442,6 +4444,27 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
 .field.tilt .pawn,
 .field.tilt .stand{-webkit-transform-style:preserve-3d}
 
+/* ---- 画面いちばん上の黒帯（2026-09-30）----
+   ホーム画面から開くと、時計・電波・カメラの島の下まで絵が回り込んで読みにくい。
+   安全域のぶんだけ黒く塗り、その下からヘッダーを始める。
+   --safetop は端末の安全域。ふつうのブラウザでは 0 なので何も起きない */
+:root{--safetop:env(safe-area-inset-top, 0px)}
+body::before{content:'';position:fixed;left:0;right:0;top:0;height:var(--safetop);
+  z-index:99;background:#000;pointer-events:none}
+header{padding-top:calc(var(--safetop) + 8px)}
+/* ヘッダーを出さない画面（スタート・くじ・はじまり）でも、島の下は黒く塗る */
+.home .hmenu.topleft{top:var(--safetop)}
+
+/* 3D が落ちた端末（iPhone で起きる）むけの逃げ道（2026-09-30）。
+   倒しも起こしも2Dの縦つぶしになってしまうので、
+   起こす側を「縦の引き伸ばし」に置き換えて、犬の背丈を取り戻す。
+   1 / cos(32°) ＝ 1.179 */
+.field.tilt.flat3d .stand,
+.field.tilt.flat3d .popwrap{transform:scaleY(var(--flatfix,1.179));transform-origin:50% 100%}
+.field.tilt.flat3d .terwrap.terstand{transform:scaleY(var(--flatfix,1.179)) scale(var(--st,1.18))}
+/* 切り取りは clip にしておく（hidden より 3D を落としにくい） */
+.boardwrap:has(.field.tilt){overflow:clip}
+
 </style>
 </head>
 <body>
@@ -7169,9 +7192,35 @@ function stageBgUrl(theme) {
 function stageFrameUrl(theme) {
   return pickUrl('stage', theme + '_枠');
 }
+/* iPhone だけコマが潰れる件（2026-09-30）。
+   WebKit は、切り取り（overflow）のある入れ物の中に入ると
+   3Dの組み立て（preserve-3d）を落としてしまうことがある。
+   そうなると盤面の倒し（rotateX）は「2Dの縦つぶし」として残り、
+   起こし直しの逆回転まで同じ向きの縦つぶしになって、犬が二重に潰れる。
+   実際に潰れているかをその場で測り、潰れていたら 2D の引き伸ばしに切り替える。
+   測り方：盤面の見かけの高さ÷本来の高さ（＝倒れ具合）と、
+   起こしたはずの入れ物の同じ比を見くらべ、起きていなければ落ちている */
+function check3d(field) {
+  if (!field || !field.classList.contains('tilt')) return;
+  const board = field.querySelector('.board');
+  const st = field.querySelector('.stand');
+  if (!board || !st) return;
+  const bh = board.offsetHeight, sh = st.offsetHeight;
+  if (!bh || !sh) return;
+  const tilt = board.getBoundingClientRect().height / bh;     // 倒れ具合（0.74 くらい）
+  const stand = st.getBoundingClientRect().height / sh;        // 起きていれば 1 前後
+  if (tilt > 0.98) return;                                     // そもそも倒れていない
+  const flat = stand < tilt * 1.05;                            // 起きていない＝落ちている
+  field.classList.toggle('flat3d', flat);
+  // 倒れ具合は端末と画面の大きさで変わるので、測った値から引き伸ばしの量を決める
+  if (flat) field.style.setProperty('--flatfix', (1 / Math.max(.4, tilt)).toFixed(3));
+  else field.style.removeProperty('--flatfix');
+}
 function fieldEl(board, theme, ...extras) {
   const f = document.createElement('div');
   f.className = 'field tilt';
+  // 盤面が画面に出たあとで、3Dが効いているかを一度だけ測る
+  setTimeout(() => check3d(f), 0);
   const bg = theme ? stageBgUrl(theme) : null;
   if (bg) {
     const b = document.createElement('div');

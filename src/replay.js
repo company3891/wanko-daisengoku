@@ -136,9 +136,35 @@ export function stageBgUrl(theme) {
 export function stageFrameUrl(theme) {
   return pickUrl('stage', theme + '_枠');
 }
+/* iPhone だけコマが潰れる件（2026-09-30）。
+   WebKit は、切り取り（overflow）のある入れ物の中に入ると
+   3Dの組み立て（preserve-3d）を落としてしまうことがある。
+   そうなると盤面の倒し（rotateX）は「2Dの縦つぶし」として残り、
+   起こし直しの逆回転まで同じ向きの縦つぶしになって、犬が二重に潰れる。
+   実際に潰れているかをその場で測り、潰れていたら 2D の引き伸ばしに切り替える。
+   測り方：盤面の見かけの高さ÷本来の高さ（＝倒れ具合）と、
+   起こしたはずの入れ物の同じ比を見くらべ、起きていなければ落ちている */
+export function check3d(field) {
+  if (!field || !field.classList.contains('tilt')) return;
+  const board = field.querySelector('.board');
+  const st = field.querySelector('.stand');
+  if (!board || !st) return;
+  const bh = board.offsetHeight, sh = st.offsetHeight;
+  if (!bh || !sh) return;
+  const tilt = board.getBoundingClientRect().height / bh;     // 倒れ具合（0.74 くらい）
+  const stand = st.getBoundingClientRect().height / sh;        // 起きていれば 1 前後
+  if (tilt > 0.98) return;                                     // そもそも倒れていない
+  const flat = stand < tilt * 1.05;                            // 起きていない＝落ちている
+  field.classList.toggle('flat3d', flat);
+  // 倒れ具合は端末と画面の大きさで変わるので、測った値から引き伸ばしの量を決める
+  if (flat) field.style.setProperty('--flatfix', (1 / Math.max(.4, tilt)).toFixed(3));
+  else field.style.removeProperty('--flatfix');
+}
 export function fieldEl(board, theme, ...extras) {
   const f = document.createElement('div');
   f.className = 'field tilt';
+  // 盤面が画面に出たあとで、3Dが効いているかを一度だけ測る
+  setTimeout(() => check3d(f), 0);
   const bg = theme ? stageBgUrl(theme) : null;
   if (bg) {
     const b = document.createElement('div');

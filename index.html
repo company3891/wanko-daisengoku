@@ -24675,10 +24675,11 @@ function sparAskSheet() {
   return el('div', { class: 'sheet', onclick: e => { if (e.target === e.currentTarget) close(); } },
     el('div', { class: 'card2 sqbox' },
       el('b', { class: 'sqttl' }, `${fr.name} との稽古`),
-      row('spar_duel', '一騎打ちだワン！！',
-        '総大将どうしが、たった一騎で打ち合うワン。口は出せぬ、腕まかせだワン'),
-      row('spar_all', '総力戦だワン！！',
-        '部隊まるごとでぶつかるワン。陣立ても持ち込んだ道具も、そのまま効くワン'),
+      /* 語りは一匹にまとめた（2026-09-30）。二匹ぶん並べると札が長くなるうえ、
+         どちらの犬を選ぶ話なのかと紛らわしかった */
+      row('spar_duel', 'どちらで参るワン？',
+        '一騎打ちは総大将どうしが たった一騎で打ち合うワン。口は出せぬ、腕まかせだワン。'
+        + '総力戦は部隊まるごとでぶつかるワン。陣立ても持ち込んだ道具も、そのまま効くワン'),
       el('div', { class: 'sparbtns' },
         el('button', { class: 'go', onclick: () => go(true) }, '一騎打ち'),
         el('button', { class: 'go', onclick: () => go(false) }, '総力戦')),

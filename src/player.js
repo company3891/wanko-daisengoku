@@ -110,6 +110,9 @@ export const P = {
   /* 手引き（2026-09-25）。城に入ってからの案内。
      on＝出しているか／got＝仕上げの褒美を受け取ったか */
   tut2: { on: false, got: false },
+  /* はじめての手引き（2026-09-30）。何歩目かを持つ。0＝出さない（済み・古い保存）。
+     P に並べておかないと保存から読み戻らない */
+  gstep: 0,
   /* 番付（2026-09-25）。段・持ち点・表の種・対戦札・留守番の記録など。
      P に並べておかないと保存から読み戻らない。中身は rank.js の決めごとに合わせる */
   rk: null,
@@ -461,7 +464,9 @@ export function skillUp(no, slot, skillName, mats, charm) {
   if (needBook) useItem(BOOK, needBook);
   if (!eatMats(byNo, no)) return null;
   if (charm) useItem(charm, 1);
-  const ok = Math.random() * 100 < rate;
+  /* 手ほどきのあいだは必ず成功（2026-09-30）。
+     はじめて触る所で失敗させると、何が悪かったのか分からないまま素材だけ減る */
+  const ok = P.gstep > 0 ? true : Math.random() * 100 < rate;
   if (ok) sk[slot]++;
   savePlayer();
   return { ok, rate, lv: sk[slot] };
@@ -549,7 +554,7 @@ export function inherit(target, slot, g, mats, charm) {
   const rate = inhRate(target, g, mats.length, charm);
   if (!eatMats(byNo, target.no)) return null;
   if (charm) useItem(charm, 1);            // 失敗しても戻らない（強化の護符と同じ）
-  const ok = Math.random() * 100 < rate;
+  const ok = P.gstep > 0 ? true : Math.random() * 100 < rate;   // 手ほどきは必ず成功（2026-09-30）
   if (ok) {
     const inh = inhOf(target.no);
     inh[slot] = { sk: { ...g.sk }, uniq: g.uniq, from: g.from || null };
@@ -883,14 +888,24 @@ export function pull(count, pool, gid) {
 /* ================= はじまりの一騎 =================
    初回だけ、SSRから好きな1体を選んで迎える。ここで必ず武将が1体いる状態になるので、
    「武将0体で始まる」ことはない。 */
-export function grantStarter(no) {
+export function grantStarter(no, mate) {
   if (!P.own.includes(no)) P.own.push(no);
-  if (cntOf(no) < 1) setCnt(no, 1);
+  /* 重ねを3枚持たせる（2026-09-30）。特技強化は「同じ武将の重ね」を食うので、
+     1枚きりだと手ほどきの途中で進めなくなる */
+  if (cntOf(no) < 3) setCnt(no, 3);
   const q = P.squads[0];
   if (!q.nos.includes(no)) q.nos.unshift(no);
   q.nos = q.nos.slice(0, 5);
   if (q.general == null) q.general = no;
-  P.tutorial = 1;
+  /* 手ほどき用のもう一騎（2026-09-30）。特技継承の「継ぎ元」がいないと進められない */
+  if (mate != null && mate !== no) {
+    if (!P.own.includes(mate)) P.own.push(mate);
+    if (cntOf(mate) < 3) setCnt(mate, 3);
+  }
+  P.items['稽古の書'] = Math.max(P.items['稽古の書'] || 0, 10);
+  /* 十連は手引きのいちばん最後に回した（2026-09-30）ので、ここで城へ出られるようにする */
+  P.tutorial = 2;
+  P.gstep = 1;
   savePlayer();
 }
 

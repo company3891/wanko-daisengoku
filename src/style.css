@@ -4365,3 +4365,29 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
 .tutgo{width:min(58vw,240px);margin:2px 0 0}
 /* 細い画面では札をひと回り小さく */
 @media (max-height:740px){ .tutcard{width:min(58vw,240px)} }
+
+/* ================= はじめての手引きの指差し（2026-09-30）=================
+   幕は落とさず、押せない釦だけ薄くする。押す所は金の輪でまたたかせ、
+   そのすぐ上（入らなければ下）に金の三角を浮かせる。
+   語りは画面のいちばん下に、ほかの画面の吹き出しと同じ仕立てで置く */
+.gdlock{opacity:.34;pointer-events:none;filter:grayscale(.5)}
+.gdhit{position:relative;z-index:70}
+.gdhit::after{content:'';position:absolute;inset:-5px;border-radius:14px;pointer-events:none;
+  box-shadow:0 0 0 2px var(--gold),0 0 14px 2px #d8a94a88;animation:gdring 1.5s ease-in-out infinite}
+@keyframes gdring{0%,100%{box-shadow:0 0 0 2px #d8a94a,0 0 12px 2px #d8a94a66}
+  50%{box-shadow:0 0 0 2.5px #f5e2a8,0 0 20px 5px #d8a94aaa}}
+.gdarw{position:fixed;z-index:88;width:0;height:0;translate:-50% 0;pointer-events:none;
+  border-left:13px solid transparent;border-right:13px solid transparent;
+  border-top:20px solid #f5e2a8;filter:drop-shadow(0 2px 4px #000);
+  animation:gdbob 1.05s ease-in-out infinite}
+.gdarw.dn{border-top:0;border-bottom:20px solid #f5e2a8}
+@keyframes gdbob{0%,100%{transform:translateY(0)}50%{transform:translateY(9px)}}
+.gdsay{position:fixed;left:10px;right:10px;bottom:calc(var(--nav,104px) + 10px);z-index:87;
+  display:flex;gap:10px;align-items:center;pointer-events:none;
+  background:#12100eee;border:1.5px solid var(--gold);border-radius:14px;padding:10px 12px;
+  box-shadow:0 6px 20px #000b;animation:up .22s cubic-bezier(.2,.9,.3,1.1)}
+.gdsay .gdf{flex:0 0 auto;width:44px;height:44px;border-radius:50%;object-fit:cover;
+  background:#241a12;border:1.5px solid var(--gold);display:grid;place-items:center;
+  font-style:normal;color:var(--gold)}
+.gdsay .gdb b{display:block;font-size:13.5px;color:var(--gold2,#f5e2a8);font-family:var(--mincho)}
+.gdsay .gdb p{margin:2px 0 0;font-size:11.5px;line-height:1.55;color:#ddd2b6}

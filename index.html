@@ -4606,10 +4606,6 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .mirow .miic.tapic{padding:0;border:0;background:none;cursor:pointer;font-family:inherit;
   color:inherit;position:relative}
 .mirow .miic.tapic:active{transform:scale(.92)}
-/* 押せることが分かるよう、右下に小さな「?」を添える */
-.mirow .miic.tapic::after{content:'?';position:absolute;right:-3px;bottom:-3px;
-  width:15px;height:15px;border-radius:50%;font-size:10px;font-weight:700;line-height:15px;
-  text-align:center;color:#2a1d07;background:var(--gold);box-shadow:0 1px 3px #0008}
 /* 幕は薄くして、後ろのお役目の並びを見せたままにする（2026-09-30）。
    ふだんの札の下敷き（城下町＋ぼかし）を出すと、下の札が完全に隠れてしまう */
 .sheet.rwish{background:#00000091}
@@ -4624,6 +4620,21 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .rwitx b{display:flex;align-items:baseline;gap:7px;font-size:13px;letter-spacing:.03em}
 .rwitx b em{font-style:normal;font-size:12px;color:var(--gold)}
 .rwitx p{margin:4px 0 0;font-size:11px;line-height:1.55;color:var(--text2)}
+
+/* 総合力（2026-09-30）。5つの数の合計をいちばん下に足した。
+   どこを伸ばしたか見くらべるとき、頭のなかで足し算させたくない。
+   ほかの行と混ざらないよう、上に細い金の線を引いて字も一段大きくする */
+.growbox .sts .tot,.pwbox .sts .tot{border-top:1px solid #d8a94a3d;
+  margin-top:5px;padding-top:11px}
+.growbox .sts .tot span,.pwbox .sts .tot span{color:var(--gold);font-size:13px;
+  letter-spacing:.06em}
+.growbox .sts .tot b,.pwbox .sts .tot b{font-size:20px;color:#f5e2a8}
+/* 図鑑の札は3つ並びの升目なので、総合力だけ横いっぱいに広げる */
+.card2 .sts .tot.wide{grid-column:1/-1;background:#d8a94a1f;
+  border:1px solid #d8a94a40;display:flex;align-items:center;justify-content:space-between;
+  padding:7px 11px}
+.card2 .sts .tot.wide span{font-size:11px;color:var(--gold);letter-spacing:.06em}
+.card2 .sts .tot.wide b{font-size:15px;color:#f5e2a8}
 
 </style>
 </head>
@@ -6915,9 +6926,13 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     const g = team.find(u => u.isGeneral);
     // 汎用特技の編成・生存条件（2026-09-20）。編成で決まる分は開幕に、
     // 生存数と総大将の生死は毎回その場で見る
-    const tags = [...new Set(team.flatMap(u => u.tags || []))];
     for (const u of team) {
-      u._allyTags = tags;
+      /* 「味方に○○がいる」は自分を数えない（2026-09-30）。
+         前は team ぜんぶの印をまとめて配っていたので、
+         「味方に女性武将がいると…」が、自分が女性というだけで必ず出ていた
+         （姫の魅力・女武者の誇り・怒涛の覚醒）。
+         同じ勢力の味方（_sameClanAllies）は もとから自分を外してある。そちらにそろえた */
+      u._allyTags = [...new Set(team.filter(x => x !== u).flatMap(x => x.tags || []))];
       u._teamGeneral = g || null;
       u._sameClanAllies = u.clan ? team.filter(x => x !== u && x.clan === u.clan).length : 0;
       u._teamAlive = () => team.reduce((n, x) => n + (x.alive ? 1 : 0), 0);
@@ -25578,7 +25593,7 @@ function screenPower() {
       el('span', {}, st.lv >= cap ? '限界' : `次まで ${num(need - st.exp)}`)),
     el('div', { class: 'sts' + (up ? ' flash' : '') }, SP_STATS.map(k =>
       el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-        el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : '')))),
+        el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : ''))), totRow(g)),
     el('div', { class: 'feedmats' }, BOOKS.map(k => {
       const have = item(k);
       const off = have < 1 || st.lv >= cap;
@@ -25637,7 +25652,7 @@ function screenPower() {
           /* ＋の欄は振っていなくても空で置く（2026-09-25）。
              無いと その行だけ数が右へずれて、縦の線がそろわなかった */
           el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-            el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : '')))),
+            el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : ''))), totRow(g)),
         /* 三つの育てかたを、ステータスの下に横並びの釦でまとめた（2026-09-26）。
            一枚の画面に稽古・覚醒・魂を縦に積むと、どこからどこまでが
            どの話なのか分からなくなっていた。押すとそれぞれの札が開く。
@@ -26770,6 +26785,13 @@ function statLabel(k) {
   const u = statUrl(k);
   return el('span', {}, u ? el('img', { class: 'si', src: u, alt: '' }) : null, k);
 }
+/* 総合力の行（2026-09-30）。5つの数の合計＝powerOf と同じものさし。
+   どこを伸ばしたか見くらべるとき、いちいち足し算させたくないので速さの下に置く */
+function totRow(g) {
+  const p = SP_STATS.reduce((a, k) => a + (g[k] || 0), 0);
+  return el('div', { class: 'tot' }, el('span', {}, '総合力'),
+    el('b', {}, num(p)), el('em', { class: 'up' }, ''));
+}
 /* カードの表裏を並べて見せる（2026-09-21）
    カードに能力も特技も人物紹介も刷ってあるので、開いたらカードそのものを出す。
    どちらかを押すと、そちらを画面いっぱいに広げる。 */
@@ -26985,7 +27007,10 @@ function dexDetail(c) {
            数が無いのに「0」と出て壊れて見えたので、無いときは行ごと出さない（2026-09-28） */
         (st.兵量 ?? c.hp) != null ? row('兵量', num(st.兵量 ?? c.hp)) : null,
         row('火力', st.火力), row('賢さ', st.賢さ),
-        row('防御', st.防御), row('回復', st.回復), row('速さ', st.速さ)),
+        row('防御', st.防御), row('回復', st.回復), row('速さ', st.速さ),
+        /* 総合力（2026-09-30）。ここは素の数なので grownStats ではなく stats から足す */
+        el('div', { class: 'tot wide' }, el('span', {}, '総合力'),
+          el('b', {}, num(SP_STATS.reduce((a, k) => a + (st[k] || 0), 0))))),
       c.ultimate ? el('div', { class: 'sk' }, el('span', { class: 'lb ult' }, '奥義'),
         el('b', {}, c.ultimate.name), el('p', {}, c.ultimate.text || '')) : null,
       /* 焼いた札が無いときの見せかた（2026-09-28）。

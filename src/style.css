@@ -4591,10 +4591,6 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .mirow .miic.tapic{padding:0;border:0;background:none;cursor:pointer;font-family:inherit;
   color:inherit;position:relative}
 .mirow .miic.tapic:active{transform:scale(.92)}
-/* 押せることが分かるよう、右下に小さな「?」を添える */
-.mirow .miic.tapic::after{content:'?';position:absolute;right:-3px;bottom:-3px;
-  width:15px;height:15px;border-radius:50%;font-size:10px;font-weight:700;line-height:15px;
-  text-align:center;color:#2a1d07;background:var(--gold);box-shadow:0 1px 3px #0008}
 /* 幕は薄くして、後ろのお役目の並びを見せたままにする（2026-09-30）。
    ふだんの札の下敷き（城下町＋ぼかし）を出すと、下の札が完全に隠れてしまう */
 .sheet.rwish{background:#00000091}
@@ -4609,3 +4605,18 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .rwitx b{display:flex;align-items:baseline;gap:7px;font-size:13px;letter-spacing:.03em}
 .rwitx b em{font-style:normal;font-size:12px;color:var(--gold)}
 .rwitx p{margin:4px 0 0;font-size:11px;line-height:1.55;color:var(--text2)}
+
+/* 総合力（2026-09-30）。5つの数の合計をいちばん下に足した。
+   どこを伸ばしたか見くらべるとき、頭のなかで足し算させたくない。
+   ほかの行と混ざらないよう、上に細い金の線を引いて字も一段大きくする */
+.growbox .sts .tot,.pwbox .sts .tot{border-top:1px solid #d8a94a3d;
+  margin-top:5px;padding-top:11px}
+.growbox .sts .tot span,.pwbox .sts .tot span{color:var(--gold);font-size:13px;
+  letter-spacing:.06em}
+.growbox .sts .tot b,.pwbox .sts .tot b{font-size:20px;color:#f5e2a8}
+/* 図鑑の札は3つ並びの升目なので、総合力だけ横いっぱいに広げる */
+.card2 .sts .tot.wide{grid-column:1/-1;background:#d8a94a1f;
+  border:1px solid #d8a94a40;display:flex;align-items:center;justify-content:space-between;
+  padding:7px 11px}
+.card2 .sts .tot.wide span{font-size:11px;color:var(--gold);letter-spacing:.06em}
+.card2 .sts .tot.wide b{font-size:15px;color:#f5e2a8}

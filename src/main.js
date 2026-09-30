@@ -2625,7 +2625,7 @@ function screenPower() {
       el('span', {}, st.lv >= cap ? '限界' : `次まで ${num(need - st.exp)}`)),
     el('div', { class: 'sts' + (up ? ' flash' : '') }, SP_STATS.map(k =>
       el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-        el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : '')))),
+        el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : ''))), totRow(g)),
     el('div', { class: 'feedmats' }, BOOKS.map(k => {
       const have = item(k);
       const off = have < 1 || st.lv >= cap;
@@ -2684,7 +2684,7 @@ function screenPower() {
           /* ＋の欄は振っていなくても空で置く（2026-09-25）。
              無いと その行だけ数が右へずれて、縦の線がそろわなかった */
           el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-            el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : '')))),
+            el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : ''))), totRow(g)),
         /* 三つの育てかたを、ステータスの下に横並びの釦でまとめた（2026-09-26）。
            一枚の画面に稽古・覚醒・魂を縦に積むと、どこからどこまでが
            どの話なのか分からなくなっていた。押すとそれぞれの札が開く。
@@ -3817,6 +3817,13 @@ function statLabel(k) {
   const u = statUrl(k);
   return el('span', {}, u ? el('img', { class: 'si', src: u, alt: '' }) : null, k);
 }
+/* 総合力の行（2026-09-30）。5つの数の合計＝powerOf と同じものさし。
+   どこを伸ばしたか見くらべるとき、いちいち足し算させたくないので速さの下に置く */
+function totRow(g) {
+  const p = SP_STATS.reduce((a, k) => a + (g[k] || 0), 0);
+  return el('div', { class: 'tot' }, el('span', {}, '総合力'),
+    el('b', {}, num(p)), el('em', { class: 'up' }, ''));
+}
 /* カードの表裏を並べて見せる（2026-09-21）
    カードに能力も特技も人物紹介も刷ってあるので、開いたらカードそのものを出す。
    どちらかを押すと、そちらを画面いっぱいに広げる。 */
@@ -4032,7 +4039,10 @@ function dexDetail(c) {
            数が無いのに「0」と出て壊れて見えたので、無いときは行ごと出さない（2026-09-28） */
         (st.兵量 ?? c.hp) != null ? row('兵量', num(st.兵量 ?? c.hp)) : null,
         row('火力', st.火力), row('賢さ', st.賢さ),
-        row('防御', st.防御), row('回復', st.回復), row('速さ', st.速さ)),
+        row('防御', st.防御), row('回復', st.回復), row('速さ', st.速さ),
+        /* 総合力（2026-09-30）。ここは素の数なので grownStats ではなく stats から足す */
+        el('div', { class: 'tot wide' }, el('span', {}, '総合力'),
+          el('b', {}, num(SP_STATS.reduce((a, k) => a + (st[k] || 0), 0))))),
       c.ultimate ? el('div', { class: 'sk' }, el('span', { class: 'lb ult' }, '奥義'),
         el('b', {}, c.ultimate.name), el('p', {}, c.ultimate.text || '')) : null,
       /* 焼いた札が無いときの見せかた（2026-09-28）。

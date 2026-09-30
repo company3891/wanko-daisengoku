@@ -843,8 +843,8 @@ export function setMix(part) {
   for (const k of ['bgm', 'amb']) {
     const c = loops[k]; if (!c) continue;
     const v = mixOf(k);
-    if (v <= 0) { try { c.el.pause(); } catch {} c.el.volume = 0; }
-    else { c.el.volume = v; if (SOUND_ON) c.el.play().catch(() => {}); }
+    if (v <= 0) { c.pause(); c.vol(0); }
+    else { c.vol(v); if (SOUND_ON) c.play(); }
   }
 }
 export const mixNow = () => ({ bgm: { on: MIXON.bgm, v: MIX.bgm },
@@ -852,8 +852,8 @@ export const mixNow = () => ({ bgm: { on: MIXON.bgm, v: MIX.bgm },
                                se:  { on: MIXON.se,  v: MIX.se } });
 export function soundEnabled(v) {
   if (v != null) SOUND_ON = v;
-  if (!SOUND_ON) { for (const k of ['bgm', 'amb']) { const c = loops[k]; if (c) { try { c.el.pause(); } catch {} } } }
-  else { for (const k of ['bgm', 'amb']) { const c = loops[k]; if (c && mixOf(k) > 0) c.el.play().catch(() => {}); } }
+  if (!SOUND_ON) { for (const k of ['bgm', 'amb']) { const c = loops[k]; if (c) c.pause(); } }
+  else { for (const k of ['bgm', 'amb']) { const c = loops[k]; if (c && mixOf(k) > 0) c.play(); } }
   if (SOUND_ON && !AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { AC = null; } }
   if (AC && AC.state === 'suspended') AC.resume();
   return SOUND_ON;
@@ -915,26 +915,120 @@ function playFile(name, opt) {
 }
 // BGMと環境音：それぞれ1本だけ鳴らし、切り替えは1秒でクロスさせる
 const loops = { bgm: null, amb: null };
+/* ---- 継ぎ目のない繰り返し（2026-09-30）----
+   <audio loop> は、mp3 の頭と尻についた無音（符号化のときに必ず入る余白）ごと
+   繰り返すので、一周するたびに ぷつっと切れて聞こえる。
+   そこで Web Audio に読み込み、波形そのものを見て「鳴り始め」と「鳴り終わり」を探し、
+   その間だけを回す。元の mp3 を焼き直さずに継ぎ目が消える。
+   Web Audio が使えない・ほどけないときは、これまでどおり <audio> に落ちる */
+const RAWC = new Map();        // 取ってきた元の中身。小さいので全部置いておく
+const BUFC = new Map();        // ほどいた波形。重いので二本まで
+function keepBuf(url, v) {
+  BUFC.set(url, v);
+  for (const k of [...BUFC.keys()]) { if (BUFC.size <= 2) break; if (k !== url) BUFC.delete(k); }
+  return v;
+}
+async function loopBuf(url) {
+  if (BUFC.has(url)) return BUFC.get(url);
+  let raw = RAWC.get(url);
+  if (!raw) { raw = await fetch(url).then(r => r.arrayBuffer()); RAWC.set(url, raw); }
+  // slice しないと、ほどくときに中身を取られて二度目が読めなくなる
+  const buf = await new Promise((ok, ng) => {
+    const pr = AC.decodeAudioData(raw.slice(0), ok, ng);
+    if (pr && pr.then) pr.then(ok, ng);
+  });
+  const [s, e] = loudEdges(buf);
+  return keepBuf(url, { buf, s, e });
+}
+/* 頭と尻の無音を測る。-56dB あたりを「鳴っている」の目安にした。
+   行き過ぎて音の立ち上がりを削らないよう、前後に2ミリ秒だけ残す */
+function loudEdges(b) {
+  const th = 0.0016, ch = b.numberOfChannels, n = b.length;
+  const d = []; for (let c = 0; c < ch; c++) d.push(b.getChannelData(c));
+  const loud = i => { for (let c = 0; c < ch; c++) if (Math.abs(d[c][i]) > th) return true; return false; };
+  let s = 0, e = n - 1;
+  while (s < n && !loud(s)) s++;
+  while (e > s && !loud(e)) e--;
+  if (s >= e) return [0, b.duration];
+  const pad = Math.round(b.sampleRate * 0.002);
+  return [Math.max(0, s - pad) / b.sampleRate, Math.min(n, e + 1 + pad) / b.sampleRate];
+}
+/* <audio> の一本（受け皿） */
+function elLoop(name, url) {
+  const a = new Audio(url);
+  a.loop = true; a.volume = 0; a.preload = 'auto';
+  const o = { name, el: a, want: false,
+    play() { o.want = true; a.play().catch(() => {}); },
+    pause() { o.want = false; try { a.pause(); } catch {} },
+    paused: () => a.paused,
+    vol(v) { a.volume = Math.max(0, Math.min(1, v)); },
+    fade(to, ms) { elFade(a, to, ms); },
+    stop() { o.want = false; elFade(a, 0, 800);
+             setTimeout(() => { try { a.pause(); } catch {} }, 830); } };
+  return o;
+}
+/* Web Audio の一本（本命） */
+function waLoop(name, url, volume) {
+  const g = AC.createGain(); g.gain.value = 0; g.connect(AC.destination);
+  const o = { name, el: null, want: true, src: null, at: null, base: 0, seg: null, gain: g,
+    vol(v) { const t = AC.currentTime; g.gain.cancelScheduledValues(t);
+             g.gain.setValueAtTime(Math.max(0, Math.min(1, v)), t); },
+    fade(to, ms) { const t = AC.currentTime; g.gain.cancelScheduledValues(t);
+                   g.gain.setValueAtTime(g.gain.value, t);
+                   g.gain.linearRampToValueAtTime(Math.max(0, Math.min(1, to)), t + ms / 1000); },
+    paused: () => !o.src,
+    /* いま曲のどこを鳴らしているか。留守から戻ったとき、続きから鳴らすために使う */
+    pos() { if (!o.src || !o.seg) return null;
+            const len = o.seg.e - o.seg.s;
+            return len > 0 ? o.seg.s + ((AC.currentTime - o.base - o.seg.s) % len) : o.seg.s; },
+    begin(from) {
+      if (!o.seg || o.src) return;
+      const { buf, s, e } = o.seg;
+      const at = (from != null && from >= s && from < e) ? from : s;
+      const src = AC.createBufferSource();
+      src.buffer = buf; src.loop = true; src.loopStart = s; src.loopEnd = e;
+      src.connect(g); src.start(0, at);
+      o.src = src; o.base = AC.currentTime - at;
+    },
+    play() { o.want = true;
+             if (AC.state === 'suspended') AC.resume().catch(() => {});
+             if (!o.src) o.begin(o.at); },
+    pause() { o.want = false; o.at = o.pos();
+              if (o.src) { try { o.src.stop(); } catch {} try { o.src.disconnect(); } catch {} o.src = null; } },
+    stop() { o.want = false; o.fade(0, 800);
+             setTimeout(() => { if (o.src) { try { o.src.stop(); } catch {} o.src = null; }
+                                try { g.disconnect(); } catch {} }, 830); } };
+  const mine = () => loops.bgm === o || loops.amb === o;
+  loopBuf(url).then(v => {
+    if (!mine()) return;                    // 読んでいるあいだに曲が替わっていた
+    o.seg = v;
+    if (o.want) { o.begin(null); o.fade(volume, 800); }
+  }).catch(() => {
+    if (!mine()) return;
+    const k = loops.bgm === o ? 'bgm' : 'amb';
+    try { g.disconnect(); } catch {}
+    const f = elLoop(name, url);            // ほどけなければ <audio> に落ちる
+    loops[k] = f; f.play(); f.fade(volume, 800);
+  });
+  return o;
+}
 function playLoop(kind, name) {
   const f = name ? name + '.mp3' : null;
   const volume = mixOf(kind);
   const cur = loops[kind];
-  if (cur && cur.name === f) { if (SOUND_ON && volume > 0) cur.el.play().catch(() => {}); return; }
-  if (cur) { fadeOut(cur.el, 800); loops[kind] = null; }
+  if (cur && cur.name === f) { if (SOUND_ON && volume > 0) cur.play(); return; }
+  if (cur) { cur.stop(); loops[kind] = null; }
   if (!f || !SOUND_ON || !hasAudio(f) || volume <= 0) return;
-  const el = new Audio(AUDIO_BASE + f);
-  el.loop = true; el.volume = 0;
-  el.play().then(() => fadeTo(el, volume, 800)).catch(() => {});
-  loops[kind] = { name: f, el };
+  const url = AUDIO_BASE + f;
+  if (AC) { loops[kind] = waLoop(f, url, volume); return; }
+  const o = elLoop(f, url);
+  loops[kind] = o; o.play(); o.fade(volume, 800);
 }
-function fadeTo(el, to, ms) {
-  const from = el.volume, t0 = performance.now();
+function elFade(a, to, ms) {
+  const from = a.volume, t0 = performance.now();
   const step = () => { const k = Math.min(1, (performance.now() - t0) / ms);
-    el.volume = from + (to - from) * k; if (k < 1) requestAnimationFrame(step); };
+    a.volume = Math.max(0, Math.min(1, from + (to - from) * k)); if (k < 1) requestAnimationFrame(step); };
   step();
-}
-function fadeOut(el, ms) {
-  fadeTo(el, 0, ms); setTimeout(() => { try { el.pause(); } catch {} }, ms + 30);
 }
 /* 名は一つでも、並びで渡してもよい（2026-09-28）。
    並びのときは、置いてある最初の一本を鳴らす。
@@ -962,18 +1056,32 @@ function soundSleep() {
   HIDDEN_LOOPS = {};
   for (const k of ['bgm', 'amb']) {
     const cur = loops[k];
-    if (cur) { HIDDEN_LOOPS[k] = cur.name; try { cur.el.pause(); } catch { } }
+    if (cur) { HIDDEN_LOOPS[k] = cur.name; cur.pause(); }   // 止める前に居場所を覚える
   }
   for (const pool of sePool.values()) for (const a of pool) {
     try { a.pause(); a.currentTime = 0; } catch { }
   }
+  if (AC && AC.state === 'running') { try { AC.suspend(); } catch { } }
 }
 function soundWake() {
   const keep = HIDDEN_LOOPS; HIDDEN_LOOPS = null;
   if (!keep || !SOUND_ON) return;
+  if (AC && AC.state === 'suspended') AC.resume().catch(() => { });
   for (const k of ['bgm', 'amb']) {
     const cur = loops[k];
-    if (cur && keep[k] === cur.name && mixOf(k) > 0) cur.el.play().catch(() => { });
+    if (cur && keep[k] === cur.name && mixOf(k) > 0) cur.play();   // 続きから鳴らし直す
+  }
+}
+/* 勝手に止まったのを起こし直す（2026-09-30）。
+   iPhone は 電話・動画・Siri に割り込まれると、囃子が止まったまま戻らない。
+   設定は「入」のままなので、遊ぶ人には ただ音が消えたようにしか見えない。
+   触れたときと、数秒ごとに「鳴っているはずなのに止まっていないか」を見に行く */
+function soundKick() {
+  if (!SOUND_ON || HIDDEN_LOOPS) return;
+  if (AC && AC.state === 'suspended') AC.resume().catch(() => { });
+  for (const k of ['bgm', 'amb']) {
+    const cur = loops[k];
+    if (cur && mixOf(k) > 0 && cur.paused()) cur.play();
   }
 }
 if (typeof document !== 'undefined') {
@@ -983,6 +1091,9 @@ if (typeof document !== 'undefined') {
   /* iOS は本体を閉じたとき visibilitychange が来ないことがあるので、pagehide でも受ける */
   window.addEventListener('pagehide', soundSleep);
   window.addEventListener('pageshow', soundWake);
+  for (const t of ['pointerdown', 'touchend', 'click', 'keydown'])
+    document.addEventListener(t, soundKick, { passive: true, capture: true });
+  setInterval(soundKick, 4000);
 }
 
 const SYNTH = {

@@ -785,7 +785,7 @@ function linkSheet() {
         el('span', { class: 'n' }, t.name),
         el('span', { class: 'o' }, (P.link.ties || {})[t.id] ? '連携済み' : '準備中')))),
     el('button', { class: 'ghost wide soon', disabled: true }, '別の端末から引き継ぐ（準備中）'),
-    el('button', { class: 'ghost wide', onclick: lkClose }, '閉じる'));
+    closeX(lkClose));
 }
 
 /* やり直しの確かめ。二枚はさむ（押し間違いで消えると取り返しがつかないため）。
@@ -1455,7 +1455,7 @@ function ttSheet() {
           onclick: () => { P.title = t; savePlayer(); SFX.pick(); draw(); },
         }, frameUrl(t) ? el('img', { class: 'ttfr', src: frameUrl(t), alt: '', loading: 'lazy' }) : null,
           el('span', {}, t))) ) : null,
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 function miSheet() {
@@ -1503,7 +1503,7 @@ function miSheet() {
         onclick: () => { const n = miTakeAll(tab); if (n) { S.miMsg = `${n} つ受け取ったワン！`; SFX.get(); draw(); } },
         /* 数は札の右上に出ているので、釦には書かない（2026-09-25） */
       }, 'まとめて頂戴いたす'),
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* ================= 手引き（2026-09-25）=================
@@ -1773,7 +1773,7 @@ function rkSheet() {
             el('em', {}, `総合力 ${num(x.power)}`))),
         el('span', { class: 'rkpt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt'))))),
       S.rkMsg ? el('p', { class: 'mimsg' }, S.rkMsg) : null,
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 /* 相手の札。部隊を見てから出陣する */
 function rkFoeSheet(foe) {
@@ -1805,7 +1805,7 @@ function rkFoeSheet(foe) {
         el('button', { class: 'go' + (ok ? '' : ' soon'), disabled: ok ? null : true,
           onclick: () => rkStart(foe) },
           r.tick < 1 ? '対戦札が無いわん' : '出陣')),
-      el('button', { class: 'ghost wide', onclick: back }, 'もどる')));
+      closeX(back, 'もどる')));
 }
 /* 褒美の一覧（2026-09-25）。番付の右上の小さな釦から開く。
    表に載っていれば誰でももらえる。段を選ぶと、その段の順位ごとの数が並ぶ */
@@ -1823,7 +1823,10 @@ function rkPrizeSheet() {
       el('p', { class: 'ttsub' }, '番付に載っておれば、みな頂けるわん'),
       el('div', { class: 'rklist' }, RK_BANDS.map(b => {
         const g = rkPrizeOf(tier, b.to);
-        return el('div', { class: 'rkrow pz' },
+        /* 名は rkgift（2026-09-30）。もとは 'pz' だったが、
+           褒美の玉を縦に積む .pz（width:26px・縦並び）と名がぶつかって、
+           行がひとつの細い柱に潰れていた */
+        return el('div', { class: 'rkrow rkgift' },
           el('span', { class: 'rkn wide' }, b.label),
           el('span', { class: 'rw evrw pzrw' },
             el('span', {}, curIcon('koban'), num(g.koban)),
@@ -1831,7 +1834,7 @@ function rkPrizeSheet() {
             el('span', {}, curIcon('gun'), num(g.gun))));
       })),
       el('p', { class: 'note' }, '軍功は番付でしか手に入らぬ。育成の蔵で品と引き換えられるわん'),
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* 先月の結果。褒美を受け取るまで番付は開かない */
@@ -2000,11 +2003,13 @@ function sparAskSheet() {
         startBattle(null, null, { id, pref: fr.pref, duel: !!duel });
       }, !!duel);
   };
-  const row = (key, head, body, onclick) => {
+  /* 絵と話は「読むもの」、えらぶのは下の二つの釦（2026-09-30）。
+     前は話そのものが釦だったので、どこを押せばよいのか分かりにくかった */
+  const row = (key, head, body) => {
     const no = talkerNo(key);
     const c = charOf(no);
     const art = faceUrl(no, '不敵') || faceUrl(no, '通常') || pawnUrl(no);
-    return el('button', { class: 'gtalk slim sparpick' + (art ? ' art' : ''), onclick },
+    return el('div', { class: 'gtalk slim sparpick' + (art ? ' art' : '') },
       art ? keepImg({ class: 'gtface', src: art, alt: c ? c.name : '' })
           : el('i', { class: 'gtface' }, '犬'),
       el('div', { class: 'gtbub' },
@@ -2015,10 +2020,13 @@ function sparAskSheet() {
     el('div', { class: 'card2 sqbox' },
       el('b', { class: 'sqttl' }, `${fr.name} との稽古`),
       row('spar_duel', '一騎打ちだワン！！',
-        '総大将どうしが、たった一騎で打ち合うワン。口は出せぬ、腕まかせだワン', () => go(true)),
+        '総大将どうしが、たった一騎で打ち合うワン。口は出せぬ、腕まかせだワン'),
       row('spar_all', '総力戦だワン！！',
-        '部隊まるごとでぶつかるワン。陣立ても持ち込んだ道具も、そのまま効くワン', () => go(false)),
-      el('button', { class: 'ghost wide', onclick: close }, 'やめる')));
+        '部隊まるごとでぶつかるワン。陣立ても持ち込んだ道具も、そのまま効くワン'),
+      el('div', { class: 'sparbtns' },
+        el('button', { class: 'go', onclick: () => go(true) }, '一騎打ち'),
+        el('button', { class: 'go', onclick: () => go(false) }, '総力戦')),
+      closeX(close, 'やめる')));
 }
 
 function frSheet() {
@@ -2045,7 +2053,7 @@ function frSheet() {
             el('em', {}, `${f.win}勝 ${f.lose}敗`),
             frBackReady(f) ? el('span', { class: 'frdot' }) : el('span', { class: 'frok' }, '訪問')));
       })) : null,
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* 友の家。訪ねた瞬間に返礼を受け取る */
@@ -2080,7 +2088,7 @@ function frHomeSheet() {
         el('button', { class: 'ghost' + (f.gift === today() ? ' soon' : ''), disabled: f.gift === today() ? true : null,
           onclick: () => { if (frGift(id)) { S.frMsg = '見舞いを置いてきたわん。返礼は後日であろう'; SFX.pick(); draw(); } } },
           f.gift === today() ? '済' : '陣中見舞')),
-      el('button', { class: 'ghost wide', onclick: back }, 'もどる')));
+      closeX(back, 'もどる')));
 }
 
 /* ---- 全国をはじめて開いたときの物語（2026-09-24 に作り直した）----
@@ -2323,7 +2331,7 @@ function prepSheet() {
           el('button', { class: 'go sm', onclick: add(name) }, '使う'));
       })),
       owned.length ? null : el('p', { class: 'note' }, '持ち込める道具がない。ショップの「蔵」で買える'),
-      el('button', { class: 'ghost wide', onclick: () => { S.prepBox = false; S.prepMsg = ''; SFX.pick(); draw(); } }, '閉じる')));
+      closeX(() => { S.prepBox = false; S.prepMsg = ''; SFX.pick(); draw(); })));
 }
 
 // 出陣に入れる／外す。カードの1タップと、カードのポップアップの両方から呼ぶ
@@ -2494,7 +2502,7 @@ function screenPower() {
       el('div', { class: 'card2 pwbox' },
         el('b', { class: 'mittl' }, title),
         inner,
-        el('button', { class: 'ghost wide', onclick: pwClose }, '閉じる')));
+        closeX(pwClose)));
   }
   /* 稽古の中身。数が上がるのをその場で見せたいので、
      段・経験の帯・ステータスを札のなかにも出す（2026-09-26）。
@@ -2547,6 +2555,7 @@ function screenPower() {
         }, ak.ok ? '覚醒する' : (ak.matOk ? '小判が足りない' : '素材が足りない')));
   return {
     body: el('div', {},
+      S.gpop ? null :
       el('button', { class: 'ghost back', onclick: () => { S.sp = null; S.pw = null; S.gpop = false; S.screen = 'grow'; SFX.pick(); draw(); } }, '← 育成へ'),
       // 誰を育てるか。先に武将をえらぶ（2026-09-29）
       growPickPage('lv', no => { S.grow = no; S.sp = null; S.spEdit = null; S.pw = null; }),
@@ -2607,20 +2616,9 @@ function pickBar(c, onPick, mode) {
    前は強化の画面が先に出ていて、武将を替えるには上の帯を押す必要があった。
    えらぶ手数は同じでも、何をする画面かが先に分かる */
 function growPickPage(mode, onPick) {
-  const f = S.cpRar || 'すべて';
-  const af = S.cpAttr || 'すべて';
-  const list = P.own.filter(hasCard).map(charOf).filter(Boolean)
-    .filter(ch => (f === 'すべて' || ch.rarity === f) && (af === 'すべて' || ch.attr === af))
-    .sort((a, b) => RAR.indexOf(a.rarity) - RAR.indexOf(b.rarity) || a.no - b.no);
+  const list = pickApply(P.own.filter(hasCard).map(charOf).filter(Boolean), PF_GROW);
   return el('div', { class: 'gpick' },
-    el('div', { class: 'row chapters bagtabs ihf' }, ['すべて', ...RAR].map(r => el('button', {
-      class: 'chip' + (f === r ? ' on' : ''),
-      onclick: () => { S.cpRar = r; SFX.pick(); draw(); },
-    }, r))),
-    el('div', { class: 'row chapters bagtabs ihf attrf' }, ['すべて', ...ATTRS].map(a => el('button', {
-      class: 'chip' + (af === a ? ' on' : ''),
-      onclick: () => { S.cpAttr = a; SFX.pick(); draw(); },
-    }, a))),
+    pickRows(PF_GROW),
     el('div', { class: 'pickgrid' }, list.map(ch => el('button', {
       class: 'pg',
       onclick: () => { onPick(ch.no); S.gpop = true; SFX.pick(); draw(); },
@@ -2629,35 +2627,43 @@ function growPickPage(mode, onPick) {
        mode === 'lv' ? el('span', { class: 'own lvb2' }, `Lv.${charState(ch.no).lv}`)
                      : el('span', { class: 'own' }, `×${num(cntOf(ch.no))}`)))));
 }
+/* 札の「閉じる」を、育成の札と同じ 追従の金丸×にそろえる（2026-09-30）。
+   .card2 は開くときに transform が乗るので、その中に置くと position:fixed が
+   画面ではなく札を基準にしてしまう。そこで組み上がった直後に .sheet の直下へ移す。
+   呼ぶ側は これまでの場所にそのまま置くだけでよい */
+function closeX(fn, label) {
+  const b = el('button', { class: 'ghost back gpx', onclick: fn }, label || '閉じる');
+  queueMicrotask(() => {
+    const sh = b.closest('.sheet');
+    if (!sh) return;
+    if (b.parentNode !== sh) sh.append(b);
+    sh.classList.add('hasx');            // 札の下に、丸のぶんの余白をあける
+  });
+  return b;
+}
 /* 強化の中身を出す札（2026-09-29）。
    閉じるは、戻るの追従釦と同じ場所・同じ形。画面の下にいても押せる。
    外側を押しても閉じるが、中の札（稽古・覚醒・魂）を押して閉じないよう
    currentTarget で見分ける */
 function growPop(close, ...kids) {
-  return el('div', {
-    class: 'sheet growpop',
-    onclick: e => { if (e.target === e.currentTarget) close(); },
-  }, ...kids.filter(Boolean),
-     el('button', { class: 'ghost back gpx', onclick: close }, '閉じる'));
+  /* 閉じるは札（.sheet）の外に出す（2026-09-30）。
+     .sheet は backdrop-filter を持っているので、その中では position:fixed が
+     画面ではなく .sheet の箱を基準にしてしまい、中身と一緒に上へ流れていく。
+     兄弟にすれば基準が画面に戻り、どこまで巻いても同じ所に居る */
+  return el('div', { class: 'gpwrap' },
+    el('div', {
+      class: 'sheet growpop',
+      onclick: e => { if (e.target === e.currentTarget) close(); },
+    }, ...kids.filter(Boolean)),
+    el('button', { class: 'ghost back gpx', onclick: close }, '閉じる'));
 }
 function pickSheet() {
   const close = () => { S.cp = false; S.cpFor = null; S.cpMode = null; draw(); };
-  const f = S.cpRar || 'すべて';
-  const af = S.cpAttr || 'すべて';
-  const list = P.own.filter(hasCard).map(charOf).filter(Boolean)
-    .filter(ch => (f === 'すべて' || ch.rarity === f) && (af === 'すべて' || ch.attr === af))
-    .sort((a, b) => RAR.indexOf(a.rarity) - RAR.indexOf(b.rarity) || a.no - b.no);
+  const list = pickApply(P.own.filter(hasCard).map(charOf).filter(Boolean), PF_GROW);
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2' },
       el('b', { class: 'mittl' }, '武将を選ぶ'),
-      el('div', { class: 'row chapters bagtabs ihf' }, ['すべて', ...RAR].map(r => el('button', {
-        class: 'chip' + (f === r ? ' on' : ''),
-        onclick: () => { S.cpRar = r; SFX.pick(); draw(); },
-      }, r))),
-      el('div', { class: 'row chapters bagtabs ihf attrf' }, ['すべて', ...ATTRS].map(a => el('button', {
-        class: 'chip' + (af === a ? ' on' : ''),
-        onclick: () => { S.cpAttr = a; SFX.pick(); draw(); },
-      }, a))),
+      pickRows(PF_GROW),
       el('div', { class: 'pickgrid' }, list.map(ch => {
         return el('button', {
           class: 'pg',
@@ -2670,7 +2676,7 @@ function pickSheet() {
              : el('span', { class: 'own' }, `×${num(cntOf(ch.no))}`));
       })),
       list.length ? null : el('p', { class: 'note' }, 'この絞り込みに当てはまる武将がいない'),
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* 覚醒に要る素材を1行で出す。足りないぶんは「無銘」で埋まることも見せる */
@@ -2872,6 +2878,7 @@ function screenSkillUp() {
   const rate = sk && mats.length ? skillRate(sk.name, mats, charm) : 0;
   return {
     body: el('div', {},
+      S.gpop ? null :
       el('button', { class: 'ghost back', onclick: () => { S.skm = []; S.skch = null; S.gpop = false; S.screen = 'grow'; SFX.pick(); draw(); } }, '← 育成へ'),
       // 誰の特技を上げるか。先に武将をえらぶ（2026-09-29）
       growPickPage('cnt', no => { S.skc = no; S.sks = 0; S.skm = []; S.skch = null; S.skMsg = ''; }),
@@ -3195,6 +3202,7 @@ function screenInherit() {
   const left = src ? matLeft(src.no, c.no) - mats.length : 0;
   return {
     body: el('div', {},
+      S.gpop ? null :
       el('button', { class: 'ghost back', onclick: () => { S.ihm = []; S.ihsrc = null; S.ihch = null; S.gpop = false; S.screen = 'grow'; SFX.pick(); draw(); } }, '← 育成へ'),
       // 継ぐ先の武将を先にえらぶ（2026-09-29）
       growPickPage('cnt', no => { S.ihc = no; S.ihslot = null; S.ihm = []; S.ihch = null; S.ihMsg = ''; }),
@@ -3534,7 +3542,11 @@ function screenShop() {
         el('h3', { class: 'shoph' }, '魂の市'),
         el('div', { class: 'shoplist' },
           el('div', { class: 'shoprow' },
-            el('span', { class: 'itic k魂' }, '魂'),
+            /* 魂にも絵を出す（2026-09-30）。番付の蔵と同じ coin_魂 を使う。
+               絵が無ければ これまでどおり「魂」の一字に落ちる */
+            (() => { const a = uiUrl('coin_魂');
+              return el('span', { class: 'itic k魂' + (a ? ' art' : '') },
+                a ? keepImg({ src: a, alt: '武士の魂' }) : '魂'); })(),
             el('div', { class: 'sitm' },
               el('b', {}, `武士の魂 ${num(SOUL_PACK.n)}`),
               el('span', { class: 'sd' }, '武将強化の「魂を振る」で使う'),
@@ -3616,46 +3628,97 @@ function screenSquads() {
    同じ札をもう一度押すと 昇り／降り が入れ替わる。
    ふだんは番号順（図鑑は番号で覚えるものなので、これを基本にする）。
    up は「その並びで最初に出したい向き」＝ 番号は小さい順、ほかは大きい順 */
+/* ---- 武将をえらぶ画面の絞込み（2026-09-30）----
+   編成・育成・特技えらび・図鑑で、同じ札・同じ並びにそろえた。
+   前は画面ごとに「位だけ」「位と属性だけ」とばらばらで、
+   編成では出陣の重さで絞れず、5人の枠をやりくりしにくかった。
+   どの箱に覚えておくかは呼ぶ側が渡す（画面ごとに絞込みを別に覚えたいため） */
 const DEXSORT = [
+  { k: 'rar',  name: '位',     up: false, v: c => -RAR.indexOf(c.rarity) },
   { k: 'no',   name: '番号',   up: true,  v: c => c.no },
   { k: 'cost', name: '出陣',   up: false, v: c => c.cost || 0 },
   { k: 'cnt',  name: '手持ち', up: false, v: c => cntOf(c.no) },
   { k: 'pow',  name: '総合力', up: false, v: c => powerOf(c) },
 ];
+/* 出陣の重さは 100〜500 と幅があるので、三つに束ねた。
+   数そのものは札に刷ってあるので、ここでは大まかな重さだけ */
+const COSTF = [
+  { k: 'すべて', ok: () => true },
+  { k: '軽い',   ok: c => (c.cost || 0) <= 200 },
+  { k: 'ふつう', ok: c => (c.cost || 0) > 200 && (c.cost || 0) <= 350 },
+  { k: '重い',   ok: c => (c.cost || 0) > 350 },
+];
+const pfGet = (ks, k, d) => { const v = ks[k] ? S[ks[k]] : null; return v == null ? d : v; };
+const pfSet = (ks, k, v) => { if (ks[k]) S[ks[k]] = v; SFX.pick(); draw(); };
+/* 絞込みを当てて、並べ替えて返す */
+function pickApply(list, ks, opt) {
+  const rar = pfGet(ks, 'rar', 'すべて');
+  const att = pfGet(ks, 'att', 'すべて');
+  const cf  = COSTF.find(x => x.k === pfGet(ks, 'cost', 'すべて')) || COSTF[0];
+  const fit = !!pfGet(ks, 'fit', false);
+  const out = list.filter(c =>
+    (rar === 'すべて' || c.rarity === rar) &&
+    (att === 'すべて' || c.attr === att) &&
+    cf.ok(c) &&
+    (!fit || !opt || !opt.fits || opt.fits(c)));
+  const so = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
+  const up = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
+  return out.sort((a, b) => { const d = so.v(a) - so.v(b); return (up ? d : -d) || a.no - b.no; });
+}
+const pfRow = (lb, kids, extra) =>
+  el('div', { class: 'row chapters pfrow' + (extra ? ' ' + extra : '') },
+    el('span', { class: 'sortlb' }, lb), kids);
+/* 絞込みの札の並び（位・属性・重さ・並び）。opt.fits があれば「いま入る」も出す */
+function pickRows(ks, opt) {
+  const rar = pfGet(ks, 'rar', 'すべて');
+  const att = pfGet(ks, 'att', 'すべて');
+  const cst = pfGet(ks, 'cost', 'すべて');
+  const so  = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
+  const up  = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
+  return [
+    pfRow('位', ['すべて', ...RAR].map(r => el('button', {
+      class: 'chip' + (rar === r ? ' on' : '') + (r !== 'すべて' && rarUrl(r) ? ' ric' : ''),
+      onclick: () => pfSet(ks, 'rar', r),
+    }, r === 'すべて' ? 'すべて' : rarTag(r)))),
+    pfRow('属性', ['すべて', ...ATTRS].map(a => el('button', {
+      class: 'chip' + (att === a ? ' on' : '') + (a !== 'すべて' && attrUrl(a) ? ' aic' : ''),
+      onclick: () => pfSet(ks, 'att', a),
+    }, a === 'すべて' ? 'すべて' : attrTag(a, 'sm'))), 'attrf'),
+    pfRow('出陣', [
+      ...COSTF.map(x => el('button', {
+        class: 'chip' + (cst === x.k ? ' on' : ''),
+        onclick: () => pfSet(ks, 'cost', x.k),
+      }, x.k)),
+      /* 「いま入る」は編成だけ（2026-09-30）。
+         残りの枠に収まる子だけを残す。足し算をしなくても組めるようにした */
+      (opt && opt.fits) ? el('button', {
+        class: 'chip fitc' + (pfGet(ks, 'fit', false) ? ' on' : ''),
+        onclick: () => pfSet(ks, 'fit', !pfGet(ks, 'fit', false)),
+      }, 'いま入る') : null,
+    ]),
+    pfRow('並び', DEXSORT.map(x => el('button', {
+      class: 'chip' + (so.k === x.k ? ' on' : ''),
+      title: so.k === x.k ? 'もう一度押すと向きが変わる' : null,
+      onclick: () => {
+        if (so.k === x.k) S[ks.asc] = !up;
+        else { S[ks.sort] = x.k; S[ks.asc] = x.up; }
+        SFX.pick(); draw();
+      },
+    }, x.name, so.k === x.k ? el('i', { class: 'sar' }, up ? '▲' : '▼') : null))),
+  ];
+}
+const PF_DEX  = { rar: 'filter', att: 'afilter', cost: 'dcost', sort: 'dexSort', asc: 'dexAsc' };
+const PF_TEAM = { rar: 'filter', att: 'tattr',   cost: 'tcost', sort: 'tsort',   asc: 'tasc', fit: 'tfit' };
+const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  cost: 'cpCost', sort: 'cpSort', asc: 'cpAsc' };
 function screenDex() {
-  const af = S.afilter || 'すべて';
-  let list = S.filter === 'すべて' ? C : C.filter(c => c.rarity === S.filter);
-  if (af !== 'すべて') list = list.filter(c => c.attr === af);
-  const so  = DEXSORT.find(x => x.k === (S.dexSort || 'no')) || DEXSORT[0];
-  const asc = S.dexAsc == null ? so.up : !!S.dexAsc;
-  const sorted = list.slice().sort((a, b) => {
-    const d = so.v(a) - so.v(b);
-    return (asc ? d : -d) || a.no - b.no;      // 並びが同じなら番号の小さい順
-  });
+  const sorted = pickApply(C, PF_DEX, { sort0: 'no' });
+  const list = sorted;
   const got = list.filter(c => owns(c.no)).length;
   return {
     body: el('div', {},
       el('h2', {}, `図鑑（${P.own.length}/${C.length}）`,
         el('span', { class: 'sub2' }, `　手持ち ${num(P.own.reduce((a, n) => a + cntOf(n), 0))} 枚`)),
-      el('div', { class: 'row' }, ['すべて', ...RAR].map(r =>
-        el('button', { class: 'chip' + (S.filter === r ? ' on' : '') + (rarUrl(r) ? ' ric' : ''),
-          onclick: () => { S.filter = r; draw(); } }, r === 'すべて' ? 'すべて' : rarTag(r)))),
-      // 属性でも絞れるようにした（2026-09-21）
-      el('div', { class: 'row attrf' }, ['すべて', ...ATTRS].map(a =>
-        el('button', { class: 'chip' + (af === a ? ' on' : '') + (a !== 'すべて' && attrUrl(a) ? ' aic' : ''),
-          onclick: () => { S.afilter = a; draw(); } }, a === 'すべて' ? 'すべて' : attrTag(a, 'sm')))),
-      /* 並べ替えの札（2026-09-27）。選んでいる札をもう一度押すと向きが変わる */
-      el('div', { class: 'row dexsort' },
-        el('span', { class: 'sortlb' }, '並び'),
-        DEXSORT.map(x => el('button', {
-          class: 'chip' + (so.k === x.k ? ' on' : ''),
-          title: so.k === x.k ? 'もう一度押すと向きが変わる' : null,
-          onclick: () => {
-            if (so.k === x.k) S.dexAsc = !asc;
-            else { S.dexSort = x.k; S.dexAsc = x.up; }
-            SFX.pick(); draw();
-          },
-        }, x.name, so.k === x.k ? el('i', { class: 'sar' }, asc ? '▲' : '▼') : null))),
+      pickRows(PF_DEX, { sort0: 'no' }),
       el('p', { style: 'font-size:11px;color:var(--text3);margin:6px 0 8px' },
         `この絞り込みでは ${got}/${list.length} 体`),
       el('div', { class: 'dex' }, sorted.map(c => {
@@ -3886,7 +3949,7 @@ function dexDetail(c) {
         el('button', { class: 'go sm', disabled: hasCard(c.no) ? null : true, onclick: () => { S.ihc = c.no; S.ihslot = null; S.ihm = []; S.ihsrc = null; S.gpop = true; S.detail = null; S.screen = 'inherit'; SFX.pick(); draw(); } }, '特技継承'),
         el('button', { class: 'go sm danger', disabled: fireMax(c.no) < 1 ? true : null,
           onclick: () => { S.fire = c.no; S.fireN = 1; draw(); } }, '武将解雇')) : null,
-      el('button', { class: 'ghost', onclick: () => { S.detail = null; draw(); } }, '閉じる')));
+      closeX(() => { S.detail = null; draw(); })));
 }
 
 /* いま選んでいるくじ。ガチャ一覧から選ぶまでは先頭（くじの中身は gachas.js） */
@@ -4087,7 +4150,7 @@ function menuSheet() {
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
         'Source Han Serif / Source Han Sans — SIL Open Font License 1.1'),
-      el('button', { class: 'ghost', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* ---- 遊び方（合戦の手引き・2026-09-24） ----
@@ -4229,7 +4292,7 @@ function newsSheet() {
                  祝いの石を配るのに「お詫び」と書いてあるのは、さすがにおかしい */
               el('span', { class: 'gl' }, open.tag === '不具合' ? 'お詫びの品' : '贈り物'),
               el('span', { class: 'gv' }, giftWords(g))) : null)),
-        el('button', { class: 'ghost wide', onclick: back }, 'もどる')));
+        closeX(back, 'もどる')));
   }
 
   /* 一覧 */
@@ -4256,7 +4319,7 @@ function newsSheet() {
             el('span', { class: 'nwt' }, n.title),
             newsRead(n) ? null : el('em', { class: 'nwdot' })));
       }) : el('p', { class: 'nwnone' }, 'まだ何もありませぬ')),
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 function helpSheet() {
@@ -4268,7 +4331,7 @@ function helpSheet() {
         el('div', { class: 'hsec' },
           el('h4', {}, h.t),
           h.p.map(x => el('p', {}, x))))),
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* ---- 兵糧をもどす（2026-09-21） ----
@@ -4307,7 +4370,7 @@ function foodSheet() {
           }, '使う'));
       })) : el('p', { class: 'note' }, '兵糧の道具を持っていない。ショップの「蔵」で買える'),
       P.stamina >= P.staminaMax ? el('p', { class: 'note' }, 'もう満ちている') : null,
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* ---- 所持アイテム（2026-09-21） ----
@@ -4471,7 +4534,7 @@ function bagSheet() {
         class: 'go wide', disabled: item(sel) < 1 ? true : null,
         onclick: () => goUseItem(sel),
       }, bagUseLabel(sel)) : null,
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 
 /* 石が足りないときの案内（2026-09-21）
@@ -4589,7 +4652,7 @@ function ratesSheet(toSSR, toUR) {
         row('所持している武将', `${P.own.filter(hasCard).length} / ${C.length} 体`)),
       el('p', { class: 'ticketnote' },
         'みくじの結果は「御籤番号」だけで決まる。番号を控えておけば、同じ抽選をいつでも引き直して確かめられる。'),
-      el('button', { class: 'ghost', onclick: () => { S.rates = false; draw(); } }, '閉じる')));
+      closeX(() => { S.rates = false; draw(); })));
 }
 /* 結果の見せ方（2026-09-21 改訂）
    まず引いたなかで**いちばんレアリティの高い武将を1体大きく**見せる。
@@ -4828,6 +4891,7 @@ function nextReveal() {
 /* ---- 十連の締め（2026-09-26）----
    出た10体を並べるだけ。引く釦もおみくじの帯も、下の帯も出さない。
    いちばん位の高い一体だけ縁取って光らせる。ふれるとガチャの入口へもどる */
+let rvChime = 0;              // 並びの音の通し番号。画面を離れたら古い音は鳴らさない
 function revealAll(res) {
   const items = res.items;
   const bestR = items.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');
@@ -4839,6 +4903,22 @@ function revealAll(res) {
      札を押して閉じるたびに出直しの動きが走ると、目がちらつく */
   const fresh = !S.rvSeen;
   S.rvSeen = true;
+  /* 並ぶ札に合わせて位の音を鳴らす（2026-09-30）。
+     スキップで飛ばしても、一枚ずつに音が付くので無音にならない。
+     間は札の出だしと同じ100ミリ秒。SFX.rare は前の音を止めてから鳴らすので、
+     ぱらぱらと札が落ちて、最後にいちばん良い位が鳴り残る。
+     いちばん良い札が途中にいるときは、締めにもう一度だけ鳴らす */
+  if (fresh) {
+    const tok = ++rvChime;
+    items.forEach((x, i) => setTimeout(() => {
+      if (tok !== rvChime || !S.rvall) return;
+      SFX.rare(x.rarity);
+    }, 140 + i * 100));
+    if (bestI < n - 1 && RAR.indexOf(bestR) <= 2) setTimeout(() => {
+      if (tok !== rvChime || !S.rvall) return;
+      SFX.rare(bestR);
+    }, 140 + n * 100 + 160);
+  }
   /* 一枚ぶんの札 */
   const cell = (x, i) => {
     const c = charOf(x.no) || {};
@@ -4939,14 +5019,15 @@ async function doPull(count, noDup) {
   if (!r) return;
   const pre = preloadPull(r);   // 絵の先読みは、芝居のあいだに裏で走らせる（2026-09-30）
   /* 宝箱があるときは、そちらに預けて手を止める（2026-09-26） */
-  if (uiUrl('gacha_box')) { S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; SFX.pick(); draw(); return; }
+  /* みくじの音（SFX.pull）だけでよい。ここで SFX.pick を重ねると、
+     画面が切り替わった直後に「かちっ」と鳴って耳につく（2026-09-30 に外した） */
+  if (uiUrl('gacha_box')) { S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; draw(); return; }
   S.gacha = null; draw();
   // 巻物が飛んで開く
   const best = r.items.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');
   const fx = el('div', { class: 'omikuji lv-' + best },
     el('div', { class: 'scroll' }), el('div', { class: 'glow' }));
   $('#app').append(fx);
-  SFX.pick();
   await sleep(RAR.indexOf(best) <= 1 ? 1500 : 1000);
   if (best === 'UR' || best === 'SSR') { try { ultFlare(); } catch { /* 盤面が無くても進む */ } }
   await Promise.race([pre, hold(2500)]);   // 絵が揃うまで待つ。遅ければ諦めて進む
@@ -4984,11 +5065,10 @@ function disbandSheet() {
 function screenTeam() {
   // 編成に並ぶのは所持している武将だけ（2026-09-21）
   const mine = C.filter(c => owns(c.no));
-  const taf = S.tattr || 'すべて';
-  let list = S.filter === 'すべて' ? mine : mine.filter(c => c.rarity === S.filter);
-  if (taf !== 'すべて') list = list.filter(c => c.attr === taf);
-  const sorted = list.slice().sort((a, b) => RAR.indexOf(a.rarity) - RAR.indexOf(b.rarity) || a.no - b.no);
   const on = c => S.picked.some(p => p.no === c.no);
+  /* 「いま入る」は、残りの枠に収まる子だけ。もう出している子はいつでも見せる */
+  const sorted = pickApply(mine, PF_TEAM,
+    { fits: c => on(c) || cost() + (c.cost || 0) <= costMax() });
 
   const q0 = P.squads[P.active];
   /* これから出る戦の敵に同じ人物がいるなら、その札も選べない（2026-09-23）。
@@ -5033,15 +5113,9 @@ function screenTeam() {
           onclick: () => { S.disband = true; SFX.pick(); draw(); },
         }, '部隊解散')),
       S.disband ? disbandSheet() : null,
-      el('h2', {}, 'レアリティ'),
-      el('div', { class: 'row' }, ['すべて', ...RAR].map(r =>
-        el('button', { class: 'chip' + (S.filter === r ? ' on' : '') + (rarUrl(r) ? ' ric' : ''),
-          onclick: () => { S.filter = r; draw(); } }, r === 'すべて' ? 'すべて' : rarTag(r)))),
-      // 属性でも絞れるようにした（2026-09-23）。図鑑・武将を選ぶシートと同じ並び
-      el('h2', {}, '属性'),
-      el('div', { class: 'row attrf' }, ['すべて', ...ATTRS].map(a =>
-        el('button', { class: 'chip' + (taf === a ? ' on' : '') + (a !== 'すべて' && attrUrl(a) ? ' aic' : ''),
-          onclick: () => { S.tattr = a; draw(); } }, a === 'すべて' ? 'すべて' : attrTag(a, 'sm')))),
+      /* 絞込みは図鑑・育成とそろえた（2026-09-30）。
+         題を付けずに一行ずつ並べたので、前より場所を取らない */
+      pickRows(PF_TEAM, { fits: c => on(c) || cost() + (c.cost || 0) <= costMax() }),
       el('h2', {}, `武将を選ぶ（${S.picked.length}/5）　所持 ${P.own.filter(hasCard).length}体`),
       !mine.length ? el('button', {
         class: 'notice', onclick: () => { S.screen = 'gachalist'; draw(); },
@@ -6202,7 +6276,7 @@ function dmgSheet() {
         el('span', {}, '手数 ', el('b', {}, num(st.turn || 0)))),
       us.length ? el('div', { class: 'dglist' }, us.map(u => dmgUnitRow(u, top)))
                 : el('p', { class: 'note' }, '戦いぶりが残っておらぬ'),
-      el('button', { class: 'ghost wide', onclick: close }, '閉じる')));
+      closeX(close)));
 }
 /* 制覇したときの一言（2026-09-29）。
    降した相手の言葉を先に置き、そのあとに「いまどのあたりか」で変わる一言を足す。
@@ -6587,7 +6661,9 @@ function screenBattle() {
     el('div', { class: 'roster ally', id: 'rosterA' }),
     el('div', { id: 'manualBox', style: 'margin:8px 0' }),
     el('div', { id: 'resultBox' }));
-  return { body, nav: true };
+  /* 合戦のあいだは下の帯を出さない（2026-09-30）。
+     戦のさなかに他の画面へ移る道は要らないし、盤面に使える高さが増える */
+  return { body, nav: false };
 }
 
 /* ---- 盤面の外に並べる顔（2026-09-23）----
@@ -6952,7 +7028,7 @@ function draw() {
     S.keepMsg ? el('div', { class: 'sheet', onclick: () => { S.keepMsg = ''; draw(); } },
       el('div', { class: 'card2 keepbox' },
         el('p', {}, S.keepMsg),
-        el('button', { class: 'ghost wide', onclick: () => { S.keepMsg = ''; draw(); } }, '閉じる'))) : null,
+        closeX(() => { S.keepMsg = ''; draw(); }))) : null,
     S.spAsk != null ? sparAskSheet() : null,
     S.sqp ? sqSheet() : null,
     S.food ? foodSheet() : null,
@@ -6971,7 +7047,10 @@ function draw() {
   /* フッターの実際の高さも渡す（2026-09-24）。
      ホームを画面にぴったり収めて、揺れないようにするのに使う */
   const nv = app.querySelector('.nav');
-  if (nv) document.documentElement.style.setProperty('--nav', Math.round(nv.getBoundingClientRect().height) + 'px');
+  /* 帯が無い画面では 0 を入れる（2026-09-30）。
+     前の画面の高さが残ったままだと、追従の戻る釦が宙に浮く */
+  document.documentElement.style.setProperty('--nav',
+    (nv ? Math.round(nv.getBoundingClientRect().height) : 0) + 'px');
   /* 札（ポップアップ）の後ろに敷く絵（2026-09-24）。
      合戦の盤面だけは敷かない。勝敗の札の後ろに盤面が見えていてほしいので */
   const sbg = S.screen === 'battle' ? null : bgUrl('home');

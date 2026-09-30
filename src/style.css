@@ -738,18 +738,29 @@ button.go.big.out{margin-top:14px}
 /* ポップアップは画面の中央に出す（2026-09-21）。
    下端ぞろえだと、中身が短いときに画面の下に寄って落ち着かない。
    三本線メニュー（.corner）だけは、押した場所＝右上から開く */
-.sheet{position:fixed;inset:0;z-index:60;background:#0000006e;backdrop-filter:blur(3px);
-  display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+/* 札は画面に貼り付けて、それ自体は動かさない（2026-09-30）。
+   前は .sheet が巻けたので、指を斜めに滑らせると札ごと横へずれていった。
+   巻くのは中の .card2 だけにして、横には一切動かさない。
+   ぼかし（backdrop-filter）は下敷きの ::before へ移した。
+   .sheet に掛けると、その中の position:fixed が画面ではなく札を基準にしてしまい、
+   追従の「閉じる」が中身と一緒に流れてしまうため */
+.sheet{position:fixed;inset:0;z-index:60;background:#0000006e;
+  display:flex;align-items:center;justify-content:center;padding:16px;
+  overflow:hidden;overscroll-behavior:contain;touch-action:pan-y}
+/* つまみは横に引くものなので、巻きの決まりから外す */
+.sheet input[type=range]{touch-action:none}
 /* 札の後ろにはいつもの城下町を敷く（2026-09-24）。
    これまでは 70% の黒幕だけで、後ろがほとんど真っ黒に見えていた。
    絵を一枚敷いてから幕を落とすと、どの画面から開いても同じ景色になる。
    --scrbg は draw() が毎回入れる。合戦の盤面のときだけ none にして、
    勝敗の札の後ろに盤面が見えるようにしてある */
 .sheet::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  backdrop-filter:blur(3px);
   background-image:var(--scrbg,none);background-size:cover;background-position:center top;
   filter:brightness(.4) saturate(.8)}
 .card2{background:var(--panel2);border:1px solid var(--gold);border-radius:16px;padding:14px;
-  width:100%;max-width:440px;max-height:86vh;overflow:auto;margin:auto;
+  width:100%;max-width:440px;max-height:86vh;overflow-y:auto;overflow-x:hidden;margin:auto;
+  overscroll-behavior:contain;touch-action:pan-y;
   animation:up .2s cubic-bezier(.2,.9,.3,1.1)}
 @keyframes up{from{transform:translateY(14px) scale(.98);opacity:0}to{transform:none;opacity:1}}
 .card2 .top{display:flex;gap:11px;align-items:center;margin-bottom:11px}
@@ -1109,7 +1120,8 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 .dc.card .cf{display:block;width:100%;height:100%;object-fit:cover}
 .dc.card:active{transform:scale(.97)}
 
-.sheet.cards{align-items:center;flex-direction:column;justify-content:center;gap:10px;padding:12px}
+.sheet.cards{align-items:center;flex-direction:column;justify-content:center;gap:10px;padding:12px;
+  overflow-y:auto;touch-action:pan-y}
 .cardwrap{display:flex;gap:8px;width:100%;max-width:520px;align-items:flex-start;
   justify-content:center}
 .cdc{flex:1 1 0;min-width:0;padding:0;border:0;background:none;cursor:zoom-in;
@@ -1514,8 +1526,12 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
   box-shadow:0 3px 10px #000a}
 .sqback:active{transform:translateY(1px);filter:brightness(.93)}
 /* 札の下は、閉じるの丸のぶんだけ空けておく（2026-09-29）。
-   でないと、いちばん下の注意書きに丸がかぶる */
-.growpop .card2{padding-bottom:62px}
+   でないと、いちばん下の注意書きに丸がかぶる。
+   .hasx は closeX が付ける印（2026-09-30） */
+.growpop .card2,
+.sheet.hasx .card2{padding-bottom:62px}
+/* 札の中の追従「閉じる」は、札より前に出す */
+.sheet > .ghost.back{z-index:61}
 /* 育成の武将えらび（2026-09-29）。黒金のまま画面いっぱいに並べる */
 .gpick{margin-top:2px}
 .gpick .pickgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));
@@ -1800,6 +1816,10 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .matpick{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
 /* 継承の絞り込みの右はしに出す「いま何体か」（2026-09-27） */
 /* 図鑑の並べ替え（2026-09-27）。「並び」の字と札を一列に、折り返して収める */
+/* 武将えらびの絞込み（2026-09-30）。図鑑の並べ替えと同じ見た目でそろえた */
+.pfrow{gap:6px;align-items:center;margin:2px 0 0}
+.pfrow .chip{padding:5px 11px;font-size:12px}
+.pfrow .sortlb{flex:0 0 auto}
 .dexsort{gap:6px;align-items:center;margin:2px 0 0}
 .sortlb{font-size:11px;color:var(--text3);margin-right:2px}
 .dexsort .chip{padding:5px 11px;font-size:12px}
@@ -2175,7 +2195,11 @@ main.hasnav{padding-bottom:124px}
 
 /* ガチャの背景は絵の上端に題字が入っているので、ヘッダーのぶんだけ下げて置く（2026-09-22）。
    --hdr は draw() が毎回入れる。ホームなどの背景はこれまでどおり上まで通す */
-.gacha.art .bgfull{top:var(--hdr,0px);height:calc(100vh - var(--hdr,0px))}
+/* くじの景色を 200px 上へ（2026-09-30）。
+   絵を動かすだけだと下に隙間が空くので、箱そのものを上へ200px伸ばしてから上げる。
+   こうすると cover が伸びた箱を埋めるので、隙間なく上に寄る */
+.gacha.art .bgfull{top:calc(var(--hdr,0px) - 200px);
+  height:calc(100vh - var(--hdr,0px) + 200px)}
 .gacha.art .bgfull::after{background:linear-gradient(180deg,#12100e88 0,#12100e22 12%,#12100e00 34%,#12100e00 62%,#12100e66 100%)}
 
 
@@ -2217,6 +2241,11 @@ main.hasnav{padding-bottom:124px}
 .hmb.soon{opacity:.6;cursor:default}
 .hmb.soon .hml{color:#d8d2c8}
 .hmb:not(.soon):active{transform:translateY(1px);filter:brightness(.92)}
+/* 左上の列だけ 赤丸を内側へ寄せる（2026-09-30）。
+   .home は画面の高さぴったりに切り取ってあるので（overflow:hidden）、
+   いちばん上の「報」の赤丸だけ、はみ出した4pxが切り落とされていた。
+   座を下げると三本線に近づくので、丸のほうを角ぴったりに寄せて逃がす */
+.home .hmenu.topleft .hmb .hmbadge{right:0;top:0}
 .hmbadge{position:absolute;right:-4px;top:-4px;width:19px;height:19px;border-radius:50%;
   background:#d8443a;border:1.5px solid #ffd9d2;color:#fff;font-style:normal;
   font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 1px 4px #0009}
@@ -2958,14 +2987,14 @@ main.hasnav{padding-bottom:124px}
 .rkrow.me .rknm b{font-size:14px;color:var(--hi)}
 .rkrow.me .rkpt b{font-size:17px}
 /* 褒美の一覧 */
-.rkrow.pz{cursor:default}
-.rkrow.pz .rknm b{font-family:var(--mincho);font-size:13.5px;color:var(--gold)}
+.rkrow.rkgift{cursor:default}
+.rkrow.rkgift .rknm b{font-family:var(--mincho);font-size:13.5px;color:var(--gold)}
 .pzrw{margin:0;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .pzrw span{font-size:10.5px}
 
 /* 褒美の一覧の直し（2026-09-25）。順位の帯が折り返していた／軍功の字が数とくっついていた */
 .rkn.wide{width:auto;min-width:58px;white-space:nowrap;text-align:left;font-size:12.5px}
-.rkrow.pz{align-items:center}
+.rkrow.rkgift{align-items:center}
 .pzrw span{display:inline-flex;align-items:center;gap:3px}
 .rw i.gun{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
   border-radius:50%;background:#a8802c;color:#140f08;font-style:normal;font-size:9px;font-weight:700}
@@ -4286,3 +4315,7 @@ button:disabled:active{ scale:1; filter:none }
 .loadbar i{display:block;height:100%;border-radius:999px;min-width:2%;
   background:linear-gradient(90deg,#a8802c,#d8a94a 46%,#f5e2a8);
   box-shadow:0 0 11px #d8a94a8f;transition:width .25s ease-out}
+
+/* 稽古のえらび（2026-09-30）。絵と話の下に、二つの道を横に並べる */
+.sparbtns{display:flex;gap:10px;margin-top:2px}
+.sparbtns .go{flex:1 1 0;min-width:0;padding:12px 6px;font-size:14px}

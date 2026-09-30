@@ -531,6 +531,26 @@ body:has(.sheet) .cutin{z-index:55}
 .cutin.mini .nm{font-size:11px;letter-spacing:.1em}
 .cutin.mini .sk{-webkit-text-stroke:.4px #2a1d07;
   filter:drop-shadow(0 1px 0 #000) drop-shadow(0 0 8px #d8a94a55)}
+/* ---- 「奥義」「固有発動」の筆文字（2026-09-30）----
+   絵は app/assets/ui/cut_奥義.png ／ cut_固有.png。置かなければ出ない */
+.cutword{position:absolute;z-index:6;pointer-events:none;height:auto;
+  filter:drop-shadow(0 4px 14px #000d)}
+/* 奥義：一枚絵の左上に掛ける。
+   下ぎわを「絵の上端から26px下」に置くので、絵の高さが変わってもずれない。
+   .cutin .who img（118px四方）のほうが指定が強いので、こちらも二つ重ねて勝たせる */
+.cutin.ult.art .who img.cutword{left:1%;right:auto;top:auto;bottom:calc(100% - 26px);
+  width:min(42vw,182px);height:auto;transform:rotate(-9deg)}
+/* 一枚絵が無いときは、帯の左上に置く */
+.cutin.ult:not(.art) .cutword{left:2%;top:50%;width:min(42vw,182px);
+  transform:translateY(-50%) translateY(-23vh) rotate(-9deg)}
+/* 固有：帯（94px）の右上から半分ほどはみ出させる */
+.cutin.uniq .cutword{right:3%;top:50%;margin-top:-104px;width:min(52vw,214px);
+  transform:rotate(-5deg)}
+@media (max-width:380px){
+  .cutin.ult.art .who img.cutword{width:min(46vw,160px)}
+  .cutin.ult:not(.art) .cutword{width:min(46vw,160px)}
+  .cutin.uniq .cutword{width:min(56vw,186px);margin-top:-92px}
+}
 
 .sound{position:absolute;right:16px;top:14px;border:1px solid var(--line);background:var(--panel);
   color:var(--text2);border-radius:999px;padding:4px 10px;font-size:11px;cursor:pointer}

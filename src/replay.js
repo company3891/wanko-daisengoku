@@ -1227,7 +1227,10 @@ SFX.ougi = (attr) => {
 /* ===== 奥義カットイン ===== */
 export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   // kind で大きさと長さを変える。奥義は全画面、固有は中、特技は小さな帯で盤面を止めない
-  const CONF = { ult: { ms: 1000, cls: '' }, unique: { ms: 720, cls: 'mid' }, skill: { ms: 480, cls: 'mini' } };
+  /* 固有も通常特技と同じ大きさにした（2026-09-30）。
+     一枚絵をやめたのに帯だけ画面の34%のままで、中がすかすかに見えていた。
+     どの技かは「固有発動」の筆文字で見分ける */
+  const CONF = { ult: { ms: 1000, cls: 'ult' }, unique: { ms: 720, cls: 'mini uniq' }, skill: { ms: 480, cls: 'mini' } };
   const cf = CONF[kind] || CONF.ult;
   /* 前の帯はいつも片づける（2026-09-30）。
      特技も画面の真ん中に出すようにしたので、重なると読めなくなる。
@@ -1236,6 +1239,9 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   const box = document.createElement('div');
   box.className = 'cutin ' + cf.cls + (art ? ' art' : '');
   const band = document.createElement('div'); band.className = 'band';
+  /* 「奥義」「固有発動」の筆文字（2026-09-30）。
+     app/assets/ui/cut_奥義.png ／ cut_固有.png を置くと出る。無ければ出ない（絵が無くても動く） */
+  const word = kind === 'ult' ? uiUrl('cut_奥義') : kind === 'unique' ? uiUrl('cut_固有') : null;
   const who = document.createElement('div'); who.className = 'who';
   /* 一枚絵があるときは who の中に敷き、その下端に名と技名を重ねる（2026-09-25）。
      box に直に入れると絵と文字の高さが揃わず、字が絵の真ん中にかぶってしまう */
@@ -1275,7 +1281,8 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   const artW = kind === 'skill' ? wide * .78 : wide;
   /* 顔の大きさは帯ごとにちがう（2026-09-30）。いつも 132 で引いていたので、
      小さい帯では入る幅を 60px ほど少なく見積もり、字が要らぬところで縮んでいた */
-  const iconW = kind === 'ult' ? 132 : kind === 'unique' ? 96 : 66;
+  /* 固有も通常特技と同じ帯になったので、顔の幅も 66 で見る（2026-09-30） */
+  const iconW = kind === 'ult' ? 132 : 66;
   const room = Math.max(120, (art ? artW - 44 : wide - (iconW + 14 + 36)) - 16);
   const fit = Math.floor(room / (len * 1.08));
   const px = Math.min(base, Math.max(17, fit));
@@ -1289,7 +1296,23 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
     box.append(band, who);
     band.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: pdur(140), easing: 'ease-out' });
   }
+  /* 筆文字はいちばん上に重ねる（帯や絵からはみ出させたいので いちばん後ろに足す）。
+     一枚絵があるときは絵の箱の中に入れる（2026-09-30）。
+     画面の高さを物差しにすると、絵の高さが変わったとき離れてしまうため */
+  let wordEl = null;
+  if (word) {
+    wordEl = document.createElement('img');
+    wordEl.className = 'cutword'; wordEl.src = word; wordEl.alt = '';
+    wordEl.onerror = () => wordEl.remove();
+    (art ? who : box).append(wordEl);
+  }
   host.append(box);
+  /* 筆文字は ひと呼吸おくれて浮かび、終わりに沈む（2026-09-30）。
+     傾きは CSS の transform で当てているので、ここでは濃さだけ動かす。
+     transform を動きの中で書くと、傾きが打ち消されて水平に戻ってしまう */
+  if (wordEl) wordEl.animate(
+    [{ opacity: 0 }, { opacity: 1, offset: .28 }, { opacity: 1, offset: .8 }, { opacity: 0 }],
+    { duration: pdur(cf.ms), easing: 'ease-out', fill: 'both' });
   /* 一枚絵は横に滑らせない（2026-09-25）。絵が画面からはみ出して見苦しいので、
      art のときは その場で薄く浮かび上がって沈む形にする */
   who.animate(art

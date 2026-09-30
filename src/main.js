@@ -5988,8 +5988,11 @@ async function showEvent(e, my) {
       // 固有特技の音は属性ごとに変える（2026-09-28）。奥義と取り違えないように
       SFX.uniq((charOf(no) || {}).attr); ultFlare(src);
       fxBurst(cellOf(e.src), 'ult_burst', { scale: 1.3, ms: 560, spin: true });
+      /* 固有は一枚絵をやめ、顔＋技名の中くらいの帯に戻した（2026-09-30）。
+         一枚絵は画面をほとんど覆うので、続けて出ると盤面が見えなかった。
+         大きな一枚絵は奥義だけの見せ場にする */
       const ms = cutIn(document.body, { name: e.name, skill: uniqNameOf(no),
-                                        art: cutinArt(no, '固有'), img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
+                                        art: null, img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
       await sleep(Math.min(ms, 560)); return;
     }
     case 'skill': {
@@ -5998,7 +6001,7 @@ async function showEvent(e, my) {
       // 特技も属性の音にする（2026-09-28）。釦を押す音と同じでは技が出たと分からない
       SFX.waza((u || {}).attr);
       const ms = cutIn(document.body, { name: u ? u.name : '', skill: skillShort(e.name),
-                                        art: cutinArt(noOf(e.src), '特技'),
+                                        art: null,   // 通常特技も顔＋技名だけ（2026-09-30）
                                         img: faceUrl(noOf(e.src), '通常') || cutinUrl(noOf(e.src)), kind: 'skill' });
       await sleep(Math.min(ms, 360)); return;
     }

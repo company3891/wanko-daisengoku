@@ -512,6 +512,10 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 /* ---- 奥義カットイン ---- */
 .cutin{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
   pointer-events:none;background:radial-gradient(ellipse at center,#00000055,#000000cc)}
+/* 札（ポップアップ）が開いているあいだは、カットインは札の下にもぐる（2026-09-30）。
+   合戦の途中で武将の札を開くと、技のカットインが札の上にかぶって読めなかった。
+   札は z-index:60 なので、その下に置く */
+body:has(.sheet) .cutin{z-index:55}
 .cutin .band{position:absolute;left:0;right:0;height:44%;
   background:linear-gradient(90deg,#00000000,#1c1916f2 18%,#1c1916f2 82%,#00000000);
   border-top:2px solid var(--gold);border-bottom:2px solid var(--gold)}
@@ -532,12 +536,14 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 /* 固有は中くらい、特技は下の方に小さく */
 .cutin.mid .band{height:34%}
 .cutin.mid .who img{width:96px;height:96px}
-.cutin.mini{align-items:flex-end;background:none}
-.cutin.mini .band{height:74px;bottom:23%;top:auto;border-width:1px;
-  background:linear-gradient(90deg,#00000000,#1c1916e8 16%,#1c1916e8 84%,#00000000)}
-.cutin.mini .who{gap:9px;padding:0 14px;margin-bottom:23%;height:74px}
-.cutin.mini .who img{width:52px;height:52px;filter:drop-shadow(0 0 7px #e0c04a)}
-.cutin.mini .nm{font-size:10px;letter-spacing:.1em}
+/* 特技も画面の真ん中に、顔＋技名で出す（2026-09-30）。
+   下ぎわに小さく出していたころは、盤面の柵や下ナビと重なって読みづらかった */
+.cutin.mini{align-items:center;background:radial-gradient(ellipse at center,#00000038,#000000a0)}
+.cutin.mini .band{height:94px;top:auto;bottom:auto;border-width:1px;
+  background:linear-gradient(90deg,#00000000,#1c1916ee 16%,#1c1916ee 84%,#00000000)}
+.cutin.mini .who{gap:11px;padding:0 16px;margin-bottom:0;height:94px}
+.cutin.mini .who img{width:66px;height:66px;filter:drop-shadow(0 0 8px #e0c04a)}
+.cutin.mini .nm{font-size:11px;letter-spacing:.1em}
 .cutin.mini .sk{-webkit-text-stroke:.4px #2a1d07;
   filter:drop-shadow(0 1px 0 #000) drop-shadow(0 0 8px #d8a94a55)}
 
@@ -2558,23 +2564,29 @@ main.hasnav{padding-bottom:124px}
 /* ---- 開戦のカットイン（2026-09-24 作り直し）----
    箱をやめ、奥義と同じ帯にした。上段＝国名と家紋と戦の段、
    中央＝「いざ！出陣じゃー！」の絵、下段＝天候と相手。1.2秒で消える。 */
-.vscut{z-index:90}
-.vscut .band{height:58%;animation:vsband .26s cubic-bezier(.2,.9,.3,1.1)}
-@keyframes vsband{from{transform:scaleY(.2);opacity:0}to{transform:none;opacity:1}}
-.vsin{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;
-  padding:0 16px;width:100%;animation:vsin .34s .06s backwards cubic-bezier(.2,.9,.3,1.1)}
+/* 黒い帯はやめ、絵だけを大きく出す（2026-09-30）。
+   地が透けるので、国名・家名には濃い影を足して読めるようにしてある */
+.vscut{z-index:90;background:radial-gradient(ellipse at center,#00000026,#00000073)}
+.vscut .band{display:none}
+.vsin{position:relative;display:flex;flex-direction:column;align-items:center;gap:0;
+  padding:0 8px;width:100%;animation:vsin .34s .06s backwards cubic-bezier(.2,.9,.3,1.1)}
 @keyframes vsin{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
 .vsrow{display:flex;align-items:center;justify-content:center;gap:12px}
-.vsrow.top b{font-size:26px;letter-spacing:.16em;color:var(--gold);font-family:var(--mincho);
-  font-weight:900;line-height:1.1;text-shadow:0 2px 0 #4a2d08,0 0 18px #d8a94a77}
-.vsrow.top .kam{width:56px;height:56px;flex:0 0 56px}
+.vsrow.top{margin-bottom:-6px}
+.vsrow.top b{font-size:29px;letter-spacing:.16em;color:var(--gold);font-family:var(--mincho);
+  font-weight:900;line-height:1.1;
+  text-shadow:0 2px 0 #4a2d08,0 1px 4px #000,0 0 10px #000,0 0 20px #000,0 0 22px #d8a94a66}
+.vsrow.top .kam{width:60px;height:60px;flex:0 0 60px;
+  filter:drop-shadow(0 1px 4px #000) drop-shadow(0 0 10px #000)}
 .vsrow.top .kam img{width:100%;height:100%;object-fit:contain}
-.vsart{display:block;width:min(86vw,360px);height:auto;
-  filter:drop-shadow(0 3px 10px #000) drop-shadow(0 0 22px #e0904088)}
+/* 題字は思いきり大きく（2026-09-30） */
+.vsart{display:block;width:min(98vw,470px);height:auto;margin:-6px 0 -4px;
+  filter:drop-shadow(0 3px 10px #000) drop-shadow(0 0 14px #000) drop-shadow(0 0 26px #e0904099)}
 .vsart.none{font-family:var(--mincho);font-weight:900;font-size:30px;color:#f3cf69;
   width:auto;text-shadow:0 2px 0 #4a2d08,0 0 18px #d8a94a77}
 .vsrow.foot{gap:9px}
-.vsfoe{font-size:13px;color:var(--text2);letter-spacing:.08em;font-family:var(--mincho)}
+.vsfoe{font-size:14px;color:#efe6d2;letter-spacing:.08em;font-family:var(--mincho);
+  text-shadow:0 1px 3px #000,0 0 8px #000,0 0 14px #000}
 
 /* ================= お祭り（イベント）2026-09-23 ================= */
 /* 一覧 */
@@ -8365,8 +8377,10 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   // kind で大きさと長さを変える。奥義は全画面、固有は中、特技は小さな帯で盤面を止めない
   const CONF = { ult: { ms: 1000, cls: '' }, unique: { ms: 720, cls: 'mid' }, skill: { ms: 480, cls: 'mini' } };
   const cf = CONF[kind] || CONF.ult;
-  // 特技の帯は重ねて出せるように、既存の帯を消さない。奥義と固有は前のものを片付ける
-  if (kind !== 'skill') for (const old of host.querySelectorAll('.cutin:not(.mini)')) old.remove();
+  /* 前の帯はいつも片づける（2026-09-30）。
+     特技も画面の真ん中に出すようにしたので、重なると読めなくなる。
+     開戦の札（.vscut）は別ものなので触らない */
+  for (const old of host.querySelectorAll('.cutin:not(.vscut)')) old.remove();
   const box = document.createElement('div');
   box.className = 'cutin ' + cf.cls + (art ? ' art' : '');
   const band = document.createElement('div'); band.className = 'band';
@@ -8400,13 +8414,17 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      顔とすき間と余白を引いた残り幅から逆算して、入るところまで詰める。
      17px まで詰めても入らないときだけ、あきらめて折り返す */
   const len = [...String(skill)].length;
+  /* 特技も真ん中の帯になったので、字をひと回り大きくできる（2026-09-30・17→22） */
   const base = art ? (kind === 'ult' ? 36 : kind === 'unique' ? 28 : 20)
-                   : kind === 'ult' ? 31 : kind === 'unique' ? 24 : 17;
+                   : kind === 'ult' ? 31 : kind === 'unique' ? 24 : 22;
   const wide = host.clientWidth || window.innerWidth || 393;
   /* 特技の一枚絵は画面いっぱいだとうるさいので78%にしている（2026-09-25）。
      字の入る幅もそれに合わせて狭める */
   const artW = kind === 'skill' ? wide * .78 : wide;
-  const room = Math.max(120, (art ? artW - 44 : wide - (132 + 14 + 36)) - 16);
+  /* 顔の大きさは帯ごとにちがう（2026-09-30）。いつも 132 で引いていたので、
+     小さい帯では入る幅を 60px ほど少なく見積もり、字が要らぬところで縮んでいた */
+  const iconW = kind === 'ult' ? 132 : kind === 'unique' ? 96 : 66;
+  const room = Math.max(120, (art ? artW - 44 : wide - (iconW + 14 + 36)) - 16);
   const fit = Math.floor(room / (len * 1.08));
   const px = Math.min(base, Math.max(17, fit));
   sk.style.fontSize = px + 'px';
@@ -28857,8 +28875,11 @@ async function showEvent(e, my) {
       // 固有特技の音は属性ごとに変える（2026-09-28）。奥義と取り違えないように
       SFX.uniq((charOf(no) || {}).attr); ultFlare(src);
       fxBurst(cellOf(e.src), 'ult_burst', { scale: 1.3, ms: 560, spin: true });
+      /* 固有は一枚絵をやめ、顔＋技名の中くらいの帯に戻した（2026-09-30）。
+         一枚絵は画面をほとんど覆うので、続けて出ると盤面が見えなかった。
+         大きな一枚絵は奥義だけの見せ場にする */
       const ms = cutIn(document.body, { name: e.name, skill: uniqNameOf(no),
-                                        art: cutinArt(no, '固有'), img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
+                                        art: null, img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
       await sleep(Math.min(ms, 560)); return;
     }
     case 'skill': {
@@ -28867,7 +28888,7 @@ async function showEvent(e, my) {
       // 特技も属性の音にする（2026-09-28）。釦を押す音と同じでは技が出たと分からない
       SFX.waza((u || {}).attr);
       const ms = cutIn(document.body, { name: u ? u.name : '', skill: skillShort(e.name),
-                                        art: cutinArt(noOf(e.src), '特技'),
+                                        art: null,   // 通常特技も顔＋技名だけ（2026-09-30）
                                         img: faceUrl(noOf(e.src), '通常') || cutinUrl(noOf(e.src)), kind: 'skill' });
       await sleep(Math.min(ms, 360)); return;
     }

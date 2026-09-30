@@ -1226,8 +1226,10 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   // kind で大きさと長さを変える。奥義は全画面、固有は中、特技は小さな帯で盤面を止めない
   const CONF = { ult: { ms: 1000, cls: '' }, unique: { ms: 720, cls: 'mid' }, skill: { ms: 480, cls: 'mini' } };
   const cf = CONF[kind] || CONF.ult;
-  // 特技の帯は重ねて出せるように、既存の帯を消さない。奥義と固有は前のものを片付ける
-  if (kind !== 'skill') for (const old of host.querySelectorAll('.cutin:not(.mini)')) old.remove();
+  /* 前の帯はいつも片づける（2026-09-30）。
+     特技も画面の真ん中に出すようにしたので、重なると読めなくなる。
+     開戦の札（.vscut）は別ものなので触らない */
+  for (const old of host.querySelectorAll('.cutin:not(.vscut)')) old.remove();
   const box = document.createElement('div');
   box.className = 'cutin ' + cf.cls + (art ? ' art' : '');
   const band = document.createElement('div'); band.className = 'band';
@@ -1261,13 +1263,17 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      顔とすき間と余白を引いた残り幅から逆算して、入るところまで詰める。
      17px まで詰めても入らないときだけ、あきらめて折り返す */
   const len = [...String(skill)].length;
+  /* 特技も真ん中の帯になったので、字をひと回り大きくできる（2026-09-30・17→22） */
   const base = art ? (kind === 'ult' ? 36 : kind === 'unique' ? 28 : 20)
-                   : kind === 'ult' ? 31 : kind === 'unique' ? 24 : 17;
+                   : kind === 'ult' ? 31 : kind === 'unique' ? 24 : 22;
   const wide = host.clientWidth || window.innerWidth || 393;
   /* 特技の一枚絵は画面いっぱいだとうるさいので78%にしている（2026-09-25）。
      字の入る幅もそれに合わせて狭める */
   const artW = kind === 'skill' ? wide * .78 : wide;
-  const room = Math.max(120, (art ? artW - 44 : wide - (132 + 14 + 36)) - 16);
+  /* 顔の大きさは帯ごとにちがう（2026-09-30）。いつも 132 で引いていたので、
+     小さい帯では入る幅を 60px ほど少なく見積もり、字が要らぬところで縮んでいた */
+  const iconW = kind === 'ult' ? 132 : kind === 'unique' ? 96 : 66;
+  const room = Math.max(120, (art ? artW - 44 : wide - (iconW + 14 + 36)) - 16);
   const fit = Math.floor(room / (len * 1.08));
   const px = Math.min(base, Math.max(17, fit));
   sk.style.fontSize = px + 'px';

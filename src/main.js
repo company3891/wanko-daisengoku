@@ -3915,39 +3915,58 @@ function cardSheet(c) {
 
     return out;
   };
-  const one = (side, url) => el('button', {
-    class: 'cdc' + (zoom === side ? ' zoom' : '') + (zoom && zoom !== side ? ' hide' : ''),
-    onclick: e => { e.stopPropagation(); S.side = zoom === side ? null : side; draw(); },
-  }, el('img', { src: url, alt: c.name }), ...live(side));
-  /* ポップアップにはボタンを置かない（2026-09-21）。
-     出陣から外すのは一覧でもう一度タップすればよく、
-     総大将は先頭の武将に自動で移るうえ、陣形画面の長押しでも変えられる。 */
-  /* 持っている武将なら、カードから直接その武将の育成へ飛べる（2026-09-21） */
-  /* 友の家から開いたカードには、育成のボタンを出さない（2026-09-24）。
-     相手の武将を強化も解雇もできないので、並べると紛らわしいだけ。
-     S.detailRO（読むだけ）が立っているあいだは絵と数だけを見せる */
+  /* 札は開いたら いきなり大きく（2026-09-30）。
+     前は小さい2枚が出て、特技を読むまでに「開く→押す」の二手かかっていた。
+     ・押す … 閉じる
+     ・横に払う／左右の矢印 … 表と裏を入れかえる
+     得意苦手の帯は札の絵に刷ってあるので出さない */
+  const side = (S.side === 'back' && bk) ? 'back' : 'front';
+  const flip = e => {
+    if (e) e.stopPropagation();
+    if (!bk) return;
+    S.side = side === 'front' ? 'back' : 'front';
+    SFX.pick(); draw();
+  };
+  const card = el('button', { class: 'cdc zoom' },
+    el('img', { src: side === 'front' ? fr : bk, alt: c.name, draggable: false }),
+    ...live(side));
+  /* 横に払って裏返す。30px 動いたら「払った」とみなし、そのあとの押しは殺す */
+  let sw = null;
+  card.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY, on: false }; });
+  card.addEventListener('pointermove', e => {
+    if (!sw || sw.on) return;
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) { sw.on = true; flip(); }
+  });
+  for (const t of ['pointerup', 'pointercancel', 'pointerleave'])
+    card.addEventListener(t, () => { if (sw && sw.on) setTimeout(() => { sw = null; }, 0); else sw = null; });
+  card.onclick = e => { e.stopPropagation(); if (sw && sw.on) return; close(); };
+
   const mine = !un && !S.detailRO && P.own.includes(c.no);
   const goto = (screen, set) => e => {
     e.stopPropagation();
     set(); S.detail = null; S.side = null; S.screen = screen; SFX.pick(); draw();
   };
-  return el('div', { class: 'sheet cards', onclick: () => { if (heldJust()) return; close(); } },
-    el('div', { class: 'cardwrap' + (zoom ? ' zoomed' : ''), onclick: e => e.stopPropagation() },
-      one('front', fr),
-      bk ? one('back', bk) : null),
-    /* 得意／苦手（2026-09-24）。カードの絵に刷るまでは、下に帯で出す */
-    !un && !zoom ? el('div', { class: 'cardground', onclick: e => e.stopPropagation() }, groundRow(c)) : null,
-    mine && !zoom ? el('div', { class: 'cardgo', onclick: e => e.stopPropagation() },
-      el('button', { class: 'go sm', disabled: hasCard(c.no) ? null : true, onclick: goto('power', () => { S.grow = c.no; S.sp = null; S.spEdit = null; }) }, '武将強化'),
-      el('button', { class: 'go sm', disabled: hasCard(c.no) ? null : true, onclick: goto('skillup', () => { S.skc = c.no; S.sks = 0; S.skm = []; S.skch = null; S.skMsg = ''; }) }, '特技強化'),
-      el('button', { class: 'go sm', disabled: hasCard(c.no) ? null : true, onclick: goto('inherit', () => { S.ihc = c.no; S.ihslot = null; S.ihm = []; S.ihsrc = null; S.ihMsg = ''; }) }, '特技継承'),
+  const arw = dir => el('button', {
+    class: 'cdarw ' + dir, title: side === 'front' ? '裏を見る' : '表を見る', onclick: flip,
+  }, dir === 'l' ? '‹' : '›');
+  return el('div', { class: 'sheet cards one', onclick: () => { if (heldJust()) return; close(); } },
+    el('div', { class: 'cardwrap zoomed', onclick: e => e.stopPropagation() },
+      bk ? arw('l') : null, card, bk ? arw('r') : null,
+      bk ? el('div', { class: 'cddots' },
+        el('i', { class: side === 'front' ? 'on' : '' }),
+        el('i', { class: side === 'back' ? 'on' : '' })) : null),
+    mine ? el('div', { class: 'cardgo row4', onclick: e => e.stopPropagation() },
+      el('button', { class: 'go xs', disabled: hasCard(c.no) ? null : true, onclick: goto('power', () => { S.grow = c.no; S.sp = null; S.spEdit = null; }) }, '武将強化'),
+      el('button', { class: 'go xs', disabled: hasCard(c.no) ? null : true, onclick: goto('skillup', () => { S.skc = c.no; S.sks = 0; S.skm = []; S.skch = null; S.skMsg = ''; }) }, '特技強化'),
+      el('button', { class: 'go xs', disabled: hasCard(c.no) ? null : true, onclick: goto('inherit', () => { S.ihc = c.no; S.ihslot = null; S.ihm = []; S.ihsrc = null; S.ihMsg = ''; }) }, '特技継承'),
       // 重複の使い道は「継承」「強化」「売って魂」の3つ。売るのは重ねだけで、本体は減らない
       el('button', {
-        class: 'go sm danger',
+        class: 'go xs danger',
         onclick: e => { e.stopPropagation(); S.fire = c.no; S.fireN = 1; draw(); },
       }, '武将解雇')) : null,
     el('p', { class: 'cardhint', onclick: close },
-      zoom ? 'もう一度押すと2枚に戻る' : 'カードを押すと大きくなる　／　外側を押すと閉じる'));
+      bk ? '札を押すと閉じる　／　横に払うと裏' : '札を押すと閉じる'));
 }
 function dexDetail(c) {
   if (!c) return null;

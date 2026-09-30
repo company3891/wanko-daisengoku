@@ -166,7 +166,7 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   news: false, newsTab: '更新', newsId: null,
   /* 友（2026-09-24）。fr＝一覧を開いているか／frId＝訪ねている友／frMsg＝その場の一言 */
   fr: false, frId: null, frMsg: '',
-  detailRO: false, nmMsg: '',
+  detailRO: false, nmMsg: '', rwi: null,
   /* お役目（2026-09-24）。mi＝開いているか／miTab＝選んでいるタグ */
   mi: false, miTab: '日課', miMsg: '', tt: false, reset: 0, pwUp: 0,
   /* 武将強化の三つの札（2026-09-26）。'稽古' / '覚醒' / '魂' / null */
@@ -1534,7 +1534,10 @@ function miSheet() {
         const got = miGot(m), can = miReady(m);
         const ic = miIcon(m.rw);
         return el('div', { class: 'mirow' + (got ? ' got' : '') + (can ? ' can' : '') + (ic ? ' hasic' : '') },
-          ic ? el('div', { class: 'miic' }, ic) : null,
+          /* 褒美の絵を押すと、その品が何かを出す（2026-09-30）。
+             絵だけでは「石」も「稽古の書」も何に使うのか分からなかった */
+          ic ? el('button', { class: 'miic tapic', title: '何に使うか見る',
+            onclick: e => { e.stopPropagation(); S.rwi = m.rw; SFX.pick(); draw(); } }, ic) : null,
           el('div', { class: 'mitxt' },
             el('b', {}, m.text),
             /* 品の名だけでは何の行か分からなかったので、頭に「褒美」と置く（2026-09-28）。
@@ -1556,6 +1559,45 @@ function miSheet() {
         onclick: () => { const n = miTakeAll(tab); if (n) { S.miMsg = `${n} つ受け取ったワン！`; SFX.get(); draw(); } },
         /* 数は札の右上に出ているので、釦には書かない（2026-09-25） */
       }, 'まとめて頂戴いたす'),
+      closeX(close)));
+}
+
+/* 褒美の品が何かを出す札（2026-09-30）。
+   お役目の絵を押すと開く。品は蔵の説明（ITEMS の desc）をそのまま使い、
+   通貨と称号はここに一行ずつ書いてある。数はその褒美でもらえる数を添える。 */
+const CUR_INFO = {
+  koban:  ['小判',     '蔵で道具を買うのに使う'],
+  soul:   ['武士の魂', '重ねを解雇すると増える。魂の市で使う'],
+  stone:  ['石',       'くじを引くのに使う'],
+  stamina:['兵糧',     '出陣に要る。時がたつと戻る'],
+};
+function rwInfoRows(rw) {
+  const out = [];
+  for (const [k, [nm, note]] of Object.entries(CUR_INFO))
+    if (rw[k]) out.push({ icon: curIcon(k), name: nm, n: rw[k], note });
+  if (rw.ticket) out.push({ icon: itemIcon(TICKET), name: TICKET, n: rw.ticket,
+    note: (ITEMS[TICKET] || {}).desc || 'お祭りの一戦に使う' });
+  for (const [k, v] of Object.entries(rw.items || {}))
+    out.push({ icon: itemIcon(k), name: k, n: v, note: (ITEMS[k] || {}).desc || '' });
+  if (rw.title) out.push({ icon: miIcon({ title: rw.title }), name: `称号「${rw.title}」`, n: 0,
+    note: '名の前につく肩書き。顔の額も変わる' });
+  return out;
+}
+function rwInfoSheet() {
+  const rw = S.rwi; if (!rw) return null;
+  const close = () => { S.rwi = null; draw(); };
+  const rows = rwInfoRows(rw);
+  /* 幕は薄く（rwish）。後ろのお役目の並びを見せたまま重ねる（2026-09-30） */
+  return el('div', { class: 'sheet rwish', onclick: e => { e.stopPropagation();
+      if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 rwibox', onclick: e => e.stopPropagation() },
+      el('b', { class: 'mittl' }, 'この褒美について'),
+      el('div', { class: 'rwilist' }, rows.length ? rows.map(r =>
+        el('div', { class: 'rwirow' },
+          el('div', { class: 'rwiic' }, r.icon),
+          el('div', { class: 'rwitx' },
+            el('b', {}, r.name, r.n ? el('em', {}, `×${num(r.n)}`) : null),
+            el('p', {}, r.note || '―')))) : el('p', { class: 'minone' }, '―')),
       closeX(close)));
 }
 
@@ -7413,6 +7455,8 @@ function draw() {
        ただしスタートの画面だけは別（2026-09-25）。一枚絵を見せる場なので札を重ねない */
     (!P.name && S.screen !== 'title') ? nameSheet() : null,
     S.bag ? bagSheet() : null,
+    /* 褒美の中身は、お役目の札のさらに上に重ねる（2026-09-30） */
+    S.rwi ? rwInfoSheet() : null,
     /* 出す部隊をえらぶ札は、いちばん上に重ねる（2026-09-29）。
        友の家や番付の札の下に潜ってしまい、稽古が申し込めなくなっていた */
     /* 部隊えらびの札から編成へ抜けているあいだ、戦へ戻る道を左下に置く（2026-09-30） */

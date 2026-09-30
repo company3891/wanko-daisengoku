@@ -6640,9 +6640,7 @@ function screenBattle() {
     el('div', { class: 'roster ally', id: 'rosterA' }),
     el('div', { id: 'manualBox', style: 'margin:8px 0' }),
     el('div', { id: 'resultBox' }));
-  /* 合戦のあいだは下の帯を出さない（2026-09-30）。
-     戦のさなかに他の画面へ移る道は要らないし、盤面に使える高さが増える */
-  return { body, nav: false };
+  return { body, nav: true };
 }
 
 /* ---- 盤面の外に並べる顔（2026-09-23）----
@@ -6969,8 +6967,11 @@ function draw() {
        豪華さは「魂の玉」「プレイヤーの額」など部品ごとの絵で出す。
        右上は三本線。音の切り替えなどはこの中にまとめた。 */
     bare ? null : el('header', {},
+      /* 合戦のあいだは右上の三本線を出さない（2026-09-30）。
+         戦のさなかに設定へ入る道は要らないし、盤面の上に釦が重なって邪魔になる。
+         下の帯（フッター）はそのまま出す */
       el('div', { class: 'hrow' }, playerBar(),
-        el('button', {
+        S.screen === 'battle' ? null : el('button', {
           class: 'menub', title: 'メニュー',
           onclick: () => { S.menu = true; SFX.pick(); draw(); },
         }, el('i', {}), el('i', {}), el('i', {}))),

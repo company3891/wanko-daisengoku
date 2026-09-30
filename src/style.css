@@ -2307,7 +2307,12 @@ main.hasnav{padding-bottom:124px}
 /* 箱ごと伸ばして上げるのはやめた（2026-09-30）。
    cover が絵を引き伸ばすので、どのくじも題字が画面から切れてしまった。
    上に寄せたいくじは gachas.js の bgUp に数を書く（絵の大きさは変えずに動かすだけ） */
-.gacha.art .bgfull{top:var(--hdr,0px);height:calc(100vh - var(--hdr,0px))}
+/* くじの景色は、カメラの黒塗りの下から敷く（2026-09-30 夜）。
+   ヘッダーを出さない画面なので、黒塗りぶんを誰も見ておらず、
+   絵の上端（題字「わんこ大戦国」）が黒塗りに食われていた。
+   さらに 10px 低くして、絵じたいもひと回り小さく収める */
+.gacha.art .bgfull{top:calc(var(--hdr,0px) + var(--safetop,0px));
+  height:calc(100vh - var(--hdr,0px) - var(--safetop,0px) - 10px)}
 .gacha.art .bgfull::after{background:linear-gradient(180deg,#12100e88 0,#12100e22 12%,#12100e00 34%,#12100e00 62%,#12100e66 100%)}
 
 
@@ -3914,7 +3919,11 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 
 /* ---- ガチャの右上（2026-09-26）----
    ヘッダーを外したので、石の残りをここに出す。「詳細」の左に並べる */
-.gtop{position:absolute;right:0;top:0;z-index:5;display:flex;align-items:center;gap:8px}
+/* 「詳細」と石の数が、カメラの黒塗りにすっぽり隠れていた（2026-09-30 夜）。
+   くじはヘッダーを出さない画面なので、黒塗りぶんを誰も見ていなかった。
+   下ぞろえの中身（祈りの釦）を動かしたくないので、この行だけ下げる */
+.gtop{position:absolute;right:0;top:var(--safetop,0px);z-index:5;
+  display:flex;align-items:center;gap:8px}
 .gtop .detail{position:static}
 .gstone{display:inline-flex;align-items:center;gap:5px;padding:5px 11px 5px 7px;border-radius:999px;
   background:#12100edd;border:1px solid #d8a94a80;backdrop-filter:blur(4px);box-shadow:0 2px 10px #000a}
@@ -4573,3 +4582,5 @@ header{padding-top:calc(var(--safetop) + 8px)}
 @media (display-mode: standalone), (display-mode: fullscreen) {
   .nav.framed{bottom:calc(5px + env(safe-area-inset-bottom))}
 }
+
+

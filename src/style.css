@@ -4408,3 +4408,21 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
   font-style:normal;color:var(--gold)}
 .gdsay .gdb b{display:block;font-size:13.5px;color:var(--gold2,#f5e2a8);font-family:var(--mincho)}
 .gdsay .gdb p{margin:2px 0 0;font-size:11.5px;line-height:1.55;color:#ddd2b6}
+
+/* ---- チュートリアルの直し（2026-09-30 その2）---- */
+/* ホームの総大将の立ち絵は薄くしない。押せなくするだけでよい
+   （見せ場の絵なので、灰色にすると城がさびしくなる） */
+.home .lordstage .lordtap.gdlock{opacity:1;filter:none;pointer-events:none}
+/* 盤面と顔の列では、端末の「画像を保存」の呼び出しを出さない（2026-09-30）。
+   長押しすると iPhone の写真メニューが開いて、戦が止まっていた */
+.battlebody, .battlebody img, .roster, .roster img, .pawn, .pawn img{
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.roster .rc.tapc{cursor:pointer}
+.roster .rc.tapc:active{transform:translateY(1px);filter:brightness(1.12)}
+/* 3D の盤面が平らに潰れるのを防ぐ（2026-09-30）。
+   古い WebKit は接頭辞つきでないと preserve-3d を落とし、
+   起こし直しの回転まで2Dの縦つぶしとして掛かってしまう */
+.field.tilt .board,
+.field.tilt .cell,
+.field.tilt .pawn,
+.field.tilt .stand{-webkit-transform-style:preserve-3d}

@@ -6728,8 +6728,13 @@ function rosterRow(box, side) {
     if (bb) stFace(bb);
     if (mb) stFace(mb);
     box.append(el('div', {
-      class: 'rc' + (u.alive ? '' : ' dead') + (no === genNo ? ' gen' : ''),
-      title: `${c ? c.name : ''}　兵量 ${num(hp)} / ${num(u.maxHp || 0)}`,
+      /* 顔を押すと、その武将の札が開く（2026-09-30）。
+         戦のさなかに数値や特技を確かめたいのに、押しても何も起きず、
+         長押しすると端末の「画像を保存」が出てしまっていた */
+      class: 'rc' + (u.alive ? '' : ' dead') + (no === genNo ? ' gen' : '') + (c ? ' tapc' : ''),
+      title: c ? `${c.name}　兵量 ${num(hp)} / ${num(u.maxHp || 0)}　（押すと札）`
+               : `兵量 ${num(hp)} / ${num(u.maxHp || 0)}`,
+      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true); }) : null,
     },
       el('div', { class: 'rf' },
         art ? el('img', { src: art, alt: '' }) : el('i', { style: c ? chipStyle(c) : '' }),
@@ -7116,7 +7121,7 @@ function guidePaint() {
   }
   /* 名乗りの一枚絵・盤面・天下の分け目のあいだは、指差しをまったく出さない（2026-09-30）。
      どれも読ませたい見せ場なので、重ねないし、縛りもしない */
-  if (S.opening || S.screen === 'battle' || (S.screen === 'map' && !P.camp.intro)) return;
+  if (S.opening || S.screen === 'battle' || S.win || (S.screen === 'map' && !P.camp.intro)) return;
   const hit = g.find ? g.find() : null;
   /* 押せるもの：目当ての釦・三本線・戻る・閉じる。それ以外は薄くして触れなくする。
      free の歩（戦のさなか）と、差す先が見つからないときは 何も縛らない

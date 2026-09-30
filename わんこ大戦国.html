@@ -2217,6 +2217,9 @@ main.hasnav{padding-bottom:124px}
    こうすると cover が伸びた箱を埋めるので、隙間なく上に寄る */
 .gacha.art .bgfull{top:calc(var(--hdr,0px) - 200px);
   height:calc(100vh - var(--hdr,0px) + 200px)}
+/* ただし はじまりの十連はそのままの大きさ（2026-09-30）。
+   箱を伸ばすと cover が絵を引き伸ばすので、五英雄の顔が画面から切れてしまう */
+.gacha.tutg.art .bgfull{top:var(--hdr,0px);height:calc(100vh - var(--hdr,0px))}
 .gacha.art .bgfull::after{background:linear-gradient(180deg,#12100e88 0,#12100e22 12%,#12100e00 34%,#12100e00 62%,#12100e66 100%)}
 
 

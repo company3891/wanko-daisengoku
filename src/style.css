@@ -1065,12 +1065,17 @@ main.hasnav ~ .sheet, .sheet{padding-bottom:calc(16px + var(--nav,104px));
   box-shadow:none;font-size:9px}
 .pull .tkp .itic img{width:100%;height:100%;object-fit:contain;
   filter:drop-shadow(0 1px 2px #000c)}
+/* 石の粒も同じ大きさにそろえる（2026-09-30）。絵が無いときは字の粒に落ちる */
+.pull .tkp .ci{width:15px;height:15px;object-fit:contain;
+  filter:drop-shadow(0 1px 2px #000c)}
+.pull .tkp i{width:15px;height:15px;border-radius:50%;display:grid;place-items:center;
+  font-style:normal;font-size:9px;font-weight:800}
 /* 枚数の数字は太く（2026-09-30）。小さい帯の中でいちばん先に目に入ってほしい */
 .pull .tkp em{font-style:normal;font-size:13px;font-weight:900;letter-spacing:.01em;
   color:#ffeec0;text-shadow:0 1px 2px #000}
 @media (max-width:380px){
   .pull.art .pr{font-size:11px}
-  .pull .tkp .itic{width:13px;height:13px}
+  .pull .tkp .itic,.pull .tkp .ci,.pull .tkp i{width:13px;height:13px}
   .pull .tkp em{font-size:12px}
 }
 .pull.art .freeband{position:absolute;left:50%;top:-7px;transform:translateX(-50%);z-index:3;

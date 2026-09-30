@@ -4144,14 +4144,15 @@ function screenGacha() {
         : waiting ? gachaBox()
         : el('div', { class: 'pulls' + (uiUrl('pull_one') || uiUrl('pull_ten') ? ' art' : '') },
             pullBtn('one', '一度引く',
-              byOne ? tktPrice(TICKET_PRICE.single) : `${num(PRICE.single)} 石`,
+              byOne ? tktPrice(TICKET_PRICE.single) : stonePrice(PRICE.single),
               canOne, () => doPull(1),
-              byOne ? `祭の札 ${TICKET_PRICE.single}枚` : null),
+              byOne ? `祭の札 ${TICKET_PRICE.single}枚` : `${num(PRICE.single)} 石`),
             pullBtn('ten' + (P.firstFree ? ' free' : ''), '十連',
               P.firstFree ? '初回無料'
-                : byTen ? tktPrice(TICKET_PRICE.ten) : `${num(PRICE.ten)} 石`,
+                : byTen ? tktPrice(TICKET_PRICE.ten) : stonePrice(PRICE.ten),
               canTen, () => doPull(10),
-              (!P.firstFree && byTen) ? `祭の札 ${TICKET_PRICE.ten}枚` : null)),
+              P.firstFree ? '初回無料'
+                : byTen ? `祭の札 ${TICKET_PRICE.ten}枚` : `${num(PRICE.ten)} 石`)),
       S.rv || S.rvall ? null : (g ? gachaResult(g) : null),
       S.rates ? ratesSheet(toSSR, toUR) : null,
       S.shop ? shopSheet() : null))(gachaBgEl(inBox)),
@@ -4840,8 +4841,10 @@ function gachaResult(g) {
 /* 引くボタン（2026-09-21 改訂）
    石が足りなくても押せるし、暗くもしない。押したら石を買う画面へ案内する。
    「引けない見た目」にすると絵が台無しになるうえ、買ってもらう導線も消えるため。 */
-/* 祭の札の値札（2026-09-30）。札の絵 ＋「×10」。絵が無ければ「祭」の字に落ちる */
+/* 値札（2026-09-30）。粒の絵 ＋ 数。石も札も同じ組みにして、見比べやすくする。
+   絵が無ければ、itemIcon / curIcon が字の粒に落ちる（絵が無くても動く） */
 const tktPrice = n => el('span', { class: 'tkp' }, itemIcon(TICKET), el('em', {}, '×' + n));
+const stonePrice = n => el('span', { class: 'tkp' }, curIcon('stone'), el('em', {}, num(n) + '石'));
 /* 引く釦（2026-09-30 改）。
    前は名も値段も絵に焼いてあったので、絵の上に字を重ねていなかった。
    石と札で値札を出し分けたいので、絵は空にしてもらい、名と値はこちらで書く。

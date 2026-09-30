@@ -3788,14 +3788,13 @@ const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc' 
 const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc' };
 const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc' };
 function screenDex() {
-  /* 位と属性は「かつ」で重ねて当たる（もとからそう）。並びは、絞り込んだ中での順番。
-     持っていない武将は出さない（2026-09-30）。
-     未奉公の札が混ざると、何を集めたのかが読み取りにくかった。
-     「16 / 31 体」の分母は、その絞り込みに居る全員（まだ見ぬ者も入れた数） */
-  const all = pickApply(C, PF_DEX, { sort0: 'no' });
-  const sorted = all.filter(c => owns(c.no));
-  const list = all;
-  const got = sorted.length;
+  /* 位と属性は「かつ」で重ねて当たる。並びは、その絞り込んだ中での順番。
+     図鑑だけは 未奉公の札も出す（2026-09-30）。
+     「何が残っているか」を見に来る画面なので、まだ見ぬ者が並んでいてよい。
+     編成・育成・特技えらびは もとから持っている武将しか並ばない */
+  const sorted = pickApply(C, PF_DEX, { sort0: 'no' });
+  const list = sorted;
+  const got = list.filter(c => owns(c.no)).length;
   return {
     body: el('div', {},
       el('h2', {}, `図鑑（${P.own.length}/${C.length}）`,

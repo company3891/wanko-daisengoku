@@ -1792,6 +1792,18 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
   color:#f0d68a;font-size:16px;font-weight:700;line-height:1;display:grid;place-items:center;
   cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none}
 .spctl .sq:active:not(:disabled){transform:translateY(1px);filter:brightness(1.15)}
+/* ＋と−は字ではなく線で描く（2026-09-30）。
+   「−」（U+2212）も「＋」（U+FF0B）も、字の墨が四角の真ん中より上に寄っている書体が多く、
+   丸の中で少し浮いて見えていた。線で描けば書体に関わらず ど真ん中に来る。
+   字そのものは残しておく（読み上げと、絵が使えないときのため） */
+.spctl .sq.minus,.spctl .sq.plus{font-size:0;line-height:0}
+.spctl .sq.minus::before,
+.spctl .sq.plus::before,
+.spctl .sq.plus::after{content:'';position:absolute;left:50%;top:50%;
+  background:currentColor;border-radius:2px}
+.spctl .sq.minus::before,
+.spctl .sq.plus::before{width:14px;height:2.6px;transform:translate(-50%,-50%)}
+.spctl .sq.plus::after{width:2.6px;height:14px;transform:translate(-50%,-50%)}
 .spctl .sq:disabled{opacity:.32}
 .spctl .sq.minus{background:linear-gradient(#4a4030,#332b20)}
 .spctl .sq.max{width:auto;border-radius:9px;padding:0 10px;height:34px;font-size:11.5px;
@@ -1816,6 +1828,9 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 @media (max-width:392px){
   .spctl{gap:4px}
   .spctl .sq{width:31px;height:31px}
+  .spctl .sq.minus::before,
+  .spctl .sq.plus::before{width:12.5px;height:2.4px}
+  .spctl .sq.plus::after{width:2.4px;height:12.5px}
   .spctl .spval{min-width:62px;height:31px;font-size:12px}
   .spctl .sq.max{height:31px;padding:0 8px;font-size:11px}
 }
@@ -26816,14 +26831,13 @@ const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc' 
 const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc' };
 const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc' };
 function screenDex() {
-  /* 位と属性は「かつ」で重ねて当たる（もとからそう）。並びは、絞り込んだ中での順番。
-     持っていない武将は出さない（2026-09-30）。
-     未奉公の札が混ざると、何を集めたのかが読み取りにくかった。
-     「16 / 31 体」の分母は、その絞り込みに居る全員（まだ見ぬ者も入れた数） */
-  const all = pickApply(C, PF_DEX, { sort0: 'no' });
-  const sorted = all.filter(c => owns(c.no));
-  const list = all;
-  const got = sorted.length;
+  /* 位と属性は「かつ」で重ねて当たる。並びは、その絞り込んだ中での順番。
+     図鑑だけは 未奉公の札も出す（2026-09-30）。
+     「何が残っているか」を見に来る画面なので、まだ見ぬ者が並んでいてよい。
+     編成・育成・特技えらびは もとから持っている武将しか並ばない */
+  const sorted = pickApply(C, PF_DEX, { sort0: 'no' });
+  const list = sorted;
+  const got = list.filter(c => owns(c.no)).length;
   return {
     body: el('div', {},
       el('h2', {}, `図鑑（${P.own.length}/${C.length}）`,

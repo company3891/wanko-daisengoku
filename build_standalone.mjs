@@ -71,14 +71,14 @@ const html = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>わんこ大戦国</title>
-<link rel="icon" href="icon-192.png">
+<link rel="icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#12100e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="わんこ大戦国">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-v2.png">
 <style>
 ${read('app/src/style.css').replaceAll("url('../assets/font/", "url('assets/font/")}
 </style>

@@ -3288,7 +3288,9 @@ main.hasnav{padding-bottom:124px}
    絵は 2.7:1 の帯なので、真ん中に置くと座りがよい */
 /* 初回十連の釦は、下から15%のところに貼り付ける（2026-09-30）。
    流れに置くと、くじの絵の犬たちに重なって顔が隠れていた */
-.tutg .pulls.art{position:fixed;left:0;right:0;bottom:15%;z-index:4;
+/* さらに 100px 下げた（2026-09-30）。信わんの名札にまだ掛かっていた。
+   小さい画面で下に張り付かないよう、床から 14px は空ける */
+.tutg .pulls.art{position:fixed;left:0;right:0;bottom:max(14px, calc(15% - 100px));z-index:4;
   justify-content:center;padding:0 12px;margin:0}
 .tutg .pulls.art .pull{flex:0 1 auto;width:min(360px,94%)}
 .tutg .go.big.out{margin-top:14px;position:relative;z-index:2}

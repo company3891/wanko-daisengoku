@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>わんこ大戦国</title>
-<link rel="icon" href="icon-192.png">
+<link rel="icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#12100e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="わんこ大戦国">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-v2.png">
 <style>
 /* ---- 書体（2026-09-23）----
    源ノ明朝／源ノ角ゴシック（SIL Open Font License 1.1）を、
@@ -3303,7 +3303,9 @@ main.hasnav{padding-bottom:124px}
    絵は 2.7:1 の帯なので、真ん中に置くと座りがよい */
 /* 初回十連の釦は、下から15%のところに貼り付ける（2026-09-30）。
    流れに置くと、くじの絵の犬たちに重なって顔が隠れていた */
-.tutg .pulls.art{position:fixed;left:0;right:0;bottom:15%;z-index:4;
+/* さらに 100px 下げた（2026-09-30）。信わんの名札にまだ掛かっていた。
+   小さい画面で下に張り付かないよう、床から 14px は空ける */
+.tutg .pulls.art{position:fixed;left:0;right:0;bottom:max(14px, calc(15% - 100px));z-index:4;
   justify-content:center;padding:0 12px;margin:0}
 .tutg .pulls.art .pull{flex:0 1 auto;width:min(360px,94%)}
 .tutg .go.big.out{margin-top:14px;position:relative;z-index:2}

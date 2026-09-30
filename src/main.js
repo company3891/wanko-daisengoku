@@ -5027,7 +5027,9 @@ function closeRvAll() {
 
 async function doPull(count, noDup) {
   miBump('gacha');   // お役目の数（2026-09-24）
-  SFX.pull();        // みくじを引く音（2026-09-28）
+  /* くじを引く音は、ふだんの押す音と同じにした（2026-09-30）。
+     専用の se_pull は使わなくなったので、音源ごと app/_to_delete/audio へ移した */
+  SFX.pick();
   /* いま選んでいるくじの表から引く（2026-09-28）。URだけ くじごとに絞られている */
   const BASE = poolOf(curGacha(), POOL);
   let pool = BASE;

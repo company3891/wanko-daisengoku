@@ -226,6 +226,13 @@ export function fxBurst(cell, name, opt) {
   return pdur(ms);
 }
 
+/* その種類に置いてある絵の道を、まとめて返す（2026-09-30）。
+   はじめに先読みするために使う。MANIFEST は外から見えないので、ここで包む */
+export function assetUrlsOf(kind) {
+  return (MANIFEST[kind] || [])
+    .filter(f => /\.(webp|png|jpg|jpeg)$/i.test(f))
+    .map(f => `/app/assets/${kind}/${f}`);
+}
 export function uiUrl(name) {
   /* webp を先に見る（2026-09-25）。置くだけで反映の決まりは変えず、
      軽いほうがあればそちらを使う */

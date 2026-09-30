@@ -1,7 +1,7 @@
 // わんこ大戦国 プロトタイプ（2026-09-20）
 // 編成 → 陣形 → 戦闘 → 勝敗。戦闘ルールは sim/src/engine.mjs をそのまま呼ぶ。
 import { runBattle, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
-import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul } from './replay.js';
+import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
 
 import { GACHAS, gachaOf, poolOf, urListOf, urRatesOf } from './gachas.js';
 import { pityOf } from './player.js';
@@ -507,13 +507,68 @@ function saveImportGo(d) {
   }
   location.reload();
 }
+/* ---------------- ロード画面（2026-09-30） ----------------
+   題の画面を押したあと、よく使う絵をまとめて先に読む。
+   前は城へ入ってから一枚ずつ出てきて、そのたびに間が空いていた。
+   ぜんぶ（149MB）は読まない。城とその周りで必ず使うものだけ。
+   家紋がゆっくり回り、信わんが上下にはずみ、下に帯が伸びる */
+const LOAD_KINDS = ['ui', 'attr', 'rarity', 'stat', 'status', 'tag', 'frame', 'item', 'kamon', 'terrain'];
+function loadList() {
+  const out = [];
+  for (const k of LOAD_KINDS) out.push(...assetUrlsOf(k));
+  for (const n of ['home', 'title', 'kamon']) { const u = bgUrl(n); if (u) out.push(u); }
+  /* いま出している部隊の子は、城でもすぐ出るので先に読む */
+  const q = P.squads[P.active] || { nos: [] };
+  for (const no of q.nos) {
+    for (const u of [pawnUrl(no), cardUrl(no, 'front'), faceUrl(no, '笑顔'), faceUrl(no, '通常')]) if (u) out.push(u);
+  }
+  return [...new Set(out)];
+}
+function screenLoading() {
+  const art = bgUrl('kamon') || bgUrl('home');
+  const dog = pawnUrl(1) || heroUrl(1);
+  const pct = Math.max(0, Math.min(100, Math.round((S.load || 0) * 100)));
+  return {
+    bare: true,
+    body: el('div', { class: 'loadwrap' },
+      art ? el('div', { class: 'loadbg', style: `background-image:url("${art}")` }) : null,
+      el('div', { class: 'loadkamon' }, kamon('織田家', 'big')),
+      dog ? keepImg({ class: 'loaddog', src: dog, alt: '' }) : null,
+      el('div', { class: 'loadfoot' },
+        el('div', { class: 'loadtx' }, 'ロード中',
+          el('i', {}, '・'), el('i', {}, '・'), el('i', {}, '・')),
+        el('div', { class: 'loadbar' }, el('i', { style: `width:${pct}%` })))),
+  };
+}
+/* 先読み。読めない絵があっても止まらない（数だけ進める）。
+   絵が早く終わっても 0.9秒は見せる（ぱっと消えると、かえって落ち着かない） */
+async function bootLoad() {
+  const urls = loadList();
+  const t0 = Date.now();
+  let done = 0;
+  const tick = () => { S.load = urls.length ? done / urls.length : 1; draw(); };
+  S.load = 0; tick();
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch { }
+  await Promise.all(urls.map(u => new Promise(res => {
+    const im = new Image();
+    const fin = () => { done++; if (done % 6 === 0 || done === urls.length) tick(); res(); };
+    im.onload = fin; im.onerror = fin;
+    im.src = u;
+  })));
+  S.load = 1; draw();
+  const wait = Math.max(0, 900 - (Date.now() - t0));
+  await new Promise(r => setTimeout(r, wait));
+  S.screen = P.tutorial < 2 ? 'tutorial' : 'home';
+  S.load = null;
+  draw();   // つなぎ音は画面が変わったときに draw が勝手に鳴らす
+}
 function screenTitle() {
   const go = () => {
     askPersist();
-    /* 名乗りが済んでいなければチュートリアルへ、済んでいれば城へ。
-       名乗りの札は draw が P.name を見て勝手に出すので、ここでは画面だけ決める */
-    S.screen = P.tutorial < 2 ? 'tutorial' : 'home';
-    SFX.pick(); draw();
+    /* 先にロード画面をはさむ（2026-09-30）。
+       読み終わったら bootLoad が チュートリアル／城 へ送り出す */
+    S.screen = 'loading'; S.load = 0;
+    SFX.pick(); draw(); bootLoad();
   };
   const logo = uiUrl('title_logo');
   /* 一枚絵。title が無ければ城下町の絵で代える（絵が無くても動く決まり） */
@@ -6792,7 +6847,7 @@ function pageTalk(screen) {
 }
 /* 出陣も題の帯を出さない（2026-09-29）。
    すぐ下に「← 全国へ」と敵の城の語りがあって、どこにいるかは分かる */
-const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march']);
+const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading']);
 
 const SCREENS = {
   title: screenTitle,
@@ -6801,7 +6856,7 @@ const SCREENS = {
   home: screenHome, map: screenMap, squads: screenSquads, dex: screenDex,
   grow: screenGrow, power: screenPower, skillup: screenSkillUp, inherit: screenInherit, shop: screenShop,
   gacha: screenGacha, gachalist: screenGachaList, team: screenTeam, form: screenForm, battle: screenBattle,
-  event: screenEvent,
+  event: screenEvent, loading: screenLoading,
 };
 const SUB = { title: '', tutorial: 'はじまり', home: 'ホーム', map: '全国', march: '出陣', squads: '部隊', dex: '図鑑',
               gacha: 'わんこみくじ', gachalist: 'くじ選び', team: '編成', form: '陣形と配置', battle: '合戦', event: 'お祭り',

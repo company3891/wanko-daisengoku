@@ -4231,3 +4231,43 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .marchtalk .gtbub em{color:#7a3a10;font-size:15px;letter-spacing:.06em}
 .marchtalk .gtbub p{font-family:var(--mincho)}
 .mtwhere{display:block;margin-top:4px;font-size:10px;color:#6b5a3e;letter-spacing:.04em}
+
+/* ---- 押した手ごたえ（2026-09-30）----
+   scale / translate / rotate は transform とは別の性質なので、
+   位置合わせに transform を使っている釦（旗・札など）と喧嘩しない。
+   だから「ぜんぶの釦」にまとめてかけられる */
+button, [role="button"]{ -webkit-tap-highlight-color:transparent;
+  transition: scale .09s ease-out, filter .09s ease-out }
+button:not(:disabled):active, [role="button"]:active{ scale:.955; filter:brightness(1.18) }
+button:disabled:active{ scale:1; filter:none }
+
+/* ---- ロード画面（2026-09-30）----
+   家紋がゆっくり回り、信わんが上下にはずみ、下に「ロード中…」と帯 */
+.loadwrap{position:fixed;inset:0;z-index:5;overflow:hidden;background:#12100e;
+  display:flex;align-items:center;justify-content:center}
+.loadbg{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;
+  filter:brightness(.5) saturate(.85);animation:loadbgz 14s ease-in-out infinite alternate}
+@keyframes loadbgz{from{scale:1.04}to{scale:1.13}}
+.loadwrap::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(58% 46% at 50% 44%, #0000 0%, #000000ad 100%)}
+.loadkamon{position:absolute;top:44%;left:50%;translate:-50% -50%;z-index:2;
+  width:min(76vw,330px);aspect-ratio:1;opacity:.26;animation:loadspin 28s linear infinite}
+.loadkamon .kam{width:100%;height:100%;background:none;border:0;box-shadow:none}
+.loadkamon .kam img{width:100%;height:100%;object-fit:contain}
+@keyframes loadspin{to{rotate:360deg}}
+.loaddog{position:relative;z-index:3;width:min(68vw,300px);height:auto;margin-bottom:6vh;
+  filter:drop-shadow(0 14px 24px #000c);animation:loadbob 1.7s ease-in-out infinite}
+@keyframes loadbob{0%,100%{translate:0 4px;rotate:-2deg}50%{translate:0 -14px;rotate:2deg}}
+.loadfoot{position:absolute;left:0;right:0;bottom:12vh;z-index:4;padding:0 28px;
+  display:flex;flex-direction:column;align-items:center;gap:11px}
+.loadtx{font-family:var(--mincho);font-size:14.5px;letter-spacing:.16em;color:#f0dda6;
+  text-shadow:0 1px 5px #000}
+.loadtx i{font-style:normal;animation:loaddot 1.2s infinite}
+.loadtx i:nth-of-type(2){animation-delay:.18s}
+.loadtx i:nth-of-type(3){animation-delay:.36s}
+@keyframes loaddot{0%,62%,100%{opacity:.22}30%{opacity:1}}
+.loadbar{width:min(300px,78vw);height:11px;border-radius:999px;overflow:hidden;
+  background:#00000082;border:1.5px solid #d8a94a5c;box-shadow:0 2px 9px #0009}
+.loadbar i{display:block;height:100%;border-radius:999px;min-width:2%;
+  background:linear-gradient(90deg,#a8802c,#d8a94a 46%,#f5e2a8);
+  box-shadow:0 0 11px #d8a94a8f;transition:width .25s ease-out}

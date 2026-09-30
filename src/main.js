@@ -3900,7 +3900,11 @@ function cardSheet(c) {
       for (const t of lay.slot) {
         const now = mine2 ? sl[t.slot] : null;
         const nm = now && now.sk ? now.sk.name : null;
-        const moved = patch && t.row != null && nm !== (t.baked || null);
+        /* 自分の持ち物でないとき（敵の札・図鑑の読むだけ）は塗り直さない（2026-09-30）。
+           焼いてある元の技がそのまま正しいのに、
+           「いまの技が無い＝空き」とみなして元の技まで消していた。
+           合戦中に敵の札を開くと、明智ミツワンの特技が三つとも「空き」になっていたのはこれ */
+        const moved = mine2 && patch && t.row != null && nm !== (t.baked || null);
         if (moved) out.push(...redrawSlot(k, patch, t, now, c.no));
         if (t.slot && (moved ? now : sl[t.slot])) out.push(el('b', {
           class: 'clv lv',

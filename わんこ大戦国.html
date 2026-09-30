@@ -6155,8 +6155,11 @@ function applyAttackStatus(src, tgt, ctx) {
     /* 「いずれかの状態異常」は、そのつど三つから選ぶ（2026-09-28・大盗の手癖） */
     const RANDOM_ST = ['ひるみ', '混乱', '感電'];
     const name = a.name === 'ランダム' ? RANDOM_ST[Math.floor(rng() * RANDOM_ST.length)] : a.name;
-    const def = rules.status[name];
-    tgt.statuses[name] = (def && def.dur) || rules.time.secPerTurn * 2;
+    /* 続く長さは「技に書いてある長さ → その状態異常の既定 → 2ターン」の順（2026-09-30）。
+       前は rules.status の名を取りちがえて def.dur を見ていた（正しくは defaultDur）ので、
+       技に「5ターン」と書いてあっても、いつも 2ターンで切れていた */
+    const def = rules.status[name] || {};
+    tgt.statuses[name] = a.dur ?? def.defaultDur ?? rules.time.secPerTurn * 2;
     if (log) log.push({ t: +t.toFixed(1), type: 'status', src: src.id, tgt: tgt.id, name });
   }
 }
@@ -26740,7 +26743,11 @@ function cardSheet(c) {
       for (const t of lay.slot) {
         const now = mine2 ? sl[t.slot] : null;
         const nm = now && now.sk ? now.sk.name : null;
-        const moved = patch && t.row != null && nm !== (t.baked || null);
+        /* 自分の持ち物でないとき（敵の札・図鑑の読むだけ）は塗り直さない（2026-09-30）。
+           焼いてある元の技がそのまま正しいのに、
+           「いまの技が無い＝空き」とみなして元の技まで消していた。
+           合戦中に敵の札を開くと、明智ミツワンの特技が三つとも「空き」になっていたのはこれ */
+        const moved = mine2 && patch && t.row != null && nm !== (t.baked || null);
         if (moved) out.push(...redrawSlot(k, patch, t, now, c.no));
         if (t.slot && (moved ? now : sl[t.slot])) out.push(el('b', {
           class: 'clv lv',

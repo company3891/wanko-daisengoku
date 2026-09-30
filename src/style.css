@@ -750,8 +750,10 @@ button.go.big.out{margin-top:14px}
 .sheet{position:fixed;inset:0;z-index:60;background:#0000006e;
   display:flex;align-items:center;justify-content:center;padding:16px;
   overflow:hidden;overscroll-behavior:contain;touch-action:pan-y}
-/* 札が下の帯に潜らないよう、帯のぶんだけ下を空ける */
-main.hasnav ~ .sheet, .sheet{padding-bottom:calc(16px + var(--nav,104px))}
+/* 札が下の帯に潜らないよう、帯のぶんだけ下を空ける。
+   上はカメラの黒塗り（安全域）ぶんも空ける（2026-09-30） */
+main.hasnav ~ .sheet, .sheet{padding-bottom:calc(16px + var(--nav,104px));
+  padding-top:calc(16px + var(--safetop,0px))}
 /* つまみは横に引くものなので、巻きの決まりから外す */
 .sheet input[type=range]{touch-action:none}
 /* 札の後ろにはいつもの城下町を敷く（2026-09-24）。
@@ -763,8 +765,17 @@ main.hasnav ~ .sheet, .sheet{padding-bottom:calc(16px + var(--nav,104px))}
   backdrop-filter:blur(3px);
   background-image:var(--scrbg,none);background-size:cover;background-position:center top;
   filter:brightness(.4) saturate(.8)}
+/* 札の高さの上限は「入れ物のぶん」ちょうどにする（2026-09-30）。
+   前は 86vh だった。iPhone の Safari では 100vh が「住所の帯が隠れたときの高さ」を指し、
+   帯が出ているあいだの見える高さより大きい。
+   つまり 86vh の札は入れ物（position:fixed の .sheet）よりも背が高くなり、
+   .sheet の overflow:hidden で下が切られていた。
+   切られた先に追従の「閉じる」と『強化する』があるので、
+   ・閉じるの帯が下ナビにかぶって押せない
+   ・札の中が巻けず、特技強化も継承もできない
+   という二つが起きていた。100% なら入れ物と必ず同じ高さで、住所の帯の出入りにも狂わない */
 .card2{background:var(--panel2);border:1px solid var(--gold);border-radius:16px;padding:14px;
-  width:100%;max-width:440px;max-height:86vh;overflow-y:auto;overflow-x:hidden;margin:auto;
+  width:100%;max-width:440px;max-height:100%;overflow-y:auto;overflow-x:hidden;margin:auto;
   overscroll-behavior:contain;touch-action:pan-y;
   animation:up .2s cubic-bezier(.2,.9,.3,1.1)}
 @keyframes up{from{transform:translateY(14px) scale(.98);opacity:0}to{transform:none;opacity:1}}
@@ -1629,6 +1640,11 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 /* 育成の箱は画面に直接置くので、シートの .card2 が持つ内側スクロールは要らない。
    付いたままだと右に細いバーが出しっぱなしになる（2026-09-21） */
 .growbox{max-height:none;overflow:visible;animation:none}
+/* ただし札（ポップアップ）の中に入れたときは別（2026-09-30）。
+   .sheet はもう巻けないので、max-height:none のままだと箱が入れ物からはみ出し、
+   下ぎわの「閉じる」も『強化する』も画面の外（下ナビの下）へ行って押せなかった。
+   札の中では、ふつうの .card2 と同じに 入れ物ぴったり＋中を巻く に戻す */
+.sheet > .card2.growbox{max-height:100%;overflow-y:auto;overflow-x:hidden}
 .growbox h3{margin:16px 0 6px;font-size:11px;letter-spacing:.1em;color:var(--text3);font-weight:700}
 /* 経験のゲージ */
 .expbar{position:relative;height:16px;border-radius:999px;background:#ffffff12;
@@ -2629,7 +2645,7 @@ main.hasnav{padding-bottom:124px}
 .fcard.on .ftg{color:#fff}
 /* 遊び方（合戦の手引き・2026-09-24） */
 .helpbox{max-width:460px}
-.helplist{max-height:62vh;overflow:auto;-webkit-overflow-scrolling:touch;
+.helplist{max-height:62dvh;overflow:auto;-webkit-overflow-scrolling:touch;
   margin:8px 0 10px;padding-right:2px}
 .hsec{background:#ffffff08;border:1px solid #ffffff10;border-radius:10px;
   padding:10px 12px;margin-bottom:8px}
@@ -2670,8 +2686,8 @@ main.hasnav{padding-bottom:124px}
 
 /* 一覧。画面の高さに収めて、中だけを転がす */
 .nwbody{position:relative;display:flex;flex-direction:column;gap:10px;
-  max-height:58vh;overflow-y:auto;padding-right:2px}
-.nwbody.one{max-height:64vh}
+  max-height:58dvh;overflow-y:auto;padding-right:2px}
+.nwbody.one{max-height:64dvh}
 .nwrow{display:block;width:100%;padding:0 0 8px;border-radius:10px;overflow:hidden;
   background:var(--pop);border:1px solid var(--edge);text-align:left;cursor:pointer}
 .nwrow.new{border-color:#d8a94a66}
@@ -2737,7 +2753,7 @@ main.hasnav{padding-bottom:124px}
 .card2.frbox{max-width:380px;display:flex;flex-direction:column;gap:10px}
 .frttl{font-size:15px;letter-spacing:.1em;text-align:center}
 .frnote{margin:0;text-align:center;font-size:12px;color:#8f8368;line-height:1.7}
-.frlist{display:flex;flex-direction:column;gap:6px;max-height:56vh;overflow-y:auto}
+.frlist{display:flex;flex-direction:column;gap:6px;max-height:56dvh;overflow-y:auto}
 .frrow{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;
   background:var(--pop);border:1px solid var(--edge);text-align:left;cursor:pointer}
 .frrow:active{transform:scale(.995)}
@@ -2821,7 +2837,7 @@ main.hasnav{padding-bottom:124px}
   background:var(--red,#e0654f);color:#fff;border:1px solid #12100e;box-shadow:0 1px 3px #0008}
 .mitabs{overflow:visible;padding-top:3px}
 
-.milist{display:flex;flex-direction:column;gap:7px;max-height:54vh;overflow-y:auto;padding-right:2px}
+.milist{display:flex;flex-direction:column;gap:7px;max-height:54dvh;overflow-y:auto;padding-right:2px}
 /* 1行＝お役目ひとつ。左に文と褒美、右に GET。下に細い帯で進み具合 */
 .mirow{display:grid;grid-template-columns:1fr auto;grid-template-areas:'txt btn' 'bar btn' 'num btn';
   align-items:center;gap:2px 10px;padding:9px 10px;border-radius:10px;
@@ -2864,7 +2880,7 @@ main.hasnav{padding-bottom:124px}
 .card2.ttbox{max-width:340px;display:flex;flex-direction:column;gap:12px}
 .ttsub{margin:0;text-align:center;font-size:11.5px;color:#8f8368;line-height:1.7}
 /* 額が増えて段が増えたので、見える高さを広げた（2026-09-25） */
-.ttlist{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-height:58vh;overflow-y:auto;padding:2px}
+.ttlist{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-height:58dvh;overflow-y:auto;padding:2px}
 .ttc{padding:9px 14px;border-radius:9px;font-size:12.5px;font-weight:700;letter-spacing:.08em;
   background:var(--pop);border:1px solid var(--edge);color:var(--text2);cursor:pointer}
 .ttc.on{background:linear-gradient(#f0dda6,#d8a94a);border-color:var(--gold);color:#231a06;
@@ -2969,7 +2985,9 @@ main.hasnav{padding-bottom:124px}
 .pbar button.tapic:active{transform:scale(.94)}
 
 /* ---- 番付（2026-09-25）---- */
-.rkbox{max-height:82vh;display:flex;flex-direction:column}
+/* 高さは入れ物ぴったり（2026-09-30）。82vh だと iPhone で住所の帯のぶんはみ出し、
+   下ぎわの「閉じる」が下ナビに潜って押せなかった */
+.rkbox{max-height:100%;display:flex;flex-direction:column}
 .rkhead{display:flex;gap:8px;margin:6px 0 4px}
 .rkhead>div{flex:1;background:#ffffff0d;border:1px solid var(--line);border-radius:10px;
   padding:7px 6px;text-align:center;line-height:1.2}
@@ -3448,7 +3466,9 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
    お役目・友・称号と同じ明るい仕立てにそろえる。
    中身（経験の帯・ステータス・魂の行・覚醒の品）は黒地むけの色で書いてあるので、
    ここで明るいほうへ寄せ直す。黒漆で通すのは育成の「画面」のほうだけ */
-.card2.pwbox{width:min(360px,92vw);max-height:84vh;overflow:auto;text-align:left}
+/* 高さは入れ物ぴったり（2026-09-30）。84vh だと iPhone ではみ出して中が巻けず、
+   『強化する』にも「閉じる」にも届かなかった */
+.card2.pwbox{width:min(360px,92vw);max-height:100%;overflow:auto;text-align:left}
 
 /* 稽古の札のなかの段 */
 .pwbox .pwlv{display:flex;align-items:baseline;gap:7px;margin:0 0 9px}
@@ -4186,7 +4206,7 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
   background:#fffffff2;color:#2a241c;box-shadow:0 1px 3px #0009}
 
 /* 出す部隊をえらぶ札（2026-09-29）。全国の出陣画面と同じ部隊の札をそのまま使う */
-.sqbox{width:min(370px,calc(100vw - 24px));max-height:78vh;overflow-y:auto;text-align:center}
+.sqbox{width:min(370px,calc(100vw - 24px));max-height:100%;overflow-y:auto;text-align:center}
 .sqttl{display:block;font-family:var(--mincho);font-size:18px;letter-spacing:.12em;
   color:var(--gold);margin-bottom:4px}
 .sqbox .sqlist{margin:10px 0 4px}
@@ -4286,7 +4306,7 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 
 /* 道具の札は、品が増えても「閉じる」が隠れない（2026-09-29）。
    箱を縦に区切り、品の並びだけを流す */
-.card2.prepbox{display:flex;flex-direction:column;max-height:82dvh;
+.card2.prepbox{display:flex;flex-direction:column;max-height:100%;
   width:min(370px,calc(100vw - 24px))}
 .card2.prepbox .shoplist{flex:1 1 auto;min-height:0;overflow-y:auto;
   -webkit-overflow-scrolling:touch}

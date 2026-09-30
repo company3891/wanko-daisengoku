@@ -7451,8 +7451,13 @@ function draw() {
      前の画面の高さが残ったままだと、追従の戻る釦が宙に浮く */
   /* 帯を下から 8px 浮かせたので（2026-09-30）、高さだけでは足りない。
      画面の下ぎわから帯の上ぎわまでを測って渡す */
+  /* 帯は下から浮かせてあり、座（丸い絵）は帯より上へはみ出している（2026-09-30）。
+     いちばん上に出ているところから測らないと、本文が座に潜り込む */
+  let navTop = nv ? nv.getBoundingClientRect().top : innerHeight;
+  if (nv) for (const i of nv.querySelectorAll('.nv i'))
+    navTop = Math.min(navTop, i.getBoundingClientRect().top);
   document.documentElement.style.setProperty('--nav',
-    (nv ? Math.round(innerHeight - nv.getBoundingClientRect().top) : 0) + 'px');
+    (nv ? Math.round(innerHeight - navTop) : 0) + 'px');
   /* 札（ポップアップ）の後ろに敷く絵（2026-09-24）。
      合戦の盤面だけは敷かない。勝敗の札の後ろに盤面が見えていてほしいので */
   const sbg = S.screen === 'battle' ? null : bgUrl('home');

@@ -1294,7 +1294,8 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
    左右と下を空けて浮かせ、後ろの絵をぼかして透かす。
    金の細線を一本だけ引いて、ほかの画面の縁と同じ顔にする。 */
 .nav.framed{border-top:0;position:fixed;
-  left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));
+  /* 下は 3px だけ空ける（2026-09-30）。左右も 8px まで詰めて、座の並ぶ幅を稼ぐ */
+  left:8px;right:8px;bottom:calc(3px + env(safe-area-inset-bottom));
   background:#0e1a3380;
   -webkit-backdrop-filter:blur(18px) saturate(1.3);
   backdrop-filter:blur(18px) saturate(1.3);
@@ -2272,20 +2273,32 @@ header{padding:8px 12px 8px}
      --nav-corner … 角飾りの横幅＝border-image の左右の幅
    歪ませないための決まり：--nav-corner / --nav-h ＝ 絵の角飾り幅 / 絵の高さ
    いまの絵は108 / 312で、高さ104pxのとき角飾り36px。 */
-/* 角飾りが無くなったので、左右の余白はただの余白（2026-09-30） */
-.nav.framed{--nav-h:88px}
-.nav.framed{min-height:var(--nav-h);padding-left:14px;padding-right:14px}
+/* 帯は三分の二の高さに、座は城と同じ大きさに（2026-09-30）。
+   帯（88px）は座のまわりが空きすぎていたので 59px に。
+   座は 53 → 65px（城と同じ）。帯より座のほうが大きいので、
+   丸が帯から少しはみ出して乗っている見た目になる。
+   はみ出させるため、帯の高さは min-height ではなく height で決め打ちし、
+   上下の内余白は 0 にしてある（安全域は帯の bottom 側で見ている） */
+.nav.framed{--nav-h:59px}
+.nav.framed{min-height:var(--nav-h);height:var(--nav-h);
+  padding:0 6px;align-items:center;overflow:visible}
 /* 角飾りが 36 → 65px に太くなったので、座をひと回り落として重ならないようにする
    （393 − 65×2 = 263px を5つで分ける・2026-09-23） */
-/* 座はガラス帯に合わせてひと回り大きく。城だけ帯から少し顔を出す（2026-09-30） */
-.nav.framed .nv.pic i{width:53px;height:53px}
-.nav.framed .nv.pic.home i{width:65px;height:65px;margin-top:-16px}
+/* 座はぜんぶ城と同じ 65px。城だけもう少し上へ出す（2026-09-30） */
+.nav.framed .nv{height:100%;overflow:visible}
+/* 座は帯より大きいので、下へはみ出すと画面の端（ホームバー）に当たる。
+   上へ逃がす（2026-09-30） */
+.nav.framed .nv.pic i{flex:0 0 auto;width:65px;height:65px;margin:0 0 18px}
+/* 城も他と同じ高さに並べる（2026-09-30）。ひとつだけ持ち上げるのはやめた */
+.nav.framed .nv.pic.home i{width:65px;height:65px;margin-top:0}
+/* 名は座の幅いっぱいに置く。はみ出させると隣とぶつかって見える */
+.nav.framed .nv.pic i span{left:0;right:0}
 .nav.framed .nv.pic i span{font-size:10.5px;bottom:5px;left:-12%;right:-12%}
 /* iPhone SE（375px）級の細い画面では座をひと回り落として、画面からはみ出さないようにする */
 @media (max-width:380px){
-  .nav.framed{--nav-h:82px}
-  .nav.framed .nv.pic i{width:49px;height:49px}
-  .nav.framed .nv.pic.home i{width:60px;height:60px;margin-top:-15px}
+  .nav.framed{--nav-h:55px}
+  .nav.framed .nv.pic i{width:60px;height:60px;margin:0 0 16px}
+  .nav.framed .nv.pic.home i{width:60px;height:60px;margin-top:0}
   .nav.framed .nv.pic i span{font-size:10px;bottom:4px;left:-12%;right:-12%}
 }
 /* 枠の絵が無いときの素のナビも、同じだけ大きくする */
@@ -30338,8 +30351,13 @@ function draw() {
      前の画面の高さが残ったままだと、追従の戻る釦が宙に浮く */
   /* 帯を下から 8px 浮かせたので（2026-09-30）、高さだけでは足りない。
      画面の下ぎわから帯の上ぎわまでを測って渡す */
+  /* 帯は下から浮かせてあり、座（丸い絵）は帯より上へはみ出している（2026-09-30）。
+     いちばん上に出ているところから測らないと、本文が座に潜り込む */
+  let navTop = nv ? nv.getBoundingClientRect().top : innerHeight;
+  if (nv) for (const i of nv.querySelectorAll('.nv i'))
+    navTop = Math.min(navTop, i.getBoundingClientRect().top);
   document.documentElement.style.setProperty('--nav',
-    (nv ? Math.round(innerHeight - nv.getBoundingClientRect().top) : 0) + 'px');
+    (nv ? Math.round(innerHeight - navTop) : 0) + 'px');
   /* 札（ポップアップ）の後ろに敷く絵（2026-09-24）。
      合戦の盤面だけは敷かない。勝敗の札の後ろに盤面が見えていてほしいので */
   const sbg = S.screen === 'battle' ? null : bgUrl('home');

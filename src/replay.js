@@ -40,7 +40,7 @@ const TER_SCALE = { BRIDGE: 1.9, MUD: 1.34, DEEP_WATER: 1.18, SHALLOW_WATER: 1.1
    webp → png → jpg の順に、置いてあるものを拾う。
    これで「png を置くだけ」も「webp を置くだけ」も同じように効く。
    ウェブに載せるとき、絵をまとめて webp に焼き直しても壊れないようにするため */
-const EXTS = ['.webp', '.png', '.jpg'];
+const EXTS = ['.webp', '.png', '.jpg', '.jpeg'];
 function pickFile(kind, base) {
   const list = MANIFEST[kind] || [];
   for (const e of EXTS) if (list.includes(base + e)) return base + e;
@@ -238,8 +238,7 @@ export function statUrl(name) { return pickUrl('stat', name); }
 /* キャラカード（2026-09-21）。表裏の2枚組で、元は1枚の絵を左右に分けたもの。
    一覧では表だけを出し、開いたときに表裏を並べて見せる。 */
 export function cardUrl(no, side) {
-  const f = `${String(no).padStart(3, '0')}_${side || 'front'}.jpg`;
-  return (MANIFEST.card || []).includes(f) ? `/app/assets/card/${f}` : null;
+  return pickUrl('card', `${String(no).padStart(3, '0')}_${side || 'front'}`);
 }
 /* 継いだ特技の絵（2026-09-27）。
    app/assets/skillart/<技名>.png を置けばそのまま出る。無ければ薄い囲いのまま。
@@ -254,8 +253,7 @@ export function skillArtUrl(name) {
 /* 継いだ特技を描き替えるための、まっさらな和紙の切れはし（2026-09-27）。
    特技3枠のぶんを1枚にしてある。無ければ描き替えはあきらめ、焼いた字のまま出す */
 export function cardPatchUrl(no) {
-  const f = `${String(no).padStart(3, '0')}_patch.jpg`;
-  return (MANIFEST.card || []).includes(f) ? `/app/assets/card/${f}` : null;
+  return pickUrl('card', `${String(no).padStart(3, '0')}_patch`);
 }
 /* 札に重ねる「育てば変わる数」の置き場所（2026-09-27）。
    升の数値と特技の位は焼いていないので、ここの座標へアプリが今の値を重ねる。
@@ -268,8 +266,7 @@ export const CARD_BASE = () => [(MANIFEST.cardlay || {}).w || 864, (MANIFEST.car
    「未奉公」＝まだ仕えていない、の意。図鑑などで中身を伏せて並べる。
    app/assets/card/未奉公_front.jpg ／ 未奉公_back.jpg */
 export function unknownCardUrl(side) {
-  const f = `未奉公_${side || 'front'}.jpg`;
-  return (MANIFEST.card || []).includes(f) ? `/app/assets/card/${f}` : null;
+  return pickUrl('card', `未奉公_${side || 'front'}`);
 }
 // 画面の背景。素材が置かれていなければ null（仮の塗りで表示する）
 // jpg でも png でも、置いてあるほうを拾う
@@ -948,6 +945,38 @@ const firstHave = (n) => {
 export function bgm(name) { playLoop('bgm', firstHave(name)); }
 export function ambient(name) { playLoop('amb', firstHave(name)); }
 export function stopAllLoops() { bgm(null); ambient(null); }
+
+/* 画面を離れたら音を止める（2026-09-30）。
+   iPhone の Safari は、ほかの画面へ移っても・本体を閉じても鳴りっぱなしになる。
+   隠れたら止め、戻ってきたら「止める前に鳴っていたもの」だけ鳴らし直す。
+   loops[kind].name を照らし合わせるので、留守のあいだに曲が変わっていれば鳴らさない */
+let HIDDEN_LOOPS = null;
+function soundSleep() {
+  HIDDEN_LOOPS = {};
+  for (const k of ['bgm', 'amb']) {
+    const cur = loops[k];
+    if (cur) { HIDDEN_LOOPS[k] = cur.name; try { cur.el.pause(); } catch { } }
+  }
+  for (const pool of sePool.values()) for (const a of pool) {
+    try { a.pause(); a.currentTime = 0; } catch { }
+  }
+}
+function soundWake() {
+  const keep = HIDDEN_LOOPS; HIDDEN_LOOPS = null;
+  if (!keep || !SOUND_ON) return;
+  for (const k of ['bgm', 'amb']) {
+    const cur = loops[k];
+    if (cur && keep[k] === cur.name && mixOf(k) > 0) cur.el.play().catch(() => { });
+  }
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) soundSleep(); else soundWake();
+  });
+  /* iOS は本体を閉じたとき visibilitychange が来ないことがあるので、pagehide でも受ける */
+  window.addEventListener('pagehide', soundSleep);
+  window.addEventListener('pageshow', soundWake);
+}
 
 const SYNTH = {
   hit:  () => { noise({ dur: .09, gain: .05, hp: 1200 }); tone({ f: 190, to: 90, dur: .1, type: 'triangle', gain: .05 }); },

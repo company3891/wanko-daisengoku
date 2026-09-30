@@ -4969,7 +4969,9 @@ function faceBtn(c) {
 // カード1枚ぶんの絵。読み込めなかったら、その場で札に差し替える
 function cardImg(c) {
   return keepImg({
-    class: 'cf', src: cardArt(c), alt: c.name || '', loading: 'lazy',
+    /* iPhone の Safari は、大きな絵をたくさん並べると読み込みを投げ出す（2026-09-30）。
+       あとまわし（lazy）に加えて、組み立てと別の筋で解かせる（async） */
+    class: 'cf', src: cardArt(c), alt: c.name || '', loading: 'lazy', decoding: 'async',
     onerror: e => {
       const box = e.target.parentNode; e.target.remove();
       if (!box) return;

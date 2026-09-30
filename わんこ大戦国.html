@@ -2215,14 +2215,10 @@ main.hasnav{padding-bottom:124px}
 
 /* ガチャの背景は絵の上端に題字が入っているので、ヘッダーのぶんだけ下げて置く（2026-09-22）。
    --hdr は draw() が毎回入れる。ホームなどの背景はこれまでどおり上まで通す */
-/* くじの景色を 200px 上へ（2026-09-30）。
-   絵を動かすだけだと下に隙間が空くので、箱そのものを上へ200px伸ばしてから上げる。
-   こうすると cover が伸びた箱を埋めるので、隙間なく上に寄る */
-.gacha.art .bgfull{top:calc(var(--hdr,0px) - 200px);
-  height:calc(100vh - var(--hdr,0px) + 200px)}
-/* ただし はじまりの十連はそのままの大きさ（2026-09-30）。
-   箱を伸ばすと cover が絵を引き伸ばすので、五英雄の顔が画面から切れてしまう */
-.gacha.tutg.art .bgfull{top:var(--hdr,0px);height:calc(100vh - var(--hdr,0px))}
+/* 箱ごと伸ばして上げるのはやめた（2026-09-30）。
+   cover が絵を引き伸ばすので、どのくじも題字が画面から切れてしまった。
+   上に寄せたいくじは gachas.js の bgUp に数を書く（絵の大きさは変えずに動かすだけ） */
+.gacha.art .bgfull{top:var(--hdr,0px);height:calc(100vh - var(--hdr,0px))}
 .gacha.art .bgfull::after{background:linear-gradient(180deg,#12100e88 0,#12100e22 12%,#12100e00 34%,#12100e00 62%,#12100e66 100%)}
 
 
@@ -10141,6 +10137,8 @@ const lkTied = P => LK_TIES.filter(t => (P.link && P.link.ties || {})[t.id]).len
    pick    ピックアップ。新入りなど、そのくじで特に出したいURの武将番号
    pickUp  ピックアップがUR枠のうち何割を占めるか。書かなければ半分（0.5）
    urs     ピックアップ以外に、そのくじで出るURの武将番号
+   bgUp    後ろの絵を何px上に寄せるか（2026-09-30）。書かなければ動かさない。
+           絵の大きさは変えないので、下に空いたぶんは みくじの帯が隠す
    どちらも書かなければ、これまでどおり全部のURが同じ率で出る。
 
    UR以外（SSR・SR・R・N）は どのくじでも同じ顔ぶれ・同じ率。 */
@@ -10149,6 +10147,7 @@ const GACHAS = [
     id: 'kamimatsuri1', name: '神キャラ祭り第一弾', sub: '戦国を支えた者達',
     until: '2026/11/30 23:59',
     words: '祭りじゃ。剣聖と茶聖が、ひときわ出やすうなっておる',
+    bgUp: 80,                    // 題字を残したまま、二匹を少し大きく見せる（2026-09-30）
     pick: [103, 104],            // 宮本ムサシ土佐・千リキュパグ（新入り）
     urs:  [2, 38, 61, 71],       // 信長わんは門出のくじだけ。ここには出さない
   },
@@ -26719,7 +26718,12 @@ function gachaBgEl(inBox) {
       gachaVid(mv, still),
       el('div', { class: 'bgfull' }));
   }
-  return keepBg(still, 'bgfull');
+  /* くじごとに絵を上へ寄せる（2026-09-30）。gachas.js の bgUp に px で書く。
+     箱を伸ばすと cover が絵を引き伸ばして題字が切れるので、動かすだけにしてある。
+     下に空いたぶんは みくじの帯とフッターが隠す */
+  const node = keepBg(still, 'bgfull');
+  if (node) node.style.backgroundPosition = curGacha().bgUp ? `center -${curGacha().bgUp}px` : '';
+  return node;
 }
 /* 音の種類ごとの一行（2026-09-28）。入り切りの札と、つまみを一段に。
    数（%）は出さない。どれくらい鳴るかは耳で決めるもの。

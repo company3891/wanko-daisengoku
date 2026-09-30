@@ -4063,7 +4063,12 @@ function gachaBgEl(inBox) {
       gachaVid(mv, still),
       el('div', { class: 'bgfull' }));
   }
-  return keepBg(still, 'bgfull');
+  /* くじごとに絵を上へ寄せる（2026-09-30）。gachas.js の bgUp に px で書く。
+     箱を伸ばすと cover が絵を引き伸ばして題字が切れるので、動かすだけにしてある。
+     下に空いたぶんは みくじの帯とフッターが隠す */
+  const node = keepBg(still, 'bgfull');
+  if (node) node.style.backgroundPosition = curGacha().bgUp ? `center -${curGacha().bgUp}px` : '';
+  return node;
 }
 /* 音の種類ごとの一行（2026-09-28）。入り切りの札と、つまみを一段に。
    数（%）は出さない。どれくらい鳴るかは耳で決めるもの。

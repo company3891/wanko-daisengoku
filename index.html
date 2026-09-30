@@ -1168,7 +1168,10 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 
 .sheet.cards{align-items:center;flex-direction:column;justify-content:center;gap:10px;
   /* 札が上に寄りすぎて、時計や島に近すぎた。50px 下げる（2026-09-30） */
-  padding:62px 12px 12px;
+  /* 上の余白に安全域（カメラの黒塗り）を足す（2026-09-30 夜）。
+     まとめ書きの padding で .sheet の calc(16px + --safetop) を打ち消しており、
+     実機では札の頭が黒塗りに食われて「猛将」や位の星が切れていた */
+  padding:calc(var(--safetop,0px) + 62px) 12px 12px;
   overflow-y:auto;touch-action:pan-y}
 .cardwrap{display:flex;gap:8px;width:100%;max-width:520px;align-items:flex-start;
   justify-content:center}
@@ -1190,9 +1193,11 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 /* 札は開いたらいきなり大きく（2026-09-30）。
    画面に収まる幅にしぼる。札は 864×1280（＝横は縦の 0.675 倍）なので、
    使える高さから横幅を割り出す。下の四つの釦と一行の案内ぶんを引いてある */
-.sheet.cards.one{justify-content:flex-start;gap:12px;padding-top:26px}
+/* 大きく出す札は、安全域＋31px から（26px にさらに 5px 下げた・2026-09-30 夜） */
+.sheet.cards.one{justify-content:flex-start;gap:12px;
+  padding-top:calc(var(--safetop,0px) + 31px)}
 .sheet.cards.one .cardwrap{position:relative;
-  max-width:min(520px, calc((100dvh - var(--nav,104px) - 150px) * 0.675))}
+  max-width:min(520px, calc((100dvh - var(--nav,104px) - var(--safetop,0px) - 155px) * 0.675))}
 .sheet.cards.one .cdc{animation:up .2s cubic-bezier(.2,.9,.3,1.1)}
 .sheet.cards.one .cdc img{-webkit-user-drag:none;user-select:none}
 /* 表と裏の行き来。札の外がわ、上下の真ん中に置く */

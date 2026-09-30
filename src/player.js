@@ -192,8 +192,12 @@ for (const w of WEATHERS) {
    イベントのガチャを引く札。石では引けず、イベントを勝ち抜いた褒美でしか手に入らない。
    イベントとイベントガチャは後日。いまは札を持つところまで */
 export const TICKET = '祭の札';
+/* 一度引く＝1枚、十連＝10枚（2026-09-30）。
+   石と同じ数え方にしておくと、褒美で配った枚数がそのまま
+   「あと何回引けるか」になって、遊ぶ人が数えなくて済む */
+export const TICKET_PRICE = { single: 1, ten: 10 };
 ITEMS[TICKET] = { kind: 'お祭り', ticket: 1, noShop: true,
-  desc: 'イベントのガチャを1回引ける（勾玉では引けない）' };
+  desc: `祭りのくじを引く札。一度引くに1枚、十連に${TICKET_PRICE.ten}枚` };
 
 /* ---------------- 覚醒の品（2026-09-23 改訂） ----------------
    ・「無銘」は代用品ではなく、**いちばん下の覚醒素材**。籠手→具足→兜の三段で、数を積む
@@ -841,10 +845,16 @@ export function pityOf(id) {
   return P.pity[id];
 }
 
-export function pull(count, pool, gid) {
+export function pull(count, pool, gid, opt = {}) {
   const free = count === 10 && P.firstFree;
-  const cost = free ? 0 : (count === 10 ? PRICE.ten : PRICE.single);
-  if (cost && !spendStones(cost)) return null;
+  /* 祭りのくじは札で引ける（2026-09-30）。
+     opt.ticket が立っているくじでは、札を先に減らし、足りなければ石に落ちる。
+     石は貯めておきたい人が多いので、持っている札から使い切るほうが親切 */
+  const tneed = count === 10 ? TICKET_PRICE.ten : TICKET_PRICE.single;
+  const byTicket = !free && !!opt.ticket && item(TICKET) >= tneed;
+  const cost = (free || byTicket) ? 0 : (count === 10 ? PRICE.ten : PRICE.single);
+  if (byTicket) P.items[TICKET] -= tneed;
+  else if (cost && !spendStones(cost)) return null;
   const base = omikujiBase();
   const start = P.draws;          // 御籤番号は くじをまたいだ通し番号のまま
   const Q = pityOf(gid);          // 天井の数えは そのくじのぶん
@@ -882,7 +892,9 @@ export function pull(count, pool, gid) {
   Q.draws = (Q.draws || 0) + items.length;
   if (free) P.firstFree = false;
   savePlayer();
-  return { items, cost, free, gifts, ticket: `${base.toString(16).padStart(8, '0')}-${start + 1}` };
+  /* ticket は御籤番号。払った札の枚数は paidTicket（名がかぶるので分けた・2026-09-30） */
+  return { items, cost, free, paidTicket: byTicket ? tneed : 0, gifts,
+           ticket: `${base.toString(16).padStart(8, '0')}-${start + 1}` };
 }
 
 /* ================= はじまりの一騎 =================

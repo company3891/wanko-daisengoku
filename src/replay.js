@@ -595,11 +595,14 @@ export function pawns(board, initial) {
     st0.innerHTML = `<span class="n">${u.name.slice(0, 5)}</span>`;
     p.append(st0);
     /* 総大将は「のぼりを背負う」（2026-09-29）。
-       丸い印より、どちらの大将かが遠目で分かる。味方は赤、敵は青。
+       丸い印より、どちらの大将かが遠目で分かる。
+       自軍が青、敵将が赤に入れ替えた（2026-09-30）。
+       地図の制覇ののぼりが赤だと紙の色と同化して見えなかったので、
+       制覇＝青にそろえ、戦いの画面もそちらに合わせた。
        のぼりの絵が無いときだけ、これまでの丸い印に落ちる（絵が無くても動く）。
        ※ innerHTML のあとに足すこと。先に足すと中身ごと消える */
     if (u.isGeneral) {
-      const nob = uiUrl(u.side === 'B' ? 'nobori_青' : 'nobori_赤');
+      const nob = uiUrl(u.side === 'B' ? 'nobori_赤' : 'nobori_青');
       if (nob) {
         const g = document.createElement('img');
         g.className = 'nobori'; g.src = nob; g.alt = '総大将';
@@ -608,7 +611,7 @@ export function pawns(board, initial) {
         st0.prepend(g);
         p.classList.add('hasnob');
       } else {
-        const mk = uiUrl(u.side === 'B' ? 'general_mark_blue' : 'general_mark_red') || uiUrl('general_mark');
+        const mk = uiUrl(u.side === 'B' ? 'general_mark_red' : 'general_mark_blue') || uiUrl('general_mark');
         if (mk) {
           const g = document.createElement('img');
           g.className = 'gmark'; g.src = mk; g.alt = '総大将';

@@ -6,7 +6,7 @@ import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapsh
 import { GACHAS, gachaOf, poolOf, urListOf, urRatesOf } from './gachas.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
-import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, newSquad, owns, stones, pull, giveReward, rewardMulOf, sparReward, grantStarter, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
+import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, giveReward, rewardMulOf, sparReward, grantStarter, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
@@ -1223,9 +1223,11 @@ function flagBtn(p, open) {
     disabled: ok ? null : true,
     title: ok ? `${p.name}　${p.house}` : 'まだ行けぬ',
   },
-    /* 制した国には赤ののぼりを立てる（2026-09-29）。
-       家紋の縁を光らせるだけでは、地図を引いて見たときに分からなかった */
-    taken && uiUrl('nobori_赤') ? keepImg({ class: 'fnob', src: uiUrl('nobori_赤'), alt: '制覇' }) : null,
+    /* 制した国にはのぼりを立てる（2026-09-29）。
+       家紋の縁を光らせるだけでは、地図を引いて見たときに分からなかった。
+       色は青にした（2026-09-30）。地図の紙が茶と朱なので、赤だと同化して見えない。
+       戦いの画面とも揃えた（自軍＝青／敵＝赤） */
+    taken && uiUrl('nobori_青') ? keepImg({ class: 'fnob', src: uiUrl('nobori_青'), alt: '制覇' }) : null,
     kamon(p.house, 'onmap'), el('span', { class: 'fn' }, ok ? p.house : '？'));
 }
 function japanMap(maps, open, reg) {
@@ -4114,8 +4116,13 @@ function screenGachaList() {
 const RAR_WORD = { N: '木札', R: '青の光', SR: '朱と金', SSR: '金の巻物', UR: '紫雲に虹' };
 function screenGacha() {
   const g = S.gacha;
-  const canOne = stones() >= PRICE.single;
-  const canTen = P.firstFree || stones() >= PRICE.ten;
+  /* 祭の札で引けるくじでは、札が先（2026-09-30）。
+     持っていれば値札が札に変わり、尽きたら黙って石の値札に戻る */
+  const tkt = curGacha().ticket ? item(TICKET) : 0;
+  const byOne = tkt >= TICKET_PRICE.single;
+  const byTen = tkt >= TICKET_PRICE.ten;
+  const canOne = byOne || stones() >= PRICE.single;
+  const canTen = P.firstFree || byTen || stones() >= PRICE.ten;
   const [toSSR, toUR] = pityLeft();
   /* 宝の前の景色は、引いてから札を見終わるまで敷いたままにする（2026-09-26） */
   /* 演出のさなか（宝の前・一体ずつの見せ場）は、下の帯も引く釦も出さない */
@@ -4136,9 +4143,15 @@ function screenGacha() {
         : S.rvall ? revealAll(S.rvall)
         : waiting ? gachaBox()
         : el('div', { class: 'pulls' + (uiUrl('pull_one') || uiUrl('pull_ten') ? ' art' : '') },
-            pullBtn('one', '一度引く', `${num(PRICE.single)} 石`, canOne, () => doPull(1)),
+            pullBtn('one', '一度引く',
+              byOne ? tktPrice(TICKET_PRICE.single) : `${num(PRICE.single)} 石`,
+              canOne, () => doPull(1),
+              byOne ? `祭の札 ${TICKET_PRICE.single}枚` : null),
             pullBtn('ten' + (P.firstFree ? ' free' : ''), '十連',
-              P.firstFree ? '初回無料' : `${num(PRICE.ten)} 石`, canTen, () => doPull(10))),
+              P.firstFree ? '初回無料'
+                : byTen ? tktPrice(TICKET_PRICE.ten) : `${num(PRICE.ten)} 石`,
+              canTen, () => doPull(10),
+              (!P.firstFree && byTen) ? `祭の札 ${TICKET_PRICE.ten}枚` : null)),
       S.rv || S.rvall ? null : (g ? gachaResult(g) : null),
       S.rates ? ratesSheet(toSSR, toUR) : null,
       S.shop ? shopSheet() : null))(gachaBgEl(inBox)),
@@ -4155,6 +4168,10 @@ function gachaTop() {
     /* 「← くじ選び」といまのくじの名は出さない（2026-09-28）。
        下の帯の「ガチャ」がくじ選びへ戻る道になっているし、
        どのくじかは後ろの絵が語る。上に字を並べると景色のじゃまになる */
+    /* 祭りのくじでは、持っている札もここに出す（2026-09-30）。
+       石と同じ並びに置くと「どちらで引くのか」が値札と突き合わせて分かる */
+    curGacha().ticket ? el('div', { class: 'gstone' }, itemIcon(TICKET),
+      el('b', {}, num(item(TICKET)))) : null,
     el('div', { class: 'gstone' }, curIcon('stone'), el('b', {}, num(stones()))),
     el('button', { class: 'detail', onclick: () => { S.rates = true; draw(); } },
       el('i', {}, '?'), '詳細'));
@@ -4748,9 +4765,14 @@ function ratesSheet(toSSR, toUR) {
         el('div', { class: 'rw' }, el('span', { class: 'r-' + r }, rarTag(r, 'sm')),
           el('b', {}, `${(RATES[r] * 100).toFixed(0)}%`)))),
       el('h3', {}, '価格'),
+      /* 祭りのくじは札で引ける（2026-09-30）。札が先、尽きたら石 */
       el('div', { class: 'rtab' },
-        row('一祈り', `${num(PRICE.single)} 石`),
-        row('十連', `${num(PRICE.ten)} 石`)),
+        row('一祈り', curGacha().ticket
+          ? `${TICKET}${TICKET_PRICE.single}枚／なければ ${num(PRICE.single)} 石`
+          : `${num(PRICE.single)} 石`),
+        row('十連', curGacha().ticket
+          ? `${TICKET}${TICKET_PRICE.ten}枚／なければ ${num(PRICE.ten)} 石`
+          : `${num(PRICE.ten)} 石`)),
       el('h3', {}, '確定と天井'),
       el('div', { class: 'rtab' },
         row('十連', '10体目までにSR以上が1体確定'),
@@ -4818,7 +4840,13 @@ function gachaResult(g) {
 /* 引くボタン（2026-09-21 改訂）
    石が足りなくても押せるし、暗くもしない。押したら石を買う画面へ案内する。
    「引けない見た目」にすると絵が台無しになるうえ、買ってもらう導線も消えるため。 */
-function pullBtn(kind, label, price, can, on) {
+/* 祭の札の値札（2026-09-30）。札の絵 ＋「×10」。絵が無ければ「祭」の字に落ちる */
+const tktPrice = n => el('span', { class: 'tkp' }, itemIcon(TICKET), el('em', {}, '×' + n));
+/* 引く釦（2026-09-30 改）。
+   前は名も値段も絵に焼いてあったので、絵の上に字を重ねていなかった。
+   石と札で値札を出し分けたいので、絵は空にしてもらい、名と値はこちらで書く。
+   ptext は title（長押しの吹き出し）に出す字。値札が絵のときだけ渡す */
+function pullBtn(kind, label, price, can, on, ptext) {
   const base = kind.split(' ')[0];
   const free = kind.includes('free');
   const art = (free && uiUrl('pull_' + base + '_free')) || uiUrl('pull_' + base);
@@ -4826,11 +4854,12 @@ function pullBtn(kind, label, price, can, on) {
   return el('button', {
     class: 'pull ' + kind + (art ? ' art' : ''),
     onclick: can ? on : () => { S.shop = true; SFX.pick(); draw(); },
-    title: `${label}　${price}`,
+    title: `${label}　${ptext || (typeof price === 'string' ? price : '')}`,
   },
-    art ? el('img', { class: 'pimg', src: art, alt: label }) : el('b', {}, label),
-    art ? (freeBadge ? el('span', { class: 'freeband' }, '初回無料') : null)
-        : el('span', { class: 'pr' }, price));
+    art ? el('img', { class: 'pimg', src: art, alt: label }) : null,
+    el('b', {}, label),
+    (art && freeBadge) ? el('span', { class: 'freeband' }, '初回無料') : null,
+    el('span', { class: 'pr' }, price));
 }
 /* ---- 宝箱の演出（2026-09-26）----
    引いたらすぐ札を見せず、宝の前に立たせる。押して開けた瞬間に出るほうが、
@@ -5137,7 +5166,7 @@ async function doPull(count, noDup) {
       pool[r2] = rest.length ? rest : BASE[r2];
     }
   }
-  const r = pull(count, pool, curGacha().id);
+  const r = pull(count, pool, curGacha().id, { ticket: !!curGacha().ticket });
   if (!r) return;
   const pre = preloadPull(r);   // 絵の先読みは、芝居のあいだに裏で走らせる（2026-09-30）
   /* 宝箱があるときは、そちらに預けて手を止める（2026-09-26） */

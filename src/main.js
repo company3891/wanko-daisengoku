@@ -3737,7 +3737,9 @@ const DEXSORT = [
   { k: 'rar',  name: 'レア',   up: false, v: c => -RAR.indexOf(c.rarity) },
   { k: 'no',   name: 'No.',    up: true,  v: c => c.no },
   { k: 'cost', name: 'コスト', up: false, v: c => c.cost || 0 },
-  { k: 'cnt',  name: '手持ち', up: false, v: c => cntOf(c.no) },
+  /* 「手持ち」の並びは外した（2026-09-30）。
+     図鑑が持っている武将だけを出すようになったので、重ねの枚数で並べる意味が薄い。
+     古い保存に 'cnt' が残っていても、見つからなければ先頭（レア）に落ちる */
   { k: 'pow',  name: '総合力', up: false, v: c => powerOf(c) },
 ];
 const pfGet = (ks, k, d) => { const v = ks[k] ? S[ks[k]] : null; return v == null ? d : v; };
@@ -3786,9 +3788,14 @@ const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc' 
 const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc' };
 const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc' };
 function screenDex() {
-  const sorted = pickApply(C, PF_DEX, { sort0: 'no' });
-  const list = sorted;
-  const got = list.filter(c => owns(c.no)).length;
+  /* 位と属性は「かつ」で重ねて当たる（もとからそう）。並びは、絞り込んだ中での順番。
+     持っていない武将は出さない（2026-09-30）。
+     未奉公の札が混ざると、何を集めたのかが読み取りにくかった。
+     「16 / 31 体」の分母は、その絞り込みに居る全員（まだ見ぬ者も入れた数） */
+  const all = pickApply(C, PF_DEX, { sort0: 'no' });
+  const sorted = all.filter(c => owns(c.no));
+  const list = all;
+  const got = sorted.length;
   return {
     body: el('div', {},
       el('h2', {}, `図鑑（${P.own.length}/${C.length}）`,

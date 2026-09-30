@@ -1500,6 +1500,17 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .ghost.back:active{transform:translateY(1px);filter:brightness(.93)}
 /* 強化の札の「閉じる」は、戻ると同じ場所・同じ形で、札より前に出す（2026-09-29） */
 .ghost.back.gpx{z-index:61}
+/* 保存の控え（2026-09-30）。ここだけは戦国口調をやめた画面なので、見た目も素直に */
+.card2.keepbox{max-width:360px}
+.keepbox .keeprow{display:flex;flex-direction:column;gap:10px;margin:10px 0 12px}
+.keepbox .keeprow > div{padding:10px 12px;border-radius:11px;background:#ffffff08;
+  border:1px solid var(--line);display:flex;flex-direction:column;gap:3px}
+.keepbox .keeprow em{font-style:normal;font-size:10px;color:var(--text3);letter-spacing:.08em}
+.keepbox .keeprow span{font-size:13.5px;font-weight:700}
+.keepbox .keeprow i{font-style:normal;font-size:10.5px;color:var(--text3)}
+.keepbox .note.warn{margin-bottom:10px}
+.keepbox .go.wide{margin-bottom:8px}
+.menu .note.keepnote{margin:-2px 2px 8px;line-height:1.6}
 /* 編成へ寄り道しているあいだ、戦へ戻る道（2026-09-30）。
    戻るの丸と同じ場所・同じ金だが、行き先が違うので字で出す */
 .sqback{position:fixed;left:12px;bottom:calc(var(--nav,104px) + 8px);z-index:12;

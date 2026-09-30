@@ -421,8 +421,95 @@ function ttlPlate(img, mark, label, onclick, soon, badge) {
     badge ? el('em', { class: 'hmbadge' }, badge > 9 ? '9+' : String(badge)) : null);
 }
 
+/* 保存を消させない願い出（2026-09-30）。
+   ブラウザは「しばらく使われていない置き場」から順に消す。
+   持ちきり（persistent）を許してもらえれば、その仲間から外れる。
+   WebKit は「ホーム画面に足したウェブアプリとして開かれているか」を目安のひとつにしているので、
+   ホーム画面から遊ぶ人はここで通る。断られても遊びには何も起きない。
+   人が触った直後のほうが通りやすいので、起動時と、題の画面を押したときの二度たずねる */
+let PERSIST_ASKED = false;
+async function askPersist() {
+  if (PERSIST_ASKED) return;
+  PERSIST_ASKED = true;
+  try {
+    if (!navigator.storage || !navigator.storage.persist) return;
+    if (await navigator.storage.persisted()) { KEEP_OK = true; return; }
+    KEEP_OK = await navigator.storage.persist();
+  } catch { /* 使えない機器でも落とさない */ }
+}
+let KEEP_OK = null;   // true=持ちきり／false=断られた／null=まだ分からない
+
+/* 保存の控えを一つのファイルに出す（2026-09-30）。
+   ★ここの言葉は戦国口調にしない。間違えると本当に記録が消えるため。 */
+function saveExport() {
+  const body = JSON.stringify({
+    app: 'wanko-daisengoku', kind: 'save', ver: 1,
+    at: new Date().toISOString(), data: { ...P, own: [...P.own] },
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  a.download = `わんこ大戦国_控え_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`;
+  /* 体に貼ってから押す（2026-09-30）。浮いたままだと、機器によって名が付かずに落ちてくる */
+  a.style.display = 'none';
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+/* 控えを読み込む。いまの記録は消えるので、中身を見せてから確かめる */
+function saveImportPick() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      let j = null;
+      try { j = JSON.parse(String(r.result)); } catch { }
+      const d = j && j.data;
+      if (!j || j.app !== 'wanko-daisengoku' || !d || typeof d !== 'object') {
+        S.keepMsg = 'このファイルは わんこ大戦国 の控えではありません'; draw(); return;
+      }
+      S.keepAsk = { at: j.at || '', name: d.name || '（名前なし）', lv: d.lv || 1,
+                    chars: Array.isArray(d.own) ? d.own.length : 0, raw: d };
+      SFX.pick(); draw();
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+/* 控えを戻す前の確かめ（2026-09-30）。
+   ★ここの言葉は戦国口調にしない。いまの記録が本当に消えるため */
+function keepAskSheet() {
+  const a = S.keepAsk; if (!a) return null;
+  const close = () => { S.keepAsk = null; draw(); };
+  const when = a.at ? String(a.at).slice(0, 16).replace('T', ' ') : '（日付なし）';
+  return el('div', { class: 'sheet', onclick: e => { if (e.target === e.currentTarget) close(); } },
+    el('div', { class: 'card2 keepbox' },
+      el('b', { class: 'mittl' }, '控えから戻す'),
+      el('div', { class: 'keeprow' },
+        el('div', {}, el('em', {}, 'いまの記録'),
+          el('span', {}, `${P.name || '（名前なし）'}　Lv.${P.lv}　武将 ${P.own.length} 体`)),
+        el('div', {}, el('em', {}, '控えの記録'),
+          el('span', {}, `${a.name}　Lv.${a.lv}　武将 ${a.chars} 体`),
+          el('i', {}, `書き出した日　${when}`))),
+      el('p', { class: 'note warn' }, 'いまの記録は消えます。元には戻せません。'),
+      el('button', { class: 'go wide', onclick: () => saveImportGo(a.raw) }, '控えの記録で始める'),
+      el('button', { class: 'ghost wide', onclick: close }, 'やめる')));
+}
+function saveImportGo(d) {
+  try {
+    localStorage.setItem('wanko.player.v1', JSON.stringify(d));
+  } catch {
+    S.keepAsk = null; S.keepMsg = '保存できませんでした'; draw(); return;
+  }
+  location.reload();
+}
 function screenTitle() {
   const go = () => {
+    askPersist();
     /* 名乗りが済んでいなければチュートリアルへ、済んでいれば城へ。
        名乗りの札は draw が P.name を見て勝手に出すので、ここでは画面だけ決める */
     S.screen = P.tutorial < 2 ? 'tutorial' : 'home';
@@ -3920,6 +4007,18 @@ function menuSheet() {
         row('通知', '近日'),
         row('データ引き継ぎ', P.link.code ? '発行済み' : '未発行',
           () => { S.menu = false; lkOpen(); }),
+        /* 保存の控え（2026-09-30）。サーバーに預ける前のつなぎ。
+           ★ここの言葉は戦国口調にしない。間違えると本当に記録が消えるため */
+        row('保存の控えを書き出す', 'ファイル', () => { S.menu = false; saveExport(); SFX.pick(); draw(); }),
+        row('控えから戻す', '読み込む', () => { S.menu = false; S.keepMsg = ''; saveImportPick(); }),
+        row('保存の持ち', KEEP_OK === true ? '消えない' : KEEP_OK === false ? 'ふつう' : '確かめ中',
+          () => { S.keepHelp = !S.keepHelp; SFX.pick(); draw(); }),
+        S.keepHelp ? el('p', { class: 'note keepnote' },
+          KEEP_OK === true
+            ? 'この端末では、しばらく遊ばなくても記録は消えません。'
+            : 'ブラウザは、しばらく使われていない置き場から順に記録を消すことがあります。'
+              + 'ホーム画面に追加して、そこから遊ぶと消えにくくなります。'
+              + '大事な記録は「保存の控えを書き出す」でファイルに残してください。') : null,
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
       el('p', { class: 'ver' }, 'わんこ大戦国　開発中の版'),
@@ -6760,6 +6859,11 @@ function draw() {
           onclick: () => { const h = S.sqpHold; S.sqpHold = null;
                            S.screen = h.from; S.sqp = h.ask; SFX.pick(); draw(); } }, '← 戦へ')
       : null,
+    S.keepAsk ? keepAskSheet() : null,
+    S.keepMsg ? el('div', { class: 'sheet', onclick: () => { S.keepMsg = ''; draw(); } },
+      el('div', { class: 'card2 keepbox' },
+        el('p', {}, S.keepMsg),
+        el('button', { class: 'ghost wide', onclick: () => { S.keepMsg = ''; draw(); } }, '閉じる'))) : null,
     S.spAsk != null ? sparAskSheet() : null,
     S.sqp ? sqSheet() : null,
     S.food ? foodSheet() : null,
@@ -6804,4 +6908,5 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) food
 /* 起動したら、いまの値からお役目の数を整える（2026-09-24）。
    名乗りの前に呼んでも困らない。draw の前に一度だけ */
 miRefresh();
+askPersist();
 draw();

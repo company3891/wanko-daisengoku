@@ -874,36 +874,49 @@ function openingSheet() {
 function screenTutorial() {
   const step = P.tutorial;
   if (step === 0) {
+    /* はじまりの一騎を選ぶ画面（2026-09-30 に作り直した）。
+       前は15枚を小さく並べていたので、どの子も同じに見えて選びようがなかった。
+       札を一枚だけ大きく出し、左右の矢印か横に払うことで送る。
+       札の表には数値も特技も人物紹介も刷ってあるので、ほかの説明は要らない。
+       ヘッダーも出さない（はじめて見る画面なので、選ぶことだけに集中させる） */
     const ssr = POOL.SSR.slice().sort((a, b) => a.no - b.no);
+    const i = Math.max(0, Math.min(ssr.length - 1, S.tutI || 0));
+    const c = ssr[i];
+    S.pick = c.no;
+    const move = d => { S.tutI = (i + d + ssr.length) % ssr.length; SFX.pick(); draw(); };
+    const art = cardArt(c);
+    let sx = null;                                 // 横に払って送る
     return {
-      body: el('div', { class: 'tut' },
-        el('div', { class: 'lead' },
-          el('b', {}, 'はじまりの一騎'),
-          el('p', {}, '天下は乱れ、犬たちが旗を掲げた。\nまずは旗下に加える武将をひとり選べ。')),
-        el('h2', {}, `SSRから1体を選ぶ（${ssr.length}体）`),
-        el('div', { class: 'pickgrid' }, ssr.map(c => {
-          const art = cardArt(c);
-          return el('button', {
-            class: 'pk' + (S.pick === c.no ? ' on' : '') + (art ? ' art' : ''),
-            onclick: () => { if (heldJust()) return; S.pick = c.no; SFX.pick(); draw(); },
-            ...holdCard(c),
+      body: el('div', { class: 'tut tut1' },
+        pageTalk('tutorial'),
+        el('div', {
+          class: 'tutpick',
+          onpointerdown: e => { sx = e.clientX; },
+          onpointerup: e => {
+            if (sx == null) return;
+            const d = e.clientX - sx; sx = null;
+            if (Math.abs(d) > 40) move(d < 0 ? 1 : -1);
           },
-            art ? cardImg(c) : el('span', { class: 'f', style: chipStyle(c) }),
-            art ? null : el('span', { class: 'n' }, c.name),
-            art ? null : el('span', { class: 'a attr a-' + c.attr }, c.attr || '―'),
-            art && S.pick === c.no ? el('span', { class: 'onmark' }, 'この一騎') : null);
-        })),
-        S.pick != null ? tutorDetail(charOf(S.pick)) : null,
+          onpointercancel: () => { sx = null; },
+        },
+          el('button', { class: 'tutarw l', title: '前の武将', onclick: () => move(-1) }, '‹'),
+          el('div', { class: 'tutcard' + (art ? ' art' : '') },
+            art ? el('img', { class: 'tutci', src: art, alt: c.name, draggable: 'false' })
+                : el('div', { class: 'tutfall', style: chipStyle(c) },
+                    el('b', {}, c.name), attrTag(c.attr, 'sm'), rarTag('SSR'))),
+          el('button', { class: 'tutarw r', title: '次の武将', onclick: () => move(1) }, '›')),
+        el('div', { class: 'tutdots' }, ssr.map((x, j) => el('i', { class: j === i ? 'on' : '' }))),
         el('button', {
-          class: 'go big out', disabled: S.pick == null || null,
+          class: 'go big out tutgo',
           onclick: () => {
-            P.first = S.pick;                       // はじまりの一騎を覚える（2026-09-25）
+            P.first = c.no;                         // はじまりの一騎を覚える（2026-09-25）
             /* はじめの十連は門出のくじで引く（2026-09-30）。
                信わんが出るのはここだけなので、いちばん最初は必ずこちらを通す */
             S.gbanner = 'release';
-            grantStarter(S.pick); setCampStart(charOf(S.pick)); S.pick = null; draw();
+            grantStarter(c.no); setCampStart(c); S.pick = null; S.tutI = 0; draw();
           },
-        }, S.pick != null ? `${charOf(S.pick).name} を迎える` : '武将を選ぶ')),
+        }, 'この武将で出陣する')),
+      bare: true,
     };
   }
   /* 選んだあとは、そのまま無料十連へ。
@@ -2627,35 +2640,26 @@ function growPickPage(mode, onPick) {
        mode === 'lv' ? el('span', { class: 'own lvb2' }, `Lv.${charState(ch.no).lv}`)
                      : el('span', { class: 'own' }, `×${num(cntOf(ch.no))}`)))));
 }
-/* 札の「閉じる」を、育成の札と同じ 追従の金丸×にそろえる（2026-09-30）。
-   .card2 は開くときに transform が乗るので、その中に置くと position:fixed が
-   画面ではなく札を基準にしてしまう。そこで組み上がった直後に .sheet の直下へ移す。
-   呼ぶ側は これまでの場所にそのまま置くだけでよい */
+/* 札（ポップアップ）の「閉じる」（2026-09-30）。
+   見た目はこれまでの横いっぱいの釦のまま、札の下ぎわに貼り付けて動かさない。
+   長い札だと、下まで巻かないと閉じられないのが不便だった。
+   画面そのものを戻る釦（金丸×）とは役目が違うので、形も分けてある */
 function closeX(fn, label) {
-  const b = el('button', { class: 'ghost back gpx', onclick: fn }, label || '閉じる');
-  queueMicrotask(() => {
-    const sh = b.closest('.sheet');
-    if (!sh) return;
-    if (b.parentNode !== sh) sh.append(b);
-    sh.classList.add('hasx');            // 札の下に、丸のぶんの余白をあける
-  });
-  return b;
+  return el('button', { class: 'ghost wide sheetclose', onclick: fn }, label || '閉じる');
 }
 /* 強化の中身を出す札（2026-09-29）。
    閉じるは、戻るの追従釦と同じ場所・同じ形。画面の下にいても押せる。
    外側を押しても閉じるが、中の札（稽古・覚醒・魂）を押して閉じないよう
    currentTarget で見分ける */
 function growPop(close, ...kids) {
-  /* 閉じるは札（.sheet）の外に出す（2026-09-30）。
-     .sheet は backdrop-filter を持っているので、その中では position:fixed が
-     画面ではなく .sheet の箱を基準にしてしまい、中身と一緒に上へ流れていく。
-     兄弟にすれば基準が画面に戻り、どこまで巻いても同じ所に居る */
-  return el('div', { class: 'gpwrap' },
-    el('div', {
-      class: 'sheet growpop',
-      onclick: e => { if (e.target === e.currentTarget) close(); },
-    }, ...kids.filter(Boolean)),
-    el('button', { class: 'ghost back gpx', onclick: close }, '閉じる'));
+  /* 閉じるは中の札のいちばん下に入れる（2026-09-30）。
+     ほかのポップアップと同じ「横いっぱいの閉じる」で、下ぎわに貼り付いて動かない */
+  const box = el('div', {
+    class: 'sheet growpop',
+    onclick: e => { if (e.target === e.currentTarget) close(); },
+  }, ...kids.filter(Boolean));
+  (box.querySelector('.card2') || box).append(closeX(close));
+  return box;
 }
 function pickSheet() {
   const close = () => { S.cp = false; S.cpFor = null; S.cpMode = null; draw(); };
@@ -3633,20 +3637,14 @@ function screenSquads() {
    前は画面ごとに「位だけ」「位と属性だけ」とばらばらで、
    編成では出陣の重さで絞れず、5人の枠をやりくりしにくかった。
    どの箱に覚えておくかは呼ぶ側が渡す（画面ごとに絞込みを別に覚えたいため） */
+/* 並びの名は、遊ぶ人が札の上で見ている言葉にそろえた（2026-09-30）。
+   「位」は絞込みの行と紛らわしいので「レア」、出陣の重さは札に刷ってある通り「コスト」 */
 const DEXSORT = [
-  { k: 'rar',  name: '位',     up: false, v: c => -RAR.indexOf(c.rarity) },
-  { k: 'no',   name: '番号',   up: true,  v: c => c.no },
-  { k: 'cost', name: '出陣',   up: false, v: c => c.cost || 0 },
+  { k: 'rar',  name: 'レア',   up: false, v: c => -RAR.indexOf(c.rarity) },
+  { k: 'no',   name: 'No.',    up: true,  v: c => c.no },
+  { k: 'cost', name: 'コスト', up: false, v: c => c.cost || 0 },
   { k: 'cnt',  name: '手持ち', up: false, v: c => cntOf(c.no) },
   { k: 'pow',  name: '総合力', up: false, v: c => powerOf(c) },
-];
-/* 出陣の重さは 100〜500 と幅があるので、三つに束ねた。
-   数そのものは札に刷ってあるので、ここでは大まかな重さだけ */
-const COSTF = [
-  { k: 'すべて', ok: () => true },
-  { k: '軽い',   ok: c => (c.cost || 0) <= 200 },
-  { k: 'ふつう', ok: c => (c.cost || 0) > 200 && (c.cost || 0) <= 350 },
-  { k: '重い',   ok: c => (c.cost || 0) > 350 },
 ];
 const pfGet = (ks, k, d) => { const v = ks[k] ? S[ks[k]] : null; return v == null ? d : v; };
 const pfSet = (ks, k, v) => { if (ks[k]) S[ks[k]] = v; SFX.pick(); draw(); };
@@ -3654,13 +3652,9 @@ const pfSet = (ks, k, v) => { if (ks[k]) S[ks[k]] = v; SFX.pick(); draw(); };
 function pickApply(list, ks, opt) {
   const rar = pfGet(ks, 'rar', 'すべて');
   const att = pfGet(ks, 'att', 'すべて');
-  const cf  = COSTF.find(x => x.k === pfGet(ks, 'cost', 'すべて')) || COSTF[0];
-  const fit = !!pfGet(ks, 'fit', false);
   const out = list.filter(c =>
     (rar === 'すべて' || c.rarity === rar) &&
-    (att === 'すべて' || c.attr === att) &&
-    cf.ok(c) &&
-    (!fit || !opt || !opt.fits || opt.fits(c)));
+    (att === 'すべて' || c.attr === att));
   const so = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
   const up = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
   return out.sort((a, b) => { const d = so.v(a) - so.v(b); return (up ? d : -d) || a.no - b.no; });
@@ -3668,11 +3662,10 @@ function pickApply(list, ks, opt) {
 const pfRow = (lb, kids, extra) =>
   el('div', { class: 'row chapters pfrow' + (extra ? ' ' + extra : '') },
     el('span', { class: 'sortlb' }, lb), kids);
-/* 絞込みの札の並び（位・属性・重さ・並び）。opt.fits があれば「いま入る」も出す */
+/* 絞込みの札の並び（位・属性・並び）。図鑑でずっと使っていた三つにそろえた（2026-09-30） */
 function pickRows(ks, opt) {
   const rar = pfGet(ks, 'rar', 'すべて');
   const att = pfGet(ks, 'att', 'すべて');
-  const cst = pfGet(ks, 'cost', 'すべて');
   const so  = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
   const up  = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
   return [
@@ -3684,18 +3677,6 @@ function pickRows(ks, opt) {
       class: 'chip' + (att === a ? ' on' : '') + (a !== 'すべて' && attrUrl(a) ? ' aic' : ''),
       onclick: () => pfSet(ks, 'att', a),
     }, a === 'すべて' ? 'すべて' : attrTag(a, 'sm'))), 'attrf'),
-    pfRow('出陣', [
-      ...COSTF.map(x => el('button', {
-        class: 'chip' + (cst === x.k ? ' on' : ''),
-        onclick: () => pfSet(ks, 'cost', x.k),
-      }, x.k)),
-      /* 「いま入る」は編成だけ（2026-09-30）。
-         残りの枠に収まる子だけを残す。足し算をしなくても組めるようにした */
-      (opt && opt.fits) ? el('button', {
-        class: 'chip fitc' + (pfGet(ks, 'fit', false) ? ' on' : ''),
-        onclick: () => pfSet(ks, 'fit', !pfGet(ks, 'fit', false)),
-      }, 'いま入る') : null,
-    ]),
     pfRow('並び', DEXSORT.map(x => el('button', {
       class: 'chip' + (so.k === x.k ? ' on' : ''),
       title: so.k === x.k ? 'もう一度押すと向きが変わる' : null,
@@ -3707,9 +3688,9 @@ function pickRows(ks, opt) {
     }, x.name, so.k === x.k ? el('i', { class: 'sar' }, up ? '▲' : '▼') : null))),
   ];
 }
-const PF_DEX  = { rar: 'filter', att: 'afilter', cost: 'dcost', sort: 'dexSort', asc: 'dexAsc' };
-const PF_TEAM = { rar: 'filter', att: 'tattr',   cost: 'tcost', sort: 'tsort',   asc: 'tasc', fit: 'tfit' };
-const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  cost: 'cpCost', sort: 'cpSort', asc: 'cpAsc' };
+const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc' };
+const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc' };
+const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc' };
 function screenDex() {
   const sorted = pickApply(C, PF_DEX, { sort0: 'no' });
   const list = sorted;
@@ -5066,9 +5047,7 @@ function screenTeam() {
   // 編成に並ぶのは所持している武将だけ（2026-09-21）
   const mine = C.filter(c => owns(c.no));
   const on = c => S.picked.some(p => p.no === c.no);
-  /* 「いま入る」は、残りの枠に収まる子だけ。もう出している子はいつでも見せる */
-  const sorted = pickApply(mine, PF_TEAM,
-    { fits: c => on(c) || cost() + (c.cost || 0) <= costMax() });
+  const sorted = pickApply(mine, PF_TEAM);
 
   const q0 = P.squads[P.active];
   /* これから出る戦の敵に同じ人物がいるなら、その札も選べない（2026-09-23）。
@@ -5115,7 +5094,7 @@ function screenTeam() {
       S.disband ? disbandSheet() : null,
       /* 絞込みは図鑑・育成とそろえた（2026-09-30）。
          題を付けずに一行ずつ並べたので、前より場所を取らない */
-      pickRows(PF_TEAM, { fits: c => on(c) || cost() + (c.cost || 0) <= costMax() }),
+      pickRows(PF_TEAM),
       el('h2', {}, `武将を選ぶ（${S.picked.length}/5）　所持 ${P.own.filter(hasCard).length}体`),
       !mine.length ? el('button', {
         class: 'notice', onclick: () => { S.screen = 'gachalist'; draw(); },
@@ -6879,7 +6858,11 @@ const SCREEN_BG = {
    あとで march.jpg などを置けば、そちらが優先される */
 const BG_FALLBACK = 'kamon';
 function screenBg() {
-  const name = SCREEN_BG[S.screen];
+  /* はじまりの一騎だけ家紋の地紋を敷く（2026-09-30）。
+     真っ黒だと ほかの画面と別物に見えた。十連のほうは くじ自前の景色があるので敷かない */
+  const name = S.screen === 'tutorial'
+    ? (P.tutorial === 0 ? BG_FALLBACK : null)
+    : SCREEN_BG[S.screen];
   if (!name) return null;
   const cls = 'bgfull scrim' + (S.screen === 'battle' ? ' bgbattle' : '');
   /* 合戦の地紋は、その日の空で差し替える（2026-09-26）。
@@ -6916,6 +6899,9 @@ function levinEl(w) {
    語り手は日ごと・画面ごとに持ち武将の中から選ぶので、毎日ちがう顔が出る
    （描き直しても変わらないよう、日付と画面名から決める。乱数は使わない） */
 const PAGE_TALK = {
+  /* はじまりの一騎（2026-09-30）。持ち武将がまだ無いので、語り手は信わんに落ちる */
+  tutorial: ['はじまりの一騎だワン！！',
+    '天下は乱れ、犬たちが旗を掲げたワン。まずは旗下に加える武将を、ひとり選ぶワン'],
   grow:    ['育成をするワン！！', '武将を強くする場だワン。稽古で位を上げ、技を磨き、覚醒で殻を破るワン'],
   power:   ['武将を鍛えるワン！！', '稽古で位を上げ、覚醒で枠を広げ、武士の魂で数値を振り分けるワン'],
   skillup: ['特技を磨くワン！！', '同じ武将の重ねや伝書を食わせると、技の位が上がるワン'],

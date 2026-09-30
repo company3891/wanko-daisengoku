@@ -6989,6 +6989,11 @@ const guideMate = () => {
 /* 初陣の国（出発の国のとなり）。地図の旗は title が「県名　家名」 */
 const gdFirstFlag = () => {
   const fp = firstPref(); if (!fp) return null;
+  /* その国のある章に切り替えておく（2026-09-30）。
+     章がちがうと旗じたいが画面に無く、どこも光らなかった */
+  if (S.region !== fp.pref.region && openRegions().includes(fp.pref.region)) {
+    S.region = fp.pref.region; setTimeout(draw, 0); return null;
+  }
   return [...document.querySelectorAll('.flag, .pc')]
     .find(b => !b.disabled && (b.title || b.textContent || '').includes(fp.pref.name)) || null;
 };
@@ -7090,13 +7095,36 @@ function guidePaint() {
       || b.classList.contains('sheetclose') || b.classList.contains('rvskip');
     b.classList.toggle('gdlock', !keep);
   }
+  let box = null;
   if (hit) {
     hit.classList.add('gdhit');
-    const r = hit.getBoundingClientRect();
+    /* 位置の決まっていない釦だけ relative にする（2026-09-30）。
+       .flag や .sqedit のように absolute で置いてある釦にまで relative をかけると、
+       置き場所が流れて、旗が地図から外れたり 出陣の釦が札の左に出たりしていた */
+    if (getComputedStyle(hit).position === 'static') hit.classList.add('gdrel');
+    let r = hit.getBoundingClientRect();
+    /* はみ出している釦は、まず見えるところまで運ぶ（2026-09-30）。
+       地図は横に長く、画面の下も切れるので、端が少しでも外に出ていたら寄せる */
+    const out = !r.width || r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight;
+    if (out) {
+      hit.scrollIntoView({ block: 'center', inline: 'center' });
+      r = hit.getBoundingClientRect();
+      /* 横に巻く入れ物（絵巻地図）は scrollIntoView が効かないことがあるので、手で寄せる */
+      if (r.left < 0 || r.right > innerWidth) {
+        for (let n = hit.parentElement; n; n = n.parentElement) {
+          if (n.scrollWidth <= n.clientWidth + 4) continue;
+          const b = n.getBoundingClientRect();
+          n.scrollLeft += (r.left + r.width / 2) - (b.left + n.clientWidth / 2);
+          r = hit.getBoundingClientRect();
+          break;
+        }
+      }
+    }
     if (r.width) {
-      const up = r.top > 150;                      // 上に置けないときは下から差す
+      box = r;
+      const up = r.top > 210;                      // 上に置けないときは下から差す
       const a = el('div', { class: 'gdarw' + (up ? '' : ' dn') });
-      a.style.left = Math.round(r.left + r.width / 2) + 'px';
+      a.style.left = Math.round(Math.max(20, Math.min(innerWidth - 20, r.left + r.width / 2))) + 'px';
       a.style.top = Math.round(up ? r.top - 30 : r.bottom + 10) + 'px';
       document.body.append(a);
     }
@@ -7105,9 +7133,16 @@ function guidePaint() {
   if (S.opening || S.screen === 'battle') return;
   const no = talkerNo('guide' + P.gstep);
   const art = faceUrl(no, '笑顔') || faceUrl(no, '通常') || pawnUrl(no);
-  document.body.append(el('div', { class: 'gdsay' },
+  /* 語りは指す釦のそば（上か下）に置く（2026-09-30）。
+     いつも画面の下に出していたので、下のほうにある釦が語りに隠れて押せなかった */
+  const say = el('div', { class: 'gdsay' },
     art ? el('img', { class: 'gdf', src: art, alt: '' }) : el('i', { class: 'gdf' }, '犬'),
-    el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1]))));
+    el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])));
+  if (box) {
+    if (box.top > 210) say.style.bottom = Math.round(innerHeight - box.top + 34) + 'px';
+    else { say.style.top = Math.round(box.bottom + 36) + 'px'; say.style.bottom = 'auto'; }
+  }
+  document.body.append(say);
 }
 /* 指した釦が押されたら次の歩へ。click は capture で先に受ける（2026-09-30） */
 document.addEventListener('click', e => {

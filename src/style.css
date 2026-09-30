@@ -4377,7 +4377,9 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
    そのすぐ上（入らなければ下）に金の三角を浮かせる。
    語りは画面のいちばん下に、ほかの画面の吹き出しと同じ仕立てで置く */
 .gdlock{opacity:.34;pointer-events:none;filter:grayscale(.5)}
-.gdhit{position:relative;z-index:70}
+.gdhit{z-index:70}
+/* もともと位置の決まっていない釦だけ、輪を乗せるために relative にする */
+.gdhit.gdrel{position:relative}
 .gdhit::after{content:'';position:absolute;inset:-5px;border-radius:14px;pointer-events:none;
   box-shadow:0 0 0 2px var(--gold),0 0 14px 2px #d8a94a88;animation:gdring 1.5s ease-in-out infinite}
 @keyframes gdring{0%,100%{box-shadow:0 0 0 2px #d8a94a,0 0 12px 2px #d8a94a66}
@@ -4389,6 +4391,7 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
 .gdarw.dn{border-top:0;border-bottom:20px solid #f5e2a8}
 @keyframes gdbob{0%,100%{transform:translateY(0)}50%{transform:translateY(9px)}}
 .gdsay{position:fixed;left:10px;right:10px;bottom:calc(var(--nav,104px) + 10px);z-index:87;
+  max-width:420px;margin:0 auto;
   display:flex;gap:10px;align-items:center;pointer-events:none;
   background:#12100eee;border:1.5px solid var(--gold);border-radius:14px;padding:10px 12px;
   box-shadow:0 6px 20px #000b;animation:up .22s cubic-bezier(.2,.9,.3,1.1)}

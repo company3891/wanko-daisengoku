@@ -30,6 +30,10 @@
    genOnly              総大将だけで倒しきる
    foeGenFirst          敵の総大将を最初に倒す
    useNo {v}            この武将を入れる
+   hold {turns}         そのターンまで持ちこたえれば勝ち
+   （階そのものに書く持ち物）
+   hold:N               決着のターンを N にし、守り切った側（こちら）を勝ちにする
+   hp1:true             味方はみな兵量1から始まる（先に癒す手を作らねば勝てない）
 
    しばりは二段で見る。
    ・「編成」の段（tower.js の checkTeam）… 出陣の前に弾ける
@@ -63,12 +67,12 @@ export const TOWER = [
   { f:18, name:'軽き四人', t:'四人まで・コストの合計 500 以下', cond:[{ k:'units', max:4 }, { k:'cost', max:500 }], stage:'山岳', hard:3, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300 } },
   { f:19, name:'一騎、無傷', t:'一人で、兵量を半分以上残して勝つ', cond:[{ k:'units', max:1 }, { k:'hpLeft', pct:50 }], stage:'山岳', hard:4, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300 } },
   { f:20, name:'孤影', t:'一人で、倒されずに勝つ', cond:[{ k:'units', max:1 }, { k:'noDeath' }], stage:'山岳', hard:4, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:500, title:'寡兵の将' } },
-  { f:21, name:'川を渡る', t:'しばりなし', cond:[], stage:'河川', hard:2, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
+  { f:21, name:'籠城', t:'15ターン持ちこたえる（倒しきらずともよい）', cond:[{ k:'hold', turns:15 }], hold:15, stage:'城郭', hard:3, enemy:{ cost:760, lv:40, soul:120, skill:1 }, rw:{ stone:300 } },
   { f:22, name:'城を攻む', t:'10ターン以内に勝つ', cond:[{ k:'turns', max:10 }], stage:'城郭', hard:2, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
   { f:23, name:'凹の陣', t:'陣形「凹」で勝つ', cond:[{ k:'form', v:'凹' }], stage:'草原', hard:2, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
   { f:24, name:'Ｖの陣', t:'陣形「V字」で勝つ', cond:[{ k:'form', v:'V字' }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
   { f:25, name:'波打つ陣', t:'陣形「波型」で、誰も倒されずに勝つ', cond:[{ k:'form', v:'波型' }, { k:'noDeath' }], stage:'河川', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:400 } },
-  { f:26, name:'泥濘', t:'しばりなし', cond:[], stage:'河川', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
+  { f:26, name:'瀕死の陣', t:'味方はみな兵量1から始まる', cond:[], hp1:true, stage:'河川', hard:4, enemy:{ cost:620, lv:30, soul:80, skill:1 }, rw:{ stone:300 } },
   { f:27, name:'森に潜む', t:'射程1の武将だけで勝つ', cond:[{ k:'range', v:1 }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
   { f:28, name:'壁ごしに', t:'射程2以上の武将だけで勝つ', cond:[{ k:'range', min:2 }], stage:'城郭', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
   { f:29, name:'山を駆ける', t:'神速だけで勝つ', cond:[{ k:'attr', v:'神速' }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300 } },
@@ -132,14 +136,14 @@ export const TOWER = [
   { f:87, name:'返し技', t:'反撃を三度以上出して勝つ', cond:[{ k:'counter', min:3 }], stage:'河川', hard:4, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300 } },
   { f:88, name:'首を獲る', t:'敵の総大将をいちばん先に倒して勝つ', cond:[{ k:'foeGenFirst' }], stage:'河川', hard:5, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300 } },
   { f:89, name:'女武者の陣', t:'女武将だけで勝つ', cond:[{ k:'gender', v:'女' }], stage:'河川', hard:4, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300 } },
-  { f:90, name:'孤高', t:'ひとりだけで、倒されずに勝つ', cond:[{ k:'units', max:1 }, { k:'noDeath' }], stage:'河川', hard:5, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:1200, title:'奇策の主' } },
+  { f:90, name:'孤高', t:'ひとりで 15ターン持ちこたえる', cond:[{ k:'units', max:1 }, { k:'hold', turns:15 }], hold:15, stage:'城郭', hard:5, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:1200, title:'奇策の主' } },
   { f:91, name:'猛き三人', t:'猛将だけ三人までで勝つ', cond:[{ k:'attr', v:'猛将' }, { k:'units', max:3 }], stage:'城郭', hard:4, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
   { f:92, name:'姫の無傷', t:'女武将だけで、誰も倒されずに勝つ', cond:[{ k:'gender', v:'女' }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
   { f:93, name:'無名の疾駆', t:'N だけで 6ターン以内に勝つ', cond:[{ k:'rarity', v:'N' }, { k:'turns', max:6 }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
   { f:94, name:'単騎五手', t:'一人で 5ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:5 }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
   { f:95, name:'寄せ集めの無傷', t:'所属がすべてちがう編成で、誰も倒されずに勝つ', cond:[{ k:'clan', allDiff:true }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:400 } },
   { f:96, name:'懐三人', t:'射程1だけ三人までで、誰も倒されずに勝つ', cond:[{ k:'range', v:1 }, { k:'units', max:3 }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
-  { f:97, name:'三重の枷', t:'三人まで・奥義なし・8ターン以内に勝つ', cond:[{ k:'units', max:3 }, { k:'noUlt' }, { k:'turns', max:8 }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
+  { f:97, name:'三重の枷', t:'兵量1から始まり、三人まで・奥義なしで勝つ', cond:[{ k:'units', max:3 }, { k:'noUlt' }], hp1:true, stage:'城郭', hard:5, enemy:{ cost:1060, lv:91, soul:830, skill:3 }, rw:{ stone:300 } },
   { f:98, name:'無手の単騎', t:'一人で、奥義を使わずに勝つ', cond:[{ k:'units', max:1 }, { k:'noUlt' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
   { f:99, name:'五者五様', t:'位も属性もすべてちがう編成で勝つ', cond:[{ k:'rarity', allDiff:true }, { k:'attr', allDiff:true }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300 } },
   { f:100, name:'天守の主', t:'一人で・倒されず・10ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'noDeath' }, { k:'turns', max:10 }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:3000, title:'天守の主' } },
@@ -279,6 +283,13 @@ export function twResult(f, res, secPerTurn) {
         if (kinds.size < c.min) ng.push(`状態異常を ${c.min}種類以上（与えたのは ${kinds.size}種）`);
         break;
       }
+      /* 籠城（2026-10-01）。勝ちかどうかは engine の holdWin が決めている。
+         ここでは「本当にそのターンまで戦い続けたか」だけを見る。
+         早く倒しきって勝ったときも、守り切ったことに変わりはないので通す */
+      case 'hold':
+        if (turns < c.turns && res.units.some(u => u.side === 'B' && u.alive))
+          ng.push(`${c.turns}ターン持ちこたえる（もったのは ${turns}）`);
+        break;
       case 'genSafe':
         if (gen && gen.hp < gen.maxHp) ng.push('総大将が傷を負わずに勝つ');
         break;

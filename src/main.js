@@ -5810,7 +5810,16 @@ function startBattle(camp, evb, spar, bout, tw) {
                  : ((seed >>> 0) % stageVarCount(S.stage));
   // 人が絡む戦だけ、相手ごと・日ごとに攻守を入れ替える（2026-09-26）
   S.stageFlip = stageFlipFor(spar, bout);
-  const rules = stageRules(S.stage, S.stageV, S.stageFlip);
+  let rules = stageRules(S.stage, S.stageV, S.stageFlip);
+  /* 塔だけの決まりを、その階のぶんだけ上から重ねる（2026-10-01）。
+     籠城＝決着のターンをそこまでに縮め、守り切った側を勝ちにする。
+     瀕死の陣＝味方はみな兵量1から始まる。engine の rules に足しただけなので、
+     ほかの戦には一切ひびかない */
+  if (tw) {
+    const t0 = towerOf(tw.f) || {};
+    if (t0.hold) rules = { ...rules, holdWin: 'A', time: { ...rules.time, maxTurns: t0.hold } };
+    if (t0.hp1) rules = { ...rules, startHp: { A: 1 } };
+  }
   let B = camp ? campEnemy(camp.pref, camp.step, rng)
             : spar ? campEnemy(spar.pref, spar.pref.battles - 1, rng)
             : bout ? rkTeamOf(bout.npc)

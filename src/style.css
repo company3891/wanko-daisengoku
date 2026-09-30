@@ -4701,3 +4701,55 @@ header{padding-top:calc(var(--safetop) + 8px)}
   padding:7px 11px}
 .card2 .sts .tot.wide span{font-size:11px;color:var(--gold);letter-spacing:.06em}
 .card2 .sts .tot.wide b{font-size:15px;color:#f5e2a8}
+
+/* ================= 試練の塔（2026-10-01）================= */
+/* ホームの左下。看板なので ほかの座より ひと回り大きい */
+.home .hmenu.bottomleft{position:absolute;left:10px;right:auto;top:auto;bottom:6px;z-index:5}
+.hmb.big,.hmb.big .hmi{width:104px}
+.hmb.big .hmi{height:104px;border-radius:20px}
+.hmb.big.art .hmi{filter:drop-shadow(0 4px 12px #000b)}
+.hmb.big .hml{font-size:11px}
+@media (max-width:380px){ .hmb.big,.hmb.big .hmi{width:88px} .hmb.big .hmi{height:88px} }
+@media (max-height:760px){ .home .hmenu.bottomleft{bottom:4px} }
+
+.tower{padding:0 12px 12px}
+.twhead{display:flex;align-items:baseline;gap:10px;margin:2px 0 8px}
+.twhead b{font-family:var(--mincho);font-size:19px;color:var(--gold);letter-spacing:.08em}
+.twhead span{font-size:11px;color:var(--text3);letter-spacing:.06em}
+.twbar{height:6px;border-radius:999px;background:#ffffff14;overflow:hidden;margin-bottom:11px}
+.twbar i{display:block;height:100%;background:linear-gradient(90deg,#a8802c,#f5e2a8)}
+.twlist{display:flex;flex-direction:column;gap:7px}
+.twrow{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px 12px;
+  border-radius:12px;border:1px solid var(--line);background:#ffffff08;color:inherit;
+  font-family:inherit;cursor:pointer}
+.twrow.now{border-color:var(--gold);background:#d9a93316;box-shadow:0 0 0 1px var(--gold) inset}
+.twrow.done{opacity:.72}
+.twrow.lock{opacity:.4;cursor:default}
+.twrow.gate{border-color:#d8a94a55}
+.twrow.boss{border-color:#e0654f88;background:#e0654f14}
+.twrow:not(.lock):active{transform:translateY(1px)}
+.twf{flex:0 0 auto;width:44px;text-align:center;font-family:var(--mincho);font-size:20px;
+  font-weight:700;color:var(--gold);line-height:1}
+.twf em{display:block;font-style:normal;font-size:9px;color:var(--text3);letter-spacing:.1em}
+.twt{flex:1 1 auto;min-width:0}
+.twt b{display:block;font-size:13.5px;letter-spacing:.04em}
+.twt i{display:block;font-style:normal;font-size:11px;color:var(--text2);margin-top:3px;line-height:1.5}
+.twr{flex:0 0 auto}
+.twh{font-style:normal;font-size:10px;color:#d8a94abb;letter-spacing:-.5px}
+.twok{font-style:normal;font-size:11px;font-weight:700;color:#8fd08f}
+/* 階の札 */
+.card2.twbox{max-width:360px}
+.twcond{margin:8px 0 10px;font-size:13px;line-height:1.7;color:var(--text)}
+.twmeta{display:flex;gap:8px;margin-bottom:10px}
+.twmeta span{flex:1 1 0;background:var(--tint);border-radius:9px;padding:7px 4px;text-align:center;
+  font-size:9.5px;color:var(--text3)}
+.twmeta span b{display:block;margin-top:3px;font-size:12.5px;color:var(--gold);letter-spacing:.04em}
+/* 褒美の帯。階の札は和紙の色なので、字は濃い金で置く（2026-10-01） */
+.twrw{display:flex;align-items:center;gap:7px;padding:9px 11px;border-radius:11px;
+  background:#d8a94a24;border:1px solid #d8a94a66;margin-bottom:9px}
+.twrw .ci{width:22px;height:22px;object-fit:contain}
+.twrw b{font-size:17px;font-weight:800;color:#7a5c14;letter-spacing:.02em}
+.twrw b::after{content:'石';margin-left:3px;font-size:11px;font-weight:700;opacity:.8}
+.twrw em{font-style:normal;font-size:11px;font-weight:700;color:#8a6819}
+.twrw .twdone{margin-left:auto;font-style:normal;font-size:10px;color:#8a6819;opacity:.8}
+.twng{margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#e0654f}

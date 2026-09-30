@@ -27,6 +27,7 @@ let mission = strip('app/src/mission.js'); // お役目（2026-09-24）
 let rank = strip('app/src/rank.js');       // 番付（2026-09-25）
 let link = strip('app/src/link.js');       // 引き継ぎの備え（2026-09-25）
 let gachas = strip('app/src/gachas.js'); // くじの一覧（2026-09-28）
+let tower = strip('app/src/tower.js');   // 試練の塔（2026-10-01）
 let main = strip('app/src/main.js');
 // fetch で読んでいたデータを、直接埋め込んだ定数に置き換える
 main = main.replace(
@@ -59,6 +60,7 @@ const js = [
   rank,
   link,
   gachas,
+  tower,
   main,
 ].join('\n\n')
   .replace('__RULES__', () => read('sim/rules.json'))

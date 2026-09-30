@@ -4,6 +4,10 @@ import { runBattle, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
 import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
 
 import { GACHAS, gachaOf, poolOf, urListOf, urRatesOf } from './gachas.js';
+/* 束ねるときに import 行は捨てられるので、別名（as）は使えない（2026-10-01 に踏んだ）。
+   tower.js のほうで twTeam / twResult という名にしてある */
+import { TOWER, TOWER_FOOD, TOWER_MAX, towerOf, towerTier, TIER_NAME, isBoss, isGate,
+         twTeam, twResult } from './tower.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, giveReward, rewardMulOf, sparReward, grantStarter, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
@@ -188,7 +192,9 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   /* 十連の締め（2026-09-26）。出た10体を並べるだけの画面。
      引く釦もおみくじの帯も下の帯も出さない */
   rvall: null,
-  gbanner: null };   // いま選んでいるくじ（2026-09-28）
+  gbanner: null,   // いま選んでいるくじ（2026-09-28）
+  /* 試練の塔（2026-10-01）。twSel＝札を開いている階／twMsg＝弾かれた訳 */
+  twSel: null, twMsg: '' };
 /* 起動したら、かならずスタートの画面から（2026-09-25）。
    ここで「やり直す」を出したいので、チュートリアルの途中でも一度ここを通す */
 S.screen = 'title';
@@ -1012,12 +1018,17 @@ const HOME_MENU = [
   { side: 'BR', name: '番付',     mark: '番', file: 'home_ranking',
     go: () => { S.rk = true; S.rkSel = null; S.rkPz = false; S.rkPzT = null; S.rkMsg = ''; },
     badge: () => (rkState().last ? 1 : 0) },
+  /* 試練の塔（2026-10-01）。左下・全国の釦の上。
+     絵（ui/home_tower.png）は看板なので、ほかの座より ひと回り大きく出す */
+  { side: 'BL', name: '試練の塔', mark: '塔', file: 'home_tower', big: true,
+    go: () => { S.screen = 'tower'; S.twMsg = ''; S.twSel = null; } },
 ];
 function homeMenuBtn(m) {
   const wide = m.side === 'BR' && !m.square;
   const art = (m.file && uiUrl(m.file)) || uiUrl((wide ? 'banner_' : 'menu_') + m.name);
   return el('button', {
-    class: (wide ? 'hmw' : 'hmb') + (art ? ' art' : '') + (m.soon ? ' soon' : ''),
+    class: (wide ? 'hmw' : 'hmb') + (art ? ' art' : '') + (m.soon ? ' soon' : '')
+         + (m.big ? ' big' : ''),
     title: m.soon ? `${m.name}（近日）` : m.name,
     disabled: m.soon ? true : null,
     onclick: m.soon ? null : () => { m.go(); SFX.pick(); draw(); },
@@ -1036,7 +1047,8 @@ function homeMenuBtn(m) {
 const homeMenu = side => {
   const list = HOME_MENU.filter(m => m.side === side && !m.off);
   if (!list.length) return null;
-  return el('div', { class: 'hmenu ' + (side === 'BR' ? 'bottom' : 'topleft') }, list.map(homeMenuBtn));
+  const cls = side === 'BR' ? 'bottom' : side === 'BL' ? 'bottomleft' : 'topleft';
+  return el('div', { class: 'hmenu ' + cls }, list.map(homeMenuBtn));
 };
 
 function screenHome() {
@@ -1070,7 +1082,7 @@ function screenHome() {
         el('div', { class: 'lord none' }, el('div', { class: 'say' },
           el('b', {}, 'まだ武将がおらぬ'),
           el('span', {}, 'わんこみくじで武将を集めよ')))),
-      homeMenu('TL'), homeMenu('BR'),
+      homeMenu('TL'), homeMenu('BL'), homeMenu('BR'),
       tebikiCard()),
     nav: true,
   };
@@ -1464,6 +1476,19 @@ const TITLES = [
   /* 番付の蔵で軍功と引き換える肩書き（2026-09-25）。
      実績でとる30個とは別枠。f が false なのは、買う以外では手に入らないため。
      ここに並べておかないと checkTitles が「知らない称号」として落としてしまう */
+  /* 試練の塔（2026-10-01）。十階ごとの櫓の主を抜くと渡す。
+     f が false なのは、登る以外では手に入らないため。
+     ここに並べておかないと checkTitles が「知らない称号」として落としてしまう */
+  { n: '塔に入りし者', g: '塔', t: 1, f: () => false },
+  { n: '寡兵の将',     g: '塔', t: 2, f: () => false },
+  { n: '地の利',       g: '塔', t: 2, f: () => false },
+  { n: '一門の主',     g: '塔', t: 3, f: () => false },
+  { n: '無傷の名',     g: '塔', t: 3, f: () => false },
+  { n: '疾風',         g: '塔', t: 4, f: () => false },
+  { n: '役者ぞろい',   g: '塔', t: 4, f: () => false },
+  { n: '位に依らず',   g: '塔', t: 5, f: () => false },
+  { n: '奇策の主',     g: '塔', t: 5, f: () => false },
+  { n: '天守の主',     g: '塔', t: 6, f: () => false },
   { n: '誉れ者',       g: '蔵', t: 3, f: () => false },
   { n: '一騎当千',     g: '蔵', t: 4, f: () => false },
   { n: '番付の主',     g: '蔵', t: 6, f: () => false },
@@ -5748,7 +5773,7 @@ function evEnemy(rank, rng) {
    兵糧は要らない。そのかわり同じ友とは1日1回。 */
 /* bout（番付・2026-09-25）＝プレイヤー同士の腕くらべ。{ npc, mine } を渡す。
    稽古と同じで必ずオート。対戦札は挑む側で1枚減らしてある */
-function startBattle(camp, evb, spar, bout) {
+function startBattle(camp, evb, spar, bout, tw) {
   /* 開いている札はここで全部閉じる（2026-09-24）。
      キャラカードを開いたまま出陣すると、盤面の上に札が残り続けていた */
   S.detail = null; S.fr = false; S.frId = null; S.frMsg = '';
@@ -5760,6 +5785,7 @@ function startBattle(camp, evb, spar, bout) {
   if (camp) miBump('camp');
   if (evb) miBump('ev');
   if (spar) miBump('spar');
+  if (tw) miBump('battle');
   const seed = camp ? campSeed(camp.pref.id, camp.step)
              : spar ? campSeed(spar.id + ':' + today(), spar.pref.battles - 1)
              : bout ? rkSeed(bout.npc.id + ':' + today())
@@ -5774,9 +5800,13 @@ function startBattle(camp, evb, spar, bout) {
   // お祭りは級で場所が決まる（2026-09-28）。初級＝草原／中級＝河川／上級＝山岳／超級＝城郭。
   // 前はここを素通りしていたので、直前の戦の盤面を引きずっていた
   if (evb) S.stage = EV_STAGE[evb.rank] || '草原';
+  /* 塔は階ごとに場所が決まっている（2026-10-01）。
+     同じ階なら いつも同じ景色。何度でも挑めるので、条件がぶれては読みにならない */
+  if (tw) S.stage = (towerOf(tw.f) || {}).stage || '草原';
   // 障害の置き方は種で決まる（2026-09-26）。同じ国の同じ段なら、いつも同じ盤面
   // お祭りだけは級の番号で固定し、同じ級はいつも同じ景色にする（2026-09-28）
   S.stageV = evb ? (evb.rank % stageVarCount(S.stage))
+                 : tw ? (tw.f % stageVarCount(S.stage))
                  : ((seed >>> 0) % stageVarCount(S.stage));
   // 人が絡む戦だけ、相手ごと・日ごとに攻守を入れ替える（2026-09-26）
   S.stageFlip = stageFlipFor(spar, bout);
@@ -5784,7 +5814,8 @@ function startBattle(camp, evb, spar, bout) {
   let B = camp ? campEnemy(camp.pref, camp.step, rng)
             : spar ? campEnemy(spar.pref, spar.pref.battles - 1, rng)
             : bout ? rkTeamOf(bout.npc)
-            : evb ? evEnemy(evb.rank, rng) : enemyTeam(rng);
+            : evb ? evEnemy(evb.rank, rng)
+            : tw ? twEnemy(tw.f, rng) : enemyTeam(rng);
   /* 初陣だけは一対一（2026-09-30）。
      こちらは一騎しかいないのに相手が五騎では、手ざわりを覚える前に押し切られる。
      手引きの「初陣」の歩にいるあいだだけ、相手も総大将ひとりにする */
@@ -5795,7 +5826,10 @@ function startBattle(camp, evb, spar, bout) {
   // 実際にどちらで動くかは modes（そのターン以降この方式）で決める
   // 戦仕度で選んだ道具を、ここで使い切って開戦から効かせる（2026-09-21）
   const prep = [];
-  for (const name of prepList()) {
+  /* 塔には陣中の品を持ち込めない（2026-10-01）。
+     効き目で押し切れる場にすると、しばりを読む楽しみが消える。
+     戦仕度で選んでいても、ここで使わずに手元に残す */
+  for (const name of (tw ? [] : prepList())) {
     const it = ITEMS[name];
     if (!useItem(name, 1)) continue;
     prep.push({ turn: 1, name, side: 'A', stat: it.stat, pct: it.pct ? it.pct / 100 : 0, weather: it.weather });
@@ -5811,6 +5845,7 @@ function startBattle(camp, evb, spar, bout) {
              ev: evb || null,
              spar: spar || null,
              bout: bout || null,
+             tw: tw || null,
              weather: wSet || weatherOf(seed, S.stage),
              useItems: prep.filter(x => !x.weather), prep };
   resolve();
@@ -5819,8 +5854,9 @@ function startBattle(camp, evb, spar, bout) {
   /* 開戦の札（2026-09-23）。どこの戦か・相手・空を一枚見せてから動きだす */
   S.vs = {
     // 題は「滋賀」と「決戦」に割る。あいだに家紋を挟むため（2026-09-24）
-    ttlL: camp ? camp.pref.name : spar ? spar.pref.name : S.stage,
-    ttlR: camp ? (camp.pref.battles > 1 ? STEP_NAME[Math.min(camp.step, 2)] : '決戦')
+    ttlL: tw ? `${tw.f}階` : camp ? camp.pref.name : spar ? spar.pref.name : S.stage,
+    ttlR: tw ? ((towerOf(tw.f) || {}).name || '試練')
+        : camp ? (camp.pref.battles > 1 ? STEP_NAME[Math.min(camp.step, 2)] : '決戦')
         : spar ? (spar.duel ? '一騎打ち' : '稽古') : 'の戦',
     house: camp ? camp.pref.house : spar ? spar.pref.house : null,
     foe: (camp ? `${camp.pref.house}　` : spar ? `${spar.pref.house}　` : '') + (B[0] ? B[0].name : ''),
@@ -6278,9 +6314,18 @@ function drawBattle() {
       const evFirst = !!(BATTLE.ev && !evDone(BATTLE.ev.id, BATTLE.ev.rank));
       const won0 = res.winner === 'A';
       BATTLE.reward = BATTLE.bout ? null
+                    : BATTLE.tw ? null
                     : BATTLE.spar ? sparReward(won0)
                     : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked))
                     : giveReward(won0, rewardMulOf(S.picked));
+      /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
+         戦いぶりのしばりをここで確かめ、そろって初めて一階のぼる。
+         ふつうの褒美（小判など）は付けない。石だけを配る決まりにした */
+      if (BATTLE.tw) {
+        const sec = (BATTLE.rules && BATTLE.rules.time && BATTLE.rules.time.secPerTurn) || 2;
+        BATTLE.twNg = won0 ? twResult(BATTLE.tw.f, res, sec) : ['勝てなかった'];
+        BATTLE.twWon = (won0 && !BATTLE.twNg.length) ? twClear(BATTLE.tw.f) : null;
+      }
       // 天下統一の道は、勝ったぶんだけ国を進める
       if (BATTLE.camp && res.winner === 'A') BATTLE.march = advancePref(BATTLE.camp.pref.id);
       // お祭りは、勝ったときだけ褒美を配って済の印をつける（2026-09-23）
@@ -6531,10 +6576,24 @@ function resSheet() {
        戦場を選んで戦う一戦（camp なし）は、もう一戦できるので盤面に残す */
     const toMap = !!BATTLE.camp, toEv = !!BATTLE.ev, toFr = BATTLE.spar && BATTLE.spar.id;
     const toRk = !!BATTLE.bout, rkD = BATTLE.boutPt;
+    /* 塔は必ず塔へ返す（2026-10-01）。抜けたなら褒美を、届かなかったなら
+       何が足りなかったかを、そのまま塔の画面に出す */
+    const toTw = !!BATTLE.tw;
+    const twF = toTw ? BATTLE.tw.f : 0;
+    const twW = BATTLE.twWon, twN = BATTLE.twNg;
     S.res = null; S.dmg = false;   // 戦いぶりの札も一緒に畳む（2026-09-29）
     /* 初陣（手引きの一戦目）のあとだけは、全国ではなく城へ返す（2026-09-25）。
        ここから手引きが始まるので、まず城の景色を見せたい */
     const toFirst = !!(BATTLE.camp && P.tut2.on && !P.tut2.got && tebikiStep() === 1);
+    if (toTw) {
+      fxToken++; BATTLE = null;
+      S.screen = 'tower'; S.twSel = null;
+      S.twMsg = twW
+        ? (twW.first ? `${twF}階を抜けた　石 ${num(twW.stone)}${twW.title ? `／称号「${twW.title}」` : ''}`
+                     : `${twF}階を抜けた（褒美は受け取り済み）`)
+        : `届かなんだ　― ${(twN || []).join('／')}`;
+      SFX.pick(); draw(); return;
+    }
     if (toMap || toEv || toFr || toRk) { fxToken++; const id = BATTLE.ev && BATTLE.ev.id; BATTLE = null;
       S.screen = (toEv ? 'event' : (toFr || toRk || toFirst) ? 'home' : 'map');
       if (toEv) { S.evId = id; S.evMsg = ''; }
@@ -6646,6 +6705,144 @@ function resSheet() {
     kind === 'lose' ? '受け取る' : '報酬を受け取る'));
   // 暗幕を押しても閉じない。褒美は必ずボタンで受け取ってもらう
   return el('div', { class: 'sheet ressheet' }, box);
+}
+
+/* ================= 試練の塔（2026-10-01）=================
+   百階。一階ずつ、しばりを読んで編成で解く場。
+   ・兵糧は どの階も 10。何度でも挑める
+   ・褒美は初めて抜けた一度だけ。石だけを配る
+   ・陣中の品は持ち込めない（startBattle で止めている）
+   ・敵の顔ぶれは階の番号で決まり打ち。同じ階なら いつも同じ相手 */
+const twState = () => { if (!P.tower) P.tower = { floor: 1, got: [] }; return P.tower; };
+const twFloor = () => twState().floor || 1;
+const twGot = f => (twState().got || []).includes(f);
+
+/* その階の敵。階の番号を種にするので、何度挑んでも同じ顔ぶれ（2026-10-01）。
+   組み方はお祭りと同じ「兵力を使い切る」やり方 */
+function twEnemy(f, _rng) {
+  const t = towerOf(f); if (!t) return enemyTeam(_rng);
+  let s = ((f * 2654435761) ^ 0x5bf03635) >>> 0;
+  const rng = () => { s = (s + 0x6D2B79F5) >>> 0; let x = Math.imul(s ^ (s >>> 15), 1 | s);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  const want = t.enemy.cost;
+  const MIN = Math.min(...C.map(c => c.cost));
+  const out = [];
+  let sum = 0;
+  for (let slot = 0; slot < 5; slot++) {
+    const left = 5 - out.length - 1;
+    const room = want - sum - left * MIN;
+    const cand = C.filter(c => c.cost <= room && !out.some(x => x.no === c.no)
+      && !out.some(x => x.origin && c.origin && x.origin === c.origin));
+    if (!cand.length) break;
+    const aim = slot === 0 ? room : Math.round((want - sum) / (5 - out.length));
+    let near = Infinity;
+    for (const c of cand) near = Math.min(near, Math.abs(c.cost - aim));
+    const best = cand.filter(c => Math.abs(c.cost - aim) === near);
+    const c = best[Math.floor(rng() * best.length)];
+    out.push(c); sum += c.cost;
+  }
+  const list = out.length ? out : C.slice(0, 5);
+  return list.map(c => foeGrown(c, t.enemy.lv, t.enemy.soul, t.enemy.skill));
+}
+
+/* 挑む。部隊をえらんでから、しばりと兵糧を検める（お祭りと同じ順） */
+function twGo(f) {
+  if (f > twFloor()) { S.twMsg = 'まだ、この階には上がれぬ'; SFX.pick(); draw(); return; }
+  const t = towerOf(f); if (!t) return;
+  sqAsk(`${f}階に出す部隊`, `${t.name}　${t.t}`, () => twGo2(f));
+}
+function twGo2(f) {
+  const t = towerOf(f); if (!t) return;
+  const q = P.squads[P.active];
+  if (!q.nos.length) { S.twMsg = '部隊を編成してから挑める'; SFX.pick(); draw(); return; }
+  if (dupOrigins(q.nos).length) { S.twMsg = '同じ武将が重なっている'; SFX.pick(); draw(); return; }
+  /* しばりのうち、編成で分かるぶんはここで弾く（2026-10-01）。
+     戦ってから「役目ちがい」で落とすのは、兵糧も時も無駄にする */
+  const ng = twTeam(f, S.picked, S.form);
+  if (ng.length) { S.twMsg = ng.join('／'); SFX.pick(); draw(); return; }
+  if (squadCost(q) > costMax()) { S.twMsg = 'コストが上限を超えている'; SFX.pick(); draw(); return; }
+  if (P.stamina < TOWER_FOOD) {
+    S.twMsg = `兵糧が足りぬ（要 ${TOWER_FOOD}）`;
+    S.foodAfter = () => twGo2(f);
+    S.food = true; SFX.pick(); draw(); return;
+  }
+  P.stamina -= TOWER_FOOD; savePlayer();
+  S.twMsg = '';
+  startBattle(null, null, null, null, { f });
+}
+
+/* 抜けたときの締め。褒美は初めての一度だけ */
+function twClear(f) {
+  const t = towerOf(f); if (!t) return null;
+  const st = twState();
+  const first = !twGot(f);
+  if (first) {
+    st.got = [...(st.got || []), f];
+    if (f >= (st.floor || 1)) st.floor = Math.min(TOWER_MAX, f + 1);
+    P.free = (P.free || 0) + t.rw.stone;
+    if (t.rw.title) gainTitle(t.rw.title);
+    savePlayer();
+  }
+  return { first, stone: first ? t.rw.stone : 0, title: first ? (t.rw.title || null) : null };
+}
+
+/* ---- 画面 ---- */
+function twRow(t) {
+  const now = twFloor();
+  const done = twGot(t.f);
+  const lock = t.f > now;
+  const boss = isBoss(t.f), gate = isGate(t.f);
+  return el('button', {
+    class: 'twrow' + (done ? ' done' : '') + (lock ? ' lock' : '')
+         + (boss ? ' boss' : gate ? ' gate' : '') + (t.f === now ? ' now' : ''),
+    disabled: lock ? true : null,
+    onclick: () => { S.twSel = t.f; S.twMsg = ''; SFX.pick(); draw(); },
+  },
+    el('span', { class: 'twf' }, String(t.f), el('em', {}, '階')),
+    el('span', { class: 'twt' },
+      el('b', {}, lock ? '？？？' : t.name),
+      el('i', {}, lock ? '前の階を抜けば見える' : t.t)),
+    el('span', { class: 'twr' },
+      done ? el('em', { class: 'twok' }, '済')
+           : el('em', { class: 'twh' }, '★'.repeat(t.hard))));
+}
+/* 階の札。しばり・盤・敵の強さ・褒美を出して、そこから挑む */
+function twSheet() {
+  const f = S.twSel; const t = towerOf(f); if (!t) return null;
+  const close = () => { S.twSel = null; S.twMsg = ''; draw(); };
+  const done = twGot(f);
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 twbox' },
+      el('b', { class: 'mittl' }, `${f}階　${t.name}`),
+      el('p', { class: 'twcond' }, t.t),
+      el('div', { class: 'twmeta' },
+        el('span', {}, '場所', el('b', {}, t.stage)),
+        el('span', {}, '兵糧', el('b', {}, String(TOWER_FOOD))),
+        el('span', {}, '難しさ', el('b', {}, '★'.repeat(t.hard)))),
+      el('div', { class: 'twrw' },
+        curIcon('stone'), el('b', {}, num(t.rw.stone)),
+        t.rw.title ? el('em', {}, `称号「${t.rw.title}」`) : null,
+        done ? el('i', { class: 'twdone' }, '受け取り済み') : null),
+      el('p', { class: 'note' }, '陣中の品は持ち込めぬ。敵の陣形は、挑むまで分からぬ'),
+      S.twMsg ? el('p', { class: 'twng' }, S.twMsg) : null,
+      el('div', { class: 'acts2' },
+        el('button', { class: 'ghost', onclick: close }, '閉じる'),
+        el('button', { class: 'go', onclick: () => twGo(f) }, done ? 'もう一度挑む' : '挑む')),
+      closeX(close)));
+}
+function screenTower() {
+  const now = twFloor();
+  const tier = towerTier(now);
+  return {
+    body: el('div', { class: 'tower' },
+      el('div', { class: 'twhead' },
+        el('b', {}, `試練の塔　${now} 階`),
+        el('span', {}, `${TIER_NAME[tier] || ''}の重　／　百階`)),
+      el('div', { class: 'twbar' }, el('i', { style: `width:${now / TOWER_MAX * 100}%` })),
+      el('div', { class: 'twlist' }, TOWER.filter(t => t.f <= now + 2).reverse().map(twRow)),
+      S.twSel ? twSheet() : null),
+    nav: true,
+  };
 }
 
 /* ================= お祭り（イベント）2026-09-23 =================
@@ -7474,10 +7671,12 @@ const SCREENS = {
   grow: screenGrow, power: screenPower, skillup: screenSkillUp, inherit: screenInherit, shop: screenShop,
   gacha: screenGacha, gachalist: screenGachaList, team: screenTeam, form: screenForm, battle: screenBattle,
   event: screenEvent, loading: screenLoading,
+  tower: screenTower,
 };
 const SUB = { title: '', tutorial: 'はじまり', home: 'ホーム', map: '全国', march: '出陣', squads: '部隊', dex: '図鑑',
               gacha: 'わんこみくじ', gachalist: 'くじ選び', team: '編成', form: '陣形と配置', battle: '合戦', event: 'お祭り',
-              grow: '育成', power: '武将強化', skillup: '特技強化', inherit: '特技継承', shop: 'ショップ' };
+              grow: '育成', power: '武将強化', skillup: '特技強化', inherit: '特技継承', shop: 'ショップ',
+              tower: '試練の塔' };
 /* 画面は毎回まるごと組み直すので、そのままだと押すたびに先頭へ戻ってしまう。
    同じ画面のままなら、縦の位置を覚えておいて戻す（2026-09-21） */
 let LAST_SCREEN = null;

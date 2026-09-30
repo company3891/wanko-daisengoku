@@ -7158,7 +7158,11 @@ function guidePaint() {
         || also.some(x => x === b || x.contains(b) || b.contains(x))
         || b.classList.contains('menub') || b.classList.contains('back')
         || b.classList.contains('sheetclose') || b.classList.contains('rvskip')
-        || b.classList.contains('nv');           // 下の帯はいつでも押せる
+        || b.classList.contains('nv')
+        /* 戻る・閉じるのたぐいと、手引きの「やめる」は必ず押せるままにする（2026-09-30）。
+           .sqback などを錠していたせいで、行き止まりになることがあった */
+        || b.classList.contains('gdquit') || b.classList.contains('sqback')
+        || b.classList.contains('xclose') || b.classList.contains('ghost');           // 下の帯はいつでも押せる
       if (!keep) b.classList.add('gdlock');
     }
   }
@@ -7193,6 +7197,11 @@ function guidePaint() {
     }
   }
   gdBubble(g, hit);
+  /* 絵や書体が入ると高さが変わるので、少し待ってから置き直す（2026-09-30）。
+     「はじめは位置がずれていて、画面を動かすと直る」のはこれが理由だった */
+  setTimeout(gdRelayout, 60);
+  setTimeout(gdRelayout, 260);
+  setTimeout(gdRelayout, 700);
 }
 /* 矢印と語りを、指す釦のいまの場所に合わせて置く（2026-09-30）。
    画面を巻くと釦は動くのに、position:fixed の矢印と語りは止まったままだったので、
@@ -7205,7 +7214,11 @@ function gdBubble(g, hit) {
     const art = faceUrl(no, '笑顔') || faceUrl(no, '通常') || pawnUrl(no);
     say = el('div', { class: 'gdsay' },
       art ? el('img', { class: 'gdf', src: art, alt: '' }) : el('i', { class: 'gdf' }, '犬'),
-      el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])));
+      el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])),
+      /* 逃げ道（2026-09-30）。戻るなどで思わぬ画面へ行くと、
+         指す先が別の画面にあって進めなくなることがあった。いつでも降りられるようにする */
+      el('button', { class: 'gdquit', title: '手引きをやめる',
+        onclick: () => { P.gstep = 0; savePlayer(); SFX.pick(); draw(); } }, 'やめる'));
     document.body.append(say);
   }
   if (!hit) {                                   // 指す先が無いときは、いつもの下ぎわ
@@ -7236,6 +7249,11 @@ function gdBubble(g, hit) {
 let gdTick = 0;
 function gdRelayout() {
   if (!guideOn() || gdTick) return;
+  /* 語りが出ていないときは、何もしない（2026-09-30）。
+     前はここが語りを作り直していたので、手引きを出してはいけない画面
+     （開幕の一枚絵・合戦・天下の分け目の札）にも語りが居残り、
+     指す先が無いまま画面がふさがって先へ進めなくなっていた */
+  if (!document.querySelector('.gdsay')) return;
   gdTick = requestAnimationFrame(() => {
     gdTick = 0;
     const g = gdNow(); if (!g) return;
@@ -7318,7 +7336,8 @@ let LAST_SCREEN = null;
 function draw() {
   IMG_USED = new Set();          // 絵の使い回しは1回の描画につき1か所まで
   saveSquads();                                   // 画面が変わるたびに保存する
-  const keepY = (LAST_SCREEN === S.screen) ? (window.scrollY || document.documentElement.scrollTop || 0) : 0;
+  /* 巻いている場所は #app（2026-09-30）。ページ自体は動かさなくなった */
+  const keepY = (LAST_SCREEN === S.screen) ? ($('#app') ? $('#app').scrollTop : 0) : 0;
   const v = (SCREENS[S.screen] || screenHome)();
   const app = $('#app');
   app.innerHTML = '';
@@ -7404,13 +7423,15 @@ function draw() {
   const nv = app.querySelector('.nav');
   /* 帯が無い画面では 0 を入れる（2026-09-30）。
      前の画面の高さが残ったままだと、追従の戻る釦が宙に浮く */
+  /* 帯を下から 8px 浮かせたので（2026-09-30）、高さだけでは足りない。
+     画面の下ぎわから帯の上ぎわまでを測って渡す */
   document.documentElement.style.setProperty('--nav',
-    (nv ? Math.round(nv.getBoundingClientRect().height) : 0) + 'px');
+    (nv ? Math.round(innerHeight - nv.getBoundingClientRect().top) : 0) + 'px');
   /* 札（ポップアップ）の後ろに敷く絵（2026-09-24）。
      合戦の盤面だけは敷かない。勝敗の札の後ろに盤面が見えていてほしいので */
   const sbg = S.screen === 'battle' ? null : bgUrl('home');
   document.documentElement.style.setProperty('--scrbg', sbg ? `url("${sbg}")` : 'none');
-  if (keepY) window.scrollTo(0, keepY);
+  if (keepY) app.scrollTop = keepY;
   LAST_SCREEN = S.screen;
   updateAudio();
   if (S.screen === 'battle') drawBattle();

@@ -51,11 +51,20 @@
    巻けること自体は、中身が切れて見えているので分かる */
 *{scrollbar-width:none;-ms-overflow-style:none}
 *::-webkit-scrollbar{width:0;height:0;display:none}
+/* 画面ぜんたいは動かさない（2026-09-30）。
+   iPhone の Safari はページの端で「ゴムのように弾む」。
+   このとき position:fixed のヘッダーや下の帯、手引きの矢印まで一緒に動き、
+   指を離すまで置き場所がずれていた。
+   ページ（body）を画面に貼り付けてしまい、巻くのは中の #app だけにする。
+   こうすると ヘッダー・帯・釦は指の動きでびくともしない。 */
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--text);
   font-family:var(--gothic);
-  font-feature-settings:"palt";overscroll-behavior:none}
-#app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+  font-feature-settings:"palt";
+  position:fixed;inset:0;width:100%;overflow:hidden;overscroll-behavior:none}
+#app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain}
 .boot{padding:48px 16px;text-align:center;color:var(--text3)}
 
 /* ヘッダーの下地は透過（2026-09-21）。城下町やガチャの絵をそのまま見せる。
@@ -1253,12 +1262,18 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 /* 枠の下は不透明な黒を敷く（2026-09-21）。
    透かすと後ろのカードが透けて枠がかすむので、下地で受け止める。
    上端だけはなだらかに消して、四角い帯に見えないようにする。 */
+/* フッターは紺のガラス帯（2026-09-30）。金の枠の絵はやめた。
+   左右と下を空けて浮かせ、後ろの絵をぼかして透かす。
+   金の細線を一本だけ引いて、ほかの画面の縁と同じ顔にする。 */
 .nav.framed{border-top:0;position:fixed;
-  background:linear-gradient(to bottom,#0000 0,#00000000 10px,#0a0807e6 26px,#0a0807 38px)}
+  left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));
+  background:#0e1a3380;
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);
+  backdrop-filter:blur(18px) saturate(1.3);
+  border:1px solid #d8a94a66;border-radius:18px;
+  box-shadow:0 10px 26px #000b;overflow:visible}
 /* 枠の絵は中身の後ろに敷く。border-image を使うので、枠の太さを borderで確保する */
-.nav.framed::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
-  border-style:solid;border-color:#0000;border-top-width:0;border-bottom-width:0;
-  border-image-repeat:stretch}
+.nav.framed::before{display:none}
 /* 角飾りの幅は届いた絵から実測して入れている（2026-09-23 更新）。
    絵は帯のところだけに切り出してあり、角飾りが歪まない太さにしてある。
      フッター：1560×257／角飾り160px → 高さ104pxのとき 65px
@@ -1288,8 +1303,7 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 .dc.no.card:active{transform:scale(.97)}
 
 /* ---- 枠を敷いたときの中身の調整（2026-09-21）---- */
-.nav.framed{padding-left:77px;padding-right:77px;align-items:center;
-  min-height:72px;box-sizing:border-box}
+.nav.framed{align-items:center;min-height:72px;box-sizing:border-box}
 .nav.framed .nv{padding:0;justify-content:center;gap:0}
 /* 座：絵のほうに黒漆と金の輪が描いてあるので、こちらでは丸を描かない */
 .nav.framed .nv.pic i{position:relative;width:54px;height:54px;overflow:visible;
@@ -2226,21 +2240,20 @@ header{padding:8px 12px 8px}
      --nav-corner … 角飾りの横幅＝border-image の左右の幅
    歪ませないための決まり：--nav-corner / --nav-h ＝ 絵の角飾り幅 / 絵の高さ
    いまの絵は108 / 312で、高さ104pxのとき角飾り36px。 */
-.nav.framed{--nav-h:104px;--nav-corner:65px}
-.nav.framed{min-height:var(--nav-h);
-  padding-left:var(--nav-corner);padding-right:var(--nav-corner)}
-.nav.framed::before{border-left-width:var(--nav-corner);border-right-width:var(--nav-corner);
-  border-image-width:0 var(--nav-corner)}
+/* 角飾りが無くなったので、左右の余白はただの余白（2026-09-30） */
+.nav.framed{--nav-h:88px}
+.nav.framed{min-height:var(--nav-h);padding-left:14px;padding-right:14px}
 /* 角飾りが 36 → 65px に太くなったので、座をひと回り落として重ならないようにする
    （393 − 65×2 = 263px を5つで分ける・2026-09-23） */
-.nav.framed .nv.pic i{width:52px;height:52px}
-.nav.framed .nv.pic.home i{width:64px;height:64px;margin-top:-13px}
+/* 座はガラス帯に合わせてひと回り大きく。城だけ帯から少し顔を出す（2026-09-30） */
+.nav.framed .nv.pic i{width:53px;height:53px}
+.nav.framed .nv.pic.home i{width:65px;height:65px;margin-top:-16px}
 .nav.framed .nv.pic i span{font-size:10.5px;bottom:5px;left:-12%;right:-12%}
 /* iPhone SE（375px）級の細い画面では座をひと回り落として、画面からはみ出さないようにする */
 @media (max-width:380px){
-  .nav.framed{--nav-h:96px;--nav-corner:60px}      /* 160 × 96/257 */
-  .nav.framed .nv.pic i{width:48px;height:48px}
-  .nav.framed .nv.pic.home i{width:59px;height:59px;margin-top:-12px}
+  .nav.framed{--nav-h:82px}
+  .nav.framed .nv.pic i{width:49px;height:49px}
+  .nav.framed .nv.pic.home i{width:60px;height:60px;margin-top:-15px}
   .nav.framed .nv.pic i span{font-size:10px;bottom:4px;left:-12%;right:-12%}
 }
 /* 枠の絵が無いときの素のナビも、同じだけ大きくする */
@@ -4454,6 +4467,15 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
   display:flex;gap:10px;align-items:center;pointer-events:none;
   background:#12100eee;border:1.5px solid var(--gold);border-radius:14px;padding:10px 12px;
   box-shadow:0 6px 20px #000b;animation:up .22s cubic-bezier(.2,.9,.3,1.1)}
+/* 手引きの逃げ道（2026-09-30）。語りの右下に小さく置く。
+   語りじたいは指を通す作りなので、この釦だけ受けるようにする */
+.gdsay{pointer-events:none}
+.gdsay .gdquit{position:absolute;right:8px;bottom:6px;pointer-events:auto;
+  font-family:inherit;font-size:10px;letter-spacing:.06em;
+  color:#e8d9b4;background:#ffffff14;border:1px solid #ffffff33;
+  border-radius:999px;padding:3px 10px 4px;cursor:pointer}
+.gdsay .gdquit:active{transform:translateY(1px);filter:brightness(.9)}
+.gdsay{padding-bottom:22px}
 .gdsay .gdf{flex:0 0 auto;width:44px;height:44px;border-radius:50%;object-fit:cover;
   background:#241a12;border:1.5px solid var(--gold);display:grid;place-items:center;
   font-style:normal;color:var(--gold)}
@@ -29976,7 +29998,11 @@ function guidePaint() {
         || also.some(x => x === b || x.contains(b) || b.contains(x))
         || b.classList.contains('menub') || b.classList.contains('back')
         || b.classList.contains('sheetclose') || b.classList.contains('rvskip')
-        || b.classList.contains('nv');           // 下の帯はいつでも押せる
+        || b.classList.contains('nv')
+        /* 戻る・閉じるのたぐいと、手引きの「やめる」は必ず押せるままにする（2026-09-30）。
+           .sqback などを錠していたせいで、行き止まりになることがあった */
+        || b.classList.contains('gdquit') || b.classList.contains('sqback')
+        || b.classList.contains('xclose') || b.classList.contains('ghost');           // 下の帯はいつでも押せる
       if (!keep) b.classList.add('gdlock');
     }
   }
@@ -30011,6 +30037,11 @@ function guidePaint() {
     }
   }
   gdBubble(g, hit);
+  /* 絵や書体が入ると高さが変わるので、少し待ってから置き直す（2026-09-30）。
+     「はじめは位置がずれていて、画面を動かすと直る」のはこれが理由だった */
+  setTimeout(gdRelayout, 60);
+  setTimeout(gdRelayout, 260);
+  setTimeout(gdRelayout, 700);
 }
 /* 矢印と語りを、指す釦のいまの場所に合わせて置く（2026-09-30）。
    画面を巻くと釦は動くのに、position:fixed の矢印と語りは止まったままだったので、
@@ -30023,7 +30054,11 @@ function gdBubble(g, hit) {
     const art = faceUrl(no, '笑顔') || faceUrl(no, '通常') || pawnUrl(no);
     say = el('div', { class: 'gdsay' },
       art ? el('img', { class: 'gdf', src: art, alt: '' }) : el('i', { class: 'gdf' }, '犬'),
-      el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])));
+      el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])),
+      /* 逃げ道（2026-09-30）。戻るなどで思わぬ画面へ行くと、
+         指す先が別の画面にあって進めなくなることがあった。いつでも降りられるようにする */
+      el('button', { class: 'gdquit', title: '手引きをやめる',
+        onclick: () => { P.gstep = 0; savePlayer(); SFX.pick(); draw(); } }, 'やめる'));
     document.body.append(say);
   }
   if (!hit) {                                   // 指す先が無いときは、いつもの下ぎわ
@@ -30054,6 +30089,11 @@ function gdBubble(g, hit) {
 let gdTick = 0;
 function gdRelayout() {
   if (!guideOn() || gdTick) return;
+  /* 語りが出ていないときは、何もしない（2026-09-30）。
+     前はここが語りを作り直していたので、手引きを出してはいけない画面
+     （開幕の一枚絵・合戦・天下の分け目の札）にも語りが居残り、
+     指す先が無いまま画面がふさがって先へ進めなくなっていた */
+  if (!document.querySelector('.gdsay')) return;
   gdTick = requestAnimationFrame(() => {
     gdTick = 0;
     const g = gdNow(); if (!g) return;
@@ -30136,7 +30176,8 @@ let LAST_SCREEN = null;
 function draw() {
   IMG_USED = new Set();          // 絵の使い回しは1回の描画につき1か所まで
   saveSquads();                                   // 画面が変わるたびに保存する
-  const keepY = (LAST_SCREEN === S.screen) ? (window.scrollY || document.documentElement.scrollTop || 0) : 0;
+  /* 巻いている場所は #app（2026-09-30）。ページ自体は動かさなくなった */
+  const keepY = (LAST_SCREEN === S.screen) ? ($('#app') ? $('#app').scrollTop : 0) : 0;
   const v = (SCREENS[S.screen] || screenHome)();
   const app = $('#app');
   app.innerHTML = '';
@@ -30222,13 +30263,15 @@ function draw() {
   const nv = app.querySelector('.nav');
   /* 帯が無い画面では 0 を入れる（2026-09-30）。
      前の画面の高さが残ったままだと、追従の戻る釦が宙に浮く */
+  /* 帯を下から 8px 浮かせたので（2026-09-30）、高さだけでは足りない。
+     画面の下ぎわから帯の上ぎわまでを測って渡す */
   document.documentElement.style.setProperty('--nav',
-    (nv ? Math.round(nv.getBoundingClientRect().height) : 0) + 'px');
+    (nv ? Math.round(innerHeight - nv.getBoundingClientRect().top) : 0) + 'px');
   /* 札（ポップアップ）の後ろに敷く絵（2026-09-24）。
      合戦の盤面だけは敷かない。勝敗の札の後ろに盤面が見えていてほしいので */
   const sbg = S.screen === 'battle' ? null : bgUrl('home');
   document.documentElement.style.setProperty('--scrbg', sbg ? `url("${sbg}")` : 'none');
-  if (keepY) window.scrollTo(0, keepY);
+  if (keepY) app.scrollTop = keepY;
   LAST_SCREEN = S.screen;
   updateAudio();
   if (S.screen === 'battle') drawBattle();

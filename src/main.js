@@ -1163,7 +1163,13 @@ function squadCard(q, i, onPick, toEdit) {
            札を閉じずに画面だけ変えていたので、編成の上に札が残り、
            「押しても何も起きない」ように見えていた。
            札は預かっておいて、編成の左下の釦でそのまま戦へ戻れるようにする */
-        if (S.sqp) { S.sqpHold = { ask: S.sqp, from: S.screen }; S.sqp = null; }
+        /* 友の家や番付の札も一緒に預ける（2026-09-30）。
+           これらは画面をまたいで出しっぱなしなので、閉じずに編成へ行くと
+           編成の上に覆いかぶさって「押しても何も起きない」ように見えていた */
+        if (S.sqp) {
+          S.sqpHold = { ask: S.sqp, from: S.screen, fr: S.fr, frId: S.frId, rk: S.rk };
+          S.sqp = null; S.fr = false; S.frId = null; S.rk = false;
+        }
         S.screen = toEdit ? 'map' : 'team';
         SFX.pick(); savePlayer(); draw();
       },
@@ -7010,7 +7016,9 @@ function draw() {
     (S.sqpHold && (S.screen === 'team' || S.screen === 'form'))
       ? el('button', { class: 'sqback', title: '戦へもどる',
           onclick: () => { const h = S.sqpHold; S.sqpHold = null;
-                           S.screen = h.from; S.sqp = h.ask; SFX.pick(); draw(); } }, '← 戦へ')
+                           S.screen = h.from; S.sqp = h.ask;
+                           S.fr = !!h.fr; S.frId = h.frId != null ? h.frId : null; S.rk = !!h.rk;
+                           SFX.pick(); draw(); } }, '← 戦へ')
       : null,
     S.keepAsk ? keepAskSheet() : null,
     S.keepMsg ? el('div', { class: 'sheet', onclick: () => { S.keepMsg = ''; draw(); } },

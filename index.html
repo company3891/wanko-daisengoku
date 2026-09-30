@@ -4342,7 +4342,11 @@ button:disabled:active{ scale:1; filter:none }
 /* ---- はじまりの一騎（2026-09-30）----
    札を一枚だけ大きく見せ、左右の矢印か横に払って送る。
    札の表に数値も特技も刷ってあるので、ほかの説明は置かない */
-.tut1{display:flex;flex-direction:column;align-items:center;gap:9px;padding:6px 0 0}
+/* 上に寄っていたので、画面の縦まん中に置く（2026-09-30）。
+   main の高さは #app の flex で決まるので、子に % を書いても効かない。
+   main.mid のほうで寄せる */
+main.mid{display:flex;flex-direction:column;justify-content:center;padding-bottom:14px}
+.tut1{display:flex;flex-direction:column;align-items:center;gap:9px;padding:0}
 .tut1 .gtalk{width:100%;margin:0}
 .tutpick{position:relative;width:100%;display:flex;align-items:center;justify-content:center;
   gap:4px;touch-action:pan-y;user-select:none;-webkit-user-select:none}
@@ -4373,7 +4377,7 @@ button:disabled:active{ scale:1; filter:none }
 .tutdots i{width:6px;height:6px;border-radius:50%;background:#ffffff2e}
 .tutdots i.on{background:var(--gold);box-shadow:0 0 6px #d8a94a88}
 /* 釦は札より細く（2026-09-30）。札のほうが主役なので、下で受け止める幅にする */
-.tutgo{width:min(58vw,240px);margin:2px 0 16px}
+.tutgo{width:min(58vw,240px);margin:2px 0 0}
 /* 細い画面では札をひと回り小さく */
 @media (max-height:740px){ .tutcard{width:min(58vw,240px)} }
 
@@ -23581,6 +23585,7 @@ function screenTutorial() {
           },
         }, 'この武将で出陣する')),
       bare: true,
+      mid: true,
     };
   }
   /* 選んだあとは、そのまま無料十連へ。
@@ -29663,7 +29668,9 @@ function draw() {
       /* 画面名も部隊名もヘッダーには出さない（2026-09-21）。下のナビと本文で分かる */
       ),
     screenBg(),
-    el('main', { class: v.nav ? 'hasnav' : '' },
+    /* mid ＝ 中身を画面の縦まん中に置く画面（2026-09-30）。
+       main は #app の flex で高さが決まるので、% ではなく main 側で寄せる */
+    el('main', { class: (v.nav ? 'hasnav' : '') + (v.mid ? ' mid' : '') },
       /* 画面の題（2026-09-23）。3段の線は意味が伝わらないのでやめ、
          どの画面にいるかを帯で出すことにした。ホームや合戦など、
          絵そのものが題になっている画面には出さない */

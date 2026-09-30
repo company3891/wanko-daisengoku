@@ -1448,16 +1448,30 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
    ヘッダーと下ナビの裏まで潜り込ませて、黒い地が出ないようにする。 */
 .mapbody{position:fixed;inset:0;margin:0;z-index:0}
 .jwrap{position:relative;height:100%}
-.jmap{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* 地図は上下左右に動かせる（2026-09-30）。
+   前は横だけだったので、上の帯（章のタブ）や下ナビにかぶった国――
+   北海道や九州の南――が押せなかった。
+   絵の高さを画面の 1.3 倍にして、余ったぶん（実測 256px）を縦に巻けるようにする。
+   さらに絵の上に 26px の空きを足す。いちばん上の国（北海道）は絵の上から 13% で、
+   852×1.3=1108px の 13% は 144px。章のタブの下ぎわ（155px）にまだ隠れるので、
+   その空きで 170px まで押し下げて、確実に外へ出す。
+   国と国のあいだも広がるので、指で押し分けやすくなる。 */
+.jmap{position:absolute;inset:0;overflow:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  touch-action:pan-x pan-y;overscroll-behavior:contain}
 .jmap::-webkit-scrollbar{display:none}
-.jmapin{position:relative;display:flex;height:100%;width:max-content}
+.jmapin{position:relative;display:flex;height:calc(100% * var(--jzoom,1.3));width:max-content;margin-top:26px}
+/* 指で引きずって動かしているあいだは、旗の押しこみを起こさない */
+.jmap.jdrag{cursor:grabbing}
+.jmap.jdrag .flag{pointer-events:none}
 /* 地図の上に重ねる帯（制覇の数・章のタブ・章の名） */
 /* 重ねる帯は、ヘッダーの下から始める */
 .jover{position:absolute;left:0;right:0;top:0;z-index:2;pointer-events:none;
   padding:79px 16px 30px;
   background:linear-gradient(to bottom,#0b0908f0 0,#0b0908d8 58%,#0b090800)}
-.jover > *{pointer-events:auto}
+/* 重ねる帯は、押せるもの（章のタブ）だけ当たり判定を持つ（2026-09-30）。
+   前は帯の中身すべてが受けていたので、制覇の数や章の題の下にある旗が押せなかった */
+.jover button{pointer-events:auto}
 .jover .unibar{margin:0 0 8px;display:inline-flex}
 .jover .chapters{margin-bottom:6px}
 .jttl{font-size:14px;font-weight:700;letter-spacing:.1em;color:#f2e6c8;

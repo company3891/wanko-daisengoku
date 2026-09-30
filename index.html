@@ -1463,16 +1463,30 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
    ヘッダーと下ナビの裏まで潜り込ませて、黒い地が出ないようにする。 */
 .mapbody{position:fixed;inset:0;margin:0;z-index:0}
 .jwrap{position:relative;height:100%}
-.jmap{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* 地図は上下左右に動かせる（2026-09-30）。
+   前は横だけだったので、上の帯（章のタブ）や下ナビにかぶった国――
+   北海道や九州の南――が押せなかった。
+   絵の高さを画面の 1.3 倍にして、余ったぶん（実測 256px）を縦に巻けるようにする。
+   さらに絵の上に 26px の空きを足す。いちばん上の国（北海道）は絵の上から 13% で、
+   852×1.3=1108px の 13% は 144px。章のタブの下ぎわ（155px）にまだ隠れるので、
+   その空きで 170px まで押し下げて、確実に外へ出す。
+   国と国のあいだも広がるので、指で押し分けやすくなる。 */
+.jmap{position:absolute;inset:0;overflow:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  touch-action:pan-x pan-y;overscroll-behavior:contain}
 .jmap::-webkit-scrollbar{display:none}
-.jmapin{position:relative;display:flex;height:100%;width:max-content}
+.jmapin{position:relative;display:flex;height:calc(100% * var(--jzoom,1.3));width:max-content;margin-top:26px}
+/* 指で引きずって動かしているあいだは、旗の押しこみを起こさない */
+.jmap.jdrag{cursor:grabbing}
+.jmap.jdrag .flag{pointer-events:none}
 /* 地図の上に重ねる帯（制覇の数・章のタブ・章の名） */
 /* 重ねる帯は、ヘッダーの下から始める */
 .jover{position:absolute;left:0;right:0;top:0;z-index:2;pointer-events:none;
   padding:79px 16px 30px;
   background:linear-gradient(to bottom,#0b0908f0 0,#0b0908d8 58%,#0b090800)}
-.jover > *{pointer-events:auto}
+/* 重ねる帯は、押せるもの（章のタブ）だけ当たり判定を持つ（2026-09-30）。
+   前は帯の中身すべてが受けていたので、制覇の数や章の題の下にある旗が押せなかった */
+.jover button{pointer-events:auto}
 .jover .unibar{margin:0 0 8px;display:inline-flex}
 .jover .chapters{margin-bottom:6px}
 .jttl{font-size:14px;font-weight:700;letter-spacing:.1em;color:#f2e6c8;
@@ -24044,11 +24058,33 @@ function japanMap(maps, open, reg) {
         art ? el('img', { src: art, alt: reg.label }) : reg.label);
     })());
   const wrap = el('div', { class: 'jwrap' }, scroller, over);
-  // いまの章が真ん中に来るように寄せる
+  /* 鼠で引きずっても動くようにする（2026-09-30）。
+     指はそのまま巻けるが、机の上では引きずるほうが自然。
+     6px 動いてから「引きずり」とみなし、そのときだけ旗の押しこみを止める。 */
+  let drag = null;
+  scroller.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop, on: false };
+  });
+  scroller.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.on && Math.abs(dx) + Math.abs(dy) < 6) return;
+    if (!drag.on) { drag.on = true; scroller.classList.add('jdrag'); }
+    scroller.scrollLeft = drag.sl - dx;
+    scroller.scrollTop = drag.st - dy;
+  });
+  for (const t of ['pointerup', 'pointercancel', 'pointerleave'])
+    scroller.addEventListener(t, () => {
+      if (drag && drag.on) setTimeout(() => scroller.classList.remove('jdrag'), 0);
+      drag = null;
+    });
+  // いまの章が真ん中に来るように寄せる（縦も合わせる：2026-09-30）
   const center = () => {
     const first = prefsOf(S.region)[0];
     if (!first || !inner.clientWidth) return;
     scroller.scrollLeft = Math.max(0, mapX(first) / 100 * inner.clientWidth - scroller.clientWidth / 2);
+    scroller.scrollTop = Math.max(0, mapY(first) / 100 * inner.clientHeight - scroller.clientHeight / 2);
   };
   requestAnimationFrame(center);
   setTimeout(center, 300);
@@ -29933,15 +29969,23 @@ function guidePaint() {
   let r = hit.getBoundingClientRect();
   /* はみ出している釦は、まず見えるところまで運ぶ（2026-09-30）。
      地図は横に長く、画面の下も切れるので、端が少しでも外に出ていたら寄せる */
-  if (!r.width || r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) {
+  /* 地図は上の帯（章のタブ）と下の霞が地図にかぶるので、その内側を「見えるところ」とみなす（2026-09-30） */
+  const onMap = !!hit.closest('.jmap');
+  const top0 = onMap ? 150 : 0, bot0 = innerHeight - (onMap ? 140 : 0);
+  if (!r.width || r.left < 0 || r.top < top0 || r.right > innerWidth || r.bottom > bot0) {
     hit.scrollIntoView({ block: 'center', inline: 'center' });
     r = hit.getBoundingClientRect();
-    /* 横に巻く入れ物（絵巻地図）は scrollIntoView が効かないことがあるので、手で寄せる */
-    if (r.left < 0 || r.right > innerWidth) {
+    /* 巻く入れ物（絵巻地図）は scrollIntoView が効かないことがあるので、手で寄せる。
+       地図は縦にも巻けるようにしたので（2026-09-30）、上下も同じように寄せる */
+    const outX = r.left < 0 || r.right > innerWidth;
+    const outY = r.top < top0 || r.bottom > bot0;
+    if (outX || outY) {
       for (let n = hit.parentElement; n; n = n.parentElement) {
-        if (n.scrollWidth <= n.clientWidth + 4) continue;
+        const wide = n.scrollWidth > n.clientWidth + 4, tall = n.scrollHeight > n.clientHeight + 4;
+        if (!wide && !tall) continue;
         const bb = n.getBoundingClientRect();
-        n.scrollLeft += (r.left + r.width / 2) - (bb.left + n.clientWidth / 2);
+        if (outX && wide) n.scrollLeft += (r.left + r.width / 2) - (bb.left + n.clientWidth / 2);
+        if (outY && tall) n.scrollTop += (r.top + r.height / 2) - (bb.top + n.clientHeight / 2);
         break;
       }
     }

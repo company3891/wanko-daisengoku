@@ -1260,11 +1260,33 @@ function japanMap(maps, open, reg) {
         art ? el('img', { src: art, alt: reg.label }) : reg.label);
     })());
   const wrap = el('div', { class: 'jwrap' }, scroller, over);
-  // いまの章が真ん中に来るように寄せる
+  /* 鼠で引きずっても動くようにする（2026-09-30）。
+     指はそのまま巻けるが、机の上では引きずるほうが自然。
+     6px 動いてから「引きずり」とみなし、そのときだけ旗の押しこみを止める。 */
+  let drag = null;
+  scroller.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, sl: scroller.scrollLeft, st: scroller.scrollTop, on: false };
+  });
+  scroller.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.on && Math.abs(dx) + Math.abs(dy) < 6) return;
+    if (!drag.on) { drag.on = true; scroller.classList.add('jdrag'); }
+    scroller.scrollLeft = drag.sl - dx;
+    scroller.scrollTop = drag.st - dy;
+  });
+  for (const t of ['pointerup', 'pointercancel', 'pointerleave'])
+    scroller.addEventListener(t, () => {
+      if (drag && drag.on) setTimeout(() => scroller.classList.remove('jdrag'), 0);
+      drag = null;
+    });
+  // いまの章が真ん中に来るように寄せる（縦も合わせる：2026-09-30）
   const center = () => {
     const first = prefsOf(S.region)[0];
     if (!first || !inner.clientWidth) return;
     scroller.scrollLeft = Math.max(0, mapX(first) / 100 * inner.clientWidth - scroller.clientWidth / 2);
+    scroller.scrollTop = Math.max(0, mapY(first) / 100 * inner.clientHeight - scroller.clientHeight / 2);
   };
   requestAnimationFrame(center);
   setTimeout(center, 300);
@@ -7149,15 +7171,23 @@ function guidePaint() {
   let r = hit.getBoundingClientRect();
   /* はみ出している釦は、まず見えるところまで運ぶ（2026-09-30）。
      地図は横に長く、画面の下も切れるので、端が少しでも外に出ていたら寄せる */
-  if (!r.width || r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) {
+  /* 地図は上の帯（章のタブ）と下の霞が地図にかぶるので、その内側を「見えるところ」とみなす（2026-09-30） */
+  const onMap = !!hit.closest('.jmap');
+  const top0 = onMap ? 150 : 0, bot0 = innerHeight - (onMap ? 140 : 0);
+  if (!r.width || r.left < 0 || r.top < top0 || r.right > innerWidth || r.bottom > bot0) {
     hit.scrollIntoView({ block: 'center', inline: 'center' });
     r = hit.getBoundingClientRect();
-    /* 横に巻く入れ物（絵巻地図）は scrollIntoView が効かないことがあるので、手で寄せる */
-    if (r.left < 0 || r.right > innerWidth) {
+    /* 巻く入れ物（絵巻地図）は scrollIntoView が効かないことがあるので、手で寄せる。
+       地図は縦にも巻けるようにしたので（2026-09-30）、上下も同じように寄せる */
+    const outX = r.left < 0 || r.right > innerWidth;
+    const outY = r.top < top0 || r.bottom > bot0;
+    if (outX || outY) {
       for (let n = hit.parentElement; n; n = n.parentElement) {
-        if (n.scrollWidth <= n.clientWidth + 4) continue;
+        const wide = n.scrollWidth > n.clientWidth + 4, tall = n.scrollHeight > n.clientHeight + 4;
+        if (!wide && !tall) continue;
         const bb = n.getBoundingClientRect();
-        n.scrollLeft += (r.left + r.width / 2) - (bb.left + n.clientWidth / 2);
+        if (outX && wide) n.scrollLeft += (r.left + r.width / 2) - (bb.left + n.clientWidth / 2);
+        if (outY && tall) n.scrollTop += (r.top + r.height / 2) - (bb.top + n.clientHeight / 2);
         break;
       }
     }

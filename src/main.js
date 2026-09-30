@@ -7444,6 +7444,12 @@ function draw() {
      ガチャの背景（題字が絵の上端に入っている）が下に潜らないよう、ここぶんだけ下げる */
   const hd = app.querySelector('header');
   document.documentElement.style.setProperty('--hdr', (hd ? Math.round(hd.getBoundingClientRect().height) : 0) + 'px');
+  /* 自分の顔の帯（名とレベル）の下ぎわも渡す（2026-09-30）。
+     ホームの左に立てる 報・袋・友・店 の列を、顔のすぐ下から始めるのに使う。
+     ヘッダーの高さ（--hdr）で合わせると、二段目の空いているところぶん下がりすぎていた */
+  const mebar = hd && hd.querySelector('.me');
+  document.documentElement.style.setProperty('--mefoot',
+    (mebar ? Math.round(mebar.getBoundingClientRect().bottom) : 0) + 'px');
   /* フッターの実際の高さも渡す（2026-09-24）。
      ホームを画面にぴったり収めて、揺れないようにするのに使う */
   const nv = app.querySelector('.nav');

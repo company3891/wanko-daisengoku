@@ -843,6 +843,9 @@ function screenTutorial() {
           class: 'go big out', disabled: S.pick == null || null,
           onclick: () => {
             P.first = S.pick;                       // はじまりの一騎を覚える（2026-09-25）
+            /* はじめの十連は門出のくじで引く（2026-09-30）。
+               信わんが出るのはここだけなので、いちばん最初は必ずこちらを通す */
+            S.gbanner = 'release';
             grantStarter(S.pick); setCampStart(charOf(S.pick)); S.pick = null; draw();
           },
         }, S.pick != null ? `${charOf(S.pick).name} を迎える` : '武将を選ぶ')),
@@ -853,6 +856,8 @@ function screenTutorial() {
      はじめに見る画面だけ作りが違うと、あとでガチャを開いたとき別物に見える。
      確率は帯で並べず、右上の「詳細」に畳んだ（ふだんのガチャと同じ） */
   /* はじめの十連も、ふだんのガチャと同じ宝箱の演出を通す（2026-09-26） */
+  /* 途中で開き直しても、はじめの十連は門出のくじのまま（2026-09-30） */
+  if (!S.gacha && !S.rv && !S.rvall) S.gbanner = 'release';
   const showing = !!(S.gbox || S.gboxing || S.rv || S.rvall);
   const inBox = !!(showing || (S.gacha && S.gopen));
   const waiting = !!(S.gbox || S.gboxing);
@@ -974,10 +979,11 @@ function screenHome() {
            ホームの主役はいま出している部隊の総大将なので、
            「この子は誰で、いまどれだけ強いのか」を見るのに図鑑まで回らせない。
            言葉では教えず、右下の小さな「札」の印だけで気づかせる */
+        /* 右下に置いていた小さな「札」の印は外した（2026-09-30）。
+           城下町の絵の上に浮いて見えるほうが気になった。押せば出る、で足りる */
         el('button', { class: 'lordtap', title: gen.name + 'の札', onclick: () => openCard(gen) },
           art ? keepImg({ class: 'lordart', src: art, alt: gen.name })
-              : el('div', { class: 'lordart chip', style: chipStyle(gen) }),
-          el('span', { class: 'lordmark' }, '札'))) : null,
+              : el('div', { class: 'lordart chip', style: chipStyle(gen) }))) : null,
       /* 戦績の数字と「編成へ」は出さない（2026-09-21）。
          下ナビに編成があるので重複だったし、絵と城を隠していた。 */
       gen ? null : el('div', { class: 'front' },

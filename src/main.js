@@ -6867,6 +6867,10 @@ function navBar() {
       if (S.screen === n.key) return;
       if (S.screen === 'battle') { fxToken++; BATTLE = null; S.res = null; S.vs = null; }   // 合戦から抜けるときは再生を止める
       S.screen = n.key; S.detail = null; S.rates = false; S.shop = false; S.menu = false;
+      /* 下の帯は札より前に出しているので、札を開いたままでも押せる（2026-09-30）。
+         そのまま移ると札の覚えが残るので、ここで一度ぜんぶ片づける */
+      S.pw = null; S.gpop = false; S.cp = false; S.sqp = null; S.mi = false;
+      S.fr = false; S.frId = null; S.bag = false; S.rk = false; S.news = false; S.help = false;
       S.sqpHold = null;   // 下のナビで別の画面へ行ったら、預かっていた戦は忘れる（2026-09-30）
       if (n.key !== 'gacha' && n.key !== 'gachalist') { S.gacha = null; S.gbox = null; S.gboxing = false; S.gopen = false; S.rv = null; S.rvall = null; }
       SFX.pick(); draw();
@@ -7017,10 +7021,29 @@ const GUIDE = [
     find: () => S.screen === 'grow' ? gdGm('部隊編成') : gdToGrow() },
   { say: ['出す部隊をえらぶワン！', '「編成する」を押すワン'],
     find: () => S.screen === 'squads' ? gq('.footrow .go') : gdToSquads() },
-  { say: ['五騎まで並べられるワン！', 'いまは一騎でよいワン。下の「陣形へ」を押すワン'],
-    find: () => S.screen === 'team' ? gq('.acts .go') : gdToSquads() },
-  { say: ['陣を敷くワン！', '並べ方で得意・苦手が変わるワン。決めたら「保存して部隊へ」だワン'],
-    find: () => S.screen === 'form' ? gq('.acts .go') : gdToSquads() },
+  { say: ['出す武将をえらぶワン！', '札を押すと出陣に入るワン。決まったら下の「陣形へ」を押すワン'],
+    find: () => {
+      if (S.screen !== 'team') return gdToSquads();
+      /* まず一枚 押させてから陣形へ（2026-09-30）。
+         はじめから入っている一騎だけだと、札を押す手ざわりを覚える場が無かった */
+      const un = document.querySelector('.tgrid .card:not(.on):not(.samelord)');
+      if (un && S.picked.length < 2) return gdVia(un);
+      return gq('.acts .go');
+    },
+    /* 札を差しているあいだも「陣形へ」は押せるままにする（行き止まりを作らない） */
+    also: '.acts .go' },
+  { say: ['陣を敷くワン！', '武将を枠に引いて置くワン。置けたら「保存して部隊へ」だワン'],
+    find: () => {
+      if (S.screen !== 'form') return gdToSquads();
+      /* 枠に入れていない武将が居るあいだは、その子を差す（2026-09-30）。
+         引いて置く仕草を一度やってもらう。押しても歩は進めない（回り道あつかい） */
+      const u = document.querySelector('.bench .u');
+      if (u) return gdVia(u);
+      return gq('.acts .go');
+    },
+    /* 引いて置けなくても先へ進めるように、「保存して部隊へ」は押せるままにする。
+       枠に入れなかった武将は、どのみち自動で空いた枠に入る */
+    also: '.acts .go' },
   // ── 初陣 ──
   { say: ['いざ出陣だワン！', '右下の「出陣」を押して、全国へ出るワン'],
     find: () => S.screen === 'squads' ? gq('.sqedit.out') : gdToSquads() },
@@ -7028,9 +7051,14 @@ const GUIDE = [
     find: () => S.screen === 'map' ? gdFirstFlag() : gdVia(gdNav('全国')) },
   { say: ['ここが初陣だワン！', '「出陣」を押すワン。相手は総大将ただ一騎だワン'],
     find: () => S.screen === 'march' ? gq('.marchgo .go') : gdVia(gdNav('全国')) },
-  /* 戦のさなかは何も縛らない。盤面が触れないと戦えない */
-  { say: ['手で動かしてみるワン！', '味方を押して、どこへ動くか・誰を叩くかを決めるワン'],
-    free: true, find: () => null, auto: () => (P.wins || 0) >= 1 },
+  /* 初陣。盤面のあいだは何も出さず、何も縛らない（guidePaint が盤面では早じまいする）。
+     勝つまでが手ほどきなので、負けて戻ってきたら もう一度「出陣」を差す（2026-09-30）。
+     前は戦の語りが城や地図にまで出たうえ、負けると先へ進めなくなっていた */
+  { say: ['勝つまでが手ほどきだワン！', 'もう一度「出陣」を押すワン。負けても減るのは兵糧だけだワン'],
+    free: true, auto: () => (P.wins || 0) >= 1,
+    find: () => S.screen === 'march' ? gq('.marchgo .go')
+              : S.screen === 'map' ? gdFirstFlag()
+              : gdVia(gdNav('全国')) },
   // ── 城に戻って、残りをひと通り ──
   { say: ['お役目の褒美を受け取るワン！', '城に戻って「任」を押して、たまった褒美を頂くワン'],
     /* 受け取ったら次へ。もらえるものが一つも無いときは、札を開いた時点で次へ（2026-09-30） */
@@ -7076,84 +7104,121 @@ function guidePaint() {
      0 でないあいだは「強化は必ず成功」が効きっぱなしになるので、必ず片づける */
   if (P.gstep > GUIDE.length) { P.gstep = 0; savePlayer(); }
   for (const n of document.querySelectorAll('.gdsay, .gdarw')) n.remove();
-  for (const n of document.querySelectorAll('.gdhit')) n.classList.remove('gdhit');
+  for (const n of document.querySelectorAll('.gdhit')) n.classList.remove('gdhit', 'gdrel');
   for (const n of document.querySelectorAll('[data-gdvia]')) delete n.dataset.gdvia;
+  for (const n of document.querySelectorAll('[data-gdok]')) delete n.dataset.gdok;
+  for (const n of document.querySelectorAll('.gdlock')) n.classList.remove('gdlock');
   document.body.classList.toggle('gdon', guideOn());
   const g = gdNow(); if (!g) return;
   if (g.auto && g.auto()) {
     P.gstep++; if (P.gstep > GUIDE.length) P.gstep = 0;
     savePlayer(); setTimeout(draw, 0); return;
   }
+  /* 名乗りの一枚絵・盤面・天下の分け目のあいだは、指差しをまったく出さない（2026-09-30）。
+     どれも読ませたい見せ場なので、重ねないし、縛りもしない */
+  if (S.opening || S.screen === 'battle' || (S.screen === 'map' && !P.camp.intro)) return;
   const hit = g.find ? g.find() : null;
   /* 押せるもの：目当ての釦・三本線・戻る・閉じる。それ以外は薄くして触れなくする。
-     free の歩（戦のさなか）は何も縛らない */
-  /* 差す先が見つからないときは、何も縛らない（2026-09-30）。
-     縛ったまま指す先を見失うと、どこも押せない行き止まりになる */
-  const loose = g.free || !hit;
-  for (const b of document.querySelectorAll('button, [role="button"], input, select')) {
-    if (loose) { b.classList.remove('gdlock'); continue; }
-    const keep = (hit && (b === hit || hit.contains(b) || b.contains(hit)))
-      || b.classList.contains('menub') || b.classList.contains('back')
-      || b.classList.contains('sheetclose') || b.classList.contains('rvskip');
-    b.classList.toggle('gdlock', !keep);
+     free の歩（戦のさなか）と、差す先が見つからないときは 何も縛らない
+     （縛ったまま指す先を見失うと、どこも押せない行き止まりになる） */
+  if (!(g.free || !hit)) {
+    /* also ＝ 指してはいないが押せるままにしておく釦（2026-09-30）。
+       これを押しても歩は進むので、引いて置けなくても先へ行ける */
+    const also = g.also ? [...document.querySelectorAll(g.also)] : [];
+    for (const x of also) x.dataset.gdok = '1';
+    for (const b of document.querySelectorAll('button, [role="button"], input, select')) {
+      const keep = (b === hit || hit.contains(b) || b.contains(hit))
+        || also.some(x => x === b || x.contains(b) || b.contains(x))
+        || b.classList.contains('menub') || b.classList.contains('back')
+        || b.classList.contains('sheetclose') || b.classList.contains('rvskip')
+        || b.classList.contains('nv');           // 下の帯はいつでも押せる
+      if (!keep) b.classList.add('gdlock');
+    }
   }
-  let box = null;
-  if (hit) {
-    hit.classList.add('gdhit');
-    /* 位置の決まっていない釦だけ relative にする（2026-09-30）。
-       .flag や .sqedit のように absolute で置いてある釦にまで relative をかけると、
-       置き場所が流れて、旗が地図から外れたり 出陣の釦が札の左に出たりしていた */
-    if (getComputedStyle(hit).position === 'static') hit.classList.add('gdrel');
-    let r = hit.getBoundingClientRect();
-    /* はみ出している釦は、まず見えるところまで運ぶ（2026-09-30）。
-       地図は横に長く、画面の下も切れるので、端が少しでも外に出ていたら寄せる */
-    const out = !r.width || r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight;
-    if (out) {
-      hit.scrollIntoView({ block: 'center', inline: 'center' });
-      r = hit.getBoundingClientRect();
-      /* 横に巻く入れ物（絵巻地図）は scrollIntoView が効かないことがあるので、手で寄せる */
-      if (r.left < 0 || r.right > innerWidth) {
-        for (let n = hit.parentElement; n; n = n.parentElement) {
-          if (n.scrollWidth <= n.clientWidth + 4) continue;
-          const b = n.getBoundingClientRect();
-          n.scrollLeft += (r.left + r.width / 2) - (b.left + n.clientWidth / 2);
-          r = hit.getBoundingClientRect();
-          break;
-        }
+  if (!hit) { gdBubble(g, null); return; }
+  hit.classList.add('gdhit');
+  /* 位置の決まっていない釦だけ relative にする（2026-09-30）。
+     .flag や .sqedit のように absolute で置いてある釦にまで relative をかけると、
+     置き場所が流れて、旗が地図から外れたり 出陣の釦が札の左に出たりしていた */
+  if (getComputedStyle(hit).position === 'static') hit.classList.add('gdrel');
+  let r = hit.getBoundingClientRect();
+  /* はみ出している釦は、まず見えるところまで運ぶ（2026-09-30）。
+     地図は横に長く、画面の下も切れるので、端が少しでも外に出ていたら寄せる */
+  if (!r.width || r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) {
+    hit.scrollIntoView({ block: 'center', inline: 'center' });
+    r = hit.getBoundingClientRect();
+    /* 横に巻く入れ物（絵巻地図）は scrollIntoView が効かないことがあるので、手で寄せる */
+    if (r.left < 0 || r.right > innerWidth) {
+      for (let n = hit.parentElement; n; n = n.parentElement) {
+        if (n.scrollWidth <= n.clientWidth + 4) continue;
+        const bb = n.getBoundingClientRect();
+        n.scrollLeft += (r.left + r.width / 2) - (bb.left + n.clientWidth / 2);
+        break;
       }
     }
-    if (r.width) {
-      box = r;
-      const up = r.top > 210;                      // 上に置けないときは下から差す
-      const a = el('div', { class: 'gdarw' + (up ? '' : ' dn') });
-      a.style.left = Math.round(Math.max(20, Math.min(innerWidth - 20, r.left + r.width / 2))) + 'px';
-      a.style.top = Math.round(up ? r.top - 30 : r.bottom + 10) + 'px';
-      document.body.append(a);
-    }
   }
-  /* 名乗りの一枚絵と盤面の上には出さない（2026-09-30）。どちらも見せ場なので重ねない */
-  if (S.opening || S.screen === 'battle') return;
-  const no = talkerNo('guide' + P.gstep);
-  const art = faceUrl(no, '笑顔') || faceUrl(no, '通常') || pawnUrl(no);
-  /* 語りは指す釦のそば（上か下）に置く（2026-09-30）。
-     いつも画面の下に出していたので、下のほうにある釦が語りに隠れて押せなかった */
-  const say = el('div', { class: 'gdsay' },
-    art ? el('img', { class: 'gdf', src: art, alt: '' }) : el('i', { class: 'gdf' }, '犬'),
-    el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])));
-  if (box) {
-    if (box.top > 210) say.style.bottom = Math.round(innerHeight - box.top + 34) + 'px';
-    else { say.style.top = Math.round(box.bottom + 36) + 'px'; say.style.bottom = 'auto'; }
-  }
-  document.body.append(say);
+  gdBubble(g, hit);
 }
+/* 矢印と語りを、指す釦のいまの場所に合わせて置く（2026-09-30）。
+   画面を巻くと釦は動くのに、position:fixed の矢印と語りは止まったままだったので、
+   巻くたび・画面の向きが変わるたびに置き直す */
+function gdBubble(g, hit) {
+  let a = document.querySelector('.gdarw');
+  let say = document.querySelector('.gdsay');
+  if (!say) {
+    const no = talkerNo('guide' + P.gstep);
+    const art = faceUrl(no, '笑顔') || faceUrl(no, '通常') || pawnUrl(no);
+    say = el('div', { class: 'gdsay' },
+      art ? el('img', { class: 'gdf', src: art, alt: '' }) : el('i', { class: 'gdf' }, '犬'),
+      el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])));
+    document.body.append(say);
+  }
+  if (!hit) {                                   // 指す先が無いときは、いつもの下ぎわ
+    if (a) a.remove();
+    say.style.top = ''; say.style.bottom = '';
+    return;
+  }
+  const r = hit.getBoundingClientRect();
+  if (!r.width) return;
+  const up = r.top > 210;                       // 上に置けないときは下から差す
+  if (!a || a.classList.contains('dn') !== !up) {
+    if (a) a.remove();
+    a = el('div', { class: 'gdarw' + (up ? '' : ' dn') });
+    document.body.append(a);
+  }
+  a.style.left = Math.round(Math.max(20, Math.min(innerWidth - 20, r.left + r.width / 2))) + 'px';
+  a.style.top = Math.round(up ? r.top - 30 : r.bottom + 10) + 'px';
+  const h = say.getBoundingClientRect().height || 76;
+  if (up) {
+    say.style.bottom = Math.round(Math.max(8, innerHeight - r.top + 34)) + 'px';
+    say.style.top = 'auto';
+  } else {
+    say.style.top = Math.round(Math.min(innerHeight - h - 8, r.bottom + 36)) + 'px';
+    say.style.bottom = 'auto';
+  }
+}
+/* 巻いたり向きが変わったりしたら、置き直す */
+let gdTick = 0;
+function gdRelayout() {
+  if (!guideOn() || gdTick) return;
+  gdTick = requestAnimationFrame(() => {
+    gdTick = 0;
+    const g = gdNow(); if (!g) return;
+    gdBubble(g, document.querySelector('.gdhit'));
+  });
+}
+addEventListener('scroll', gdRelayout, { passive: true, capture: true });
+addEventListener('resize', gdRelayout, { passive: true });
 /* 指した釦が押されたら次の歩へ。click は capture で先に受ける（2026-09-30） */
 document.addEventListener('click', e => {
   if (!guideOn()) return;
   const g = gdNow();
   if (g && g.auto) return;                        // ひと続きの手順は auto の条件で進む
+  const ok = e.target.closest && e.target.closest('[data-gdok]');
   const hit = document.querySelector('.gdhit');
-  if (!hit || !(e.target === hit || hit.contains(e.target))) return;
-  if (hit.dataset.gdvia) return;                  // 回り道の釦では進めない
+  const onHit = hit && (e.target === hit || hit.contains(e.target));
+  if (!ok && !onHit) return;
+  if (!ok && hit.dataset.gdvia) return;           // 回り道の釦では進めない
   P.gstep++;
   if (P.gstep > GUIDE.length) P.gstep = 0;         // 手引きはここまで
   savePlayer();

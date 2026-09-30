@@ -4684,6 +4684,7 @@ async function openBox() {
     await sleep(RAR.indexOf(best) <= 1 ? 1200 : 750);
   }
   S.gboxing = false;
+  if (S.gpre) { await Promise.race([S.gpre, hold(2500)]); S.gpre = null; }
   startReveal(r);
 }
 /* ---- 一体ずつの見せ場（2026-09-26）----
@@ -4699,6 +4700,19 @@ async function openBox() {
 const RAR_TOP = list => list.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');
 // 素の待ち（合戦の速さに引きずられたくないので sleep は使わない）
 const hold = ms => new Promise(r => setTimeout(r, ms));
+/* 引いた子の絵を、見せ場が始まる前にぜんぶ読んでおく（2026-09-30）。
+   これをしないと、位の印だけが先に飛び込んで札が遅れて出る。
+   裏もここで読む。あとで札を押したときに待たされないため */
+function preloadPull(r) {
+  const urls = [];
+  for (const x of (r && r.items) || []) {
+    for (const u of [cardUrl(x.no, 'front'), cardUrl(x.no, 'back'), cardPatchUrl(x.no), rarUrl(x.rarity)])
+      if (u) urls.push(u);
+  }
+  return Promise.all([...new Set(urls)].map(u => new Promise(res => {
+    const im = new Image(); im.onload = res; im.onerror = res; im.src = u;
+  })));
+}
 function startReveal(r) {
   S.gacha = null; S.gopen = true;
   const list = r.items.slice();
@@ -4774,7 +4788,19 @@ function revealView(rv, bgEl) {
                 onerror: e => { const box = e.target.parentNode; e.target.remove();
                   if (box) box.append(el('div', { class: 'rvfall', style: chipStyle(c) })); } })
             : el('div', { class: 'rvfall', style: chipStyle(c) }))),
-    el('b', { class: 'rvname' }, c.name || ''));
+    el('b', { class: 'rvname' }, c.name || ''),
+    /* 十連のときだけ、右下に「スキップ」（2026-09-30）。
+       一体ずつ見たくない人のために、そのまま並びの画面へ飛ばす */
+    rv.list.length > 1
+      ? el('button', { class: 'rvskip', onclick: e => { e.stopPropagation(); skipReveal(); } }, 'スキップ')
+      : null);
+}
+function skipReveal() {
+  const rv = S.rv; if (!rv) return;
+  SFX.pick();
+  S.rv = null;
+  S.rvall = rv.res; S.rvSeen = false;
+  draw();
 }
 function nextReveal() {
   const rv = S.rv;
@@ -4911,8 +4937,9 @@ async function doPull(count, noDup) {
   }
   const r = pull(count, pool, curGacha().id);
   if (!r) return;
+  const pre = preloadPull(r);   // 絵の先読みは、芝居のあいだに裏で走らせる（2026-09-30）
   /* 宝箱があるときは、そちらに預けて手を止める（2026-09-26） */
-  if (uiUrl('gacha_box')) { S.gacha = null; S.gbox = r; S.gopen = true; SFX.pick(); draw(); return; }
+  if (uiUrl('gacha_box')) { S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; SFX.pick(); draw(); return; }
   S.gacha = null; draw();
   // 巻物が飛んで開く
   const best = r.items.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');
@@ -4922,6 +4949,7 @@ async function doPull(count, noDup) {
   SFX.pick();
   await sleep(RAR.indexOf(best) <= 1 ? 1500 : 1000);
   if (best === 'UR' || best === 'SSR') { try { ultFlare(); } catch { /* 盤面が無くても進む */ } }
+  await Promise.race([pre, hold(2500)]);   // 絵が揃うまで待つ。遅ければ諦めて進む
   fx.remove();
   S.gacha = r; draw();
   $('.result2')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

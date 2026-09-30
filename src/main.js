@@ -883,8 +883,9 @@ function screenTutorial() {
     const i = Math.max(0, Math.min(ssr.length - 1, S.tutI || 0));
     const c = ssr[i];
     S.pick = c.no;
-    const move = d => { S.tutI = (i + d + ssr.length) % ssr.length; SFX.pick(); draw(); };
-    const art = cardArt(c);
+    const move = d => { S.tutI = (i + d + ssr.length) % ssr.length; S.tutBack = false; SFX.pick(); draw(); };
+    const back = !!S.tutBack;
+    const art = back ? cardUrl(c.no, 'back') : cardArt(c);
     let sx = null;                                 // 横に払って送る
     return {
       body: el('div', { class: 'tut tut1' },
@@ -900,10 +901,18 @@ function screenTutorial() {
           onpointercancel: () => { sx = null; },
         },
           el('button', { class: 'tutarw l', title: '前の武将', onclick: () => move(-1) }, '‹'),
-          el('div', { class: 'tutcard' + (art ? ' art' : '') },
+          /* 押すと表裏が返る（2026-09-30）。
+             表には、焼いていない数値をその場で重ねる（ほかの札と同じ仕掛け） */
+          el('div', {
+            class: 'tutcard' + (art ? ' art' : '') + (back ? ' back' : ''),
+            title: back ? '押すと表' : '押すと裏',
+            onclick: () => { S.tutBack = !back; SFX.pick(); draw(); },
+          },
             art ? el('img', { class: 'tutci', src: art, alt: c.name, draggable: 'false' })
                 : el('div', { class: 'tutfall', style: chipStyle(c) },
-                    el('b', {}, c.name), attrTag(c.attr, 'sm'), rarTag('SSR'))),
+                    el('b', {}, c.name), attrTag(c.attr, 'sm'), rarTag('SSR')),
+            (art && !back) ? cardStatOverlay(c, true) : null,
+            el('span', { class: 'tutflip' }, back ? '表' : '裏')),
           el('button', { class: 'tutarw r', title: '次の武将', onclick: () => move(1) }, '›')),
         el('div', { class: 'tutdots' }, ssr.map((x, j) => el('i', { class: j === i ? 'on' : '' }))),
         el('button', {
@@ -913,7 +922,7 @@ function screenTutorial() {
             /* はじめの十連は門出のくじで引く（2026-09-30）。
                信わんが出るのはここだけなので、いちばん最初は必ずこちらを通す */
             S.gbanner = 'release';
-            grantStarter(c.no); setCampStart(c); S.pick = null; S.tutI = 0; draw();
+            grantStarter(c.no); setCampStart(c); S.pick = null; S.tutI = 0; S.tutBack = false; draw();
           },
         }, 'この武将で出陣する')),
       bare: true,
@@ -3812,6 +3821,22 @@ function redrawSlot(k, patch, t, now, no) {
   }, ...richText(now.sk.text || '')));
   return out;
 }
+/* 札の表に「いまの数値」を重ねる（2026-09-27 の仕掛けを 2026-09-30 に切り出した）。
+   焼いた札には、育てば変わる数が入っていない。置き場所は札ごとの layout に控えてある。
+   ro（読むだけ）のときと、まだ持っていない武将は、素の数値をそのまま出す。
+   重ねる側の箱に container-type:inline-size が要る（cqw を物差しにしているため） */
+function cardStatOverlay(c, ro) {
+  if (!c || c.no == null || c.no === '未奉公') return [];
+  const lay = cardLayout(c.no);
+  if (!lay || !lay.stat) return [];
+  const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
+  const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
+  const g = (!ro && P.own.includes(c.no)) ? grownStats(c) : (c.stats || {});
+  return lay.stat.map(t => el('b', {
+    class: 'clv num',
+    style: `left:${pc(t.cx, 864)};top:${pc(t.cy, 1280)};font-size:${fs(t.size)}`,
+  }, String(g[t.k] ?? (c.stats || {})[t.k] ?? 0)));   // 札はカンマを打たない
+}
 function cardSheet(c) {
   const un = c.no === '未奉公';
   const fr = un ? unknownCardUrl('front') : cardUrl(c.no, 'front');
@@ -3827,14 +3852,7 @@ function cardSheet(c) {
     const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
     const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
     const out = [];
-    if (side === 'front' && lay.stat) {
-      // 友の家から見ているとき（読むだけ）は、こちらの育ちを混ぜない
-      const g = (!S.detailRO && P.own.includes(c.no)) ? grownStats(c) : (c.stats || {});
-      for (const t of lay.stat) out.push(el('b', {
-        class: 'clv num',
-        style: `left:${pc(t.cx, 864)};top:${pc(t.cy, 1280)};font-size:${fs(t.size)}`,
-      }, String(g[t.k] ?? (c.stats || {})[t.k] ?? 0)));   // 札はカンマを打たない
-    }
+    if (side === 'front') out.push(...cardStatOverlay(c, S.detailRO));
     if (side === 'back' && lay.slot) {
       /* 特技の枠は3つ。焼いてあるのは元の技なので、継承で中身が入れ替わった枠だけ
          和紙で塗りつぶして描き直す（2026-09-27）。

@@ -1529,7 +1529,10 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
    長い札で、下まで巻かないと閉じられないのが不便だった。
    .card2 の内余白（14px）ぶん外へ広げて、札の角にぴたりと収める。
    上に薄く影を落として、まだ下に続きがあることも分かるようにした */
-.card2 > .sheetclose{position:sticky;bottom:-14px;z-index:3;
+/* 名は .ghost.sheetclose まで足す（2026-09-30）。
+   あとに出てくる .ghost.wide{width:100%} に幅と余白を取り返されて、
+   帯が左に14pxずれ、右に札の地が残っていた */
+.card2 > .ghost.sheetclose{position:sticky;bottom:-14px;z-index:3;
   margin:10px -14px -14px;width:calc(100% + 28px);border-radius:0 0 15px 15px;
   border-left:0;border-right:0;border-bottom:0;
   background:var(--panel2);padding:13px 0;
@@ -4332,10 +4335,18 @@ button:disabled:active{ scale:1; filter:none }
 .tut1 .gtalk{width:100%;margin:0}
 .tutpick{position:relative;width:100%;display:flex;align-items:center;justify-content:center;
   gap:4px;touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.tutcard{flex:0 0 auto;width:min(70vw,290px);aspect-ratio:864/1280;border-radius:13px;
-  overflow:hidden;background:#12100e;
+.tutcard{position:relative;container-type:inline-size;
+  flex:0 0 auto;width:min(70vw,290px);aspect-ratio:864/1280;border-radius:13px;
+  overflow:hidden;background:#12100e;cursor:pointer;
   box-shadow:0 10px 26px #000a,0 0 0 1.5px #d8a94a66;
   animation:tutin .22s cubic-bezier(.2,.9,.3,1.1)}
+.tutcard:active{filter:brightness(1.06)}
+/* 押せば返ることを一字で見せる（2026-09-30）。説明の文は置かない */
+.tutflip{position:absolute;right:6px;bottom:6px;z-index:3;
+  width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  font-size:11px;font-weight:700;color:#2a210e;
+  background:linear-gradient(180deg,#e8c165,#c79a3f);border:1px solid #8a6a26;
+  box-shadow:0 2px 6px #0008;pointer-events:none}
 .tutcard img{display:block;width:100%;height:100%;object-fit:cover;
   /* 絵を掴むと端末が「絵を引きずる」ほうを始めてしまい、払いが途中で消える（2026-09-30） */
   pointer-events:none;-webkit-user-drag:none;user-select:none}
@@ -4350,6 +4361,7 @@ button:disabled:active{ scale:1; filter:none }
 .tutdots{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-width:82%}
 .tutdots i{width:6px;height:6px;border-radius:50%;background:#ffffff2e}
 .tutdots i.on{background:var(--gold);box-shadow:0 0 6px #d8a94a88}
-.tutgo{width:min(92%,420px);margin:2px 0 16px}
+/* 釦は札より細く（2026-09-30）。札のほうが主役なので、下で受け止める幅にする */
+.tutgo{width:min(58vw,240px);margin:2px 0 16px}
 /* 細い画面では札をひと回り小さく */
 @media (max-height:740px){ .tutcard{width:min(58vw,240px)} }

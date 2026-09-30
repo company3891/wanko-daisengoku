@@ -2130,8 +2130,15 @@ function frHomeSheet() {
    campaign.js の INTRO を出し、閉じたら intro を立てて二度と出さない。 */
 function sagaSheet() {
   const close = () => { P.camp.intro = true; savePlayer(); SFX.pick(); draw(); };
+  /* 語り手の顔を添えて、字は黒漆で読ませる（2026-09-30）。
+     札が生成りの色になったのに字が金のままで、まったく読めなかった */
+  const no = talkerNo('saga');
+  const art = faceUrl(no, '凛々しい') || faceUrl(no, '通常') || faceUrl(no, '笑顔') || pawnUrl(no);
   return el('div', { class: 'sheet sagash', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 sagabox' },
+      el('div', { class: 'sagatop' },
+        art ? keepImg({ class: 'sagaf', src: art, alt: '' }) : el('i', { class: 'sagaf' }, '犬'),
+        el('b', {}, '天下の分け目')),
       el('div', { class: 'sagain' }, INTRO.map(t => el('p', {}, t))),
       el('button', { class: 'go wide', onclick: close }, 'いざ、天下へ')));
 }

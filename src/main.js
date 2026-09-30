@@ -3916,6 +3916,19 @@ function redrawSlot(k, patch, t, now, no) {
    焼いた札には、育てば変わる数が入っていない。置き場所は札ごとの layout に控えてある。
    ro（読むだけ）のときと、まだ持っていない武将は、素の数値をそのまま出す。
    重ねる側の箱に container-type:inline-size が要る（cqw を物差しにしているため） */
+/* 役割の箱に射程を足す（2026-09-30）。
+   焼いた札には射程が入っていない。110枚を焼き直すのは重いので、
+   箱の中だけ塗りつぶして書き直す。
+   枠はどの札も同じ型なので、置き場所は一組で足りる（864×1280 の目盛りで実測）。
+     見出しの濃い帯 … x 252-534 / y 1126-1149、地の色 rgb(20,18,14)
+     中身のクリーム … x 252-534 / y 1155-1194、地の色 rgb(251,248,235)
+   塗るのは枠の内側だけ。金の縁には かからない */
+const ROLE_BOX = {
+  lb: { x: 255, y: 1127, w: 277, h: 22, bg: '#131110', fg: '#efe2c4', size: 19 },
+  /* 紙は上がわずかに温かく、下がわずかに白い。実測の色でうすい階調をかけて継ぎ目を消す */
+  vl: { x: 254, y: 1156, w: 279, h: 37, fg: '#241e18', size: 29,
+        bg: 'linear-gradient(#fbf5e5,#fcf8ed)' },
+};
 function cardStatOverlay(c, ro) {
   if (!c || c.no == null || c.no === '未奉公') return [];
   const lay = cardLayout(c.no);
@@ -3923,10 +3936,29 @@ function cardStatOverlay(c, ro) {
   const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
   const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
   const g = (!ro && P.own.includes(c.no)) ? grownStats(c) : (c.stats || {});
-  return lay.stat.map(t => el('b', {
+  const out = lay.stat.map(t => el('b', {
     class: 'clv num',
     style: `left:${pc(t.cx, 864)};top:${pc(t.cy, 1280)};font-size:${fs(t.size)}`,
   }, String(g[t.k] ?? (c.stats || {})[t.k] ?? 0)));   // 札はカンマを打たない
+  /* 射程が分かる子だけ書き換える。無ければ焼いたままの「役割」で通す */
+  if (c.range != null && c.role) {
+    /* 役割の名は「万能・軍団指揮」のように長い子がいる。
+       箱の内のり（277）に収まるよう、字数で大きさを落とす（2026-09-30） */
+    const fit = (t, txt) => {
+      const n = [...txt].length;
+      return Math.min(t.size, Math.floor((t.w - 14) / n));
+    };
+    const put = (t, txt) => [
+      el('i', { class: 'crolebg',
+        style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};`
+             + `width:${pc(t.w, 864)};height:${pc(t.h, 1280)};background:${t.bg}` }),
+      el('b', { class: 'clv crole',
+        style: `left:${pc(t.x + t.w / 2, 864)};top:${pc(t.y + t.h / 2, 1280)};`
+             + `font-size:${fs(fit(t, txt))};color:${t.fg}` }, txt),
+    ];
+    out.push(...put(ROLE_BOX.lb, '役割 ／ 射程'), ...put(ROLE_BOX.vl, `${c.role} ／ ${c.range}`));
+  }
+  return out;
 }
 function cardSheet(c) {
   const un = c.no === '未奉公';

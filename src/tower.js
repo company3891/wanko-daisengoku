@@ -51,7 +51,7 @@ export const TOWER = [
   { f:2, name:'猛き者', t:'猛将だけで勝つ', cond:[{ k:'attr', v:'猛将' }], stage:'草原', hard:1, enemy:{ cost:600, lv:20, soul:0, skill:1 }, rw:{ stone:300, koban:800, items:{ '稽古の書': 3, '特技の伝書': 1 } } },
   { f:3, name:'智恵者', t:'智将だけで勝つ', cond:[{ k:'attr', v:'智将' }], stage:'草原', hard:1, enemy:{ cost:600, lv:20, soul:0, skill:1 }, rw:{ stone:300, koban:800, items:{ '稽古の書': 3, '特技の伝書': 1 } } },
   { f:4, name:'堅き者', t:'守将だけで勝つ', cond:[{ k:'attr', v:'守将' }], stage:'草原', hard:1, enemy:{ cost:600, lv:20, soul:0, skill:1 }, rw:{ stone:300, koban:800, items:{ '稽古の書': 3, '特技の伝書': 1 } } },
-  { f:5, name:'情け深き者', t:'仁将だけで勝つ', cond:[{ k:'attr', v:'仁将' }], stage:'草原', hard:2, enemy:{ cost:600, lv:20, soul:0, skill:1 }, rw:{ stone:400, koban:1600, items:{ '稽古の書': 3, '特技の伝書': 2 } } },
+  { f:5, name:'情け深き者', t:'仁将だけで勝つ', cond:[{ k:'attr', v:'仁将' }], stage:'草原', hard:2, enemy:{ cost:720, lv:25, soul:0, skill:1 }, rw:{ stone:400, koban:1600, items:{ '稽古の書': 3, '特技の伝書': 2 } } },
   { f:6, name:'疾き者', t:'神速だけで勝つ', cond:[{ k:'attr', v:'神速' }], stage:'草原', hard:2, enemy:{ cost:600, lv:20, soul:0, skill:1 }, rw:{ stone:300, koban:800, items:{ '稽古の書': 3, '特技の伝書': 1 } } },
   { f:7, name:'四人', t:'四人までで勝つ', cond:[{ k:'units', max:4 }], stage:'草原', hard:2, enemy:{ cost:600, lv:20, soul:0, skill:1 }, rw:{ stone:300, koban:800, items:{ '稽古の書': 3, '特技の伝書': 1 } } },
   { f:8, name:'欠けず', t:'誰も倒されずに勝つ', cond:[{ k:'noDeath' }], stage:'草原', hard:2, enemy:{ cost:600, lv:20, soul:0, skill:1 }, rw:{ stone:300, koban:800, items:{ '稽古の書': 3, '特技の伝書': 1 } } },
@@ -61,7 +61,7 @@ export const TOWER = [
   { f:12, name:'軽き陣', t:'出陣コストの合計 600 以下', cond:[{ k:'cost', max:600 }], stage:'山岳', hard:2, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300, koban:1200, items:{ '稽古の書': 4, '特技の伝書': 1 } } },
   { f:13, name:'単騎', t:'一人で勝つ', cond:[{ k:'units', max:1 }], stage:'山岳', hard:3, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300, koban:1200, items:{ '稽古の書': 4, '特技の伝書': 1 } } },
   { f:14, name:'数を頼む', t:'出陣コスト150以下の武将だけで勝つ', cond:[{ k:'each', cost:150 }], stage:'山岳', hard:2, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300, koban:1200, items:{ '稽古の書': 4, '特技の伝書': 1 } } },
-  { f:15, name:'身軽', t:'出陣コストの合計 400 以下', cond:[{ k:'cost', max:400 }], stage:'山岳', hard:3, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:400, koban:2400, items:{ '稽古の書': 4, '特技の伝書': 2 } } },
+  { f:15, name:'身軽', t:'出陣コストの合計 400 以下', cond:[{ k:'cost', max:400 }], stage:'山岳', hard:3, enemy:{ cost:770, lv:33, soul:50, skill:1 }, rw:{ stone:400, koban:2400, items:{ '稽古の書': 4, '特技の伝書': 2 } } },
   { f:16, name:'二人、欠けず', t:'二人までで、誰も倒されずに勝つ', cond:[{ k:'units', max:2 }, { k:'noDeath' }], stage:'山岳', hard:3, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300, koban:1200, items:{ '稽古の書': 4, '特技の伝書': 1 } } },
   { f:17, name:'疾き単騎', t:'一人で 10ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:10 }], stage:'山岳', hard:3, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300, koban:1200, items:{ '稽古の書': 4, '特技の伝書': 1 } } },
   { f:18, name:'軽き四人', t:'四人まで・コストの合計 500 以下', cond:[{ k:'units', max:4 }, { k:'cost', max:500 }], stage:'山岳', hard:3, enemy:{ cost:650, lv:28, soul:50, skill:1 }, rw:{ stone:300, koban:1200, items:{ '稽古の書': 4, '特技の伝書': 1 } } },
@@ -71,7 +71,7 @@ export const TOWER = [
   { f:22, name:'城を攻む', t:'10ターン以内に勝つ', cond:[{ k:'turns', max:10 }], stage:'城郭', hard:2, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5, '特技の伝書': 1 } } },
   { f:23, name:'凹の陣', t:'陣形「凹」で勝つ', cond:[{ k:'form', v:'凹' }], stage:'草原', hard:2, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5, '特技の伝書': 1 } } },
   { f:24, name:'Ｖの陣', t:'陣形「V字」で勝つ', cond:[{ k:'form', v:'V字' }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5, '特技の伝書': 1 } } },
-  { f:25, name:'波打つ陣', t:'陣形「波型」で、誰も倒されずに勝つ', cond:[{ k:'form', v:'波型' }, { k:'noDeath' }], stage:'河川', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:400, koban:3600, items:{ '稽古の書': 5, '特技の伝書': 2 } } },
+  { f:25, name:'波打つ陣', t:'陣形「波型」で、誰も倒されずに勝つ', cond:[{ k:'form', v:'波型' }, { k:'noDeath' }], stage:'河川', hard:3, enemy:{ cost:820, lv:41, soul:120, skill:1 }, rw:{ stone:400, koban:3600, items:{ '稽古の書': 5, '特技の伝書': 2 } } },
   { f:26, name:'瀕死の陣', t:'味方はみな兵量1から始まる', cond:[], hp1:true, stage:'河川', hard:4, enemy:{ cost:620, lv:30, soul:80, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5, '特技の伝書': 1 } } },
   { f:27, name:'森に潜む', t:'射程1の武将だけで勝つ', cond:[{ k:'range', v:1 }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5, '特技の伝書': 1 } } },
   { f:28, name:'壁ごしに', t:'射程2以上の武将だけで勝つ', cond:[{ k:'range', min:2 }], stage:'城郭', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5, '特技の伝書': 1 } } },
@@ -81,7 +81,7 @@ export const TOWER = [
   { f:32, name:'武田の旗', t:'武田家だけで勝つ', cond:[{ k:'clan', v:'武田家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2, '特技の伝書': 1 } } },
   { f:33, name:'上杉の旗', t:'上杉家だけで勝つ', cond:[{ k:'clan', v:'上杉家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2, '特技の伝書': 1 } } },
   { f:34, name:'徳川の旗', t:'徳川家だけで勝つ', cond:[{ k:'clan', v:'徳川家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2, '特技の伝書': 1 } } },
-  { f:35, name:'北条の旗', t:'北条家だけで勝つ', cond:[{ k:'clan', v:'北条家' }], stage:'草原', hard:4, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:400, koban:5200, items:{ '大稽古の書': 2, '特技の伝書': 2 } } },
+  { f:35, name:'北条の旗', t:'北条家だけで勝つ', cond:[{ k:'clan', v:'北条家' }], stage:'草原', hard:4, enemy:{ cost:900, lv:50, soul:200, skill:2 }, rw:{ stone:400, koban:5200, items:{ '大稽古の書': 2, '特技の伝書': 2 } } },
   { f:36, name:'豊臣の旗', t:'豊臣家だけで勝つ', cond:[{ k:'clan', v:'豊臣家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2, '特技の伝書': 1 } } },
   { f:37, name:'真田の旗', t:'真田家だけで勝つ', cond:[{ k:'clan', v:'真田家' }], stage:'草原', hard:4, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2, '特技の伝書': 1 } } },
   { f:38, name:'立花の旗', t:'立花家だけで勝つ', cond:[{ k:'clan', v:'立花家' }], stage:'草原', hard:4, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2, '特技の伝書': 1 } } },
@@ -91,7 +91,7 @@ export const TOWER = [
   { f:42, name:'半分残す', t:'兵量を半分以上残して勝つ', cond:[{ k:'hpLeft', pct:50 }], stage:'河川', hard:3, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3, '特技の伝書': 1 } } },
   { f:43, name:'三人、欠けず', t:'三人までで、誰も倒されずに勝つ', cond:[{ k:'units', max:3 }, { k:'noDeath' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3, '特技の伝書': 1 } } },
   { f:44, name:'癒し手なし', t:'回復の役を入れず、誰も倒されずに勝つ', cond:[{ k:'role', not:'回復' }, { k:'noDeath' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3, '特技の伝書': 1 } } },
-  { f:45, name:'八分残す', t:'兵量を八割以上残して勝つ', cond:[{ k:'hpLeft', pct:80 }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:400, koban:7200, items:{ '大稽古の書': 3, '特技の伝書': 2 } } },
+  { f:45, name:'八分残す', t:'兵量を八割以上残して勝つ', cond:[{ k:'hpLeft', pct:80 }], stage:'河川', hard:4, enemy:{ cost:970, lv:60, soul:300, skill:2 }, rw:{ stone:400, koban:7200, items:{ '大稽古の書': 3, '特技の伝書': 2 } } },
   { f:46, name:'庇わず', t:'かばうを使わず、誰も倒されずに勝つ', cond:[{ k:'noCover' }, { k:'noDeath' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3, '特技の伝書': 1 } } },
   { f:47, name:'大将は高みに', t:'総大将が一度も傷を負わずに勝つ', cond:[{ k:'genSafe' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3, '特技の伝書': 1 } } },
   { f:48, name:'奥義に頼らず', t:'奥義を使わず、誰も倒されずに勝つ', cond:[{ k:'noUlt' }, { k:'noDeath' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3, '特技の伝書': 1 } } },
@@ -101,7 +101,7 @@ export const TOWER = [
   { f:52, name:'六手', t:'6ターン以内に勝つ', cond:[{ k:'turns', max:6 }], stage:'草原', hard:3, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4, '特技の伝書': 1 } } },
   { f:53, name:'五手', t:'5ターン以内に勝つ', cond:[{ k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4, '特技の伝書': 1 } } },
   { f:54, name:'疾風五手', t:'神速だけで 5ターン以内に勝つ', cond:[{ k:'attr', v:'神速' }, { k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4, '特技の伝書': 1 } } },
-  { f:55, name:'四手', t:'4ターン以内に勝つ', cond:[{ k:'turns', max:4 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 2 } } },
+  { f:55, name:'四手', t:'4ターン以内に勝つ', cond:[{ k:'turns', max:4 }], stage:'草原', hard:4, enemy:{ cost:1040, lv:69, soul:420, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 2 } } },
   { f:56, name:'三人六手', t:'三人までで 6ターン以内に勝つ', cond:[{ k:'units', max:3 }, { k:'turns', max:6 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4, '特技の伝書': 1 } } },
   { f:57, name:'単騎八手', t:'一人で 8ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:8 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4, '特技の伝書': 1 } } },
   { f:58, name:'三手', t:'3ターン以内に勝つ', cond:[{ k:'turns', max:3 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4, '特技の伝書': 1 } } },
@@ -111,7 +111,7 @@ export const TOWER = [
   { f:62, name:'後ろを支える', t:'役目に「後衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'後衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:63, name:'懐の間合い', t:'射程1だけで勝つ', cond:[{ k:'range', v:1 }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:64, name:'遠間', t:'射程2以上だけで勝つ', cond:[{ k:'range', min:2 }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
-  { f:65, name:'影働き', t:'「忍び」か「奇襲」の役だけで勝つ', cond:[{ k:'role', hasAny:['忍び','奇襲'] }], stage:'山岳', hard:4, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:400, koban:13600, items:{ '皆伝の書': 1, '特技の伝書': 2 } } },
+  { f:65, name:'影働き', t:'「忍び」か「奇襲」の役だけで勝つ', cond:[{ k:'role', hasAny:['忍び','奇襲'] }], stage:'山岳', hard:4, enemy:{ cost:1120, lv:78, soul:550, skill:3 }, rw:{ stone:400, koban:13600, items:{ '皆伝の書': 1, '特技の伝書': 2 } } },
   { f:66, name:'二人の癒し手', t:'回復の役を二人入れ、誰も倒されずに勝つ', cond:[{ k:'role', has:'回復', min:2 }, { k:'noDeath' }], stage:'山岳', hard:4, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:67, name:'大将は後詰', t:'総大将を後列に置いて勝つ', cond:[{ k:'genPos', v:'後' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:68, name:'遠矢', t:'射程3の武将を入れて勝つ', cond:[{ k:'range', hasV:3 }], stage:'山岳', hard:4, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
@@ -121,7 +121,7 @@ export const TOWER = [
   { f:72, name:'下士', t:'R 以下だけで勝つ', cond:[{ k:'rarity', max:'R' }], stage:'城郭', hard:3, enemy:{ cost:1060, lv:82, soul:680, skill:3 }, rw:{ stone:300, koban:9000, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:73, name:'中士', t:'SR 以下だけで勝つ', cond:[{ k:'rarity', max:'SR' }], stage:'城郭', hard:3, enemy:{ cost:1060, lv:82, soul:680, skill:3 }, rw:{ stone:300, koban:9000, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:74, name:'極みを欠く', t:'UR を入れずに勝つ', cond:[{ k:'rarity', max:'SSR' }], stage:'城郭', hard:3, enemy:{ cost:1060, lv:82, soul:680, skill:3 }, rw:{ stone:300, koban:9000, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
-  { f:75, name:'三人の無名', t:'N だけ三人までで勝つ', cond:[{ k:'rarity', v:'N' }, { k:'units', max:3 }], stage:'城郭', hard:4, enemy:{ cost:1060, lv:82, soul:680, skill:3 }, rw:{ stone:400, koban:18000, items:{ '皆伝の書': 1, '特技の伝書': 2 } } },
+  { f:75, name:'三人の無名', t:'N だけ三人までで勝つ', cond:[{ k:'rarity', v:'N' }, { k:'units', max:3 }], stage:'城郭', hard:4, enemy:{ cost:1180, lv:87, soul:680, skill:3 }, rw:{ stone:400, koban:18000, items:{ '皆伝の書': 1, '特技の伝書': 2 } } },
   { f:76, name:'上士のみ', t:'SSR 以上だけで勝つ', cond:[{ k:'rarity', min:'SSR' }], stage:'城郭', hard:4, enemy:{ cost:1060, lv:82, soul:680, skill:3 }, rw:{ stone:300, koban:9000, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:77, name:'位はばらばら', t:'位がすべてちがう編成で勝つ', cond:[{ k:'rarity', allDiff:true }], stage:'城郭', hard:4, enemy:{ cost:1060, lv:82, soul:680, skill:3 }, rw:{ stone:300, koban:9000, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
   { f:78, name:'無名、欠けず', t:'N だけで、誰も倒されずに勝つ', cond:[{ k:'rarity', v:'N' }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1060, lv:82, soul:680, skill:3 }, rw:{ stone:300, koban:9000, items:{ '皆伝の書': 1, '特技の伝書': 1 } } },
@@ -131,7 +131,7 @@ export const TOWER = [
   { f:82, name:'三度の奥義', t:'奥義を三度以上撃って勝つ', cond:[{ k:'ult', min:3 }], stage:'河川', hard:4, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:12000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:83, name:'大将のひと働き', t:'総大将だけで敵を倒しきる', cond:[{ k:'genOnly' }], stage:'河川', hard:5, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:12000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:84, name:'術くらべ', t:'状態異常を三種類以上あたえて勝つ', cond:[{ k:'status', min:3 }], stage:'河川', hard:4, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:12000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
-  { f:85, name:'軍神を招く', t:'上杉ケンシンを入れて勝つ', cond:[{ k:'useNo', v:15 }], stage:'河川', hard:4, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:400, koban:24000, items:{ '皆伝の書': 2, '特技の伝書': 2 } } },
+  { f:85, name:'軍神を招く', t:'上杉ケンシンを入れて勝つ', cond:[{ k:'useNo', v:15 }], stage:'河川', hard:4, enemy:{ cost:1250, lv:96, soul:830, skill:3 }, rw:{ stone:400, koban:24000, items:{ '皆伝の書': 2, '特技の伝書': 2 } } },
   { f:86, name:'会心', t:'会心を五度以上出して勝つ', cond:[{ k:'crit', min:5 }], stage:'河川', hard:4, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:12000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:87, name:'返し技', t:'反撃を三度以上出して勝つ', cond:[{ k:'counter', min:3 }], stage:'河川', hard:4, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:12000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:88, name:'首を獲る', t:'敵の総大将をいちばん先に倒して勝つ', cond:[{ k:'foeGenFirst' }], stage:'河川', hard:5, enemy:{ cost:1130, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:12000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
@@ -141,7 +141,7 @@ export const TOWER = [
   { f:92, name:'姫の無傷', t:'女武将だけで、誰も倒されずに勝つ', cond:[{ k:'gender', v:'女' }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:93, name:'無名の疾駆', t:'N だけで 6ターン以内に勝つ', cond:[{ k:'rarity', v:'N' }, { k:'turns', max:6 }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:94, name:'単騎五手', t:'一人で 5ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:5 }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
-  { f:95, name:'寄せ集めの無傷', t:'所属がすべてちがう編成で、誰も倒されずに勝つ', cond:[{ k:'clan', allDiff:true }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:400, koban:32000, items:{ '皆伝の書': 2, '特技の伝書': 2 } } },
+  { f:95, name:'寄せ集めの無傷', t:'所属がすべてちがう編成で、誰も倒されずに勝つ', cond:[{ k:'clan', allDiff:true }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1320, lv:99, soul:999, skill:3 }, rw:{ stone:400, koban:32000, items:{ '皆伝の書': 2, '特技の伝書': 2 } } },
   { f:96, name:'懐三人', t:'射程1だけ三人までで、誰も倒されずに勝つ', cond:[{ k:'range', v:1 }, { k:'units', max:3 }, { k:'noDeath' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:97, name:'三重の枷', t:'兵量1から始まり、三人まで・奥義なしで勝つ', cond:[{ k:'units', max:3 }, { k:'noUlt' }], hp1:true, stage:'城郭', hard:5, enemy:{ cost:1060, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
   { f:98, name:'無手の単騎', t:'一人で、奥義を使わずに勝つ', cond:[{ k:'units', max:1 }, { k:'noUlt' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2, '特技の伝書': 1 } } },
@@ -154,8 +154,10 @@ export const towerOf = f => TOWER.find(x => x.f === f) || null;
 export const towerTier = f => Math.floor((f - 1) / 10);
 export const TIER_NAME = ['手ほどき', '寡兵', '地の利', '一門', '無傷',
                           '疾さ', '役目', '位', '奇策', '天守'];
-export const isBoss = f => f % 10 === 0;
-export const isGate = f => f % 5 === 0 && !isBoss(f);
+/* 櫓の主は 五階ごと（2026-10-01 改）。十階ごとは「大櫓」で、称号も渡す */
+export const isBoss = f => f % 5 === 0;
+export const isGreat = f => f % 10 === 0;
+export const isGate = f => false;      // 旧い呼び名。いまは使わない
 
 /* ---------------- 編成の段 ----------------
    出す前に弾けるしばりだけを見る。ng は「何が足りないか」の言葉の並び。

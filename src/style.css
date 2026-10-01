@@ -4849,6 +4849,12 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .twsub i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;
   place-items:center;font-size:14px;font-weight:700;color:var(--gold);
   background:#d8a94a1f;border:1px solid #d8a94a59}
+/* 木の額の絵があるときは、下敷きの枠も影も消して絵だけを置く（2026-10-01）。
+   絵が自前で枠を持っているので、重ねると枠が二重に見える */
+.twsub.art{border:0;background:none;backdrop-filter:none;padding:0;gap:1px;width:76px}
+.twsub .twsi{display:block;width:100%;height:auto;filter:drop-shadow(0 4px 9px #000b)}
+.twsub span{display:block}
+.twsub.art span{font-size:10px;text-shadow:0 1px 3px #000}
 .twsub:active{transform:translateY(1px)}
 .go.twgo{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:2px;padding:10px 6px;border-radius:14px;font-family:var(--mincho);font-size:21px;
@@ -4882,4 +4888,15 @@ header{padding-top:calc(var(--safetop) + 8px)}
   .twfoe img{max-height:104px}
   .go.twgo{font-size:19px}
   .twsub{width:64px}
+  .twsub.art{width:66px}
 }
+
+/* 櫓の主の印（2026-10-01）。五階ごとの節目。十階ごとは「大櫓」で色を変える */
+.twboss{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);
+  padding:2px 11px;border-radius:999px;font-family:var(--mincho);font-size:10px;
+  font-weight:800;letter-spacing:.14em;white-space:nowrap;color:#fff6e2;
+  background:linear-gradient(180deg,#b5452f,#8a2e1d);border:1px solid #f5d79a;
+  box-shadow:0 2px 6px #0009}
+.twboss.great{background:linear-gradient(180deg,#c99a2c,#8a6819);color:#2a1d07}
+.twbg{flex:0 0 auto;width:16px;height:16px;border-radius:4px;display:grid;place-items:center;
+  font-size:9px;font-weight:800;color:#2a1d07;background:var(--gold)}

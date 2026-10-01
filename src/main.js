@@ -7,7 +7,7 @@ import { GACHAS, gachaOf, poolOf, urListOf, urRatesOf } from './gachas.js';
 /* 束ねるときに import 行は捨てられるので、別名（as）は使えない（2026-10-01 に踏んだ）。
    tower.js のほうで twTeam / twResult という名にしてある */
 import { TOWER, TOWER_FOOD, TOWER_MAX, towerOf, towerTier, TIER_NAME, isBoss, isGate,
-         twTeam, twResult } from './tower.js';
+         isGreat, twTeam, twResult } from './tower.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, giveReward, rewardMulOf, sparReward, grantStarter, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
@@ -6831,12 +6831,13 @@ function twBossSheet() {
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 twbox' },
       el('b', { class: 'mittl' }, '櫓の主の褒美'),
-      el('p', { class: 'note' }, '十階ごとの節目。抜けると称号がもらえる'),
+      el('p', { class: 'note' }, '五階ごとの節目。十階ごとの「大櫓」は称号ももらえる'),
       el('div', { class: 'twbl' }, list.map(t => {
         const done = twGot(t.f);
         return el('div', { class: 'twbr' + (done ? ' done' : '') + (t.f === next ? ' now' : '') },
           el('span', { class: 'twbf' }, `${t.f}階`),
           el('span', { class: 'twbn' }, t.name),
+          isGreat(t.f) ? el('span', { class: 'twbg' }, '大') : null,
           el('span', { class: 'twbp' }, curIcon('stone'), el('b', {}, num(t.rw.stone)),
             curIcon('koban'), el('b', {}, num(t.rw.koban || 0))),
           el('span', { class: 'twbt' }, t.rw.title ? `「${t.rw.title}」` : ''),
@@ -6884,7 +6885,10 @@ function screenTower() {
                   el('div', { class: 'twfin' },
                     el('span', { class: 'twfl' },
                       el('em', {}, '第'), el('b', {}, String(f)), el('em', {}, '階')),
-                    el('b', { class: 'twname' }, t.name)))
+                    el('b', { class: 'twname' }, t.name)),
+                  /* 五階ごとは櫓の主。十階ごとは大櫓で称号つき（2026-10-01） */
+                  isBoss(f) ? el('span', { class: 'twboss' + (isGreat(f) ? ' great' : '') },
+                    isGreat(f) ? '大櫓の主' : '櫓の主') : null)
               : el('div', { class: 'twfin' },
                   el('span', { class: 'twfl' },
                     el('em', {}, '第'), el('b', {}, String(f)), el('em', {}, '階')),
@@ -6908,16 +6912,25 @@ function screenTower() {
       el('div', { class: 'twfoot' },
         twPrize(t, twGot(f)),
         S.twMsg ? el('p', { class: 'twng' }, S.twMsg) : null,
-        el('div', { class: 'twbtns' },
-          el('button', { class: 'twsub', title: '部隊を組み直す',
-            onclick: () => { S.twBack = true; S.screen = 'team'; SFX.pick(); draw(); } },
-            el('i', {}, '陣'), '編成'),
-          el('button', { class: 'go twgo', disabled: q.nos.length ? null : true,
-            onclick: () => twGo(f) },
-            '出陣', el('em', {}, curIcon('food'), String(TOWER_FOOD))),
-          el('button', { class: 'twsub', title: '櫓の主の褒美を見る',
-            onclick: () => { S.twPz = true; SFX.pick(); draw(); } },
-            el('i', {}, '褒'), '褒美')),
+        /* 脇の二つは木の額の絵（ui/tw_hensei.png / tw_houbi.png）。
+           絵が無ければ、これまでどおり一字の丸い印に落ちる（2026-10-01） */
+        (() => {
+          const side = (file, mark, name, title, go) => {
+            const art = uiUrl(file);
+            return el('button', { class: 'twsub' + (art ? ' art' : ''), title, onclick: go },
+              art ? keepImg({ class: 'twsi', src: art, alt: name })
+                  : el('i', {}, mark),
+              el('span', {}, name));
+          };
+          return el('div', { class: 'twbtns' },
+            side('tw_hensei', '陣', '編成', '部隊を組み直す',
+              () => { S.twBack = true; S.screen = 'team'; SFX.pick(); draw(); }),
+            el('button', { class: 'go twgo', disabled: q.nos.length ? null : true,
+              onclick: () => twGo(f) },
+              '出陣', el('em', {}, curIcon('food'), String(TOWER_FOOD))),
+            side('tw_houbi', '褒', '褒美', '櫓の主の褒美を見る',
+              () => { S.twPz = true; SFX.pick(); draw(); }));
+        })(),
         el('div', { class: 'twsq' },
           squadChars(q).map(c => {
             const a2 = pawnUrl(c.no);

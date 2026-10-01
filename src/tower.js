@@ -162,7 +162,7 @@ export const isGate = f => false;      // 旧い呼び名。いまは使わな�
 /* ---------------- 編成の段 ----------------
    出す前に弾けるしばりだけを見る。ng は「何が足りないか」の言葉の並び。
    team は grownFor を通す前の素の武将の並び（no / attr / rarity / clan / gender / role / range / cost）*/
-export function twTeam(f, team, form) {
+export function twTeam(f, team, form, pos) {
   const t = towerOf(f);
   if (!t) return [];
   const ng = [];
@@ -224,6 +224,18 @@ export function twTeam(f, team, form) {
         break;
       case 'useNo':
         if (!team.some(x => x.no === c.v)) ng.push('その武将を入れる');
+        break;
+      /* 総大将の置き場（2026-10-02）。
+         前は戦い終わりにしか見ていなかったので、置き場をまちがえたまま
+         出陣でき、兵糧10と戦の時を捨てることになっていた。
+         pos ＝ { gen, min, max }（陣形の枠の深さ。0 が前線側）を
+         呼ぶ側が渡してきたときだけ、ここで弾く。
+         渡ってこない呼び方（古い呼び出し）では、これまでどおり戦いぶりの段で見る */
+      case 'genPos':
+        if (pos && pos.gen != null) {
+          const want = c.v === '前' ? pos.min : pos.max;
+          if (pos.gen !== want) ng.push(`総大将を${c.v}列に置く`);
+        }
         break;
       default: break;   // 戦いぶりの段で見る
     }

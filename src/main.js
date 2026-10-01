@@ -6998,6 +6998,44 @@ function twEnemy(f, _rng) {
 }
 
 /* 挑む。部隊をえらんでから、しばりと兵糧を検める（お祭りと同じ順） */
+/* いまの編成を 陣形の枠に当てはめたときの「深さ」（2026-10-02）。
+   engine の layout() と同じ順で並べ、総大将がどの深さに入るかを返す。
+   fy は前線からの深さなので 0 がいちばん前。
+   { gen, min, max } を返し、gen === min なら前列、gen === max なら後列。
+   盤の通れぬマスでずれることはあるが、ずれても自陣の行の内なので
+   前後の並びは変わらない。ここは「明らかに違う」ときだけ弾ければよい */
+function twPlacePos() {
+  const cells = (RULES.formations[S.form] || {}).cells || [];
+  const members = S.picked || [];
+  if (!cells.length || !members.length) return null;
+  const slots = S.slots || [];
+  let order, assign;
+  if (slots.some(v => v != null)) {
+    const rest = members.filter(x => !slots.includes(x.no))
+                        .sort((a, b) => (b.cost || 0) - (a.cost || 0));
+    order = cells.map((c, i) => ({ c, i }));
+    assign = cells.map((_, i) => (slots[i] == null ? null
+                                 : members.find(x => x.no === slots[i]) || null));
+    assign = assign.map(a => a || rest.shift() || null);
+    const pair = order.map((o, i) => ({ o, char: assign[i] })).filter(p => p.char);
+    order = pair.map(p => p.o); assign = pair.map(p => p.char);
+  } else {
+    /* 枠を指していないときは、深いマスから順に 総大将 → コストの高い順 */
+    order = cells.map((c, i) => ({ c, i })).sort((a, b) => b.c[1] - a.c[1] || a.i - b.i);
+    const gen = members.find(x => x.no === S.general);
+    const others = members.filter(x => x.no !== S.general)
+                          .sort((a, b) => (b.cost || 0) - (a.cost || 0));
+    assign = [gen, ...others].filter(Boolean);
+  }
+  const fys = assign.map((c, i) => ({ no: c.no, fy: (order[i].c || [0, 0])[1] }));
+  if (!fys.length) return null;
+  const g = fys.find(x => x.no === S.general) || fys[0];
+  return { gen: g.fy, min: Math.min(...fys.map(x => x.fy)),
+                      max: Math.max(...fys.map(x => x.fy)) };
+}
+/* いまの編成では通らないしばり。塔の画面でも出陣の前でも同じものを見る */
+const twTeamNg = f => twTeam(f, S.picked || [], S.form, twPlacePos());
+
 function twGo(f) {
   if (f > twFloor()) { S.twMsg = 'まだ、この階には上がれぬ'; SFX.pick(); draw(); return; }
   /* 部隊えらびの札は挟まない（2026-10-01）。
@@ -7011,7 +7049,7 @@ function twGo2(f) {
   if (dupOrigins(q.nos).length) { S.twMsg = '同じ武将が重なっている'; SFX.pick(); draw(); return; }
   /* しばりのうち、編成で分かるぶんはここで弾く（2026-10-01）。
      戦ってから「役目ちがい」で落とすのは、兵糧も時も無駄にする */
-  const ng = twTeam(f, S.picked, S.form);
+  const ng = twTeamNg(f);
   if (ng.length) { S.twMsg = ng.join('／'); SFX.pick(); draw(); return; }
   if (squadCost(q) > costMax()) { S.twMsg = 'コストが上限を超えている'; SFX.pick(); draw(); return; }
   if (P.stamina < TOWER_FOOD) {
@@ -7376,6 +7414,10 @@ function screenTower() {
   if (!t) return { body: el('div', {}, '天守まで登りきった'), nav: true };
   const tier = towerTier(f);
   const q = P.squads[P.active] || { nos: [] };
+  /* いまの編成で通らないしばり（2026-10-02）。
+     押してから断られるのではなく、押す前から見えているほうが親切。
+     出陣の釦もここで止める（兵糧を捨てずに済む） */
+  const ng = q.nos.length ? twTeamNg(f) : [];
   /* はじめの一度だけ、どういう場かを語る（2026-10-01）。
      二度目からは出さない。P.tower.seen に覚える */
   const st = twState();
@@ -7424,6 +7466,9 @@ function screenTower() {
       el('div', { class: 'twfoot' },
         twPrize(t, twGot(f)),
         S.twMsg ? el('p', { class: 'twng' }, S.twMsg) : null,
+        /* いまの編成では通らない、と先に出す（2026-10-02） */
+        ng.length ? el('p', { class: 'twwarn' },
+          el('i', {}, '！'), `いまの編成では通らぬ　― ${ng.join('／')}`) : null,
         /* 脇の二つは木の額の絵（ui/tw_hensei.png / tw_houbi.png）。
            絵が無ければ、これまでどおり一字の丸い印に落ちる（2026-10-01） */
         (() => {
@@ -7439,7 +7484,8 @@ function screenTower() {
           return el('div', { class: 'twbtns' },
             side('tw_hensei', '陣', '編成', '部隊を組み直す',
               () => { S.twBack = true; S.screen = 'team'; SFX.pick(); draw(); }),
-            el('button', { class: 'go twgo', disabled: q.nos.length ? null : true,
+            el('button', { class: 'go twgo',
+              disabled: (q.nos.length && !ng.length) ? null : true,
               onclick: () => twGo(f) },
               '出陣', el('em', {}, curIcon('food'), String(TOWER_FOOD))),
             side('tw_houbi', '褒', '褒美', '櫓の主の褒美を見る',

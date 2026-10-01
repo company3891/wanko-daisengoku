@@ -15,7 +15,7 @@
    サーバーができたら mkStock()（並べる）と mkSettle()（売れたか検める）の
    中身を 取りにいく／送る に差し替えるだけでよい。画面は触らずに済む。 */
 
-import { P, savePlayer, SOUL_BY_RARITY, SP_STATS, charState, cntOf, setCnt,
+import { P, savePlayer, SP_STATS, charState, cntOf, setCnt,
          inSquad, hasCard } from './player.js';
 import { rkName } from './rank.js';
 
@@ -36,18 +36,33 @@ export function mkState() {
   return m;
 }
 
-/* ---- 値ぶみ ----
-   位がいちばん重い（重ねたときの魂と同じ物差しを十倍して使う）。
-   そこに 育てたぶん（位・覚醒・ふった魂・技の位）を足す。
+/* ---- 値ぶみ（2026-10-02 に組み直し）----
+   前は「重ねの魂 × 10」を土台にしていたので、N が 12 魂、SSR でも 302 魂と
+   あまりに安かった。一騎を手放すのに見合わぬ値だったので、
+   位ごとの土台を置き、育ちは その土台に掛けるかたちに改めた。
+
+   ・土台（MK_BASE）… 素のまま（Lv1・覚醒なし）の目安
+   ・育ちは掛け算 … 位 1つ +2%（grownStats と同じ）／覚醒 1つ +25%
+                     ふった魂 1点 +0.05%／技の位 1段 +15%
+     UR を Lv99・覚醒5・魂1000まで育てると およそ 3500 × 4.2 ＝ 1万5千ほど
+
+   ・底値（MK_FLOOR）… これより安くは出せない。
+     SSR 1000／UR 3000 と重くしてあるのは、位の高い札が
+     二束三文で流れると くじを引く値打ちまで下がるため
+
    遊ぶ人には この式は見せない。「目安」とだけ出す */
+export const MK_BASE  = { N: 100, R: 220, SR: 500, SSR: 1200, UR: 3500 };
+export const MK_FLOOR = { N: 100, R: 100, SR: 100, SSR: 1000, UR: 3000 };
+export const mkFloor = c => MK_FLOOR[(c || {}).rarity] || MK_FLOOR.N;
 export function mkWorth(c, st) {
-  if (!c) return 10;
-  const one = SOUL_BY_RARITY[c.rarity] || 1;
+  if (!c) return MK_FLOOR.N;
+  const base = MK_BASE[c.rarity] || MK_BASE.N;
   const s = st || {};
   const sp = SP_STATS.reduce((a, k) => a + ((s.sp || {})[k] || 0), 0);
   const sk = (s.sk || []).reduce((a, v) => a + Math.max(0, (v || 1) - 1), 0);
-  return Math.max(10, Math.round(one * 10 + (s.lv || 1) * 2 + (s.awake || 0) * 60
-                                 + sp * 1.2 + sk * 40));
+  const mul = 1 + ((s.lv || 1) - 1) * 0.02 + (s.awake || 0) * 0.25
+                + sp * 0.0005 + sk * 0.15;
+  return Math.max(mkFloor(c), Math.round(base * mul));
 }
 /* 預かっている育ちでの総合値（2026-10-01）。
    grownStats と同じ式（Lv1を100%として1レベル +2%、そこに ふった魂を足す）。
@@ -60,10 +75,11 @@ export function mkPower(c, st) {
     a + Math.round(((c.stats || {})[k] || 0) * mul) + ((s.sp || {})[k] || 0), 0);
 }
 /* 付けられる値の幅。安く出せば早く売れ、高く出せば なかなか売れない。
+   下は 目安の半値か、位ごとの底値のどちらか高いほう（2026-10-02）。
    上は一律 99999（2026-10-01）。目安の三倍で頭打ちにすると、
    育てきった子に高値を付けたい人の行き場が無くなるため。
    売れにくさは mkSettle の式が見るので、天井を上げても壊れない */
-export const mkLo = w => Math.max(10, Math.round(w * 0.5));
+export const mkLo = (w, c) => Math.max(mkFloor(c), Math.round(w * 0.5));
 export const MK_PRICE_MAX = 99999;
 export const mkHi = w => MK_PRICE_MAX;
 
@@ -99,7 +115,7 @@ export function mkStock(C) {
     const awake = Math.floor(rng() * (k >= 3 ? 4 : k >= 1 ? 3 : 2));
     const st = { lv, awake, sp: {}, sk: [1, 1, 1] };
     const w = mkWorth(c, st);
-    const price = Math.max(10, Math.round(w * (0.7 + rng() * 0.9)));
+    const price = Math.max(mkFloor(c), Math.round(w * (0.7 + rng() * 0.9)));
     out.push({ id: `n${day}-${i}`, no: c.no, st, price, who: rkName(rng), npc: true });
   }
   return out.filter(x => !m.sold.includes(x.id));

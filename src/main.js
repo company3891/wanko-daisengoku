@@ -7273,7 +7273,7 @@ function mkPutSheet() {
         closeX(close)));
   }
   const st = charState(c.no);
-  const w = mkWorth(c, st), lo = mkLo(w), hi = mkHi(w);
+  const w = mkWorth(c, st), lo = mkLo(w, c), hi = mkHi(w);
   if (!S.mkPrice) S.mkPrice = w;
   const price = Math.max(lo, Math.min(hi, Math.round(S.mkPrice)));
   const bump = d => () => { S.mkPrice = Math.max(lo, Math.min(hi, price + d)); SFX.pick(); draw(); };

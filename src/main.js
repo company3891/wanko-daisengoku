@@ -18,7 +18,7 @@ import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TIC
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
          LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS,
-         SOUL_PACK, dailyDeals, dealBought, buyItem, buyDeal, buySoul, useFood,
+         dailyDeals, dealBought, buyItem, buyDeal, useFood,
          ATTRS, AWAKE_TIERS, BADGES, badgeMat, freeMat, awakeNeed, awakeCheck,
          BATTLE_STATS, WEATHERS, WEATHER_ITEM, useItem,
          SKILL_MAX, MAT_MAX, BOOK, STAR_RATE, buildStars, starOf, dupOf, skillLvOf,
@@ -1647,7 +1647,7 @@ function miSheet() {
    通貨と称号はここに一行ずつ書いてある。数はその褒美でもらえる数を添える。 */
 const CUR_INFO = {
   koban:  ['小判',     '蔵で道具を買うのに使う'],
-  soul:   ['武士の魂', '重ねを解雇すると増える。魂の市で使う'],
+  soul:   ['武士の魂', '重ねを解雇すると増える。魂を振る・取引所で使う'],
   stone:  ['石',       'くじを引くのに使う'],
   stamina:['兵糧',     '出陣に要る。時がたつと戻る'],
 };
@@ -3688,6 +3688,9 @@ function screenShop() {
         })),
         el('p', { class: 'note' }, '軍功は番付の月末の褒美で手に入るわん')) : null,
 
+      /* 「魂の市」は外した（2026-10-02）。小判で魂がいくらでも買えると、
+         重ねを解雇する・取引所で売るという 魂の出どころが要らなくなる。
+         伝書と護符も noShop にしたので、特技の蔵は空になって自動で消える */
       tab === 'kura' ? el('div', {},
         ITEM_KINDS.map(kind => {
           const names = Object.keys(ITEMS).filter(k => ITEMS[k].kind === kind && !ITEMS[k].noShop);
@@ -3714,28 +3717,7 @@ function screenShop() {
                     onclick: shopBuy(name, it.price, 10),
                   }, '×10')));
             })));
-        }),
-        el('h3', { class: 'shoph' }, '魂の市'),
-        el('div', { class: 'shoplist' },
-          el('div', { class: 'shoprow' },
-            /* 魂にも絵を出す（2026-09-30）。番付の蔵と同じ coin_魂 を使う。
-               絵が無ければ これまでどおり「魂」の一字に落ちる */
-            (() => { const a = uiUrl('coin_魂');
-              return el('span', { class: 'itic k魂' + (a ? ' art' : '') },
-                a ? keepImg({ src: a, alt: '武士の魂' }) : '魂'); })(),
-            el('div', { class: 'sitm' },
-              el('b', {}, `武士の魂 ${num(SOUL_PACK.n)}`),
-              el('span', { class: 'sd' }, '武将強化の「魂を振る」で使う'),
-              el('span', { class: 'sp2' }, `小判 ${num(SOUL_PACK.price)}`)),
-            el('div', { class: 'sbtns' },
-              el('button', {
-                class: 'go sm', disabled: P.koban < SOUL_PACK.price ? true : null,
-                onclick: () => { const r = buySoul(1); if (r) { miBump('buy'); SFX.win(); S.shopMsg = `武士の魂を ${num(r.n)} 手に入れた`; } else { SFX.pick(); S.shopMsg = '小判が足りない'; } draw(); },
-              }, '×1'),
-              el('button', {
-                class: 'go sm', disabled: P.koban < SOUL_PACK.price * 10 ? true : null,
-                onclick: () => { const r = buySoul(10); if (r) { miBump('buy'); SFX.win(); S.shopMsg = `武士の魂を ${num(r.n)} 手に入れた`; } else { SFX.pick(); S.shopMsg = '小判が足りない'; } draw(); },
-              }, '×10')))) ) : null,
+        })) : null,
 
       tab === 'awake' ? (() => {
         const pick = S.shopAttr || ATTRS[0];

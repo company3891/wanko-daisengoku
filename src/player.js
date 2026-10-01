@@ -161,17 +161,25 @@ export const ITEMS = {
   '大稽古の書': { kind: '稽古', exp: 5000,   price: 1200, desc: '武将の経験を 5,000 積む' },
   '皆伝の書':   { kind: '稽古', exp: 25000,  price: 5000, desc: '武将の経験を 25,000 積む' },
   '兵糧丸':     { kind: '兵糧', food: 30,    price: 400,  use: true, desc: '兵糧を 30 もどす' },
-  '兵糧俵':     { kind: '兵糧', food: 9999,  price: 1000, use: true, desc: '兵糧を満たす' },
-  '特技の伝書': { kind: '特技', skill: 1,    price: 2500, desc: '特技を1段上げる（特技強化で使う）' },
+  /* 兵糧俵は 1000 → 5000（2026-10-02）。
+     兵糧丸（30もどす）が400なので、満たす一俵が1000では安すぎて
+     「待つ」という決まりごとが無いのと同じになっていた */
+  '兵糧俵':     { kind: '兵糧', food: 9999,  price: 5000, use: true, desc: '兵糧を満たす' },
+  /* 伝書と護符は小判では買えない（2026-10-02）。
+     小判で買えると、特技の位も継承も「通えば上がる」ものになってしまい、
+     重ねを食わせる・しくじるという山場が無くなる。
+     手に入れ方は お祭り・お役目・番付・みくじの積みだけに絞った。
+     値は残してある（品の重さの目安と、いつか別の交換に使うため） */
+  '特技の伝書': { kind: '特技', skill: 1,    price: 2500, noShop: true, desc: '特技を1段上げる（特技強化で使う）' },
   /* 特技強化の成功率を上げる護符。1回の強化にひとつだけ添えられる */
-  '上達の護符・小': { kind: '特技', luck: 15, price: 800,  desc: '特技強化の成功率を 15% 上げる' },
-  '上達の護符・中': { kind: '特技', luck: 30, price: 2000, desc: '特技強化の成功率を 30% 上げる' },
-  '上達の護符・大': { kind: '特技', luck: 60, price: 5000, desc: '特技強化の成功率を 60% 上げる' },
+  '上達の護符・小': { kind: '特技', luck: 15, price: 800,  noShop: true, desc: '特技強化の成功率を 15% 上げる' },
+  '上達の護符・中': { kind: '特技', luck: 30, price: 2000, noShop: true, desc: '特技強化の成功率を 30% 上げる' },
+  '上達の護符・大': { kind: '特技', luck: 60, price: 5000, noShop: true, desc: '特技強化の成功率を 60% 上げる' },
   /* 特技継承の成功率を上げる護符（2026-09-22）。強化の護符とは別もので、継承にしか効かない。
      継承はもともと当たりが薄い（◆の3つ目は素材3つでも15%）ので、伸びしろを大きめに取った */
-  '相伝の護符・小': { kind: '特技', luckInh: 10, price: 1200, desc: '特技継承の成功率を 10% 上げる' },
-  '相伝の護符・中': { kind: '特技', luckInh: 20, price: 3000, desc: '特技継承の成功率を 20% 上げる' },
-  '相伝の護符・大': { kind: '特技', luckInh: 40, price: 7500, desc: '特技継承の成功率を 40% 上げる' },
+  '相伝の護符・小': { kind: '特技', luckInh: 10, price: 1200, noShop: true, desc: '特技継承の成功率を 10% 上げる' },
+  '相伝の護符・中': { kind: '特技', luckInh: 20, price: 3000, noShop: true, desc: '特技継承の成功率を 20% 上げる' },
+  '相伝の護符・大': { kind: '特技', luckInh: 40, price: 7500, noShop: true, desc: '特技継承の成功率を 40% 上げる' },
   /* ---- 陣触れの品（2026-09-23）----
      出せる部隊のコスト上限を、決めた時間だけ 200 上げる。
      効いているあいだは重ねて飲んでも足し算にはならず、長いほうの刻限で上書きする。 */
@@ -619,7 +627,9 @@ export function dailyDeals() {
   const attr = ATTRS[Math.floor(rnd() * ATTRS.length)];
   const rank = [0, 0, 1, 1, 2][Math.floor(rnd() * 5)];      // 下の段ほど出やすい
   const out = [deal(badgeMat(attr, rank))];
-  const pool = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== '覚醒');
+  /* 棚に出さない品（伝書・護符・祭の札）は 振り売りにも出さない（2026-10-02）。
+     蔵から外しても、日替わりの安売りに顔を出したら意味がない */
+  const pool = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== '覚醒' && !ITEMS[k].noShop);
   for (let i = 0; i < 2 && pool.length; i++) out.push(deal(pool.splice(Math.floor(rnd() * pool.length), 1)[0]));
   return out;
 }
@@ -631,8 +641,10 @@ function shopState() {
 /* 振り売りでその品をもう買ったか */
 export const dealBought = name => !!shopState().bought[name];
 
-/* 常設の蔵で買う。n個まとめて */
+/* 常設の蔵で買う。n個まとめて。
+   棚に出さない品は、どこから呼ばれても小判では買えない（2026-10-02） */
 export function buyItem(name, n = 1) {
+  if ((ITEMS[name] || {}).noShop) return null;
   const it = ITEMS[name]; if (!it) return null;
   const cost = it.price * n;
   if (P.koban < cost) return null;

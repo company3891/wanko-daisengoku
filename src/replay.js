@@ -688,7 +688,13 @@ export function describe(e, initial) {
     case 'dmg': return { cls:'', s:`${n(e.src)} → ${n(e.tgt)} に ${e.v}${e.crit ? '（会心）' : ''}` };
     case 'ko': return { cls:'ko', s:`${n(e.tgt)} 戦闘不能` };
     case 'ult': return { cls:'ult', s:`${n(e.src)} 奥義！` };
-    case 'unique': return { cls:'ult', s:`${n(e.src)} 固有発動` };
+    /* 控えにも固有の名を出す（2026-10-01）。継承した◆はマスタに無いので、
+       エンジンが log に残した名を使う。頭の（属性）と末尾の◆は落とす */
+    case 'unique': {
+      const un = (e.skills || []).map(x => String(x)
+        .replace(/^[（(][^）)]*[）)]\s*/, '').replace(/[◆◇]\s*$/, '')).filter(Boolean);
+      return { cls:'ult', s:`${n(e.src)} 固有発動${un.length ? '　' + un.join('／') : ''}` };
+    }
     case 'skill': return { cls:'', s:`${n(e.src)} ${e.name}` };
     case 'move': return { cls:'', s:`${n(e.src)} 移動 (${e.x},${e.y})` };
     case 'retreat': return { cls:'', s:`${n(e.src)} 後退` };

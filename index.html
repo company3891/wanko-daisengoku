@@ -6888,7 +6888,8 @@ function act(u, allies, enemies, ctx) {
   if (u.uniqueCd <= 0 && u.compiled.unique.length && rng.chance(uRate)
       && !shouldHoldSkill(u.compiled.unique, u, allies, enemies, target, ctx)) {
     u.uniqueCd = rules.uniqueSkill.cooldownSec;
-    if (log) log.push({ t: +t.toFixed(1), type: 'unique', src: u.id, name: u.name });
+    // 出た固有の名も一緒に残す（2026-10-01）。継承した◆はマスタを引いても名が出ない
+    if (log) log.push({ t: +t.toFixed(1), type: 'unique', src: u.id, name: u.name, skills: u.uniqNames || [] });
     withVia(ctx, 'unique', () => applyEffects(u.compiled.unique, u, allies, enemies, target, ctx));
     return;
   }
@@ -7231,6 +7232,14 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         }
         if (add.length) u.compiled = { ...u.compiled, unique: u.compiled.unique.concat(add) };
       }
+      /* 固有の名を控える（2026-10-01）。元から持っている◆と、継承で入れた◆の両方。
+         カットインに「どの固有が出たか」を出すのに使う。
+         継承で入れた◆はマスタに無いので、ここで渡さないと名が出ない。
+         （元から◆を持たない武将は 60体いる。その子たちは継承した名しか出せない） */
+      u.uniqNames = [
+        ...(cell.char.unique && cell.char.unique.name ? [cell.char.unique.name] : []),
+        ...((cell.char.uniqExtra || []).map(k => k && k.name).filter(Boolean)),
+      ];
       // 特技レベル（2026-09-21）。Lv2で1.15倍、Lv3で1.3倍。
       // compiled はキャラで使い回すことがあるので、伸ばすときは作り直してから差し替える
       if (Array.isArray(cell.char.skillLv)) scaleNormals(u, cell.char.skillLv);
@@ -8306,7 +8315,13 @@ function describe(e, initial) {
     case 'dmg': return { cls:'', s:`${n(e.src)} → ${n(e.tgt)} に ${e.v}${e.crit ? '（会心）' : ''}` };
     case 'ko': return { cls:'ko', s:`${n(e.tgt)} 戦闘不能` };
     case 'ult': return { cls:'ult', s:`${n(e.src)} 奥義！` };
-    case 'unique': return { cls:'ult', s:`${n(e.src)} 固有発動` };
+    /* 控えにも固有の名を出す（2026-10-01）。継承した◆はマスタに無いので、
+       エンジンが log に残した名を使う。頭の（属性）と末尾の◆は落とす */
+    case 'unique': {
+      const un = (e.skills || []).map(x => String(x)
+        .replace(/^[（(][^）)]*[）)]\s*/, '').replace(/[◆◇]\s*$/, '')).filter(Boolean);
+      return { cls:'ult', s:`${n(e.src)} 固有発動${un.length ? '　' + un.join('／') : ''}` };
+    }
     case 'skill': return { cls:'', s:`${n(e.src)} ${e.name}` };
     case 'move': return { cls:'', s:`${n(e.src)} 移動 (${e.x},${e.y})` };
     case 'retreat': return { cls:'', s:`${n(e.src)} 後退` };
@@ -29964,7 +29979,14 @@ async function showEvent(e, my) {
       /* 固有は一枚絵をやめ、顔＋技名の中くらいの帯に戻した（2026-09-30）。
          一枚絵は画面をほとんど覆うので、続けて出ると盤面が見えなかった。
          大きな一枚絵は奥義だけの見せ場にする */
-      const ms = cutIn(document.body, { name: e.name, skill: uniqNameOf(no),
+      /* 技の名は エンジンが残した名を先に使う（2026-10-01）。
+         継承で入れた◆はマスタ（characters.json）に無いので、
+         武将の番号から引くと「固有」としか出せなかった。
+         ◆は同時にいくつも出るので、二つまで並べて、残りは「ほか」でまとめる */
+      const un = (e.skills || []).map(skillShort).filter(Boolean);
+      const uname = un.length ? (un.slice(0, 2).join('／') + (un.length > 2 ? '　ほか' : ''))
+                              : uniqNameOf(no);
+      const ms = cutIn(document.body, { name: e.name, skill: uname,
                                         art: null, img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
       await sleep(Math.min(ms, 560)); return;
     }

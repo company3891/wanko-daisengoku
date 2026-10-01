@@ -6203,7 +6203,14 @@ async function showEvent(e, my) {
       /* 固有は一枚絵をやめ、顔＋技名の中くらいの帯に戻した（2026-09-30）。
          一枚絵は画面をほとんど覆うので、続けて出ると盤面が見えなかった。
          大きな一枚絵は奥義だけの見せ場にする */
-      const ms = cutIn(document.body, { name: e.name, skill: uniqNameOf(no),
+      /* 技の名は エンジンが残した名を先に使う（2026-10-01）。
+         継承で入れた◆はマスタ（characters.json）に無いので、
+         武将の番号から引くと「固有」としか出せなかった。
+         ◆は同時にいくつも出るので、二つまで並べて、残りは「ほか」でまとめる */
+      const un = (e.skills || []).map(skillShort).filter(Boolean);
+      const uname = un.length ? (un.slice(0, 2).join('／') + (un.length > 2 ? '　ほか' : ''))
+                              : uniqNameOf(no);
+      const ms = cutIn(document.body, { name: e.name, skill: uname,
                                         art: null, img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
       await sleep(Math.min(ms, 560)); return;
     }

@@ -1994,7 +1994,7 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 /* 図鑑の並べ替え（2026-09-27）。「並び」の字と札を一列に、折り返して収める */
 /* 武将えらびの絞込み（2026-09-30）。図鑑の並べ替えと同じ見た目でそろえた */
 .pfrow{gap:6px;align-items:center;margin:2px 0 0}
-.pfrow .chip{padding:5px 11px;font-size:12px}
+.pfrow .chip{padding:5px 9px;font-size:12px}   /* 題を外したぶん、並びの六つが一段に収まる（2026-10-01） */
 .pfrow .sortlb{flex:0 0 auto}
 .dexsort{gap:6px;align-items:center;margin:2px 0 0}
 .sortlb{font-size:11px;color:var(--text3);margin-right:2px}
@@ -2436,6 +2436,19 @@ main.hasnav{padding-bottom:124px}
   text-shadow:0 1px 2px #000;box-shadow:0 1px 3px #0008}
 .hmb.soon{opacity:.6;cursor:default}
 .hmb.soon .hml{color:#d8d2c8}
+/* まだ開いていない座（2026-10-01）。灰色に沈めて、何をすれば開くかを札の上に書く。
+   親の filter は子にも効くので、字のほうは filter の外（別の重なり）に置く */
+.hmb.locked,.hmw.locked{cursor:default}
+.hmb.locked .hmi,.hmw.locked .hmi{filter:grayscale(1) brightness(.5)}
+/* 絵そのものにも影の filter が当たっているので、そちらも灰色にする
+   （親の filter は子に効くが、子が自分で filter を持つと そこで上書きになる） */
+.hmb.locked .hmi img,.hmw.locked .hmi img{filter:grayscale(1) brightness(.52) drop-shadow(0 2px 5px #000a)}
+.hmb.locked .hml,.hmw.locked .hml{color:#8f8a80}
+.hmlock{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
+  width:88%;padding:3px 2px;border-radius:7px;
+  font-size:9px;font-weight:700;line-height:1.3;letter-spacing:.01em;text-align:center;
+  color:#f5e2a8;background:#0b0908e8;border:1px solid #d8a94a6b;
+  box-shadow:0 2px 6px #000a;pointer-events:none}
 .hmb:not(.soon):active{transform:translateY(1px);filter:brightness(.92)}
 /* 左上の列だけ 赤丸を内側へ寄せる（2026-09-30）。
    .home は画面の高さぴったりに切り取ってあるので（overflow:hidden）、
@@ -2532,6 +2545,16 @@ main.hasnav{padding-bottom:124px}
    名前の欄を短くして、同じ行に「部隊を解く」を置く。 */
 .namerow{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .namerow .nameIn{flex:1 1 auto;min-width:0;margin-bottom:0}
+/* どの部隊を組むかのプルダウン（2026-10-01）。名前の欄の左にそろえる */
+.namerow .sqsel{flex:0 0 auto;appearance:none;-webkit-appearance:none;cursor:pointer;
+  padding:10px 24px 10px 11px;font-family:inherit;font-size:12.5px;font-weight:700;
+  color:#f3e7cc;background:#ffffff0d;border:1px solid var(--line);border-radius:10px;
+  background-image:linear-gradient(45deg,transparent 50%,#d8a94a 50%),
+                   linear-gradient(135deg,#d8a94a 50%,transparent 50%);
+  background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.namerow .sqsel:focus{outline:none;border-color:var(--gold)}
+.namerow .sqsel option{background:#1c1916;color:#f3e7cc}
 .namerow .disband{flex:0 0 auto;white-space:nowrap;padding:10px 12px;font-size:12px;
   border-color:#c76a4e66;color:#e0a08c}
 .namerow .disband:disabled{border-color:var(--line);color:var(--text3)}

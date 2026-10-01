@@ -1041,18 +1041,26 @@ const HOME_MENU = [
   /* 試練の塔（2026-10-01）。左下・全国の釦の上。
      絵（ui/home_tower.png）は看板なので、ほかの座より ひと回り大きく出す */
   { side: 'BL', name: '試練の塔', mark: '塔', file: 'home_tower', big: true,
+    /* 全国の第1章（出発した章）を平定するまでは開かない（2026-10-01）。
+       いきなり しばり付きの戦に来ても、手持ちが足りず「読み」にならない */
+    lock: () => towerOpen() ? null : '第1章クリアで解放',
     go: () => { S.screen = 'tower'; S.twMsg = ''; S.twSel = null; } },
 ];
+/* 第1章＝出発した章。そこを取りきると試練の塔が開く（2026-10-01） */
+const towerOpen = () => regionTaken((PREF[(P.camp && P.camp.start) || 'aichi'] || {}).region);
 function homeMenuBtn(m) {
   const wide = m.side === 'BR' && !m.square;
   const art = (m.file && uiUrl(m.file)) || uiUrl((wide ? 'banner_' : 'menu_') + m.name);
+  /* まだ開いていない座（2026-10-01）。灰色に沈めて、何をすれば開くかを札の上に書く */
+  const lk = typeof m.lock === 'function' ? m.lock() : null;
   return el('button', {
     class: (wide ? 'hmw' : 'hmb') + (art ? ' art' : '') + (m.soon ? ' soon' : '')
-         + (m.big ? ' big' : ''),
-    title: m.soon ? `${m.name}（近日）` : m.name,
-    disabled: m.soon ? true : null,
-    onclick: m.soon ? null : () => { m.go(); SFX.pick(); draw(); },
+         + (lk ? ' locked' : '') + (m.big ? ' big' : ''),
+    title: m.soon ? `${m.name}（近日）` : lk ? `${m.name}　${lk}` : m.name,
+    disabled: (m.soon || lk) ? true : null,
+    onclick: (m.soon || lk) ? null : () => { m.go(); SFX.pick(); draw(); },
   },
+    lk ? el('span', { class: 'hmlock' }, lk) : null,
     el('span', { class: 'hmi' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, m.mark)),
     /* 絵が無くて、名が一字の印とおなじなら、下の名札は出さない（2026-09-26）。
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
@@ -3809,9 +3817,10 @@ function pickApply(list, ks, opt) {
   const up = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
   return out.sort((a, b) => { const d = so.v(a) - so.v(b); return (up ? d : -d) || a.no - b.no; });
 }
-const pfRow = (lb, kids, extra) =>
-  el('div', { class: 'row chapters pfrow' + (extra ? ' ' + extra : '') },
-    el('span', { class: 'sortlb' }, lb), kids);
+/* 題（位・属性・並び）は出さない（2026-10-01）。
+   札そのものを見れば何の段かは分かるし、三段ぶんの題は場所を食っていた */
+const pfRow = (kids, extra) =>
+  el('div', { class: 'row chapters pfrow' + (extra ? ' ' + extra : '') }, kids);
 /* 絞込みの札の並び（位・属性・並び）。図鑑でずっと使っていた三つにそろえた（2026-09-30） */
 function pickRows(ks, opt) {
   const rar = pfGet(ks, 'rar', 'すべて');
@@ -3819,30 +3828,33 @@ function pickRows(ks, opt) {
   const so  = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
   const up  = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
   return [
-    pfRow('位', ['すべて', ...RAR].map(r => el('button', {
+    pfRow(['すべて', ...RAR].map(r => el('button', {
       class: 'chip' + (rar === r ? ' on' : '') + (r !== 'すべて' && rarUrl(r) ? ' ric' : ''),
       onclick: () => pfSet(ks, 'rar', r),
     }, r === 'すべて' ? 'すべて' : rarTag(r)))),
-    pfRow('属性', ['すべて', ...ATTRS].map(a => el('button', {
+    pfRow(['すべて', ...ATTRS].map(a => el('button', {
       class: 'chip' + (att === a ? ' on' : '') + (a !== 'すべて' && attrUrl(a) ? ' aic' : ''),
       onclick: () => pfSet(ks, 'att', a),
     }, a === 'すべて' ? 'すべて' : attrTag(a, 'sm'))), 'attrf'),
-    /* 「編成中」は絞込みなので、位・属性と同じ段に置く（2026-10-01）。
-       押すたびに入り切りが変わる。五つの部隊のどれかに入っていれば出る */
-    pfRow('部隊', [el('button', {
-      class: 'chip sqf' + (pfGet(ks, 'sq', false) ? ' on' : ''),
-      title: '五つの部隊のどれかに入っている武将だけ',
-      onclick: () => pfSet(ks, 'sq', !pfGet(ks, 'sq', false)),
-    }, '編成中')]),
-    pfRow('並び', DEXSORT.map(x => el('button', {
-      class: 'chip' + (so.k === x.k ? ' on' : ''),
-      title: so.k === x.k ? 'もう一度押すと向きが変わる' : null,
-      onclick: () => {
-        if (so.k === x.k) S[ks.asc] = !up;
-        else { S[ks.sort] = x.k; S[ks.asc] = x.up; }
-        SFX.pick(); draw();
-      },
-    }, x.name, so.k === x.k ? el('i', { class: 'sar' }, up ? '▲' : '▼') : null))),
+    /* 並びの段のいちばん右に「編成中」を並べる（2026-10-01）。
+       段がひとつ減って、武将の札が一列ぶん早く見えるようになる。
+       中身は絞込みなので、色を変えて（緑）並べ替えの札と見分ける */
+    pfRow([
+      ...DEXSORT.map(x => el('button', {
+        class: 'chip' + (so.k === x.k ? ' on' : ''),
+        title: so.k === x.k ? 'もう一度押すと向きが変わる' : null,
+        onclick: () => {
+          if (so.k === x.k) S[ks.asc] = !up;
+          else { S[ks.sort] = x.k; S[ks.asc] = x.up; }
+          SFX.pick(); draw();
+        },
+      }, x.name, so.k === x.k ? el('i', { class: 'sar' }, up ? '▲' : '▼') : null)),
+      el('button', {
+        class: 'chip sqf' + (pfGet(ks, 'sq', false) ? ' on' : ''),
+        title: '五つの部隊のどれかに入っている武将だけ',
+        onclick: () => pfSet(ks, 'sq', !pfGet(ks, 'sq', false)),
+      }, '編成中'),
+    ]),
   ];
 }
 const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq' };
@@ -5444,6 +5456,17 @@ function screenTeam() {
       /* 名前の欄を短くして、同じ行に「部隊を解く」を置く（2026-09-23）。
          5人を1枚ずつ外すのが面倒だという話。押すと確認を出してから空にする */
       el('div', { class: 'namerow' },
+        /* どの部隊を組むかを、ここで選べるようにした（2026-10-01）。
+           塔やお祭りから編成へ入ると、部隊えらびの画面を通らないので
+           いま組んでいるのが何番目かも分からず、替えるすべも無かった。
+           S.name / S.picked は P.squads[P.active] をそのまま見ているので、
+           P.active を替えて描き直すだけでよい */
+        el('select', {
+          class: 'sqsel', title: 'どの部隊を組むか',
+          onchange: e => { P.active = +e.target.value; savePlayer(); SFX.pick(); draw(); },
+        }, P.squads.map((q, i) => el('option', {
+          value: String(i), selected: i === P.active ? 'selected' : null,
+        }, `${i + 1}　${q.nos.length}騎`))),
         el('input', {
           class: 'nameIn', type: 'text', maxlength: 12, value: S.name,
           oninput: e => { P.squads[P.active].name = e.target.value.slice(0, 12); saveSquads(); },

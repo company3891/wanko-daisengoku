@@ -4792,14 +4792,18 @@ header{padding-top:calc(var(--safetop) + 8px)}
 
 /* ---- 塔：出陣の一枚（2026-10-01）----
    一覧をやめて、階・しばり・敵・褒美・釦をこの一枚に収めた */
+/* 画面にぴったり収めて、指を置いても動かないようにする（2026-10-01 改）。
+   min-height だと中身しだいで下に伸びて、わずかに巻けてしまい画面が揺れていた。
+   ホーム（.home.art）と同じやり方で、高さで止める。
+   引くのは ヘッダー(--hdr) ＋ main の上の余白(14) ＋ フッター(--nav)。
+   --hdr と --nav は draw() が毎回 実測を入れる。
+   100dvh はアドレスバーの出入りで高さが変わっても狂わない。
+   margin-top は題の額をヘッダーのすぐ下まで引き上げるぶん（2026-10-01） */
 .twpage{position:relative;display:flex;flex-direction:column;
-  /* 上は「ヘッダーの 10px 下」にそろえる（2026-10-01）。
-     main が上に 14px、.twtop が -2px 持っているので、ここは -2px で釣り合う */
-  /* main は下に 96px 持っている。帯のぶんはこちらで取るので、その 96px は打ち消す */
-  margin-top:-2px;margin-bottom:-96px;padding:0 12px calc(var(--nav,104px) + 10px);
-  /* min-height:100% は親の高さが決まっていないので効かない（2026-10-01 に踏んだ）。
-     画面の高さから ヘッダーと main の上余白を引いて、下の釦を帯の上まで押し下げる */
-  min-height:calc(100dvh - var(--hdr,95px) - 14px)}
+  margin-top:-10px;padding:0 12px 8px;
+  height:calc(100dvh - var(--hdr,95px) - 14px - var(--nav,104px));min-height:0;overflow:hidden}
+/* 塔も、下の余白をフッターの実際の高さぴったりにする（ホームと同じ） */
+main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
 /* 景色（.bgfull）も札（.sheet）も position:fixed で流れの外にいる。
    ここで一律に position:relative を当てると流れに戻ってしまい、
    景色は画面ぜんぶを押し下げ、札は下へ潜る（2026-10-01 に両方踏んだ）。
@@ -4848,8 +4852,8 @@ header{padding-top:calc(var(--safetop) + 8px)}
 /* 遠近を付けた（2026-10-01）。真ん中が総大将＝いちばん手前、
    脇へ行くほど小さく・薄く・下に沈めて、奥に立っているように見せる。
    並べ替えは twFoes が d0（真ん中）→ d1 → d2 の組で渡してくる */
-.twfoes{flex:1 1 auto;display:flex;align-items:flex-end;justify-content:center;
-  gap:0;min-height:150px;margin:2px 0 4px}
+.twfoes{flex:1 1 auto;min-height:0;display:flex;align-items:flex-end;justify-content:center;
+  gap:0;margin:2px 0 4px}
 .twfoe{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;
   animation:twup .32s cubic-bezier(.2,.9,.3,1.1) both}
 @keyframes twup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -4860,17 +4864,17 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .twfoe span{font-size:9px;color:var(--text2);letter-spacing:.02em;white-space:nowrap;
   text-shadow:0 1px 2px #000}
 /* 手前（総大将） */
-.twfoe.d0{width:36%;z-index:3}
-.twfoe.d0 img{max-height:156px}
+.twfoe.d0{width:54%;z-index:3}
+.twfoe.d0 img{max-height:200px}
 .twfoe.d0 span{font-size:10.5px;color:#f5e2a8;font-weight:700}
 /* 一歩うしろ */
-.twfoe.d1{width:24%;margin:0 -2%;z-index:2;transform:translateY(9px);opacity:.92;
+.twfoe.d1{width:21%;margin:0 -3.5%;z-index:2;transform:translateY(9px);opacity:.92;
   filter:brightness(.88) saturate(.95)}
-.twfoe.d1 img{max-height:112px}
+.twfoe.d1 img{max-height:118px}
 /* いちばん奥 */
-.twfoe.d2{width:16%;margin:0 -2%;z-index:1;transform:translateY(18px);opacity:.8;
+.twfoe.d2{width:11%;margin:0 -3.5%;z-index:1;transform:translateY(18px);opacity:.8;
   filter:brightness(.74) saturate(.9)}
-.twfoe.d2 img{max-height:88px}
+.twfoe.d2 img{max-height:92px}
 .twfoe.d2 span{font-size:8px}
 /* はじめの一度だけの語り */
 .twsay{margin:0 0 6px}
@@ -4898,8 +4902,8 @@ header{padding-top:calc(var(--safetop) + 8px)}
   .twpzb,.twpzi{width:47px}
   .twpzi{height:47px}
 }
-.twbtns{display:flex;align-items:stretch;gap:8px;height:66px}
-.twsub{flex:0 0 auto;width:72px;display:flex;flex-direction:column;align-items:center;
+.twbtns{display:flex;align-items:stretch;gap:8px;height:44px}
+.twsub{flex:0 0 auto;width:52px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;padding:8px 2px;border-radius:14px;cursor:pointer;
   border:1px solid #d8a94a4d;background:#12100ec4;color:#f3e7cc;font-family:inherit;
   font-size:10.5px;letter-spacing:.06em;backdrop-filter:blur(5px)}
@@ -4911,7 +4915,7 @@ header{padding-top:calc(var(--safetop) + 8px)}
    大きさは出陣の釦にそろえる（2026-10-01 改）。
    三つは横並びで高さがそろうので、絵の高さだけ決め打ちにして
    残りを名札にまわす。絵を大きくすると出陣より背が高くなって不ぞろいに見えた */
-.twsub.art{border:0;background:none;backdrop-filter:none;padding:0;gap:0;width:72px;
+.twsub.art{border:0;background:none;backdrop-filter:none;padding:0;gap:0;width:52px;
   justify-content:center}
 /* 名札を出さないので、絵が釦いっぱいに立つ。高さは出陣の釦と同じ（横並びで伸びる） */
 .twsub .twsi{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;
@@ -4919,7 +4923,7 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .twsub span{display:block}
 .twsub:active{transform:translateY(1px)}
 .go.twgo{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:2px;padding:10px 6px;border-radius:14px;font-family:var(--mincho);font-size:21px;
+  gap:1px;padding:4px 6px;border-radius:12px;font-family:var(--mincho);font-size:17px;
   font-weight:800;letter-spacing:.14em}
 .go.twgo em{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:11px;
   font-weight:700;letter-spacing:.04em;opacity:.95}
@@ -4947,13 +4951,13 @@ header{padding-top:calc(var(--safetop) + 8px)}
 @media (max-width:380px){
   .twfl b{font-size:17px}
   .twname{font-size:15px}
-  .twfoe.d0 img{max-height:134px}
-  .twfoe.d1 img{max-height:96px}
-  .twfoe.d2 img{max-height:76px}
-  .twbtns{height:60px}
-  .go.twgo{font-size:19px}
-  .twsub{width:64px}
-  .twsub.art{width:64px}
+  .twfoe.d0 img{max-height:172px}
+  .twfoe.d1 img{max-height:102px}
+  .twfoe.d2 img{max-height:80px}
+  .twbtns{height:40px}
+  .go.twgo{font-size:16px}
+  .twsub{width:46px}
+  .twsub.art{width:46px}
 }
 
 /* 櫓の主の印（2026-10-01）。五階ごとの節目。十階ごとは「大櫓」で色を変える */

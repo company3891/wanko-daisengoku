@@ -4921,6 +4921,12 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .twbg{flex:0 0 auto;width:16px;height:16px;border-radius:4px;display:grid;place-items:center;
   font-size:9px;font-weight:800;color:#2a1d07;background:var(--gold)}
 
+/* 何度でも挑めるお祭りの断り（2026-10-01） */
+.evrank .acts2{flex-wrap:wrap}
+.evagain{flex:1 1 100%;margin:4px 0 0;font-size:10.5px;color:var(--text3)}
+/* 取ったあとも挑める祭りは、薄く落とさない */
+.evrank.done.again{opacity:1}
+
 </style>
 </head>
 <body>
@@ -10282,7 +10288,11 @@ const EVENTS = [
     reward: r => ({ chars: [WEEKLY_PICK[r].no], stone: [100, 300, 700, 1500][r] }),
   },
   {
-    id: 'awake', kind: 'daily', days: 'weekday', name: '武将覚醒', mark: '覚',
+    /* repeat（2026-10-01）＝取ったあとも何度でも挑める。
+       二度目からは、勝ちのふつうの褒美（石・小判・魂・稽古の書）は出さず、
+       このお祭りの品だけを配る。覚醒の素材は数を積む品なので、
+       兵糧のつづく限り通えるほうが育てやすい */
+    id: 'awake', kind: 'daily', days: 'weekday', repeat: true, name: '武将覚醒', mark: '覚',
     note: '覚醒の具足が出る。日ごとに属性が替わる', icon: 'ev_awake',
     reward: r => {
       const at = awakeAttrsToday();
@@ -10347,6 +10357,8 @@ const evOpen = (id, r) => {
   if (ev && ev.allRanks) return true;
   return r === 0 || evCleared(id, r - 1);
 };
+/* そのお祭りは、取ったあとも挑めるか（2026-10-01） */
+const evRepeat = id => !!(evOf(id) || {}).repeat;
 /* 今日（今週）もう取ったか */
 function evDone(id, r) {
   const ev = evOf(id); if (!ev) return true;
@@ -30595,7 +30607,9 @@ function screenTower() {
    先に検めると、札の中で部隊を替えても古い部隊で弾かれてしまう */
 function evGo(id, rank, skip) {
   if (!evOpen(id, rank)) { S.evMsg = `${EV_RANKS[rank - 1]} を先に取る必要がある`; SFX.pick(); draw(); return; }
-  if (evDone(id, rank)) { S.evMsg = 'この級は、もう取っている'; SFX.pick(); draw(); return; }
+  /* 何度でも挑めるお祭り（2026-10-01）は、取ったあとも通せる。
+     二度目からは、勝ちのふつうの褒美が付かないだけ（evFirst が false になる） */
+  if (evDone(id, rank) && !evRepeat(id)) { S.evMsg = 'この級は、もう取っている'; SFX.pick(); draw(); return; }
   const ev = evOf(id);
   sqAsk(`${skip ? '早送り' : 'お祭り'}に出す部隊`,
         `${ev ? ev.name : 'お祭り'}　${EV_RANKS[rank]}`,
@@ -30711,14 +30725,16 @@ function screenEvent() {
         el('div', { class: 'evranks' }, EV_RANKS.map((rk, r) => {
           const opened = evOpen(open.id, r), cleared = evCleared(open.id, r), done = evDone(open.id, r);
           const rw = open.reward(r) || {};
-          return el('div', { class: 'evrank' + (opened ? '' : ' locked') + (done ? ' done' : '') },
+          return el('div', { class: 'evrank' + (opened ? '' : ' locked') + (done ? ' done' : '')
+            + (done && open.repeat ? ' again' : '') },
             el('div', { class: 'evhd' },
               el('b', {}, rk),
               cleared ? el('span', { class: 'evclr' }, '済') : null,
               el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
             el('div', { class: 'evrw2' }, rwChips(rw)),
             !opened ? el('p', { class: 'note' }, `${EV_RANKS[r - 1]} を取ると開く`)
-            : done ? el('p', { class: 'note' }, open.kind === 'weekly' ? '今週はもう取った' : '今日はもう取った')
+            : (done && !open.repeat)
+              ? el('p', { class: 'note' }, open.kind === 'weekly' ? '今週はもう取った' : '今日はもう取った')
             : el('div', { class: 'acts2' },
                 el('button', {
                   class: 'go sm', disabled: P.stamina < EV_FOOD[r] ? null : null,
@@ -30728,7 +30744,12 @@ function screenEvent() {
                    二日で何度も回る祭りなので、毎回盤面を見るのはかえって重い */
                 (cleared || open.allRanks) ? el('button', {
                   class: 'ghost sm', onclick: () => evGo(open.id, r, true),
-                }, 'スキップ') : null));
+                }, 'スキップ') : null,
+                /* 二度目からは品だけ、という断りをその場に出す（2026-10-01）。
+                   数は出さない（「説明しすぎない」の決まり）ので、何が無いかだけ書く */
+                (done && open.repeat)
+                  ? el('p', { class: 'note evagain' }, '二度目からは、この品だけ')
+                  : null));
         })))),
     nav: true,
   };

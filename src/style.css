@@ -4905,3 +4905,9 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .twboss.great{background:linear-gradient(180deg,#c99a2c,#8a6819);color:#2a1d07}
 .twbg{flex:0 0 auto;width:16px;height:16px;border-radius:4px;display:grid;place-items:center;
   font-size:9px;font-weight:800;color:#2a1d07;background:var(--gold)}
+
+/* 何度でも挑めるお祭りの断り（2026-10-01） */
+.evrank .acts2{flex-wrap:wrap}
+.evagain{flex:1 1 100%;margin:4px 0 0;font-size:10.5px;color:var(--text3)}
+/* 取ったあとも挑める祭りは、薄く落とさない */
+.evrank.done.again{opacity:1}

@@ -82,7 +82,11 @@ export const EVENTS = [
     reward: r => ({ chars: [WEEKLY_PICK[r].no], stone: [100, 300, 700, 1500][r] }),
   },
   {
-    id: 'awake', kind: 'daily', days: 'weekday', name: '武将覚醒', mark: '覚',
+    /* repeat（2026-10-01）＝取ったあとも何度でも挑める。
+       二度目からは、勝ちのふつうの褒美（石・小判・魂・稽古の書）は出さず、
+       このお祭りの品だけを配る。覚醒の素材は数を積む品なので、
+       兵糧のつづく限り通えるほうが育てやすい */
+    id: 'awake', kind: 'daily', days: 'weekday', repeat: true, name: '武将覚醒', mark: '覚',
     note: '覚醒の具足が出る。日ごとに属性が替わる', icon: 'ev_awake',
     reward: r => {
       const at = awakeAttrsToday();
@@ -147,6 +151,8 @@ export const evOpen = (id, r) => {
   if (ev && ev.allRanks) return true;
   return r === 0 || evCleared(id, r - 1);
 };
+/* そのお祭りは、取ったあとも挑めるか（2026-10-01） */
+export const evRepeat = id => !!(evOf(id) || {}).repeat;
 /* 今日（今週）もう取ったか */
 export function evDone(id, r) {
   const ev = evOf(id); if (!ev) return true;

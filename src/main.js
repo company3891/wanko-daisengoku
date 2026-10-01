@@ -24,7 +24,7 @@ import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TIC
          givableOf, canInherit, inhRate, inherit, lostUnique,
          matLeft, cardsNeeded, canEatCard, inSquad, dismiss, cntOf, setCnt, hasCard, fireMax } from './player.js';
 import { REGIONS, REGION_ORDER, PREFS, PREF, prefsOf, INTRO, LORD_TALK, NO_LORD_NAME, STEP_NAME, FOOD_COST, chapterRank, mapX, mapY, stageOf } from './campaign.js';
-import { EVENTS, EV_RANKS, EV_FOOD, EV_POWER, EV_LV, EV_SOUL, EV_SKILL, EV_STAGE, evOf, evState, evCleared, evOpen, evDone, evWin,
+import { EVENTS, EV_RANKS, EV_FOOD, EV_POWER, EV_LV, EV_SOUL, EV_SKILL, EV_STAGE, evOf, evState, evCleared, evOpen, evDone, evWin, evRepeat,
          awakeAttrsToday, WEEKLY_PICK, evShownToday } from './event.js';
 import { MI_TABS, MI_BOX, MISSIONS, miOf, KADODE } from './mission.js';
 import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPassRank,
@@ -6953,7 +6953,9 @@ function screenTower() {
    先に検めると、札の中で部隊を替えても古い部隊で弾かれてしまう */
 function evGo(id, rank, skip) {
   if (!evOpen(id, rank)) { S.evMsg = `${EV_RANKS[rank - 1]} を先に取る必要がある`; SFX.pick(); draw(); return; }
-  if (evDone(id, rank)) { S.evMsg = 'この級は、もう取っている'; SFX.pick(); draw(); return; }
+  /* 何度でも挑めるお祭り（2026-10-01）は、取ったあとも通せる。
+     二度目からは、勝ちのふつうの褒美が付かないだけ（evFirst が false になる） */
+  if (evDone(id, rank) && !evRepeat(id)) { S.evMsg = 'この級は、もう取っている'; SFX.pick(); draw(); return; }
   const ev = evOf(id);
   sqAsk(`${skip ? '早送り' : 'お祭り'}に出す部隊`,
         `${ev ? ev.name : 'お祭り'}　${EV_RANKS[rank]}`,
@@ -7069,14 +7071,16 @@ function screenEvent() {
         el('div', { class: 'evranks' }, EV_RANKS.map((rk, r) => {
           const opened = evOpen(open.id, r), cleared = evCleared(open.id, r), done = evDone(open.id, r);
           const rw = open.reward(r) || {};
-          return el('div', { class: 'evrank' + (opened ? '' : ' locked') + (done ? ' done' : '') },
+          return el('div', { class: 'evrank' + (opened ? '' : ' locked') + (done ? ' done' : '')
+            + (done && open.repeat ? ' again' : '') },
             el('div', { class: 'evhd' },
               el('b', {}, rk),
               cleared ? el('span', { class: 'evclr' }, '済') : null,
               el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
             el('div', { class: 'evrw2' }, rwChips(rw)),
             !opened ? el('p', { class: 'note' }, `${EV_RANKS[r - 1]} を取ると開く`)
-            : done ? el('p', { class: 'note' }, open.kind === 'weekly' ? '今週はもう取った' : '今日はもう取った')
+            : (done && !open.repeat)
+              ? el('p', { class: 'note' }, open.kind === 'weekly' ? '今週はもう取った' : '今日はもう取った')
             : el('div', { class: 'acts2' },
                 el('button', {
                   class: 'go sm', disabled: P.stamina < EV_FOOD[r] ? null : null,
@@ -7086,7 +7090,12 @@ function screenEvent() {
                    二日で何度も回る祭りなので、毎回盤面を見るのはかえって重い */
                 (cleared || open.allRanks) ? el('button', {
                   class: 'ghost sm', onclick: () => evGo(open.id, r, true),
-                }, 'スキップ') : null));
+                }, 'スキップ') : null,
+                /* 二度目からは品だけ、という断りをその場に出す（2026-10-01）。
+                   数は出さない（「説明しすぎない」の決まり）ので、何が無いかだけ書く */
+                (done && open.repeat)
+                  ? el('p', { class: 'note evagain' }, '二度目からは、この品だけ')
+                  : null));
         })))),
     nav: true,
   };

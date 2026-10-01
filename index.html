@@ -1615,7 +1615,13 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
    前は帯の中身すべてが受けていたので、制覇の数や章の題の下にある旗が押せなかった */
 .jover button{pointer-events:auto}
 .jover .unibar{margin:0 0 8px;display:inline-flex}
-.jover .chapters{margin-bottom:6px}
+/* 章の段は、帯ごと当たり判定を持つ（2026-10-02）。
+   前は .jover button だけが auto だったので、釦そのものは押せても
+   段を横に払えず、右に隠れた東北・北海道へ手が届かなかった。
+   横払いが地図の送りに取られないよう touch-action:pan-x を添える。
+   高さのぶんだけ下の旗を塞ぐが、ここは帯の黒が元から被っている場所 */
+.jover .chapters{margin-bottom:6px;pointer-events:auto;touch-action:pan-x;
+  overscroll-behavior-x:contain}
 .jttl{font-size:14px;font-weight:700;letter-spacing:.1em;color:#f2e6c8;
   text-shadow:0 1px 3px #000,0 0 8px #000;
   font-family:var(--mincho)}
@@ -25606,17 +25612,29 @@ function japanMap(maps, open, reg) {
     }));
   const scroller = el('div', { class: 'jmap' }, inner);
   // 制覇の数・章のタブ・章の名は、地図の上に重ねる（2026-09-21）
+  const tabs = el('div', { class: 'row chapters' }, REGION_ORDER.map(id => {
+    const ok = open.includes(id), done = regionTaken(id);
+    const r = REGIONS.find(x => x.id === id);
+    return el('button', {
+      class: 'chip' + (S.region === id ? ' on' : '') + (ok ? '' : ' locked') + (done ? ' done' : ''),
+      disabled: ok ? null : true,
+      onclick: () => { S.region = id; S.pref = null; SFX.pick(); draw(); },
+    }, ok ? r.name : '？');
+  }));
+  /* 章の段は 画面を組み直すたびに左端へ戻ってしまう（2026-10-02）。
+     右に隠れた東北・北海道を選んでも、押した拍子に頭まで巻き戻り、
+     「段が固まって動かない」ように見えていた。
+     いま選んでいる章が真ん中に来るところまで、描いたあとに送っておく。
+     送るのはこの段だけ（scrollIntoView だと地図ごと動いてしまう） */
+  requestAnimationFrame(() => {
+    const on = tabs.querySelector('.chip.on');
+    if (!on || !tabs.isConnected) return;
+    const x = on.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2;
+    tabs.scrollLeft = Math.max(0, x);
+  });
   const over = el('div', { class: 'jover' },
     el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
-    el('div', { class: 'row chapters' }, REGION_ORDER.map(id => {
-      const ok = open.includes(id), done = regionTaken(id);
-      const r = REGIONS.find(x => x.id === id);
-      return el('button', {
-        class: 'chip' + (S.region === id ? ' on' : '') + (ok ? '' : ' locked') + (done ? ' done' : ''),
-        disabled: ok ? null : true,
-        onclick: () => { S.region = id; S.pref = null; SFX.pick(); draw(); },
-      }, ok ? r.name : '？');
-    })),
+    tabs,
     // 章の題。絵（app/assets/ui/title_九州.png など）があれば文字の代わりに出す
     (() => {
       const art = uiUrl('title_' + reg.name);

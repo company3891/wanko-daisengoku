@@ -1310,17 +1310,29 @@ function japanMap(maps, open, reg) {
     }));
   const scroller = el('div', { class: 'jmap' }, inner);
   // 制覇の数・章のタブ・章の名は、地図の上に重ねる（2026-09-21）
+  const tabs = el('div', { class: 'row chapters' }, REGION_ORDER.map(id => {
+    const ok = open.includes(id), done = regionTaken(id);
+    const r = REGIONS.find(x => x.id === id);
+    return el('button', {
+      class: 'chip' + (S.region === id ? ' on' : '') + (ok ? '' : ' locked') + (done ? ' done' : ''),
+      disabled: ok ? null : true,
+      onclick: () => { S.region = id; S.pref = null; SFX.pick(); draw(); },
+    }, ok ? r.name : '？');
+  }));
+  /* 章の段は 画面を組み直すたびに左端へ戻ってしまう（2026-10-02）。
+     右に隠れた東北・北海道を選んでも、押した拍子に頭まで巻き戻り、
+     「段が固まって動かない」ように見えていた。
+     いま選んでいる章が真ん中に来るところまで、描いたあとに送っておく。
+     送るのはこの段だけ（scrollIntoView だと地図ごと動いてしまう） */
+  requestAnimationFrame(() => {
+    const on = tabs.querySelector('.chip.on');
+    if (!on || !tabs.isConnected) return;
+    const x = on.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2;
+    tabs.scrollLeft = Math.max(0, x);
+  });
   const over = el('div', { class: 'jover' },
     el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
-    el('div', { class: 'row chapters' }, REGION_ORDER.map(id => {
-      const ok = open.includes(id), done = regionTaken(id);
-      const r = REGIONS.find(x => x.id === id);
-      return el('button', {
-        class: 'chip' + (S.region === id ? ' on' : '') + (ok ? '' : ' locked') + (done ? ' done' : ''),
-        disabled: ok ? null : true,
-        onclick: () => { S.region = id; S.pref = null; SFX.pick(); draw(); },
-      }, ok ? r.name : '？');
-    })),
+    tabs,
     // 章の題。絵（app/assets/ui/title_九州.png など）があれば文字の代わりに出す
     (() => {
       const art = uiUrl('title_' + reg.name);

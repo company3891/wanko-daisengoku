@@ -1600,7 +1600,13 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
    前は帯の中身すべてが受けていたので、制覇の数や章の題の下にある旗が押せなかった */
 .jover button{pointer-events:auto}
 .jover .unibar{margin:0 0 8px;display:inline-flex}
-.jover .chapters{margin-bottom:6px}
+/* 章の段は、帯ごと当たり判定を持つ（2026-10-02）。
+   前は .jover button だけが auto だったので、釦そのものは押せても
+   段を横に払えず、右に隠れた東北・北海道へ手が届かなかった。
+   横払いが地図の送りに取られないよう touch-action:pan-x を添える。
+   高さのぶんだけ下の旗を塞ぐが、ここは帯の黒が元から被っている場所 */
+.jover .chapters{margin-bottom:6px;pointer-events:auto;touch-action:pan-x;
+  overscroll-behavior-x:contain}
 .jttl{font-size:14px;font-weight:700;letter-spacing:.1em;color:#f2e6c8;
   text-shadow:0 1px 3px #000,0 0 8px #000;
   font-family:var(--mincho)}

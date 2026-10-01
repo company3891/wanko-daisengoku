@@ -194,7 +194,7 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   rvall: null,
   gbanner: null,   // いま選んでいるくじ（2026-09-28）
   /* 試練の塔（2026-10-01）。twSel＝札を開いている階／twMsg＝弾かれた訳 */
-  twSel: null, twMsg: '' };
+  twSel: null, twMsg: '', twPz: false, twBack: false };
 /* 起動したら、かならずスタートの画面から（2026-09-25）。
    ここで「やり直す」を出したいので、チュートリアルの途中でも一度ここを通す */
 S.screen = 'title';
@@ -5367,7 +5367,7 @@ function screenTeam() {
       }, el('i', {}, '★'), 'おすすめ編成（総戦力が最大）'),
       grid,
       el('div', { class: 'acts' },
-        el('button', { class: 'ghost', onclick: () => { S.screen = 'squads'; draw(); } }, '部隊へ'),
+        el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); draw(); } }, S.twBack ? '塔へ' : '部隊へ'),
         el('div', { class: 'info' },
           el('span', { class: 'ic' }, el('b', { class: over ? 'over' : '' }, `${cost()}`), ` / ${costMax()}`,
             costBuff() ? el('em', { class: 'cbuff' }, `+${costBuff().add}　あと${costBuffLeft()}`) : null),
@@ -5614,7 +5614,7 @@ function screenForm() {
       el('div', { class: 'acts' },
         el('button', { class: 'ghost', onclick: () => { S.screen = 'team'; draw(); } }, '編成へ戻る'),
         el('div', { class: 'spacer' }),
-        el('button', { class: 'go', onclick: () => { S.screen = 'squads'; draw(); } }, '保存して部隊へ'))),
+        el('button', { class: 'go', onclick: () => { S.screen = twBackGo(); draw(); } }, S.twBack ? '保存して塔へ' : '保存して部隊へ'))),
     nav: true,
   };
 }
@@ -6757,8 +6757,9 @@ function twEnemy(f, _rng) {
 /* 挑む。部隊をえらんでから、しばりと兵糧を検める（お祭りと同じ順） */
 function twGo(f) {
   if (f > twFloor()) { S.twMsg = 'まだ、この階には上がれぬ'; SFX.pick(); draw(); return; }
-  const t = towerOf(f); if (!t) return;
-  sqAsk(`${f}階に出す部隊`, `${t.name}　${t.t}`, () => twGo2(f));
+  /* 部隊えらびの札は挟まない（2026-10-01）。
+     編成の釦が同じ画面にあるので、札を一枚はさむと手数が増えるだけ */
+  twGo2(f);
 }
 function twGo2(f) {
   const t = towerOf(f); if (!t) return;
@@ -6795,61 +6796,118 @@ function twClear(f) {
   return { first, stone: first ? t.rw.stone : 0, title: first ? (t.rw.title || null) : null };
 }
 
-/* ---- 画面 ---- */
-function twRow(t) {
-  const now = twFloor();
-  const done = twGot(t.f);
-  const lock = t.f > now;
-  const boss = isBoss(t.f), gate = isGate(t.f);
-  return el('button', {
-    class: 'twrow' + (done ? ' done' : '') + (lock ? ' lock' : '')
-         + (boss ? ' boss' : gate ? ' gate' : '') + (t.f === now ? ' now' : ''),
-    disabled: lock ? true : null,
-    onclick: () => { S.twSel = t.f; S.twMsg = ''; SFX.pick(); draw(); },
-  },
-    el('span', { class: 'twf' }, String(t.f), el('em', {}, '階')),
-    el('span', { class: 'twt' },
-      el('b', {}, lock ? '？？？' : t.name),
-      el('i', {}, lock ? '前の階を抜けば見える' : t.t)),
-    el('span', { class: 'twr' },
-      done ? el('em', { class: 'twok' }, '済')
-           : el('em', { class: 'twh' }, '★'.repeat(t.hard))));
+/* ---- 塔の画面（2026-10-01 改）----
+   一覧はやめて、出陣の一枚に全部のせた。
+   上＝階と試練の名としばり／真ん中＝待ち受ける敵の立ち姿／下＝褒美と釦。
+   はじめて来たときだけ、語りで「どういう場か」を一度だけ伝える */
+/* 編成からの戻り先（2026-10-01）。塔から入ったときだけ塔へ返す */
+function twBackGo() { if (!S.twBack) return 'squads'; S.twBack = false; S.twMsg = ''; return 'tower'; }
+function twRow() { return null; }      // 一覧はやめた（名は guidePaint などが探さないよう残す）
+
+/* その階で待ち受ける顔ぶれ。盤に出るのと同じ並びなので、見てから編成を組める */
+function twFoes(f) {
+  const list = twEnemy(f) || [];
+  return el('div', { class: 'twfoes' }, list.map((c, i) => {
+    const art = pawnUrl(c.no);
+    return el('div', { class: 'twfoe' + (art ? ' art' : '') , style: `animation-delay:${i * 70}ms` },
+      art ? keepImg({ src: art, alt: c.name || '' })
+          : el('i', { style: chipStyle(c) }, (c.name || '')[0] || '?'),
+      el('span', {}, (c.name || '').slice(0, 5)));
+  }));
 }
-/* 階の札。しばり・盤・敵の強さ・褒美を出して、そこから挑む */
-function twSheet() {
-  const f = S.twSel; const t = towerOf(f); if (!t) return null;
-  const close = () => { S.twSel = null; S.twMsg = ''; draw(); };
-  const done = twGot(f);
+/* 櫓の主（十階ごと）の褒美を見る札 */
+function twBossSheet() {
+  const close = () => { S.twPz = false; draw(); };
+  const now = twFloor();
+  const next = Math.min(TOWER_MAX, Math.ceil(now / 10) * 10 || 10);
+  const list = TOWER.filter(t => isBoss(t.f));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 twbox' },
-      el('b', { class: 'mittl' }, `${f}階　${t.name}`),
-      el('p', { class: 'twcond' }, t.t),
-      el('div', { class: 'twmeta' },
-        el('span', {}, '場所', el('b', {}, t.stage)),
-        el('span', {}, '兵糧', el('b', {}, String(TOWER_FOOD))),
-        el('span', {}, '難しさ', el('b', {}, '★'.repeat(t.hard)))),
-      el('div', { class: 'twrw' },
-        curIcon('stone'), el('b', {}, num(t.rw.stone)),
-        t.rw.title ? el('em', {}, `称号「${t.rw.title}」`) : null,
-        done ? el('i', { class: 'twdone' }, '受け取り済み') : null),
-      el('p', { class: 'note' }, '陣中の品は持ち込めぬ。敵の陣形は、挑むまで分からぬ'),
-      S.twMsg ? el('p', { class: 'twng' }, S.twMsg) : null,
-      el('div', { class: 'acts2' },
-        el('button', { class: 'ghost', onclick: close }, '閉じる'),
-        el('button', { class: 'go', onclick: () => twGo(f) }, done ? 'もう一度挑む' : '挑む')),
+      el('b', { class: 'mittl' }, '櫓の主の褒美'),
+      el('p', { class: 'note' }, '十階ごとの節目。抜けると称号がもらえる'),
+      el('div', { class: 'twbl' }, list.map(t => {
+        const done = twGot(t.f);
+        return el('div', { class: 'twbr' + (done ? ' done' : '') + (t.f === next ? ' now' : '') },
+          el('span', { class: 'twbf' }, `${t.f}階`),
+          el('span', { class: 'twbn' }, t.name),
+          el('span', { class: 'twbp' }, curIcon('stone'), el('b', {}, num(t.rw.stone))),
+          el('span', { class: 'twbt' }, t.rw.title ? `「${t.rw.title}」` : ''),
+          done ? el('i', { class: 'twok' }, '済') : null);
+      })),
       closeX(close)));
 }
 function screenTower() {
-  const now = twFloor();
-  const tier = towerTier(now);
+  const f = twFloor();
+  const t = towerOf(f);
+  if (!t) return { body: el('div', {}, '天守まで登りきった'), nav: true };
+  const tier = towerTier(f);
+  const q = P.squads[P.active] || { nos: [] };
+  /* はじめの一度だけ、どういう場かを語る（2026-10-01）。
+     二度目からは出さない。P.tower.seen に覚える */
+  const st = twState();
+  const first = !st.seen;
+  const tno = talkerNo('tower');
+  const tc = charOf(tno);
+  const tart = faceUrl(tno, '笑顔') || faceUrl(tno, '通常') || pawnUrl(tno);
+  if (first) { st.seen = true; savePlayer(); }
+  const bg = bgUrl('tower') || bgUrl('gacha_release') || bgUrl('home');
   return {
-    body: el('div', { class: 'tower' },
-      el('div', { class: 'twhead' },
-        el('b', {}, `試練の塔　${now} 階`),
-        el('span', {}, `${TIER_NAME[tier] || ''}の重　／　百階`)),
-      el('div', { class: 'twbar' }, el('i', { style: `width:${now / TOWER_MAX * 100}%` })),
-      el('div', { class: 'twlist' }, TOWER.filter(t => t.f <= now + 2).reverse().map(twRow)),
-      S.twSel ? twSheet() : null),
+    body: el('div', { class: 'twpage' + (bg ? ' art' : '') },
+      keepBg(bg, 'bgfull'),
+      /* 上：題の額に「第N階」と試練の名を収める（2026-10-01）。
+         額の絵（ui/tower_frame.png）が無ければ、金の囲いの札に落ちる */
+      (() => {
+        const art = uiUrl('tower_frame');
+        return el('div', { class: 'twtop' + (art ? ' art' : '') },
+          art ? el('div', { class: 'twfrm', style: `background-image:url("${art}")` },
+                  el('div', { class: 'twfin' },
+                    el('span', { class: 'twfl' },
+                      el('em', {}, '第'), el('b', {}, String(f)), el('em', {}, '階')),
+                    el('b', { class: 'twname' }, t.name)))
+              : el('div', { class: 'twfin' },
+                  el('span', { class: 'twfl' },
+                    el('em', {}, '第'), el('b', {}, String(f)), el('em', {}, '階')),
+                  el('b', { class: 'twname' }, t.name)),
+          /* しばりだけを下に出す。場所・兵糧・難しさの行は出さない（2026-10-01 に外した）。
+             兵糧は出陣の釦に、場所は盤を見れば分かる */
+          el('div', { class: 'twconds' },
+            el('span', { class: 'twc' }, el('i', {}, '条'), t.t)));
+      })(),
+      /* 真ん中：待ち受ける者 */
+      twFoes(f),
+      first ? el('div', { class: 'gtalk slim twsay' + (tart ? ' art' : '') },
+        tart ? keepImg({ class: 'gtface', src: tart, alt: tc ? tc.name : '' })
+             : el('i', { class: 'gtface' }, '犬'),
+        el('div', { class: 'gtbub' },
+          el('b', {}, tc ? tc.name : 'わんこ'),
+          el('p', {}, el('em', {}, '試練の塔だワン！！'),
+            'ここは変わった戦ばかりだワン。しばりを守って勝つたびに褒美がもらえるワン。'
+            + '一階ずつしか登れぬが、何度でも挑めるワン'))) : null,
+      /* 下：褒美・釦 */
+      el('div', { class: 'twfoot' },
+        el('div', { class: 'twprize' },
+          el('span', { class: 'twpz' }, curIcon('stone'), el('b', {}, num(t.rw.stone))),
+          t.rw.title ? el('span', { class: 'twpz ttl' }, el('i', {}, '称'), t.rw.title) : null,
+          twGot(f) ? el('span', { class: 'twpz got' }, '受け取り済み') : null),
+        S.twMsg ? el('p', { class: 'twng' }, S.twMsg) : null,
+        el('div', { class: 'twbtns' },
+          el('button', { class: 'twsub', title: '部隊を組み直す',
+            onclick: () => { S.twBack = true; S.screen = 'team'; SFX.pick(); draw(); } },
+            el('i', {}, '陣'), '編成'),
+          el('button', { class: 'go twgo', disabled: q.nos.length ? null : true,
+            onclick: () => twGo(f) },
+            '出陣', el('em', {}, curIcon('food'), String(TOWER_FOOD))),
+          el('button', { class: 'twsub', title: '櫓の主の褒美を見る',
+            onclick: () => { S.twPz = true; SFX.pick(); draw(); } },
+            el('i', {}, '褒'), '褒美')),
+        el('div', { class: 'twsq' },
+          squadChars(q).map(c => {
+            const a2 = pawnUrl(c.no);
+            return el('span', { class: 'twsqc' },
+              a2 ? keepImg({ src: a2, alt: c.name }) : el('i', { style: chipStyle(c) }));
+          }),
+          el('em', {}, `${q.nos.length}騎　コスト ${num(squadCost(q))}`))),
+      S.twPz ? twBossSheet() : null),
     nav: true,
   };
 }
@@ -7670,7 +7728,7 @@ function pageTalk(screen) {
 }
 /* 出陣も題の帯を出さない（2026-09-29）。
    すぐ下に「← 全国へ」と敵の城の語りがあって、どこにいるかは分かる */
-const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading']);
+const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading', 'tower']);
 
 const SCREENS = {
   title: screenTitle,

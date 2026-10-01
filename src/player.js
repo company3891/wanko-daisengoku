@@ -930,6 +930,23 @@ export function grantStarter(no, mate) {
    「負けたのに褒美」がおかしいので全部ゼロにした。
    戦った数（battles）だけは負けても数える。兵糧はすでに払っている */
 export const REWARD = { winStone: 100, winKoban: 500, winSoul: 5, expWin: 20 };
+/* ---- 主の位（2026-10-01 に組み直した）----
+   前は どの一戦も経験 20 の据え置きで、位に要る経験は 位×100 だった。
+   全国は 71 戦しかないので、取りきっても Lv10 に届かない。あまりに渋い。
+
+   そこで「払った兵糧のぶんだけ経験が入る」に変えた。
+   章が進むほど兵糧は重くなる（3→10）ので、重い戦ほど伸びるのが素直。
+   お祭りは兵糧が 10〜100 と桁ちがいなので、上限 120 で止める。
+
+   全国71戦の兵糧は合わせて 451〜489（はじめの国で少し変わる）。
+   ×10 で 4510〜4890。下の位の表の積み上げは Lv40 で 4524 なので、
+   全国を取りきると ちょうど Lv39〜40 に届く。 */
+export const EXP_PER_FOOD = 10;
+export const EXP_MIN = 30, EXP_MAX = 120;
+export const expForFood = food =>
+  Math.max(EXP_MIN, Math.min(EXP_MAX, Math.round((food || 0) * EXP_PER_FOOD)));
+/* 次の位までに要る経験。Lv1 は 40、以後ひとつ上がるごとに +4 */
+export const expNeed = lv => 36 + 4 * Math.max(1, lv | 0);
 /* 褒美を増やす特技（2026-09-28・大泥棒）。
    「貰える報酬を1.5倍にする」は戦いの外の話なので、エンジンではなくここで効かせる。
    出陣した部隊に持ち主が居れば、いちばん大きい倍率ひとつだけを使う（重ねない）。 */
@@ -943,14 +960,14 @@ export function rewardMulOf(chars) {
   }
   return mul;
 }
-export function giveReward(won, mul = 1) {
+export function giveReward(won, mul = 1, food = 0) {
   P.battles++;
   if (!won) { savePlayer(); return { lost: true }; }
   const r = {
     stone: Math.round(REWARD.winStone * mul),
     koban: Math.round(REWARD.winKoban * mul),
     soul: Math.round(REWARD.winSoul * mul),
-    exp: REWARD.expWin,
+    exp: expForFood(food),
     mul: mul > 1 ? mul : undefined,
   };
   P.free += r.stone; P.koban += r.koban; P.soul += r.soul;
@@ -959,7 +976,7 @@ export function giveReward(won, mul = 1) {
   P.wins++;
   P.exp += r.exp;
   r.lvUp = 0;
-  while (P.exp >= P.lv * 100) { P.exp -= P.lv * 100; P.lv++; r.lvUp++; P.staminaMax += 2; P.stamina = P.staminaMax; P.foodAt = Date.now(); }
+  while (P.exp >= expNeed(P.lv)) { P.exp -= expNeed(P.lv); P.lv++; r.lvUp++; P.staminaMax += 2; P.stamina = P.staminaMax; P.foodAt = Date.now(); }
   savePlayer();
   return r;
 }

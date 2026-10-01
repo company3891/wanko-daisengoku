@@ -10,7 +10,7 @@ import { TOWER, TOWER_FOOD, TOWER_MAX, towerOf, towerTier, TIER_NAME, isBoss, is
          isGreat, twTeam, twResult } from './tower.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
-import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, giveReward, rewardMulOf, sparReward, grantStarter, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
+import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
@@ -315,7 +315,7 @@ function attrTag(a, cls) {
   return u ? el('img', { class: 'aicon' + (cls ? ' ' + cls : ''), src: u, alt: a, title: a })
            : el('span', { class: 'attr a-' + a + (cls ? ' ' + cls : '') }, a || '―');
 }
-const nextExp = () => P.lv * 100;
+const nextExp = () => expNeed(P.lv);      // 位の表は player.js（2026-10-01）
 // プレイヤーの顔は、いま選んでいる部隊の総大将を使う
 /* 育成の三画面の既定に使う（2026-09-29）。
    ホームに立っている武将＝いま選んでいる部隊の総大将。
@@ -332,6 +332,21 @@ const faceChar = () => {
    プレイヤーアイコン ／ レベル ／ 次のレベルまでのゲージ ／ 兵糧 ／ 武士の魂 ／ 石（ガチャ通貨）
    小判はショップでしか使わないので、2026-09-22 にヘッダーから外した
    石は有償と無償の合計を出す。内訳はガチャ画面で見せる。 */
+/* 次の一つが戻るまでの残り（2026-10-01）。満ちていれば空にして消す */
+function foodLeftText() {
+  const w = foodWait();
+  if (!w.next) return '';
+  const sec = Math.ceil(w.next / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+/* 残りの字だけを毎秒書きかえる（2026-10-01）。
+   draw() を毎秒呼ぶと札も盤も作り直してしまうので、ここは字だけ差す */
+function foodClock() {
+  const e = document.querySelector('.w.food .fwt');
+  if (!e) return;
+  const t = foodLeftText();
+  if (e.textContent !== t) e.textContent = t;
+}
 function playerBar() {
   const f = faceChar();
   const pct = Math.max(0, Math.min(100, P.exp / nextExp() * 100));
@@ -357,14 +372,18 @@ function playerBar() {
         el('span', { class: 'g' }, el('i', { style: `width:${pct}%` })))),
     el('div', { class: 'cur' },
       // 兵糧は出陣のたびに減るので、いつでも見えるようにした（2026-09-21）
-      /* 兵糧は時間で戻る（2026-09-26）。残り時間の字は画面に出さない
-         （説明しすぎない。玉の明滅だけで「戻っている最中」が分かる） */
+      /* 兵糧は時間で戻る（2026-09-26）。
+         2026-10-01 改：次の一つまでの残りを、玉の下に小さく出すことにした。
+         前は「説明しすぎない」で伏せていたが、出陣を待つ間だけは
+         あと何分かが分からないと手持ち無沙汰になる。
+         字は foodClock が毎秒書きかえる（画面ぜんぶは描き直さない） */
       (() => { const w = foodWait(); return el('span', {
         class: 'w food' + (uiUrl('coin_兵糧') ? ' art' : '') + (w.full ? ' wait' : ''),
         title: '兵糧（出陣に使う）',
       },
         uiUrl('coin_兵糧') ? keepImg({ class: 'ci', src: uiUrl('coin_兵糧'), alt: '' }) : el('i', {}, '糧'),
         `${num(P.stamina)}`, el('em', {}, `/${num(P.staminaMax)}`),
+        el('em', { class: 'fwt' }, foodLeftText()),
         // ＋から兵糧の道具をその場で使える（2026-09-21）
         el('button', {
           class: 'plus', title: '兵糧をもどす',
@@ -4375,7 +4394,7 @@ function menuSheet() {
 const HELP = [
   { t: '合戦の進み方', p: [
     '速さの順に手番がまわる。相手の兵量をゼロにするか、決着のターンまでに多く残したほうが勝ち。',
-    '総大将が討たれても負けにはならないが、大将特性は消える。',
+    '総大将が逃げ出しても負けにはならないが、大将特性は消える。',
   ] },
   { t: 'オートと手動', p: [
     '盤面の右上のボタンで、戦のさなかにいつでも切り替えられる。',
@@ -4412,7 +4431,7 @@ const HELP = [
   { t: '盤面の見かた', p: [
     '盤面の外、上が敵・下が味方。顔の下の数が残りの兵量。',
     '顔の左上の印が総大将。右下に出るものはその武将にかかっている効き。',
-    '討たれた武将には赤い×が付く。',
+    '逃げ出した武将には赤い×が付く。',
   ] },
 ];
 /* ================= お知らせ（2026-09-24）=================
@@ -6338,11 +6357,16 @@ function drawBattle() {
          戦った数は数えたいので、褒美なしのときも giveReward(false) を通す */
       const evFirst = !!(BATTLE.ev && !evDone(BATTLE.ev.id, BATTLE.ev.rank));
       const won0 = res.winner === 'A';
+      /* 経験は払った兵糧のぶんだけ（2026-10-01）。
+         章が進むほど兵糧は重いので、重い戦ほど伸びる */
+      const paid = BATTLE.camp ? marchFood(BATTLE.camp.pref, BATTLE.camp.step)
+                 : BATTLE.ev ? EV_FOOD[BATTLE.ev.rank]
+                 : FOOD_COST;
       BATTLE.reward = BATTLE.bout ? null
                     : BATTLE.tw ? null
                     : BATTLE.spar ? sparReward(won0)
-                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked))
-                    : giveReward(won0, rewardMulOf(S.picked));
+                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid)
+                    : giveReward(won0, rewardMulOf(S.picked), paid);
       /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
          戦いぶりのしばりをここで確かめ、そろって初めて一階のぼる。
          ふつうの褒美（小判など）は付けない。石だけを配る決まりにした */
@@ -6483,6 +6507,9 @@ function prizeRow(rw, ev) {
     add(uiUrl('coin_小判'), '判', '小判', ev.koban);
     add(uiUrl('coin_魂'), '魂', '魂', ev.soul);
     for (const [k, n] of Object.entries(ev.items || {})) add(itemUrl(k), '具', k, n);
+    /* 称号も粒で見せる（2026-10-01）。塔の節目でもらえる。
+       数ではなく名を下に添えるので、prizeTile の数の枠には入れない */
+    if (ev.title) t.push(prizeTile(frameUrl(ev.title), '称', ev.title, null));
     // もらった武将はコマ絵で。新しく来たのか、重なったのかを下に添える
     for (const g of (ev.got || [])) {
       const o = charOf(g.no); if (!o) continue;
@@ -6541,7 +6568,7 @@ function dmgSheet() {
         el('div', {}, el('span', {}, '受けた傷'), el('b', {}, num(st.taken || 0)))),
       el('div', { class: 'dgsub' },
         el('span', {}, '撃破 ', el('b', {}, num(st.ko || 0))),
-        el('span', {}, '討死 ', el('b', {}, num(st.lost || 0))),
+        el('span', {}, '逃走 ', el('b', {}, num(st.lost || 0))),
         el('span', {}, '会心 ', el('b', {}, num(st.crit || 0))),
         el('span', {}, '手数 ', el('b', {}, num(st.turn || 0)))),
       us.length ? el('div', { class: 'dglist' }, us.map(u => dmgUnitRow(u, top)))
@@ -6613,13 +6640,9 @@ function resSheet() {
     if (toTw) {
       fxToken++; BATTLE = null;
       S.screen = 'tower'; S.twSel = null;
-      const got2 = twW && twW.first
-        ? [`石 ${num(twW.stone)}`, twW.koban ? `小判 ${num(twW.koban)}` : null,
-           ...Object.entries(twW.items || {}).map(([k, v]) => `${k}×${v}`),
-           twW.title ? `称号「${twW.title}」` : null].filter(Boolean).join('／')
-        : '';
+      /* 褒美の中身は勝ちの札で見せたので、ここでは抜けたことだけ（2026-10-01） */
       S.twMsg = twW
-        ? (twW.first ? `${twF}階を抜けた　${got2}` : `${twF}階を抜けた（褒美は受け取り済み）`)
+        ? (twW.first ? `${twF}階を抜けた` : `${twF}階を抜けた（褒美は受け取り済み）`)
         : `届かなんだ　― ${(twN || []).join('／')}`;
       SFX.pick(); draw(); return;
     }
@@ -6651,7 +6674,7 @@ function resSheet() {
             : el('b', { class: 'lpword txt' }, '敗北'),
           el('div', { class: 'lpnum' },
             el('span', {}, '撃破', el('b', {}, n(st.ko))),
-            el('span', {}, '討死', el('b', {}, n(st.lost))),
+            el('span', {}, '逃走', el('b', {}, n(st.lost))),
             el('span', {}, '手数', el('b', {}, n(st.turn)))),
           el('p', { class: 'lpsub' }, S.res.skip ? '早送りで決着' : S.res.reason))));
   }
@@ -6661,7 +6684,9 @@ function resSheet() {
   if (kind === 'win' && uiUrl('pop_勝利')) {
     const st = S.res.stat || {};
     const n = v => num(v || 0);
-    const pz = prizeRow(rw, BATTLE.evWon);
+    /* 塔の褒美も、ふつうの勝ちと同じ札に並べて「受け取る」で閉じる（2026-10-01）。
+       前は塔だけ、画面を押して閉じたあとに塔の画面で文として出していた */
+    const pz = prizeRow(rw, BATTLE.evWon || (BATTLE.twWon && BATTLE.twWon.first ? BATTLE.twWon : null));
     /* 褒美が出ない一戦（番付など）に「受け取る」は変なので、
        そのときは釦を出さず、画面を押して閉じる（2026-09-29） */
     return el('div', { class: 'sheet winsheet' + (pz ? '' : ' tap'), onclick: pz ? null : next },
@@ -6675,7 +6700,7 @@ function resSheet() {
           pz,
           el('div', { class: 'wpnum' },
             el('span', {}, '撃破', el('b', {}, n(st.ko))),
-            el('span', {}, '討死', el('b', {}, n(st.lost))),
+            el('span', {}, '逃走', el('b', {}, n(st.lost))),
             el('span', {}, '手数', el('b', {}, n(st.turn)))))),
       pz ? el('button', { class: 'go wide wptake', onclick: next }, '受け取る') : null);
   }
@@ -6830,9 +6855,20 @@ function twRow() { return null; }      // 一覧はやめた（名は guidePaint
 /* その階で待ち受ける顔ぶれ。盤に出るのと同じ並びなので、見てから編成を組める */
 function twFoes(f) {
   const list = twEnemy(f) || [];
-  return el('div', { class: 'twfoes' }, list.map((c, i) => {
+  /* 真ん中に先頭（いちばん兵力を食う＝その階の主）を据え、
+     そこから左右へ振り分けて並べる（2026-10-01）。
+     真ん中からの隔たり d を札に書き、CSS で奥へ行くほど
+     小さく・薄く・下に沈める。立ち姿の奥行きが出る */
+  const slots = [];
+  list.forEach((c, i) => {
+    const d = Math.ceil(i / 2);
+    if (i % 2) slots.unshift({ c, d }); else slots.push({ c, d });
+  });
+  return el('div', { class: 'twfoes' }, slots.map((s, i) => {
+    const c = s.c;
     const art = pawnUrl(c.no);
-    return el('div', { class: 'twfoe' + (art ? ' art' : '') , style: `animation-delay:${i * 70}ms` },
+    return el('div', { class: `twfoe d${Math.min(2, s.d)}` + (art ? ' art' : ''),
+      style: `animation-delay:${i * 70}ms` },
       art ? keepImg({ src: art, alt: c.name || '' })
           : el('i', { style: chipStyle(c) }, (c.name || '')[0] || '?'),
       el('span', {}, (c.name || '').slice(0, 5)));
@@ -7011,7 +7047,7 @@ function evSkip(id, rank) {
   // 盤面は出さないが、褒美の配りかたは同じ道を通す
   // お祭りの勝ちの褒美は初めて取ったときだけ（2026-09-29）。盤面を見る戦と同じ決まりにそろえた
   const evFirst2 = !evDone(id, rank);
-  BATTLE = { ev: { id, rank }, camp: null, reward: giveReward(won && evFirst2, rewardMulOf(S.picked)), march: null, skipped: true };
+  BATTLE = { ev: { id, rank }, camp: null, reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank]), march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）
   /* 早送りでも本当の数を出す（2026-09-29）。
@@ -7244,7 +7280,7 @@ function rosterRow(box, side) {
         (u.mods || []).length ? mb : null,
         // 討たれた者は灰色に沈めて、大きな × を重ねる（2026-09-23）
         u.alive ? null : (uiUrl('red_x')
-          ? el('img', { class: 'rko art', src: uiUrl('red_x'), alt: '討死' })
+          ? el('img', { class: 'rko art', src: uiUrl('red_x'), alt: '逃走' })
           : el('span', { class: 'rko' }, '✕'))),
       // 兵量は帯ではなく数字で（2026-09-23）
       el('div', { class: 'rhpn' + (u.alive ? (low <= 0.2 ? ' bad' : low <= 0.5 ? ' warn' : '') : ' dead') },
@@ -7942,6 +7978,7 @@ function foodTick() {
   draw();
 }
 setInterval(foodTick, 30000);
+setInterval(foodClock, 1000);        // 兵糧の残りの字（2026-10-01）
 document.addEventListener('visibilitychange', () => { if (!document.hidden) foodTick(); });
 
 /* 起動したら、いまの値からお役目の数を整える（2026-09-24）。

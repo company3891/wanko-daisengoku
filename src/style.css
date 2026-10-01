@@ -84,6 +84,13 @@ header h1{margin:0;font-size:17px;letter-spacing:.14em;color:var(--gold);font-we
 /* 兵糧。米俵の色（2026-09-21） */
 .w.food i{background:#b8d06a}
 .w.food em{font-style:normal;font-size:9px;opacity:.65;margin-left:-1px}
+/* 次の一つが戻るまでの残り（2026-10-01）。玉の下に小さく吊るす。
+   ヘッダーの高さを変えたくないので、流れから外して絶対で置いている */
+.w.food em.fwt{position:absolute;left:0;right:0;bottom:-12px;margin:0;
+  font-size:9px;font-weight:700;letter-spacing:.02em;opacity:1;
+  color:#cfe39a;text-align:center;text-shadow:0 1px 2px #000,0 0 4px #000;
+  pointer-events:none}
+.w.food em.fwt:empty{display:none}
 .w.koban i{background:#e8c05a}
 .w.stone i,.w.free i{background:#6fb8f0}
 .w.paid i{background:#e8c05a}
@@ -1683,7 +1690,7 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
   box-shadow:0 -12px 16px -8px var(--panel2)}
 /* 育成の武将えらび（2026-09-29）。黒金のまま画面いっぱいに並べる */
 .gpick{margin-top:2px}
-.gpick .pickgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));
+.gpick .pickgrid{display:grid;grid-template-columns:repeat(4,1fr);
   gap:7px;margin:10px 0 0}
 .gpick .pg{position:relative;padding:0;border:0;background:none;cursor:pointer;
   border-radius:9px;overflow:hidden}
@@ -2086,7 +2093,7 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .pickbar .pt span{font-size:10.5px;color:var(--text3)}
 .pickbar .pc{flex:0 0 auto;font-size:11px;color:var(--gold);
   border:1px solid #d8a94a66;border-radius:8px;padding:6px 10px}
-.pickgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:7px;margin:10px 0}
+.pickgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}
 .pg{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;padding:0;
   border:1px solid #ffffff1a;background:#ffffff08;cursor:pointer}
 .pg img{width:100%;height:100%;object-fit:cover;display:block}
@@ -2325,6 +2332,7 @@ header{padding:8px 12px 8px}
 .w.food{padding-right:25px}
 .w.food .plus{width:19px;height:19px;font-size:11px;right:3px}
 .w.food em{font-size:9.5px}
+.w.food em.fwt{font-size:9.5px;bottom:-13px}
 /* 三本線は列の一員にして、通貨と重ならないようにする */
 /* 三本線は2段目の右端＝石の真下 */
 .menub{position:static;grid-area:menu;width:34px;height:34px;flex:0 0 auto;gap:5px;border-width:2px;
@@ -4266,7 +4274,10 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .pzn{position:absolute;right:-3px;top:15px;font-size:9px;font-weight:700;color:#fff;
   background:#12100ee6;border:1px solid #a8802c99;border-radius:5px;padding:0 3px;
   line-height:1.4;text-shadow:0 1px 2px #000}
-.pzt{font-size:6.5px;letter-spacing:.02em;color:#6b4a18;white-space:nowrap}
+/* 名が長いと隣の粒とぶつかるので、はみ出しは三点で切る（2026-10-01）。
+   「稽古の書」と「特技の伝書」が並んだときに重なっていた */
+.pzt{font-size:6.5px;letter-spacing:.02em;color:#6b4a18;white-space:nowrap;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;text-align:center}
 .wpnum{display:flex;gap:10px;align-items:baseline;justify-content:center;
   font-size:9px;letter-spacing:.05em;color:#7a5a20}
 .wpnum span{display:inline-flex;gap:3px;align-items:baseline}
@@ -4757,8 +4768,14 @@ header{padding-top:calc(var(--safetop) + 8px)}
 
 /* ---- 塔：出陣の一枚（2026-10-01）----
    一覧をやめて、階・しばり・敵・褒美・釦をこの一枚に収めた */
-.twpage{position:relative;min-height:100%;display:flex;flex-direction:column;
-  padding:calc(var(--safetop,0px) + 8px) 12px calc(var(--nav,104px) + 10px)}
+.twpage{position:relative;display:flex;flex-direction:column;
+  /* 上は「ヘッダーの 10px 下」にそろえる（2026-10-01）。
+     main が上に 14px、.twtop が -2px 持っているので、ここは -2px で釣り合う */
+  /* main は下に 96px 持っている。帯のぶんはこちらで取るので、その 96px は打ち消す */
+  margin-top:-2px;margin-bottom:-96px;padding:0 12px calc(var(--nav,104px) + 10px);
+  /* min-height:100% は親の高さが決まっていないので効かない（2026-10-01 に踏んだ）。
+     画面の高さから ヘッダーと main の上余白を引いて、下の釦を帯の上まで押し下げる */
+  min-height:calc(100dvh - var(--hdr,95px) - 14px)}
 /* 景色（.bgfull）も札（.sheet）も position:fixed で流れの外にいる。
    ここで一律に position:relative を当てると流れに戻ってしまい、
    景色は画面ぜんぶを押し下げ、札は下へ潜る（2026-10-01 に両方踏んだ）。
@@ -4804,17 +4821,33 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .twc.sub{font-size:11px;color:var(--text2);border-color:#ffffff1f;background:#12100e99}
 .twc.sub i{background:#ffffff26;color:#f3e7cc}
 /* 真ん中：待ち受ける者 */
-.twfoes{flex:1 1 auto;display:flex;align-items:center;justify-content:center;
-  flex-wrap:wrap;gap:2px 0;min-height:120px;margin:4px 0}
-.twfoe{flex:0 0 auto;width:20%;display:flex;flex-direction:column;align-items:center;gap:2px;
+/* 遠近を付けた（2026-10-01）。真ん中が総大将＝いちばん手前、
+   脇へ行くほど小さく・薄く・下に沈めて、奥に立っているように見せる。
+   並べ替えは twFoes が d0（真ん中）→ d1 → d2 の組で渡してくる */
+.twfoes{flex:1 1 auto;display:flex;align-items:flex-end;justify-content:center;
+  gap:0;min-height:150px;margin:2px 0 4px}
+.twfoe{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;
   animation:twup .32s cubic-bezier(.2,.9,.3,1.1) both}
 @keyframes twup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.twfoe img{width:100%;height:auto;max-height:122px;object-fit:contain;
+.twfoe img{width:100%;height:auto;object-fit:contain;
   filter:drop-shadow(0 6px 10px #000b)}
-.twfoe i{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
+.twfoe i{width:100%;aspect-ratio:1;border-radius:12px;display:grid;place-items:center;
   font-style:normal;font-weight:700;color:#fff}
 .twfoe span{font-size:9px;color:var(--text2);letter-spacing:.02em;white-space:nowrap;
   text-shadow:0 1px 2px #000}
+/* 手前（総大将） */
+.twfoe.d0{width:36%;z-index:3}
+.twfoe.d0 img{max-height:156px}
+.twfoe.d0 span{font-size:10.5px;color:#f5e2a8;font-weight:700}
+/* 一歩うしろ */
+.twfoe.d1{width:24%;margin:0 -2%;z-index:2;transform:translateY(9px);opacity:.92;
+  filter:brightness(.88) saturate(.95)}
+.twfoe.d1 img{max-height:112px}
+/* いちばん奥 */
+.twfoe.d2{width:16%;margin:0 -2%;z-index:1;transform:translateY(18px);opacity:.8;
+  filter:brightness(.74) saturate(.9)}
+.twfoe.d2 img{max-height:88px}
+.twfoe.d2 span{font-size:8px}
 /* はじめの一度だけの語り */
 .twsay{margin:0 0 6px}
 /* 下 */
@@ -4841,7 +4874,7 @@ header{padding-top:calc(var(--safetop) + 8px)}
   .twpzb,.twpzi{width:47px}
   .twpzi{height:47px}
 }
-.twbtns{display:flex;align-items:stretch;gap:8px}
+.twbtns{display:flex;align-items:stretch;gap:8px;height:66px}
 .twsub{flex:0 0 auto;width:72px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;padding:8px 2px;border-radius:14px;cursor:pointer;
   border:1px solid #d8a94a4d;background:#12100ec4;color:#f3e7cc;font-family:inherit;
@@ -4890,7 +4923,10 @@ header{padding-top:calc(var(--safetop) + 8px)}
 @media (max-width:380px){
   .twfl b{font-size:17px}
   .twname{font-size:15px}
-  .twfoe img{max-height:104px}
+  .twfoe.d0 img{max-height:134px}
+  .twfoe.d1 img{max-height:96px}
+  .twfoe.d2 img{max-height:76px}
+  .twbtns{height:60px}
   .go.twgo{font-size:19px}
   .twsub{width:64px}
   .twsub.art{width:64px}

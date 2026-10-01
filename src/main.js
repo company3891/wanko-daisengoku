@@ -3089,7 +3089,7 @@ function screenSkillUp() {
                 SFX.win();
               } else {
                 S.skMsg = '';
-                S.win = { bad: true, title: '特技強化 失敗', name: sk.name, mats,
+                S.win = { bad: true, title: '特技強化 失敗', name: sk.name,
                           note: `${lostNames(mats)} は失われました` };
                 SFX.pick();
               }
@@ -3102,7 +3102,7 @@ function screenSkillUp() {
             S.skm = []; S.skch = null; S.skAsk = false;
             if (!r) S.skMsg = '素材が足りない';
             else if (r.ok) { S.skMsg = ''; S.win = { title: '特技強化 成功', name: sk.name, lv: r.lv }; SFX.win(); }
-            else { S.skMsg = ''; S.win = { bad: true, title: '特技強化 失敗', name: sk.name, mats,
+            else { S.skMsg = ''; S.win = { bad: true, title: '特技強化 失敗', name: sk.name,
                     note: `${lostNames(mats)} は失われました` }; SFX.pick(); }
             draw();
           }, () => { S.skAsk = false; draw(); }) : null)
@@ -3222,23 +3222,6 @@ function lostNames(ms) {
   }
   return Object.entries(c).map(([n, k]) => (k > 1 ? `${n} ×${k}` : n)).join('・');
 }
-/* 失ったものを札の顔で並べる（2026-10-01）。
-   名前だけ並べても「誰を食べたのか」が頭に入らない。
-   絵が無い武将は属性の色の札に名を載せる（絵が無くても動く決まり） */
-function lostTiles(ms) {
-  const byNo = {}; let books = 0;
-  for (const m of (ms || [])) { if (m.book) books++; else byNo[m.no] = (byNo[m.no] || 0) + 1; }
-  const tile = (pic, name, n) => el('div', { class: 'wlt' },
-    el('span', { class: 'wlti' }, pic),
-    el('b', {}, name), n > 1 ? el('em', {}, '×' + n) : null);
-  const out = [];
-  for (const [no, n] of Object.entries(byNo)) {
-    const o = charOf(Number(no)); if (!o) continue;
-    out.push(tile(cardArt(o) ? cardImg(o) : el('i', { style: chipStyle(o) }), o.name, n));
-  }
-  if (books) out.push(tile(itemIcon(BOOK), BOOK, books));
-  return out.length ? el('div', { class: 'wlostr' }, out) : null;
-}
 /* 特技名から先頭の（属性）を落とす。札では属性は要らない（2026-09-24） */
 const plainSkill = n => String(n || '').replace(/^[（(][^）)]*[）)]\s*/, '');
 function winSheet() {
@@ -3267,11 +3250,7 @@ function winSheet() {
         w.from ? el('span', { class: 'wfrom' },
           el('i', {}, w.from), el('em', {}, '➜'), el('i', { class: 'to' }, w.to)) : null,
         w.lost ? el('span', { class: 'wlost' }, `${w.lost} は失われました`) : null,
-        /* しくじったときは、何を失ったのかを顔で見せる（2026-10-01）。
-           絵を出すなら名を二度書くことはない。文は見出しに替える */
-        w.mats ? el('span', { class: 'wnote' }, '失われたもの')
-               : (w.note ? el('span', { class: 'wnote' }, w.note) : null),
-        w.mats ? lostTiles(w.mats) : null)));
+        w.note ? el('span', { class: 'wnote' }, w.note) : null)));
 }
 
 /* 最後の1枚を使うときの確認（2026-09-21／文言を正した 2026-09-25）。
@@ -3513,7 +3492,7 @@ function screenInherit() {
               SFX.win();
             } else {
               S.ihMsg = '';
-              S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name, mats,
+              S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name,
                         note: `${lostNames(mats)} は失われました` };
               SFX.pick();
             }
@@ -3527,7 +3506,7 @@ function screenInherit() {
           if (!r) S.ihMsg = '素材が足りない';
           else if (r.ok) { S.ihMsg = ''; S.win = { title: '特技継承 成功', name: g.sk.name,
                             from: src.name, to: c.name, lost: lostNames(mats) }; SFX.win(); }
-          else { S.ihMsg = ''; S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name, mats,
+          else { S.ihMsg = ''; S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name,
                   note: `${lostNames(mats)} は失われました` }; SFX.pick(); }
           draw();
         }, () => { S.ihAsk = false; draw(); }) : null)),

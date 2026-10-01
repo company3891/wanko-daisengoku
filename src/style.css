@@ -2828,19 +2828,6 @@ main.hasnav{padding-bottom:124px}
   text-shadow:0 0 12px #59c56c66}
 .winbox.slim .wbody .wnote{font-size:13px;font-weight:700;color:#8fd48a;letter-spacing:.04em}
 .winbox.slim.lose .wbody .wnote{color:#e0907a}
-/* しくじりで失ったものを札の顔で並べる（2026-10-01） */
-.wlostr{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px}
-.wlt{width:64px;display:flex;flex-direction:column;align-items:center;gap:3px}
-.wlti{width:64px;aspect-ratio:.72;border-radius:8px;overflow:hidden;display:grid;place-items:center;
-  background:#00000055;border:1px solid #a8523c66;box-shadow:0 2px 8px #0008}
-.wlti img{width:100%;height:100%;object-fit:cover;display:block}
-.wlti i{width:100%;height:100%;display:block}
-.wlti .itic{width:100%;height:100%;min-width:0;border:0;background:none;box-shadow:none;
-  border-radius:0;padding:7px}
-.wlti .itic img{width:100%;height:100%;object-fit:contain}
-.wlt b{font-size:10px;font-weight:700;color:#e8d6bb;max-width:100%;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
-.wlt em{font-style:normal;font-size:10px;font-weight:800;color:#e0907a}
 
 /* ---- お知らせ（2026-09-24）----
    ホームの「報」から開く。更新と不具合の2つのタグ。

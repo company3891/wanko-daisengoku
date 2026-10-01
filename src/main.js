@@ -6597,9 +6597,13 @@ function resSheet() {
     if (toTw) {
       fxToken++; BATTLE = null;
       S.screen = 'tower'; S.twSel = null;
+      const got2 = twW && twW.first
+        ? [`石 ${num(twW.stone)}`, twW.koban ? `小判 ${num(twW.koban)}` : null,
+           ...Object.entries(twW.items || {}).map(([k, v]) => `${k}×${v}`),
+           twW.title ? `称号「${twW.title}」` : null].filter(Boolean).join('／')
+        : '';
       S.twMsg = twW
-        ? (twW.first ? `${twF}階を抜けた　石 ${num(twW.stone)}${twW.title ? `／称号「${twW.title}」` : ''}`
-                     : `${twF}階を抜けた（褒美は受け取り済み）`)
+        ? (twW.first ? `${twF}階を抜けた　${got2}` : `${twF}階を抜けた（褒美は受け取り済み）`)
         : `届かなんだ　― ${(twN || []).join('／')}`;
       SFX.pick(); draw(); return;
     }
@@ -6789,11 +6793,14 @@ function twClear(f) {
   if (first) {
     st.got = [...(st.got || []), f];
     if (f >= (st.floor || 1)) st.floor = Math.min(TOWER_MAX, f + 1);
-    P.free = (P.free || 0) + t.rw.stone;
+    P.free = (P.free || 0) + (t.rw.stone || 0);
+    P.koban = (P.koban || 0) + (t.rw.koban || 0);
+    for (const [k, v] of Object.entries(t.rw.items || {})) addItem(k, v);
     if (t.rw.title) gainTitle(t.rw.title);
     savePlayer();
   }
-  return { first, stone: first ? t.rw.stone : 0, title: first ? (t.rw.title || null) : null };
+  return { first, stone: first ? (t.rw.stone || 0) : 0, koban: first ? (t.rw.koban || 0) : 0,
+           items: first ? (t.rw.items || {}) : {}, title: first ? (t.rw.title || null) : null };
 }
 
 /* ---- 塔の画面（2026-10-01 改）----
@@ -6830,11 +6837,25 @@ function twBossSheet() {
         return el('div', { class: 'twbr' + (done ? ' done' : '') + (t.f === next ? ' now' : '') },
           el('span', { class: 'twbf' }, `${t.f}階`),
           el('span', { class: 'twbn' }, t.name),
-          el('span', { class: 'twbp' }, curIcon('stone'), el('b', {}, num(t.rw.stone))),
+          el('span', { class: 'twbp' }, curIcon('stone'), el('b', {}, num(t.rw.stone)),
+            curIcon('koban'), el('b', {}, num(t.rw.koban || 0))),
           el('span', { class: 'twbt' }, t.rw.title ? `「${t.rw.title}」` : ''),
           done ? el('i', { class: 'twok' }, '済') : null);
       })),
       closeX(close)));
+}
+/* 褒美を四角の粒で並べる（2026-10-01）。石・小判・経験の書・強化の書、そして称号。
+   数は粒の右下に小さく重ねる。どれも「置くだけで反映」の絵に乗っている */
+function twPrize(t, got) {
+  const pz = (icon, n, label) => el('div', { class: 'twpzb', title: label },
+    el('span', { class: 'twpzi' }, icon), el('em', {}, n));
+  const out = [];
+  if (t.rw.stone) out.push(pz(curIcon('stone'), num(t.rw.stone), '石'));
+  if (t.rw.koban) out.push(pz(curIcon('koban'), num(t.rw.koban), '小判'));
+  for (const [k, v] of Object.entries(t.rw.items || {})) out.push(pz(itemIcon(k), '×' + v, k));
+  if (t.rw.title) out.push(pz(el('i', { class: 'twpzt' }, '称'), t.rw.title, '称号'));
+  return el('div', { class: 'twprize' + (got ? ' got' : '') }, out,
+    got ? el('span', { class: 'twgot' }, '受け取り済み') : null);
 }
 function screenTower() {
   const f = twFloor();
@@ -6885,10 +6906,7 @@ function screenTower() {
             + '一階ずつしか登れぬが、何度でも挑めるワン'))) : null,
       /* 下：褒美・釦 */
       el('div', { class: 'twfoot' },
-        el('div', { class: 'twprize' },
-          el('span', { class: 'twpz' }, curIcon('stone'), el('b', {}, num(t.rw.stone))),
-          t.rw.title ? el('span', { class: 'twpz ttl' }, el('i', {}, '称'), t.rw.title) : null,
-          twGot(f) ? el('span', { class: 'twpz got' }, '受け取り済み') : null),
+        twPrize(t, twGot(f)),
         S.twMsg ? el('p', { class: 'twng' }, S.twMsg) : null,
         el('div', { class: 'twbtns' },
           el('button', { class: 'twsub', title: '部隊を組み直す',

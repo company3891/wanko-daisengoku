@@ -4916,3 +4916,12 @@ header{padding-top:calc(var(--safetop) + 8px)}
    位や属性の金とぶつからないようにする */
 .chip.sqf.on{border-color:#4fa36b;background:#4fa36b26;color:#bde8cd;
   box-shadow:0 0 0 1px #4fa36b inset}
+
+/* 部隊の顔に段を重ねる（2026-10-01）。
+   絵の下ぎわに細い黒帯で置く。顔そのものは隠さない */
+.sq .ms .m{position:relative;overflow:hidden}
+.sq .ms .m .mlv{position:absolute;left:0;right:0;bottom:0;
+  font-style:normal;font-size:9px;font-weight:800;letter-spacing:-.02em;
+  text-align:center;color:#f5e2a8;background:#0b0908cc;padding:1px 0;
+  text-shadow:0 1px 2px #000}
+@media (max-width:380px){ .sq .ms .m .mlv{font-size:8px} }

@@ -1165,10 +1165,12 @@ function squadCard(q, i, onPick, toEdit) {
          「未編成」と右の「編成」の釦で足りる */
       el('div', { class: 'ms' }, empty
         ? null
+        /* 顔の下に段を出す（2026-10-01）。
+           どの部隊が育っているかが、総戦力の数だけでは読み取れなかった */
         : squadChars(q).map(c => el('span', {
             class: 'm' + (q.general === c.no ? ' gen' : ''), style: chipStyle(c),
-            title: c.name,
-          })))),
+            title: `${c.name}　Lv.${charState(c.no).lv}`,
+          }, el('em', { class: 'mlv' }, `Lv.${charState(c.no).lv}`))))),
     /* 右下の近道（2026-09-23）。行き先は画面で入れ替える。
        出陣の画面からは「編成」＝その部隊をそのまま編成で開く
        （敵と重なった武将を外したり、コスト超過を直したりするため）。
@@ -3766,6 +3768,9 @@ const DEXSORT = [
      図鑑が持っている武将だけを出すようになったので、重ねの枚数で並べる意味が薄い。
      古い保存に 'cnt' が残っていても、見つからなければ先頭（レア）に落ちる */
   { k: 'pow',  name: '総合力', up: false, v: c => powerOf(c) },
+  /* 段の順（2026-10-01）。育っている子から並ぶ。
+     同じ段のときは、下の並べ替えが No. で揃えるので崩れない */
+  { k: 'lv',   name: 'レベル', up: false, v: c => charState(c.no).lv },
 ];
 const pfGet = (ks, k, d) => { const v = ks[k] ? S[ks[k]] : null; return v == null ? d : v; };
 const pfSet = (ks, k, v) => { if (ks[k]) S[ks[k]] = v; SFX.pick(); draw(); };

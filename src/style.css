@@ -5079,6 +5079,17 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
 /* ---- 武将取引所（2026-10-01）----
    上から 語り／二つの釦／絞込み／並んだ札。
    札は図鑑と同じ見た目にして、下に 魂の粒と値段だけを添える */
+/* 市の景色（2026-10-02）。ヘッダーの下から敷き、上下だけ少し落として字を読ませる。
+   並んだ札は景色に沈まないよう、黒漆の下敷きを一枚かませる */
+.mkpage{position:relative}
+.mkpage.art .bgfull{top:calc(var(--hdr,0px) + var(--safetop,0px));
+  height:calc(100vh - var(--hdr,0px) - var(--safetop,0px))}
+.mkpage.art .bgfull::after{background:linear-gradient(180deg,#12100eaa 0,#12100e55 14%,#12100e33 34%,#12100e88 70%,#12100ee6 100%)}
+.mkpage.art .mkgrid,.mkpage.art .mklog,.mkpage.art .mkhead,.mkpage.art .mkcount,
+.mkpage.art .mkq,.mkpage.art .note{position:relative}
+.mkpage.art .mkcount,.mkpage.art .note,.mkpage.art .mkhead span{text-shadow:0 1px 3px #000}
+.mkpage.art .mkqin{background:#12100ed9;backdrop-filter:blur(3px)}
+.mkpage.art .chip{background:#12100ec4;backdrop-filter:blur(3px)}
 .mkpage .gtalk{margin-bottom:10px}
 /* 雇用する・取引に出す。横並びで同じ幅 */
 .mktabs{display:flex;gap:9px;margin:0 0 10px}

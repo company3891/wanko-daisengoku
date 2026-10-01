@@ -1053,8 +1053,9 @@ const HOME_MENU = [
      絵（ui/home_tower.png）は看板なので、ほかの座より ひと回り大きく出す */
   /* 武将取引所（2026-10-01）。左下・試練の塔の上。
      並びが上から下なので、塔より前に書けば塔の上に出る */
-  /* 絵（ui/home_market.png）が入るまでは「市」の一字だけ。
-     下の名札は出さない（2026-10-01。塔と高さがそろわず、字が二度出て見苦しいため） */
+  /* 絵は ui/home_market.png（2026-10-02 に入った）。
+     noname は 絵が見つからなかったときの備え。札に「市」の一字が出るだけで、
+     下の名札は出さない（塔と高さがそろわず、字が二度出て見苦しいため） */
   { side: 'BL', name: '取引所', mark: '市', file: 'home_market', big: true, noname: true,
     go: () => { S.screen = 'market'; S.mkTab = 'buy'; S.mkPut = null;
                 S.mkQ = ''; S.mkMsg = ''; },
@@ -7349,8 +7350,12 @@ function screenMarket() {
   const buy = (S.mkTab || 'buy') === 'buy';
   const list = buy ? mkFilter(mkStock(C)) : [];
   const nextH = Math.ceil(mkNext() / 3600000);
+  /* 市の景色（2026-10-02）。bg/market.png。無ければ城の景色に落ちる。
+     巻いても背景は動かない（.bgfull は position:fixed） */
+  const bg = bgUrl('market') || bgUrl('home');
   return {
-    body: el('div', { class: 'mkpage' },
+    body: el('div', { class: 'mkpage' + (bg ? ' art' : '') },
+      keepBg(bg, 'bgfull'),
       el('div', { class: 'gtalk' + (tart ? ' art' : '') },
         tart ? keepImg({ class: 'gtface', src: tart, alt: tc ? tc.name : '' })
              : el('i', { class: 'gtface' }, '犬'),

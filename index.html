@@ -5094,6 +5094,17 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
 /* ---- 武将取引所（2026-10-01）----
    上から 語り／二つの釦／絞込み／並んだ札。
    札は図鑑と同じ見た目にして、下に 魂の粒と値段だけを添える */
+/* 市の景色（2026-10-02）。ヘッダーの下から敷き、上下だけ少し落として字を読ませる。
+   並んだ札は景色に沈まないよう、黒漆の下敷きを一枚かませる */
+.mkpage{position:relative}
+.mkpage.art .bgfull{top:calc(var(--hdr,0px) + var(--safetop,0px));
+  height:calc(100vh - var(--hdr,0px) - var(--safetop,0px))}
+.mkpage.art .bgfull::after{background:linear-gradient(180deg,#12100eaa 0,#12100e55 14%,#12100e33 34%,#12100e88 70%,#12100ee6 100%)}
+.mkpage.art .mkgrid,.mkpage.art .mklog,.mkpage.art .mkhead,.mkpage.art .mkcount,
+.mkpage.art .mkq,.mkpage.art .note{position:relative}
+.mkpage.art .mkcount,.mkpage.art .note,.mkpage.art .mkhead span{text-shadow:0 1px 3px #000}
+.mkpage.art .mkqin{background:#12100ed9;backdrop-filter:blur(3px)}
+.mkpage.art .chip{background:#12100ec4;backdrop-filter:blur(3px)}
 .mkpage .gtalk{margin-bottom:10px}
 /* 雇用する・取引に出す。横並びで同じ幅 */
 .mktabs{display:flex;gap:9px;margin:0 0 10px}
@@ -10765,6 +10776,24 @@ function evWin(id, r) {
 const NEWS_TAGS = ['更新', '不具合'];
 
 const NEWS = [
+  {
+    id: 'n20261002-shop',
+    tag: '更新',
+    date: '2026/10/02 20:00',
+    title: '買える品を整えました',
+    body: [
+      '店の棚を見直しました。',
+      '「武士の魂」「特技の伝書」「上達の護符」「相伝の護符」は、'
+      + '小判ではお求めいただけなくなりました。',
+      '護符は 番付の蔵にて、軍功と引き換えに お納めいたします。',
+      '特技の伝書は 試練の塔の「櫓の主」を討ち取った褒美に。'
+      + '五階ごとの主が三巻、十階ごとの大櫓の主が六巻を渡します。',
+      '武士の魂は、重ねた武将を解雇するか、取引所で売ってお集めください。',
+      'また「兵糧俵」の値を改めました。',
+      '手を入れたぶん、わずかばかりですがお詫びの品をお納めください。',
+    ],
+    gift: { koban: 3000, items: { '特技の伝書': 2, '上達の護符・中': 1, '相伝の護符・中': 1 } },
+  },
   {
     id: 'n20260928-release',
     tag: '更新',
@@ -25304,8 +25333,9 @@ const HOME_MENU = [
      絵（ui/home_tower.png）は看板なので、ほかの座より ひと回り大きく出す */
   /* 武将取引所（2026-10-01）。左下・試練の塔の上。
      並びが上から下なので、塔より前に書けば塔の上に出る */
-  /* 絵（ui/home_market.png）が入るまでは「市」の一字だけ。
-     下の名札は出さない（2026-10-01。塔と高さがそろわず、字が二度出て見苦しいため） */
+  /* 絵は ui/home_market.png（2026-10-02 に入った）。
+     noname は 絵が見つからなかったときの備え。札に「市」の一字が出るだけで、
+     下の名札は出さない（塔と高さがそろわず、字が二度出て見苦しいため） */
   { side: 'BL', name: '取引所', mark: '市', file: 'home_market', big: true, noname: true,
     go: () => { S.screen = 'market'; S.mkTab = 'buy'; S.mkPut = null;
                 S.mkQ = ''; S.mkMsg = ''; },
@@ -31600,8 +31630,12 @@ function screenMarket() {
   const buy = (S.mkTab || 'buy') === 'buy';
   const list = buy ? mkFilter(mkStock(C)) : [];
   const nextH = Math.ceil(mkNext() / 3600000);
+  /* 市の景色（2026-10-02）。bg/market.png。無ければ城の景色に落ちる。
+     巻いても背景は動かない（.bgfull は position:fixed） */
+  const bg = bgUrl('market') || bgUrl('home');
   return {
-    body: el('div', { class: 'mkpage' },
+    body: el('div', { class: 'mkpage' + (bg ? ' art' : '') },
+      keepBg(bg, 'bgfull'),
       el('div', { class: 'gtalk' + (tart ? ' art' : '') },
         tart ? keepImg({ class: 'gtface', src: tart, alt: tc ? tc.name : '' })
              : el('i', { class: 'gtface' }, '犬'),

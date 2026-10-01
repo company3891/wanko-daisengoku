@@ -7789,11 +7789,19 @@ const SUB = { title: '', tutorial: 'はじまり', home: 'ホーム', map: '全�
 /* 画面は毎回まるごと組み直すので、そのままだと押すたびに先頭へ戻ってしまう。
    同じ画面のままなら、縦の位置を覚えておいて戻す（2026-09-21） */
 let LAST_SCREEN = null;
+/* 札の中の巻き位置も覚える（2026-10-01）。
+   武将強化・特技強化・特技継承の中身は .growbox の中で巻いているので、
+   #app の位置だけ戻しても、何か押すたびに札の頭へ戻っていた。
+   同じ画面・同じ武将のあいだだけ覚えておく（別の武将を開いたら頭から） */
+let LAST_GROW = null;
 function draw() {
   IMG_USED = new Set();          // 絵の使い回しは1回の描画につき1か所まで
   saveSquads();                                   // 画面が変わるたびに保存する
   /* 巻いている場所は #app（2026-09-30）。ページ自体は動かさなくなった */
   const keepY = (LAST_SCREEN === S.screen) ? ($('#app') ? $('#app').scrollTop : 0) : 0;
+  const growKey = `${S.screen}:${S.ihc ?? ''}:${S.skc ?? ''}:${S.grow ?? ''}:${S.pw ?? ''}`;
+  const gbox0 = document.querySelector('.growbox');
+  const keepG = (LAST_GROW === growKey && gbox0) ? gbox0.scrollTop : 0;
   const v = (SCREENS[S.screen] || screenHome)();
   const app = $('#app');
   app.innerHTML = '';
@@ -7901,7 +7909,9 @@ function draw() {
   const sbg = S.screen === 'battle' ? null : bgUrl('home');
   document.documentElement.style.setProperty('--scrbg', sbg ? `url("${sbg}")` : 'none');
   if (keepY) app.scrollTop = keepY;
+  if (keepG) { const g2 = app.querySelector('.growbox'); if (g2) g2.scrollTop = keepG; }
   LAST_SCREEN = S.screen;
+  LAST_GROW = growKey;
   updateAudio();
   if (S.screen === 'battle') drawBattle();
 }

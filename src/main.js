@@ -6917,10 +6917,12 @@ function screenTower() {
         (() => {
           const side = (file, mark, name, title, go) => {
             const art = uiUrl(file);
+            /* 絵には字が彫ってあるので、下の名札は出さない（2026-10-01）。
+               絵が無いときだけ、一字の印と名札に落ちる */
             return el('button', { class: 'twsub' + (art ? ' art' : ''), title, onclick: go },
               art ? keepImg({ class: 'twsi', src: art, alt: name })
                   : el('i', {}, mark),
-              el('span', {}, name));
+              art ? null : el('span', {}, name));
           };
           return el('div', { class: 'twbtns' },
             side('tw_hensei', '陣', '編成', '部隊を組み直す',

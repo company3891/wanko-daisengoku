@@ -4850,11 +4850,16 @@ header{padding-top:calc(var(--safetop) + 8px)}
   place-items:center;font-size:14px;font-weight:700;color:var(--gold);
   background:#d8a94a1f;border:1px solid #d8a94a59}
 /* 木の額の絵があるときは、下敷きの枠も影も消して絵だけを置く（2026-10-01）。
-   絵が自前で枠を持っているので、重ねると枠が二重に見える */
-.twsub.art{border:0;background:none;backdrop-filter:none;padding:0;gap:1px;width:76px}
-.twsub .twsi{display:block;width:100%;height:auto;filter:drop-shadow(0 4px 9px #000b)}
+   絵が自前で枠を持っているので、重ねると枠が二重に見える。
+   大きさは出陣の釦にそろえる（2026-10-01 改）。
+   三つは横並びで高さがそろうので、絵の高さだけ決め打ちにして
+   残りを名札にまわす。絵を大きくすると出陣より背が高くなって不ぞろいに見えた */
+.twsub.art{border:0;background:none;backdrop-filter:none;padding:0;gap:0;width:72px;
+  justify-content:center}
+/* 名札を出さないので、絵が釦いっぱいに立つ。高さは出陣の釦と同じ（横並びで伸びる） */
+.twsub .twsi{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;
+  filter:drop-shadow(0 3px 8px #000b)}
 .twsub span{display:block}
-.twsub.art span{font-size:10px;text-shadow:0 1px 3px #000}
 .twsub:active{transform:translateY(1px)}
 .go.twgo{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:2px;padding:10px 6px;border-radius:14px;font-family:var(--mincho);font-size:21px;
@@ -4888,7 +4893,7 @@ header{padding-top:calc(var(--safetop) + 8px)}
   .twfoe img{max-height:104px}
   .go.twgo{font-size:19px}
   .twsub{width:64px}
-  .twsub.art{width:66px}
+  .twsub.art{width:64px}
 }
 
 /* 櫓の主の印（2026-10-01）。五階ごとの節目。十階ごとは「大櫓」で色を変える */

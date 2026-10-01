@@ -268,6 +268,9 @@ export function uiUrl(name) {
 }
 // ステータスのアイコン（火力・賢さ・防御・回復・速さ）
 export function statUrl(name) { return pickUrl('stat', name); }
+/* くじの見せ場に使う絵（2026-10-01）。app/assets/gacha/ に置くだけで反映。
+   ピックアップの紹介で使う切り抜き（pu_103.png など）はここに置く */
+export function gachaUrl(name) { return pickUrl('gacha', name); }
 /* キャラカード（2026-09-21）。表裏の2枚組で、元は1枚の絵を左右に分けたもの。
    一覧では表だけを出し、開いたときに表裏を並べて見せる。 */
 export function cardUrl(no, side) {

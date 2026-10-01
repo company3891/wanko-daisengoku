@@ -1,7 +1,7 @@
 // わんこ大戦国 プロトタイプ（2026-09-20）
 // 編成 → 陣形 → 戦闘 → 勝敗。戦闘ルールは sim/src/engine.mjs をそのまま呼ぶ。
 import { runBattle, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
-import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
+import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, gachaUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
 
 import { GACHAS, gachaOf, poolOf, urListOf, urRatesOf } from './gachas.js';
 /* 束ねるときに import 行は捨てられるので、別名（as）は使えない（2026-10-01 に踏んだ）。
@@ -170,7 +170,8 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   news: false, newsTab: '更新', newsId: null,
   /* 友（2026-09-24）。fr＝一覧を開いているか／frId＝訪ねている友／frMsg＝その場の一言 */
   fr: false, frId: null, frMsg: '',
-  detailRO: false, detailBase: false, nmMsg: '', rwi: null,   // detailBase＝図鑑から開いた札（素のまま見せる・2026-10-01）
+  detailRO: false, detailBase: false, nmMsg: '', rwi: null,
+  gpick: 0,   // くじの画面の何枚目か。0＝幟／1から＝ピックアップの紹介（2026-10-01）   // detailBase＝図鑑から開いた札（素のまま見せる・2026-10-01）
   /* お役目（2026-09-24）。mi＝開いているか／miTab＝選んでいるタグ */
   mi: false, miTab: '日課', miMsg: '', tt: false, reset: 0, pwUp: 0,
   /* 武将強化の三つの札（2026-09-26）。'稽古' / '覚醒' / '魂' / null */
@@ -4193,7 +4194,7 @@ function screenGachaList() {
         return el('div', { class: 'glwrap' },
           el('button', {
             class: 'glrow' + (u ? ' art' : ''),
-            onclick: () => { S.gbanner = g.id; S.screen = 'gacha'; SFX.pick(); draw(); },
+            onclick: () => { S.gbanner = g.id; S.gpick = 0; S.screen = 'gacha'; SFX.pick(); draw(); },
           }, u ? keepImg({ class: 'glimg', src: u, alt: g.name, loading: 'lazy' })
                : el('div', { class: 'gltxt' },
                    el('b', {}, g.name),
@@ -4212,7 +4213,87 @@ function screenGachaList() {
 /* ---------------- ガチャ（わんこみくじ）----------------
    神社とおみくじ。巻物が飛んで開き、レアリティごとの光をまとって武将が出る。 */
 const RAR_WORD = { N: '木札', R: '青の光', SR: '朱と金', SSR: '金の巻物', UR: '紫雲に虹' };
+/* ---- ピックアップの紹介（2026-10-01）----
+   くじの画面を横に払うと、ピックアップの武将を一人ずつ紹介する。
+   0枚目＝これまでの幟の画面。1枚目から先が紹介。
+   景色は bg/gacha_<くじの印>_<番号>.jpg があればそれに替わり、
+   無ければ ふだんの景色を暗くして字を読ませる（絵が無くても動く決まり）。
+   引く釦と みくじの帯は どの枚でも出したまま。見ながらそのまま引けるように */
+const gachaPicks = () => (curGacha().pick || []).map(charOf).filter(Boolean);
+function gachaPickEl() {
+  const c = gachaPicks()[(S.gpick || 0) - 1];
+  if (!c) return null;
+  /* 立ち絵（hero）がいちばん大きく映える。無ければ奥義の一枚絵、顔の順に落ちる */
+  /* 大きな立ち姿。いちばんよいのは切り抜きの一枚絵だが、まだ無いので
+     app/assets/gacha/pu_<番号>.png を置けばそちらを使う（置くだけで反映）。
+     無ければ盤のコマ絵（透過の切り抜き）に落ちる */
+  const hero = gachaUrl('pu_' + String(c.no).padStart(3, '0')) || gachaUrl('pu_' + c.no)
+            || pawnUrl(c.no) || faceUrl(c.no, '不敵');
+  /* 見出しの「奥義」「固有発動」は、カットインと同じ筆文字を小さくして使う（2026-10-01）。
+     絵が無ければ、これまでどおり一字の金の丸に落ちる */
+  const blk = (art, mark, nm, tx) => el('div', { class: 'gpkb' },
+    el('div', { class: 'gpkbh' + (art ? ' art' : '') },
+      art ? keepImg({ class: 'gpkw', src: art, alt: mark }) : el('i', {}, mark),
+      el('b', {}, clean(nm) || '―')),
+    tx ? el('p', {}, tx) : null);
+  return el('div', { class: 'gpkwrap' },
+    hero ? keepImg({ class: 'gpkhero', src: hero, alt: c.name }) : null,
+    el('div', { class: 'gpkinfo' },
+      el('div', { class: 'gpktag' }, rarTag(c.rarity, 'big'), attrTag(c.attr)),
+      el('b', { class: 'gpkname' }, c.name),
+      c.yomi ? el('span', { class: 'gpkyomi' }, c.yomi) : null,
+      blk(uiUrl('cut_奥義'), '奥', (c.ultimate || {}).name, (c.ultimate || {}).text),
+      blk(uiUrl('cut_固有'), '固', (c.unique || {}).name, (c.unique || {}).text)));
+}
+/* 何枚目にいるかの粒だけ（2026-10-01）。
+   矢印は置かない。ひとりでに送るし、横に払えば動く。
+   粒そのものは押せるので、見たい一枚へ飛べる */
+function gachaPager() {
+  const n = gachaPicks().length; if (!n) return null;
+  const i = S.gpick || 0;
+  return el('div', { class: 'gpnav' },
+    el('div', { class: 'gpdots' }, Array.from({ length: n + 1 }, (_, k) =>
+      el('button', { class: 'gpd' + (k === i ? ' on' : ''), title: k ? '紹介' : '幟',
+        onclick: () => { S.gpick = k; SFX.pick(); draw(); } }))));
+}
+/* ひとりでに送る（2026-10-01）。
+   2秒ごとに次の一枚へ。最後まで行ったら幟（0枚目）へ戻ってまわり続ける。
+   引いている最中・札が開いているあいだは送らない（見せ場のじゃまをしない）。
+   draw のたびに数えなおすので、人が払った直後はそこから2秒 */
+let GP_T = null;
+function gpSchedule() {
+  clearTimeout(GP_T);
+  GP_T = setTimeout(gpStep, 2000);
+}
+function gpStep() {
+  GP_T = null;
+  if (S.screen !== 'gacha') return;                       // くじを離れたら止める
+  const busy = S.gbox || S.gboxing || S.rv || S.rvall || S.gacha || S.gopen || S.rates || S.shop;
+  const n = gachaPicks().length;
+  if (busy || n < 1) { gpSchedule(); return; }             // 見せ場のあいだは数えなおすだけ
+  S.gpick = ((S.gpick || 0) + 1) % (n + 1);
+  draw();                                                  // draw がまた仕込む
+}
+/* 横に払って紙をめくる。30px 動いたら「払った」とみなす（札の表裏と同じ作法） */
+function gachaSwipe(node) {
+  const n = gachaPicks().length; if (!n) return node;
+  let sw = null;
+  node.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY, on: false }; });
+  node.addEventListener('pointermove', e => {
+    if (!sw || sw.on) return;
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+      sw.on = true;
+      const k = Math.max(0, Math.min(n, (S.gpick || 0) + (dx < 0 ? 1 : -1)));
+      if (k !== (S.gpick || 0)) { S.gpick = k; SFX.pick(); draw(); }
+    }
+  });
+  for (const t of ['pointerup', 'pointercancel', 'pointerleave'])
+    node.addEventListener(t, () => { sw = null; });
+  return node;
+}
 function screenGacha() {
+  gpSchedule();            // ひとりでに送る数えを、描くたびに仕込み直す（2026-10-01）
   const g = S.gacha;
   /* 祭の札で引けるくじでは、札が先（2026-09-30）。
      持っていれば値札が札に変わり、尽きたら黙って石の値札に戻る */
@@ -4231,9 +4312,13 @@ function screenGacha() {
     /* 見せ場のときは、景色を .reveal の中に入れる（2026-09-26）。
        動画の黒を screen で透かすには、透かす相手が同じ重なりの組にいる必要がある。
        外に置いたままだと 黒が透けず、画面が真っ黒になってしまった */
-    body: (bgEl => el('div', { class: 'gacha' + ' art' + (inBox ? ' takara' : '') + (S.rv || S.rvall ? ' bare' : '') },
+    body: (bgEl => gachaSwipe(el('div', { class: 'gacha' + ' art' + (inBox ? ' takara' : '')
+        + (S.rv || S.rvall ? ' bare' : '') + (!showing && S.gpick ? ' onpick' : '') },
       S.rv ? null : bgEl,
       showing ? null : gachaTop(),
+      /* ピックアップの紹介（2026-10-01）。幟の枚（0）では出さない */
+      showing ? null : gachaPickEl(),
+      showing ? null : gachaPager(),
       /* 引くボタン。app/assets/ui/ に pull_one.png / pull_ten.png を置けば
          絵のボタンに切り替わる。値段は絵に焼かず、アプリが下に重ねる（初回無料の出し分けがあるため） */
       showing ? null : pityBar(),
@@ -4253,7 +4338,7 @@ function screenGacha() {
                 : byTen ? `祭の札 ${TICKET_PRICE.ten}枚` : `${num(PRICE.ten)} 石`)),
       S.rv || S.rvall ? null : (g ? gachaResult(g) : null),
       S.rates ? ratesSheet(toSSR, toUR) : null,
-      S.shop ? shopSheet() : null))(gachaBgEl(inBox)),
+      S.shop ? shopSheet() : null)))(gachaBgEl(inBox)),
     /* ガチャはヘッダーを出さない（2026-09-26）。景色を端まで見せたい。
        演出のさなかは下の帯も消す（見せ場のじゃまになるため） */
     bare: true,
@@ -4280,7 +4365,12 @@ function gachaTop() {
    動画が無ければ同じ名の静止画、それも無ければ ふだんの gacha の絵に落ちる */
 function gachaBgEl(inBox) {
   /* くじごとの景色（2026-09-28）。bg/gacha_<印>.jpg があればそれ、無ければふだんの gacha.jpg */
-  const own = bgUrl('gacha_' + curGacha().id);
+  /* 紹介の枚では、その武将の景色（bg/gacha_<印>_<番号>.jpg）に替える（2026-10-01）。
+     まだ用意していなければ ふだんの景色のまま（CSS の .onpick が暗く落とす） */
+  const pc = gachaPicks()[(S.gpick || 0) - 1];
+  const own = (pc && bgUrl('gacha_' + curGacha().id + '_' + String(pc.no).padStart(3, '0')))
+            || (pc && bgUrl('gacha_' + curGacha().id + '_' + pc.no))
+            || bgUrl('gacha_' + curGacha().id);
   const still = (inBox && bgUrl('gacha_open')) || own || bgUrl('gacha');
   const mv = inBox ? bgVideoUrl('gacha_open') : null;
   if (mv) {

@@ -1049,7 +1049,9 @@ const HOME_MENU = [
      絵（ui/home_tower.png）は看板なので、ほかの座より ひと回り大きく出す */
   /* 武将取引所（2026-10-01）。左下・試練の塔の上。
      並びが上から下なので、塔より前に書けば塔の上に出る */
-  { side: 'BL', name: '取引所', mark: '市', file: 'home_market', big: true,
+  /* 絵（ui/home_market.png）が入るまでは「市」の一字だけ。
+     下の名札は出さない（2026-10-01。塔と高さがそろわず、字が二度出て見苦しいため） */
+  { side: 'BL', name: '取引所', mark: '市', file: 'home_market', big: true, noname: true,
     go: () => { S.screen = 'market'; S.mkTab = 'buy'; S.mkSel = null; S.mkPut = null;
                 S.mkQ = ''; S.mkMsg = ''; },
     badge: () => mkUnread() },
@@ -1077,7 +1079,7 @@ function homeMenuBtn(m) {
     el('span', { class: 'hmi' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, m.mark)),
     /* 絵が無くて、名が一字の印とおなじなら、下の名札は出さない（2026-09-26）。
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
-    (art || m.name === m.mark) ? null : el('span', { class: 'hml' }, m.name),
+    (art || m.noname || m.name === m.mark) ? null : el('span', { class: 'hml' }, m.name),
     /* 未読の数を赤丸で出す（2026-09-24）。badge は数を返す関数。
        0 のときは丸そのものを出さない */
     (() => {

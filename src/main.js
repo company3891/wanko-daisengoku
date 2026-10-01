@@ -174,10 +174,14 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   /* 友（2026-09-24）。fr＝一覧を開いているか／frId＝訪ねている友／frMsg＝その場の一言 */
   fr: false, frId: null, frMsg: '',
   detailRO: false, detailBase: false, nmMsg: '', rwi: null,
+  /* 取引所の品を札で見るとき（2026-10-01）。
+     detailSt＝その品の育ち（売り主が育てた値）／detailBuy＝買える品そのもの */
+  detailSt: null, detailBuy: null, mkPEdit: false,
   gpick: 0,   // くじの画面の何枚目か。0＝幟／1から＝ピックアップの紹介（2026-10-01）
-  /* 武将取引所（2026-10-01）。mkTab＝雇用する／取引に出す、mkSel＝見ている品、
-     mkPut＝出す札で選んでいる武将、mkPrice＝付けている値、mkQ＝フリーワード */
-  mkTab: 'buy', mkSel: null, mkPut: null, mkPrice: 0, mkQ: '', mkMsg: '',
+  /* 武将取引所（2026-10-01）。mkTab＝雇用する／取引に出す、
+     mkPut＝出す札で選んでいる武将、mkPrice＝付けている値、mkQ＝フリーワード。
+     見ている品は S.detailBuy（札そのものを出すので mkSel はやめた・2026-10-01） */
+  mkTab: 'buy', mkPut: null, mkPrice: 0, mkQ: '', mkMsg: '',
   mkRar: 'すべて', mkAtt: 'すべて', mkSort: 'price', mkAsc: null,   // detailBase＝図鑑から開いた札（素のまま見せる・2026-10-01）
   /* お役目（2026-09-24）。mi＝開いているか／miTab＝選んでいるタグ */
   mi: false, miTab: '日課', miMsg: '', tt: false, reset: 0, pwUp: 0,
@@ -1052,7 +1056,7 @@ const HOME_MENU = [
   /* 絵（ui/home_market.png）が入るまでは「市」の一字だけ。
      下の名札は出さない（2026-10-01。塔と高さがそろわず、字が二度出て見苦しいため） */
   { side: 'BL', name: '取引所', mark: '市', file: 'home_market', big: true, noname: true,
-    go: () => { S.screen = 'market'; S.mkTab = 'buy'; S.mkSel = null; S.mkPut = null;
+    go: () => { S.screen = 'market'; S.mkTab = 'buy'; S.mkPut = null;
                 S.mkQ = ''; S.mkMsg = ''; },
     badge: () => mkUnread() },
   { side: 'BL', name: '試練の塔', mark: '塔', file: 'home_tower', big: true,
@@ -4021,13 +4025,26 @@ const ROLE_BOX = {
   vl: { x: 254, y: 1156, w: 279, h: 37, fg: '#241e18', size: 29,
         bg: 'linear-gradient(#fbf5e5,#fcf8ed)' },
 };
+/* 札を閉じる。取引所から開いたときの覚えもここで消す（2026-10-01） */
+function closeDetail() {
+  S.detail = null; S.side = null; S.detailRO = false; S.detailBase = false;
+  S.detailSt = null; S.detailBuy = null; draw();
+}
 function cardStatOverlay(c, ro) {
   if (!c || c.no == null || c.no === '未奉公') return [];
   const lay = cardLayout(c.no);
   if (!lay || !lay.stat) return [];
   const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
   const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
-  const g = (!ro && P.own.includes(c.no)) ? grownStats(c) : (c.stats || {});   // ro＝素のまま
+  /* 取引所の品は、売り主が育てた値で出す（2026-10-01）。
+     持ち物ではないので grownStats は使えない。式は grownStats と同じ */
+  const ds = S.detailSt;
+  const g = ds ? (() => {
+        const base = c.stats || {}, mul = 1 + ((ds.lv || 1) - 1) * 0.02, o = {};
+        for (const s of SP_STATS) o[s] = Math.round((base[s] || 0) * mul) + ((ds.sp || {})[s] || 0);
+        return o;
+      })()
+    : (!ro && P.own.includes(c.no)) ? grownStats(c) : (c.stats || {});   // ro＝素のまま
   const out = lay.stat.map(t => el('b', {
     class: 'clv num',
     style: `left:${pc(t.cx, 864)};top:${pc(t.cy, 1280)};font-size:${fs(t.size)}`,
@@ -4057,7 +4074,7 @@ function cardSheet(c) {
   const fr = un ? unknownCardUrl('front') : cardUrl(c.no, 'front');
   const bk = un ? unknownCardUrl('back') : cardUrl(c.no, 'back');
   const zoom = S.side;
-  const close = () => { S.detail = null; S.side = null; S.detailRO = false; S.detailBase = false; draw(); };
+  const close = closeDetail;
   /* 焼いた札には、育てば変わる数（升の数値・特技の位）が入っていない（2026-09-27）。
      いま持っている値をその場で重ねるので、強化しても継承しても札がすぐ追いつく。
      置き場所は札ごとに layout に控えてある。無い札はこれまでどおり焼いた数が出る */
@@ -4075,9 +4092,13 @@ function cardSheet(c) {
          枠どうしの入れ替えも、枠ごとに「焼いた技名」と今の技名を見くらべるので拾える。
          一の枠（固有◆）に位は無く、空いている枠にも出さない */
       const sl = slotsOf(c);
-      const sk = (!cardRaw() && P.own.includes(c.no)) ? skillLvOf(c.no) : [1, 1, 1];
+      const ds2 = S.detailSt;
+      const sk = ds2 ? (ds2.sk || [1, 1, 1])
+        : (!cardRaw() && P.own.includes(c.no)) ? skillLvOf(c.no) : [1, 1, 1];
       const k = lay.sk, patch = k ? cardPatchUrl(c.no) : null;
-      const mine2 = !cardRaw() && P.own.includes(c.no);
+      /* 取引所の品は 焼いた技のまま見せる（2026-10-01）。
+         継いだ技の中身は手元に無いので、塗り直すと空きになってしまう */
+      const mine2 = !ds2 && !cardRaw() && P.own.includes(c.no);
       for (const t of lay.slot) {
         const now = mine2 ? sl[t.slot] : null;
         const nm = now && now.sk ? now.sk.name : null;
@@ -4137,6 +4158,8 @@ function cardSheet(c) {
       bk ? el('div', { class: 'cddots' },
         el('i', { class: side === 'front' ? 'on' : '' }),
         el('i', { class: side === 'back' ? 'on' : '' })) : null),
+    /* 取引所から開いた札（2026-10-01）。中身を見てそのまま召し抱えられる */
+    S.detailBuy ? mkBuyBar(c, S.detailBuy) : null,
     mine ? el('div', { class: 'cardgo row4', onclick: e => e.stopPropagation() },
       el('button', { class: 'go xs', disabled: hasCard(c.no) ? null : true, onclick: goto('power', () => { S.grow = c.no; S.sp = null; S.spEdit = null; }) }, '武将強化'),
       el('button', { class: 'go xs', disabled: hasCard(c.no) ? null : true, onclick: goto('skillup', () => { S.skc = c.no; S.sks = 0; S.skm = []; S.skch = null; S.skMsg = ''; }) }, '特技強化'),
@@ -4156,7 +4179,7 @@ function dexDetail(c) {
   const row = (k, v) => el('div', {}, statLabel(k), el('b', {}, v ?? '―'));
   return el('div', { class: 'sheet', onclick: e => {
     if (heldJust()) return;                       // 長押しで開いた直後の click では閉じない
-    if (e.target.classList.contains('sheet')) { S.detail = null; draw(); }
+    if (e.target.classList.contains('sheet')) closeDetail();
   } },
     el('div', { class: 'card2' },
       el('div', { class: 'top' },
@@ -4190,13 +4213,14 @@ function dexDetail(c) {
         el('b', {}, k.name), el('p', {}, k.text || ''))),
       groundRow(c),
       c.note ? el('p', { class: 'flavor' }, c.note) : null,
-      P.own.includes(c.no) ? el('div', { class: 'cardgo flat' },
+      S.detailBuy ? mkBuyBar(c, S.detailBuy) : null,
+      (!S.detailBuy && P.own.includes(c.no)) ? el('div', { class: 'cardgo flat' },
         el('button', { class: 'go sm', disabled: hasCard(c.no) ? null : true, onclick: () => { S.grow = c.no; S.sp = null; S.gpop = true; S.detail = null; S.screen = 'power'; SFX.pick(); draw(); } }, '武将強化'),
         el('button', { class: 'go sm', disabled: hasCard(c.no) ? null : true, onclick: () => { S.skc = c.no; S.sks = 0; S.skm = []; S.skch = null; S.gpop = true; S.detail = null; S.screen = 'skillup'; SFX.pick(); draw(); } }, '特技強化'),
         el('button', { class: 'go sm', disabled: hasCard(c.no) ? null : true, onclick: () => { S.ihc = c.no; S.ihslot = null; S.ihm = []; S.ihsrc = null; S.gpop = true; S.detail = null; S.screen = 'inherit'; SFX.pick(); draw(); } }, '特技継承'),
         el('button', { class: 'go sm danger', disabled: fireMax(c.no) < 1 ? true : null,
           onclick: () => { S.fire = c.no; S.fireN = 1; draw(); } }, '武将解雇')) : null,
-      closeX(() => { S.detail = null; draw(); })));
+      closeX(closeDetail)));
 }
 
 /* いま選んでいるくじ。ガチャ一覧から選ぶまでは先頭（くじの中身は gachas.js） */
@@ -7173,53 +7197,44 @@ let MKQ_T = null;
 /* 並ぶ札ひとつ。図鑑と同じ見た目に、下へ 魂の粒と値段を添える */
 function mkCard(it, c, onTap) {
   const st = it.st || {};
+  /* 位は札の上に一段おく（2026-10-01）。
+     札の内に重ねると絵と喧嘩して読みにくかった */
   return el('button', { class: 'mkc' + (cardArt(c) ? ' art' : ''), onclick: onTap },
+    el('span', { class: 'mkclvt' }, `Lv.${num(st.lv || 1)}`),
     el('span', { class: 'mkcf' }, cardArt(c) ? cardImg(c)
       : el('i', { style: chipStyle(c) }, c.name.slice(0, 4))),
-    el('span', { class: 'mkclv' }, `Lv.${num(st.lv || 1)}`),
     el('span', { class: 'mkcp' }, curIcon('soul'), el('b', {}, num(it.price))));
 }
-/* 品の中身を見る札。誰の品か・どこまで育っているか・値段 */
-function mkSheet() {
-  const it = S.mkSel; if (!it) return null;
-  const c = charOf(it.no); if (!c) return null;
-  const close = () => { S.mkSel = null; S.mkMsg = ''; draw(); };
-  const st = it.st || {};
+/* 品を札で開く（2026-10-01）。
+   図鑑と同じ札をそのまま出し、売り主が育てた値を重ねて見せる */
+function mkOpen(it, c) {
+  S.detail = c.no; S.side = null;
+  S.detailRO = true; S.detailBase = false;
+  S.detailSt = it.st || {}; S.detailBuy = it;
+  SFX.pick(); draw();
+}
+/* 札の下の「召し抱える」帯。値段と、足りないときの断りもここに出す */
+function mkBuyBar(c, it) {
   const can = (P.soul || 0) >= it.price;
-  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
-    el('div', { class: 'card2 mkbox' },
-      el('b', { class: 'mittl' }, '召し抱える'),
-      el('div', { class: 'mkdt' },
-        el('span', { class: 'mkdf' }, cardArt(c) ? cardImg(c) : el('i', { style: chipStyle(c) })),
-        el('div', { class: 'mkdi' },
-          el('b', {}, c.name),
-          el('div', { class: 'meta' }, rarTag(c.rarity, 'sm'), attrTag(c.attr, 'sm'),
-            el('span', {}, `コスト ${num(c.cost)}`)),
-          el('div', { class: 'mkdg' },
-            el('span', {}, '位', el('b', {}, `Lv.${num(st.lv || 1)}`)),
-            el('span', {}, '覚醒', el('b', {}, num(st.awake || 0))),
-            el('span', {}, '総合値', el('b', {}, num(mkPower(c, st))))),
-          it.who ? el('p', { class: 'mkwho' }, `${it.who} の品`) : null)),
-      hasCard(c.no) ? el('p', { class: 'note' },
-        'すでに召し抱えている。買うと重ねが一枚増え、育ちは良いほうが残る') : null,
-      S.mkMsg ? el('div', { class: 'shopmsg' }, S.mkMsg) : null,
-      el('div', { class: 'acts2' },
-        el('button', { class: 'ghost sm', onclick: close }, 'やめる'),
-        el('button', {
-          class: 'go sm', disabled: can ? null : true,
-          onclick: () => {
-            const r = mkBuy(it);
-            if (!r) { S.mkMsg = '買えなかった'; SFX.pick(); draw(); return; }
-            S.mkSel = null; S.mkMsg = `${c.name} を召し抱えた`;
-            SFX.win(); draw();
-          },
-        }, can ? el('span', {}, '召し抱える　', curIcon('soul'), ` ${num(it.price)}`)
-               : '武士の魂が足りぬ')),
-      closeX(close)));
+  return el('div', { class: 'mkbuybar', onclick: e => e.stopPropagation() },
+    it.who ? el('span', { class: 'mkwho' }, `${it.who} の品`) : null,
+    hasCard(c.no) ? el('span', { class: 'mkdup' }, 'すでに召し抱えている。買えば重ねが増える') : null,
+    el('button', {
+      class: 'go sm', disabled: can ? null : true,
+      onclick: e => {
+        e.stopPropagation();
+        const r = mkBuy(it);
+        if (!r) { S.mkMsg = '買えなかった'; SFX.pick(); draw(); return; }
+        closeDetail();
+        S.mkMsg = `${c.name} を召し抱えた`;
+        SFX.win(); draw();
+      },
+    }, can ? el('span', {}, '召し抱える　', curIcon('soul'), ` ${num(it.price)}`)
+           : '武士の魂が足りぬ'));
 }
 /* 出す札。どの武将を・いくらで */
 function mkPutSheet() {
-  const close = () => { S.mkPut = null; S.mkMsg = ''; draw(); };
+  const close = () => { S.mkPut = null; S.mkMsg = ''; S.mkPEdit = false; draw(); };
   const mine = P.own.filter(no => hasCard(no) && !inSquad(no)).map(charOf).filter(Boolean);
   const c = S.mkPut === true ? null : charOf(S.mkPut);
   if (!c) {
@@ -7229,7 +7244,8 @@ function mkPutSheet() {
         el('p', { class: 'note' }, '部隊に入っている武将は出せぬ。出すと手元から消え、売れるか二日たつまで戻らぬ'),
         mine.length ? el('div', { class: 'mkpick' }, mine.map(o => el('button', {
           class: 'mkpc' + (cardArt(o) ? ' art' : ''),
-          onclick: () => { S.mkPut = o.no; S.mkPrice = mkWorth(o, charState(o.no)); SFX.pick(); draw(); },
+          onclick: () => { S.mkPut = o.no; S.mkPrice = mkWorth(o, charState(o.no));
+                           S.mkPEdit = false; SFX.pick(); draw(); },
         }, cardArt(o) ? cardImg(o) : el('i', { style: chipStyle(o) }),
            el('span', { class: 'mkclv' }, `Lv.${num(charState(o.no).lv)}`))))
           : el('p', { class: 'note warn' }, '出せる武将がおらぬ'),
@@ -7252,9 +7268,28 @@ function mkPutSheet() {
             el('span', {}, '位', el('b', {}, `Lv.${num(st.lv)}`)),
             el('span', {}, '覚醒', el('b', {}, num(st.awake || 0))),
             el('span', {}, '手持ち', el('b', {}, `${num(cntOf(c.no))}枚`))))),
+      /* 値段（2026-10-01）。±で刻むほか、数を押せばその場で打ち込める。
+         上限まで刻むのは骨が折れるので、高く出したい人の逃げ道をつくった */
       el('div', { class: 'mkprice' },
         el('button', { class: 'mkpm', onclick: bump(-Math.max(5, Math.round(w * 0.05))) }, '−'),
-        el('div', { class: 'mkpv' }, curIcon('soul'), el('b', {}, num(price))),
+        S.mkPEdit
+          ? el('div', { class: 'mkpv edit' }, curIcon('soul'),
+              el('input', {
+                class: 'mkpin', type: 'number', inputmode: 'numeric',
+                min: String(lo), max: String(hi), value: String(price),
+                onblur: e => {
+                  const v = Math.round(+e.target.value || 0);
+                  S.mkPrice = Math.max(lo, Math.min(hi, v || price));
+                  S.mkPEdit = false; draw();
+                },
+                onkeydown: e => { if (e.key === 'Enter') e.target.blur(); },
+              }))
+          : el('button', { class: 'mkpv',
+              title: '押すと数を打ち込める',
+              onclick: () => { S.mkPEdit = true; SFX.pick(); draw();
+                setTimeout(() => { const i = document.querySelector('.mkpin');
+                                   if (i) { i.focus(); i.select(); } }, 0); } },
+              curIcon('soul'), el('b', {}, num(price))),
         el('button', { class: 'mkpm', onclick: bump(Math.max(5, Math.round(w * 0.05))) }, '＋')),
       el('p', { class: 'note' }, `目安は ${num(w)}　／　${num(lo)} 〜 ${num(hi)} のあいだで決められる`),
       el('p', { class: 'note' }, '安く出すほど早く売れる。二日たっても売れなければ戻ってくる'),
@@ -7265,7 +7300,7 @@ function mkPutSheet() {
           class: 'go sm', disabled: mkCanList(c.no) ? null : true,
           onclick: () => {
             const r = mkList(c.no, price);
-            S.mkPut = null; S.mkPrice = 0;
+            S.mkPut = null; S.mkPrice = 0; S.mkPEdit = false;
             S.mkMsg = r ? `${c.name} を取引に出した` : '出せなかった';
             if (r) SFX.win(); else SFX.pick();
             draw();
@@ -7301,9 +7336,10 @@ function screenMarket() {
              : el('i', { class: 'gtface' }, '犬'),
         el('div', { class: 'gtbub' },
           el('b', {}, tc ? tc.name : 'わんこ'),
+          /* 検めの間合いは「取引に出す」の側に書いてある。
+             はじめに読む語りで仕組みまで説明すると長い（2026-10-01） */
           el('p', {}, el('em', {}, '取引所だワン！！'),
-            '育てた武将を、ほかの主と武士の魂でやりとりする場だワン。'
-            + '売れたかどうかは六時間ごとに帳面を検めるワン'))),
+            '育てた武将を、ほかの主と武士の魂でやりとりする場だワン'))),
       /* 二つの釦。左＝買う、右＝出す */
       el('div', { class: 'mktabs' },
         el('button', { class: 'mktab' + (buy ? ' on' : ''),
@@ -7319,7 +7355,7 @@ function screenMarket() {
         el('p', { class: 'mkcount' }, `${num(list.length)} 件`),
         list.length
           ? el('div', { class: 'mkgrid' }, list.map(({ it, c }) =>
-              mkCard(it, c, () => { S.mkSel = it; S.mkMsg = ''; SFX.pick(); draw(); })))
+              mkCard(it, c, () => { S.mkMsg = ''; mkOpen(it, c); })))
           : el('p', { class: 'note' }, 'この絞り込みに当てはまる品が無い'))
         : el('div', {},
           el('div', { class: 'mkhead' },
@@ -7336,7 +7372,7 @@ function screenMarket() {
           m.listed.length ? el('p', { class: 'note' }, '札を押すと取り下げる') : null,
           el('button', {
             class: 'go wide', disabled: m.listed.length < MK_MAX ? null : true,
-            onclick: () => { S.mkPut = true; S.mkPrice = 0; SFX.pick(); draw(); },
+            onclick: () => { S.mkPut = true; S.mkPrice = 0; S.mkPEdit = false; SFX.pick(); draw(); },
           }, m.listed.length < MK_MAX ? '武将を出す' : `${MK_MAX}枚まで`),
           el('b', { class: 'mkhead2' }, '帳面'),
           m.log.length
@@ -7348,7 +7384,6 @@ function screenMarket() {
                          : el('em', {}, curIcon('soul'), ` +${num(r.price)}`));
               }))
             : el('p', { class: 'note' }, 'まだ売り買いの覚えが無い')),
-      S.mkSel ? mkSheet() : null,
       S.mkPut ? mkPutSheet() : null),
     nav: true,
   };
@@ -8271,7 +8306,8 @@ function pageTalk(screen) {
 }
 /* 出陣も題の帯を出さない（2026-09-29）。
    すぐ下に「← 全国へ」と敵の城の語りがあって、どこにいるかは分かる */
-const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading', 'tower']);
+/* 取引所も題の帯を出さない（2026-10-01）。語りの札がそのまま題になっている */
+const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading', 'tower', 'market']);
 
 const SCREENS = {
   title: screenTitle,

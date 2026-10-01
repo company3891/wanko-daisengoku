@@ -59,9 +59,13 @@ export function mkPower(c, st) {
   return SP_STATS.reduce((a, k) =>
     a + Math.round(((c.stats || {})[k] || 0) * mul) + ((s.sp || {})[k] || 0), 0);
 }
-/* 付けられる値の幅。安く出せば早く売れ、高く出せば なかなか売れない */
+/* 付けられる値の幅。安く出せば早く売れ、高く出せば なかなか売れない。
+   上は一律 99999（2026-10-01）。目安の三倍で頭打ちにすると、
+   育てきった子に高値を付けたい人の行き場が無くなるため。
+   売れにくさは mkSettle の式が見るので、天井を上げても壊れない */
 export const mkLo = w => Math.max(10, Math.round(w * 0.5));
-export const mkHi = w => Math.round(w * 3);
+export const MK_PRICE_MAX = 99999;
+export const mkHi = w => MK_PRICE_MAX;
 
 /* ---- 種から決まる乱数（番付と同じ作り）---- */
 function mkRng(seed) {

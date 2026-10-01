@@ -5107,7 +5107,10 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
 .mkcf img{display:block;width:100%;height:auto}
 .mkcf i{display:grid;place-items:center;width:100%;aspect-ratio:.675;
   font-style:normal;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000}
-/* 位は札の左下に小さく。育ちの具合がひと目で分かる */
+/* 位は札の上に一段（2026-10-01）。絵と重ねず、ひと目で育ちが分かる */
+.mkclvt{display:block;font-size:9.5px;font-weight:800;line-height:1.5;
+  color:#bfe6ff;text-align:center;text-shadow:0 1px 2px #000}
+/* 出す武将をえらぶ升では、いままでどおり札の左下に重ねる */
 .mkclv{position:absolute;left:3px;bottom:3px;font-size:9px;font-weight:800;
   color:#bfe6ff;background:#000000cc;border:1px solid #5fb6ff66;border-radius:6px;
   padding:0 4px;line-height:1.6;text-shadow:0 1px 2px #000}
@@ -5149,6 +5152,23 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
 .mkpv{display:inline-flex;align-items:center;gap:6px;min-width:120px;justify-content:center}
 .mkpv .ci{width:22px;height:22px;object-fit:contain}
 .mkpv b{font-family:var(--mincho);font-size:24px;font-weight:800;color:#f5e2a8}
+/* 数を押すと打ち込める（2026-10-01） */
+button.mkpv{padding:2px 10px;border:1px dashed #d8a94a55;border-radius:10px;
+  background:#ffffff08;cursor:pointer}
+button.mkpv:active{transform:translateY(1px)}
+.mkpv.edit{gap:6px}
+.mkpin{width:120px;padding:3px 6px;border:1px solid #d8a94a88;border-radius:8px;
+  background:#120f0c;color:#f5e2a8;font-family:var(--mincho);font-size:22px;
+  font-weight:800;text-align:center}
+.mkpin::-webkit-outer-spin-button,.mkpin::-webkit-inner-spin-button{
+  -webkit-appearance:none;margin:0}
+/* 札の下の「召し抱える」帯（2026-10-01） */
+.mkbuybar{display:flex;flex-direction:column;align-items:center;gap:5px;
+  margin:8px auto 0;padding:9px 12px;max-width:330px;
+  border:1px solid #d8a94a55;border-radius:12px;background:#12100ecc}
+.mkbuybar .mkwho{font-size:10.5px;color:var(--text3)}
+.mkbuybar .mkdup{font-size:10.5px;color:#e0c04a}
+.mkbuybar .go{width:100%}
 /* 出す武将をえらぶ升 */
 .mkpick{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0 2px;
   max-height:46vh;overflow-y:auto}

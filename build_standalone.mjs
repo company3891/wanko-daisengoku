@@ -14,7 +14,7 @@ const strip = p => read(p)
   .replace(/^export\s+/gm, '');
 const dir = d => { try { return fs.readdirSync(path.join(APP, 'assets', d)); } catch { return []; } };
 
-const manifest = { pawn: dir('pawn'), terrain: dir('terrain'), attr: dir('attr'), rarity: dir('rarity'), bg: dir('bg'), fx: dir('fx'), status: dir('status'), audio: dir('audio'), font: dir('font'), cutin: dir('cutin'), ui: dir('ui'), stat: dir('stat'), stage: dir('stage'), card: dir('card'), kamon: dir('kamon'), banner: dir('banner'), skillart: dir('skillart'), item: dir('item'), news: dir('news'), face: dir('face'), hero: dir('hero'), frame: dir('frame'),
+const manifest = { pawn: dir('pawn'), terrain: dir('terrain'), attr: dir('attr'), rarity: dir('rarity'), bg: dir('bg'), fx: dir('fx'), status: dir('status'), audio: dir('audio'), font: dir('font'), cutin: dir('cutin'), ui: dir('ui'), stat: dir('stat'), stage: dir('stage'), card: dir('card'), kamon: dir('kamon'), banner: dir('banner'), skillart: dir('skillart'), item: dir('item'), news: dir('news'), face: dir('face'), hero: dir('hero'), frame: dir('frame'), gacha: dir('gacha'),
   /* 札に重ねる数の置き場所（2026-09-27）。焼いた札には升の数値が入っていないので、
      この座標を見てアプリが今の値を描く。無くても札は出る */
   cardlay: (() => { try { return JSON.parse(read('app/assets/card/layout.json')); } catch { return {}; } })() };
@@ -28,6 +28,7 @@ let rank = strip('app/src/rank.js');       // 番付（2026-09-25）
 let link = strip('app/src/link.js');       // 引き継ぎの備え（2026-09-25）
 let gachas = strip('app/src/gachas.js'); // くじの一覧（2026-09-28）
 let tower = strip('app/src/tower.js');   // 試練の塔（2026-10-01）
+let market = strip('app/src/market.js'); // 武将取引所（2026-10-01）
 let main = strip('app/src/main.js');
 // fetch で読んでいたデータを、直接埋め込んだ定数に置き換える
 main = main.replace(
@@ -61,6 +62,7 @@ const js = [
   link,
   gachas,
   tower,
+  market,
   main,
 ].join('\n\n')
   .replace('__RULES__', () => read('sim/rules.json'))

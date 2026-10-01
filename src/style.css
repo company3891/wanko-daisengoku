@@ -5066,3 +5066,94 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
   .gpkname{font-size:18px}
   .gpkb p{font-size:9.5px}
 }
+
+
+/* ---- 武将取引所（2026-10-01）----
+   上から 語り／二つの釦／絞込み／並んだ札。
+   札は図鑑と同じ見た目にして、下に 魂の粒と値段だけを添える */
+.mkpage .gtalk{margin-bottom:10px}
+/* 雇用する・取引に出す。横並びで同じ幅 */
+.mktabs{display:flex;gap:9px;margin:0 0 10px}
+.mktab{position:relative;flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:12px 6px;border-radius:12px;cursor:pointer;font-family:var(--mincho);
+  font-size:15px;font-weight:800;letter-spacing:.08em;
+  border:1px solid #d8a94a4d;background:#12100ec4;color:#cdbfa6;backdrop-filter:blur(5px)}
+.mktab i{font-style:normal;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  font-size:13px;font-weight:800;color:var(--gold);background:#d8a94a1f;border:1px solid #d8a94a59}
+.mktab.on{background:linear-gradient(#f0dda6,#d8a94a);border-color:var(--gold);color:#231a06;
+  box-shadow:0 2px 10px #d8a94a3d}
+.mktab.on i{color:#f5e2a8;background:#2a1d07;border-color:#2a1d0799}
+.mktab:active{transform:translateY(1px)}
+.mktb{position:absolute;right:6px;top:6px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+  font-style:normal;font-size:10px;font-weight:700;line-height:17px;text-align:center;
+  background:var(--red,#e0654f);color:#fff;box-shadow:0 1px 3px #0008}
+/* フリーワードの一行 */
+.mkq{position:relative;margin:7px 0 2px}
+.mkqin{width:100%;box-sizing:border-box;padding:9px 32px 9px 12px;border-radius:10px;
+  font-family:inherit;font-size:12.5px;color:var(--text);
+  background:#ffffff0d;border:1px solid var(--line)}
+.mkqin::placeholder{color:var(--text3)}
+.mkqin:focus{outline:none;border-color:var(--gold)}
+.mkqx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:22px;height:22px;
+  padding:0;border-radius:50%;border:0;background:#ffffff1a;color:var(--text2);
+  font-size:13px;line-height:1;cursor:pointer}
+.mkcount{margin:8px 0 6px;font-size:11px;color:var(--text3)}
+/* 並んだ札。図鑑と同じ四列 */
+.mkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 7px;margin:2px 0 10px}
+.mkc{position:relative;padding:0;border:0;background:none;cursor:pointer;
+  display:flex;flex-direction:column;gap:3px;color:inherit;font-family:inherit}
+.mkc:active{transform:translateY(1px);filter:brightness(.92)}
+.mkcf{position:relative;display:block;border-radius:9px;overflow:hidden;background:#ffffff08}
+.mkcf img{display:block;width:100%;height:auto}
+.mkcf i{display:grid;place-items:center;width:100%;aspect-ratio:.675;
+  font-style:normal;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000}
+/* 位は札の左下に小さく。育ちの具合がひと目で分かる */
+.mkclv{position:absolute;left:3px;bottom:3px;font-size:9px;font-weight:800;
+  color:#bfe6ff;background:#000000cc;border:1px solid #5fb6ff66;border-radius:6px;
+  padding:0 4px;line-height:1.6;text-shadow:0 1px 2px #000}
+/* 値段は札の下。魂の粒と数だけ */
+.mkcp{display:flex;align-items:center;justify-content:center;gap:3px;
+  font-size:11.5px;font-weight:800;color:#f5e2a8;text-shadow:0 1px 2px #000}
+.mkcp .ci,.mkcp i{width:15px;height:15px;object-fit:contain}
+.mkcp b{font-family:var(--mincho);font-size:13px;font-weight:800}
+/* 出している品の見出しと帳面 */
+.mkhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:4px 0 8px}
+.mkhead b{font-size:13.5px;color:var(--hi)}
+.mkhead span{font-size:10.5px;color:var(--text3)}
+.mkhead2{display:block;margin:16px 0 7px;font-size:13.5px;color:var(--hi)}
+.mklog{display:flex;flex-direction:column;gap:5px}
+.mklr{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 10px;border-radius:9px;background:var(--tint);font-size:12px}
+.mklr em{font-style:normal;display:inline-flex;align-items:center;gap:3px;
+  font-weight:800;color:#8fd48a}
+.mklr em .ci{width:14px;height:14px;object-fit:contain}
+.mklr.back em{color:var(--text3);font-weight:400;font-size:11px}
+.mkln{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+/* 品の中身を見る札 */
+.mkbox{max-width:400px}
+.mkdt{display:flex;gap:11px;margin:10px 0 4px}
+.mkdf{flex:0 0 96px;width:96px;border-radius:9px;overflow:hidden;background:#ffffff08}
+.mkdf img{display:block;width:100%;height:auto}
+.mkdf i{display:block;width:100%;aspect-ratio:.675}
+.mkdi{flex:1 1 auto;min-width:0}
+.mkdi > b{font-size:15px}
+.mkdg{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:7px;font-size:10.5px;color:var(--text3)}
+.mkdg b{margin-left:4px;font-family:var(--mincho);font-size:13px;color:var(--text2)}
+.mkwho{margin:8px 0 0;font-size:11px;color:var(--text3)}
+/* 出す値を決める段 */
+.mkprice{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 4px}
+.mkpm{width:40px;height:40px;border-radius:50%;padding:0;cursor:pointer;
+  border:1px solid #d8a94a66;background:#12100ec4;color:var(--gold);
+  font-size:20px;line-height:1;font-family:inherit}
+.mkpm:active{transform:translateY(1px)}
+.mkpv{display:inline-flex;align-items:center;gap:6px;min-width:120px;justify-content:center}
+.mkpv .ci{width:22px;height:22px;object-fit:contain}
+.mkpv b{font-family:var(--mincho);font-size:24px;font-weight:800;color:#f5e2a8}
+/* 出す武将をえらぶ升 */
+.mkpick{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0 2px;
+  max-height:46vh;overflow-y:auto}
+.mkpc{position:relative;padding:0;border:0;background:none;cursor:pointer;
+  border-radius:9px;overflow:hidden}
+.mkpc img{display:block;width:100%;height:auto}
+.mkpc i{display:block;width:100%;aspect-ratio:.675}
+.mkpc:active{transform:translateY(1px);filter:brightness(.92)}

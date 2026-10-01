@@ -2704,6 +2704,13 @@ main.hasnav{padding-bottom:124px}
   box-shadow:0 2px 8px #0007}
 .evrow:active{transform:translateY(1px);filter:brightness(.94)}
 .evrow.allDone{opacity:.62;border-color:var(--line)}
+/* 褒美は取り切ったが、まだ挑める祭り（2026-10-01）。
+   暗くはせず、赤い数のかわりに小さく「何度でも」を貼る */
+.evrow.again{opacity:.92}
+.evagain{position:absolute;left:-2px;top:-5px;padding:2px 9px;border-radius:999px;
+  font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.04em;white-space:nowrap;
+  color:#f5e2a8;background:#12100ee0;border:1px solid #d8a94a8c;
+  box-shadow:0 1px 5px #000a}
 .evic{flex:0 0 auto;width:48px;height:48px;border-radius:12px;display:grid;place-items:center;
   background:#d8a94a1a;border:1px solid #d8a94a55;overflow:hidden}
 .evic img{width:100%;height:100%;object-fit:contain}
@@ -2730,6 +2737,8 @@ main.hasnav{padding-bottom:124px}
   line-height:0}
 .evrow.bn .evbnimg{display:block;width:100%;height:auto}
 .evrow.bn.allDone{opacity:.5}
+.evrow.bn.again{opacity:.95}
+.evrow.bn .evagain{left:1.5%;top:9%}
 /* 済んだ数は横に1行（2026-09-29）。縦に積むと幟の中で場所を取る */
 .evrow.bn .evn{position:absolute;right:6.5%;top:50%;transform:translateY(-50%);
   display:inline-flex;align-items:baseline;gap:1px;white-space:nowrap;
@@ -8869,8 +8878,19 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      特技も画面の真ん中に出すようにしたので、重なると読めなくなる。
      開戦の札（.vscut）は別ものなので触らない */
   for (const old of host.querySelectorAll('.cutin:not(.vscut)')) old.remove();
+  /* 一枚絵は「もう読み終わっている」ときだけ使う（2026-10-01）。
+     まだ読めていないと、絵の無い透けた箱に 名と技名だけが盤の上に浮いて見える。
+     奥義の一枚絵は重いので、その戦のはじめの一回は必ずこれが出ていた。
+     読めていなければ この一回だけ帯のほうに落とす。
+     絵は startBattle が開戦の札のあいだに裏で読んでいる */
+  let bg = null, useArt = false;
+  if (art) {
+    bg = document.createElement('img');
+    bg.className = 'cart'; bg.alt = ''; bg.src = art;
+    useArt = bg.complete && bg.naturalWidth > 0;
+  }
   const box = document.createElement('div');
-  box.className = 'cutin ' + cf.cls + (art ? ' art' : '');
+  box.className = 'cutin ' + cf.cls + (useArt ? ' art' : '');
   const band = document.createElement('div'); band.className = 'band';
   /* 「奥義」「固有発動」の筆文字（2026-09-30）。
      app/assets/ui/cut_奥義.png ／ cut_固有.png を置くと出る。無ければ出ない（絵が無くても動く） */
@@ -8878,13 +8898,8 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   const who = document.createElement('div'); who.className = 'who';
   /* 一枚絵があるときは who の中に敷き、その下端に名と技名を重ねる（2026-09-25）。
      box に直に入れると絵と文字の高さが揃わず、字が絵の真ん中にかぶってしまう */
-  if (art) {
-    const bg = document.createElement('img');
-    bg.className = 'cart'; bg.src = art; bg.alt = '';
-    bg.onerror = () => { bg.remove(); box.classList.remove('art'); };
-    who.append(bg);
-  }
-  if (img && !art) {
+  if (useArt) who.append(bg);
+  if (img && !useArt) {
     const im = document.createElement('img');
     im.src = img; im.alt = '';
     im.onerror = () => im.remove();
@@ -8906,7 +8921,7 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      17px まで詰めても入らないときだけ、あきらめて折り返す */
   const len = [...String(skill)].length;
   /* 特技も真ん中の帯になったので、字をひと回り大きくできる（2026-09-30・17→22） */
-  const base = art ? (kind === 'ult' ? 36 : kind === 'unique' ? 28 : 20)
+  const base = useArt ? (kind === 'ult' ? 36 : kind === 'unique' ? 28 : 20)
                    : kind === 'ult' ? 31 : kind === 'unique' ? 24 : 22;
   const wide = host.clientWidth || window.innerWidth || 393;
   /* 特技の一枚絵は画面いっぱいだとうるさいので78%にしている（2026-09-25）。
@@ -8916,7 +8931,7 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      小さい帯では入る幅を 60px ほど少なく見積もり、字が要らぬところで縮んでいた */
   /* 固有も通常特技と同じ帯になったので、顔の幅も 66 で見る（2026-09-30） */
   const iconW = kind === 'ult' ? 132 : 66;
-  const room = Math.max(120, (art ? artW - 44 : wide - (iconW + 14 + 36)) - 16);
+  const room = Math.max(120, (useArt ? artW - 44 : wide - (iconW + 14 + 36)) - 16);
   const fit = Math.floor(room / (len * 1.08));
   const px = Math.min(base, Math.max(17, fit));
   sk.style.fontSize = px + 'px';
@@ -8924,7 +8939,7 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   who.append(txt);
   /* 一枚絵のときは帯（上下の金の線と黒地）も画面ぜんたいの黒幕も出さない（2026-09-25）。
      絵そのものが主役なので、囲いがあると額縁のようで邪魔になる */
-  if (art) box.append(who);
+  if (useArt) box.append(who);
   else {
     box.append(band, who);
     band.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: pdur(140), easing: 'ease-out' });
@@ -8937,7 +8952,7 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
     wordEl = document.createElement('img');
     wordEl.className = 'cutword'; wordEl.src = word; wordEl.alt = '';
     wordEl.onerror = () => wordEl.remove();
-    (art ? who : box).append(wordEl);
+    (useArt ? who : box).append(wordEl);
   }
   host.append(box);
   /* 筆文字は ひと呼吸おくれて浮かび、終わりに沈む（2026-09-30）。
@@ -8948,7 +8963,7 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
     { duration: pdur(cf.ms), easing: 'ease-out', fill: 'both' });
   /* 一枚絵は横に滑らせない（2026-09-25）。絵が画面からはみ出して見苦しいので、
      art のときは その場で薄く浮かび上がって沈む形にする */
-  who.animate(art
+  who.animate(useArt
     ? [{ opacity: 0 }, { opacity: 1, offset: .16 }, { opacity: 1, offset: .82 }, { opacity: 0 }]
     : [{ transform: 'translateX(-26px)', opacity: 0 },
        { transform: 'translateX(0)', opacity: 1, offset: .26 },
@@ -29594,6 +29609,16 @@ function evEnemy(rank, rng) {
    兵糧は要らない。そのかわり同じ友とは1日1回。 */
 /* bout（番付・2026-09-25）＝プレイヤー同士の腕くらべ。{ npc, mine } を渡す。
    稽古と同じで必ずオート。対戦札は挑む側で1枚減らしてある */
+/* その戦に出る顔ぶれの、カットインに使う絵を先に読む（2026-10-01）。
+   読めても読めなくても戦は進む（絵が無くても動く決まりは崩さない） */
+function preloadCutins(nos) {
+  const urls = [];
+  for (const no of new Set(nos)) {
+    for (const u of [cutinArt(no, '奥義'), cutinUrl(no),
+                     faceUrl(no, '不敵'), faceUrl(no, '真剣'), faceUrl(no, '通常')]) if (u) urls.push(u);
+  }
+  for (const u of new Set(urls)) { const im = new Image(); im.src = u; }
+}
 function startBattle(camp, evb, spar, bout, tw) {
   /* 開いている札はここで全部閉じる（2026-09-24）。
      キャラカードを開いたまま出陣すると、盤面の上に札が残り続けていた */
@@ -29680,6 +29705,10 @@ function startBattle(camp, evb, spar, bout, tw) {
              useItems: prep.filter(x => !x.weather), prep };
   resolve();
   BATTLE.live = initLive(BATTLE.res);
+  /* カットインの絵を、開戦の札（1.2秒）のあいだに裏で読む（2026-10-01）。
+     読めていない一枚絵は cutIn が帯に落とすので、
+     そのままだと その戦のはじめの奥義だけ字しか出ていなかった */
+  preloadCutins([...S.picked.map(m => m.no), ...B.map(m => m.no)]);
   S.screen = 'battle';
   /* 開戦の札（2026-09-23）。どこの戦か・相手・空を一枚見せてから動きだす */
   S.vs = {
@@ -30899,8 +30928,13 @@ function screenEvent() {
              題も何が出るかも絵に描いてあるので、字の説明は重ねない。
              絵が無ければ、これまでの「印＋題＋ひとこと」の行に落ちる */
           const bn = uiUrl('evbn_' + ev.id);
+          /* 褒美は取り切ったが、まだ挑める祭り（武将覚醒）は暗くしない（2026-10-01）。
+             今日のぶんを取り終えると allDone で薄くなっていたが、
+             「何度でも挑める」ようにしたのに「もう終わり」に見えていた */
+          const again = !left && evRepeat(ev.id);
           return el('button', {
-            class: 'evrow' + (bn ? ' bn' : '') + (bn && ev.id === 'awake' ? ' hasatt' : '') + (left ? '' : ' allDone'),
+            class: 'evrow' + (bn ? ' bn' : '') + (bn && ev.id === 'awake' ? ' hasatt' : '')
+                 + (left ? '' : (again ? ' again' : ' allDone')),
             onclick: () => { S.evId = ev.id; S.evMsg = ''; SFX.pick(); draw(); },
           },
             bn ? keepImg({ class: 'evbnimg', src: bn, alt: ev.name }) : null,
@@ -30917,7 +30951,8 @@ function screenEvent() {
               el('span', { class: 'evnote' }, ev.id === 'awake'
                 ? `${ev.note}　／　今日は ${awakeAttrsToday().join('・')}` : ev.note)),
             el('span', { class: 'evn' }, el('b', {}, done), ` / ${EV_RANKS.length}`),
-            left ? el('em', { class: 'evbadge' }, left) : null);
+            left ? el('em', { class: 'evbadge' }, left)
+                 : (again ? el('em', { class: 'evagain' }, '何度でも') : null));
         }))),
       nav: true,
     };

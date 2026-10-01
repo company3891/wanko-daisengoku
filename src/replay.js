@@ -1242,8 +1242,19 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      特技も画面の真ん中に出すようにしたので、重なると読めなくなる。
      開戦の札（.vscut）は別ものなので触らない */
   for (const old of host.querySelectorAll('.cutin:not(.vscut)')) old.remove();
+  /* 一枚絵は「もう読み終わっている」ときだけ使う（2026-10-01）。
+     まだ読めていないと、絵の無い透けた箱に 名と技名だけが盤の上に浮いて見える。
+     奥義の一枚絵は重いので、その戦のはじめの一回は必ずこれが出ていた。
+     読めていなければ この一回だけ帯のほうに落とす。
+     絵は startBattle が開戦の札のあいだに裏で読んでいる */
+  let bg = null, useArt = false;
+  if (art) {
+    bg = document.createElement('img');
+    bg.className = 'cart'; bg.alt = ''; bg.src = art;
+    useArt = bg.complete && bg.naturalWidth > 0;
+  }
   const box = document.createElement('div');
-  box.className = 'cutin ' + cf.cls + (art ? ' art' : '');
+  box.className = 'cutin ' + cf.cls + (useArt ? ' art' : '');
   const band = document.createElement('div'); band.className = 'band';
   /* 「奥義」「固有発動」の筆文字（2026-09-30）。
      app/assets/ui/cut_奥義.png ／ cut_固有.png を置くと出る。無ければ出ない（絵が無くても動く） */
@@ -1251,13 +1262,8 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   const who = document.createElement('div'); who.className = 'who';
   /* 一枚絵があるときは who の中に敷き、その下端に名と技名を重ねる（2026-09-25）。
      box に直に入れると絵と文字の高さが揃わず、字が絵の真ん中にかぶってしまう */
-  if (art) {
-    const bg = document.createElement('img');
-    bg.className = 'cart'; bg.src = art; bg.alt = '';
-    bg.onerror = () => { bg.remove(); box.classList.remove('art'); };
-    who.append(bg);
-  }
-  if (img && !art) {
+  if (useArt) who.append(bg);
+  if (img && !useArt) {
     const im = document.createElement('img');
     im.src = img; im.alt = '';
     im.onerror = () => im.remove();
@@ -1279,7 +1285,7 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      17px まで詰めても入らないときだけ、あきらめて折り返す */
   const len = [...String(skill)].length;
   /* 特技も真ん中の帯になったので、字をひと回り大きくできる（2026-09-30・17→22） */
-  const base = art ? (kind === 'ult' ? 36 : kind === 'unique' ? 28 : 20)
+  const base = useArt ? (kind === 'ult' ? 36 : kind === 'unique' ? 28 : 20)
                    : kind === 'ult' ? 31 : kind === 'unique' ? 24 : 22;
   const wide = host.clientWidth || window.innerWidth || 393;
   /* 特技の一枚絵は画面いっぱいだとうるさいので78%にしている（2026-09-25）。
@@ -1289,7 +1295,7 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      小さい帯では入る幅を 60px ほど少なく見積もり、字が要らぬところで縮んでいた */
   /* 固有も通常特技と同じ帯になったので、顔の幅も 66 で見る（2026-09-30） */
   const iconW = kind === 'ult' ? 132 : 66;
-  const room = Math.max(120, (art ? artW - 44 : wide - (iconW + 14 + 36)) - 16);
+  const room = Math.max(120, (useArt ? artW - 44 : wide - (iconW + 14 + 36)) - 16);
   const fit = Math.floor(room / (len * 1.08));
   const px = Math.min(base, Math.max(17, fit));
   sk.style.fontSize = px + 'px';
@@ -1297,7 +1303,7 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   who.append(txt);
   /* 一枚絵のときは帯（上下の金の線と黒地）も画面ぜんたいの黒幕も出さない（2026-09-25）。
      絵そのものが主役なので、囲いがあると額縁のようで邪魔になる */
-  if (art) box.append(who);
+  if (useArt) box.append(who);
   else {
     box.append(band, who);
     band.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: pdur(140), easing: 'ease-out' });
@@ -1310,7 +1316,7 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
     wordEl = document.createElement('img');
     wordEl.className = 'cutword'; wordEl.src = word; wordEl.alt = '';
     wordEl.onerror = () => wordEl.remove();
-    (art ? who : box).append(wordEl);
+    (useArt ? who : box).append(wordEl);
   }
   host.append(box);
   /* 筆文字は ひと呼吸おくれて浮かび、終わりに沈む（2026-09-30）。
@@ -1321,7 +1327,7 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
     { duration: pdur(cf.ms), easing: 'ease-out', fill: 'both' });
   /* 一枚絵は横に滑らせない（2026-09-25）。絵が画面からはみ出して見苦しいので、
      art のときは その場で薄く浮かび上がって沈む形にする */
-  who.animate(art
+  who.animate(useArt
     ? [{ opacity: 0 }, { opacity: 1, offset: .16 }, { opacity: 1, offset: .82 }, { opacity: 0 }]
     : [{ transform: 'translateX(-26px)', opacity: 0 },
        { transform: 'translateX(0)', opacity: 1, offset: .26 },

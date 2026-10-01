@@ -5818,6 +5818,16 @@ function evEnemy(rank, rng) {
    兵糧は要らない。そのかわり同じ友とは1日1回。 */
 /* bout（番付・2026-09-25）＝プレイヤー同士の腕くらべ。{ npc, mine } を渡す。
    稽古と同じで必ずオート。対戦札は挑む側で1枚減らしてある */
+/* その戦に出る顔ぶれの、カットインに使う絵を先に読む（2026-10-01）。
+   読めても読めなくても戦は進む（絵が無くても動く決まりは崩さない） */
+function preloadCutins(nos) {
+  const urls = [];
+  for (const no of new Set(nos)) {
+    for (const u of [cutinArt(no, '奥義'), cutinUrl(no),
+                     faceUrl(no, '不敵'), faceUrl(no, '真剣'), faceUrl(no, '通常')]) if (u) urls.push(u);
+  }
+  for (const u of new Set(urls)) { const im = new Image(); im.src = u; }
+}
 function startBattle(camp, evb, spar, bout, tw) {
   /* 開いている札はここで全部閉じる（2026-09-24）。
      キャラカードを開いたまま出陣すると、盤面の上に札が残り続けていた */
@@ -5904,6 +5914,10 @@ function startBattle(camp, evb, spar, bout, tw) {
              useItems: prep.filter(x => !x.weather), prep };
   resolve();
   BATTLE.live = initLive(BATTLE.res);
+  /* カットインの絵を、開戦の札（1.2秒）のあいだに裏で読む（2026-10-01）。
+     読めていない一枚絵は cutIn が帯に落とすので、
+     そのままだと その戦のはじめの奥義だけ字しか出ていなかった */
+  preloadCutins([...S.picked.map(m => m.no), ...B.map(m => m.no)]);
   S.screen = 'battle';
   /* 開戦の札（2026-09-23）。どこの戦か・相手・空を一枚見せてから動きだす */
   S.vs = {
@@ -7123,8 +7137,13 @@ function screenEvent() {
              題も何が出るかも絵に描いてあるので、字の説明は重ねない。
              絵が無ければ、これまでの「印＋題＋ひとこと」の行に落ちる */
           const bn = uiUrl('evbn_' + ev.id);
+          /* 褒美は取り切ったが、まだ挑める祭り（武将覚醒）は暗くしない（2026-10-01）。
+             今日のぶんを取り終えると allDone で薄くなっていたが、
+             「何度でも挑める」ようにしたのに「もう終わり」に見えていた */
+          const again = !left && evRepeat(ev.id);
           return el('button', {
-            class: 'evrow' + (bn ? ' bn' : '') + (bn && ev.id === 'awake' ? ' hasatt' : '') + (left ? '' : ' allDone'),
+            class: 'evrow' + (bn ? ' bn' : '') + (bn && ev.id === 'awake' ? ' hasatt' : '')
+                 + (left ? '' : (again ? ' again' : ' allDone')),
             onclick: () => { S.evId = ev.id; S.evMsg = ''; SFX.pick(); draw(); },
           },
             bn ? keepImg({ class: 'evbnimg', src: bn, alt: ev.name }) : null,
@@ -7141,7 +7160,8 @@ function screenEvent() {
               el('span', { class: 'evnote' }, ev.id === 'awake'
                 ? `${ev.note}　／　今日は ${awakeAttrsToday().join('・')}` : ev.note)),
             el('span', { class: 'evn' }, el('b', {}, done), ` / ${EV_RANKS.length}`),
-            left ? el('em', { class: 'evbadge' }, left) : null);
+            left ? el('em', { class: 'evbadge' }, left)
+                 : (again ? el('em', { class: 'evagain' }, '何度でも') : null));
         }))),
       nav: true,
     };

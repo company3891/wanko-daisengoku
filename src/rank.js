@@ -155,7 +155,16 @@ export const rkMoveWord = (from, to) => (to > from ? '昇格' : to < from ? '降
    once を立てた品は、買うと棚から消える。 */
 export const RK_SHOP = [
   { kind: 'item',  name: '特技の伝書',     n: 1,   price: 60,   desc: '特技を強くする種。番付の蔵では小判が要らぬ' },
-  { kind: 'item',  name: '相伝の護符・大', n: 1,   price: 150,  desc: '継承のしくじりを減らす' },
+  /* 護符は番付の蔵でしか手に入らない（2026-10-02）。
+     店の棚から外したので、ここが唯一の買い口になる。
+     軍功は番付の月末の褒美でしか増えないので、使い切ったら ひと月待つ。
+     値は小判の五十分の一（相伝の護符・大 7500 → 150 に合わせた） */
+  { kind: 'item',  name: '上達の護符・小', n: 1,   price: 15,   desc: '特技強化のしくじりを減らす' },
+  { kind: 'item',  name: '上達の護符・中', n: 1,   price: 40,   desc: '特技強化のしくじりをもっと減らす' },
+  { kind: 'item',  name: '上達の護符・大', n: 1,   price: 100,  desc: '特技強化のしくじりをぐっと減らす' },
+  { kind: 'item',  name: '相伝の護符・小', n: 1,   price: 25,   desc: '継承のしくじりを減らす' },
+  { kind: 'item',  name: '相伝の護符・中', n: 1,   price: 60,   desc: '継承のしくじりをもっと減らす' },
+  { kind: 'item',  name: '相伝の護符・大', n: 1,   price: 150,  desc: '継承のしくじりをぐっと減らす' },
   { kind: 'item',  name: '皆伝の書',       n: 1,   price: 400,  desc: '特技をひと息に極める' },
   { kind: 'soul',  name: '武士の魂',       n: 300, price: 120,  desc: '数値を伸ばす' },
   { kind: 'title', name: '誉れ者',         price: 800,  desc: '番付の蔵でしか手に入らぬ肩書き',  once: true },

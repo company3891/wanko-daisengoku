@@ -23931,7 +23931,7 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   news: false, newsTab: '更新', newsId: null,
   /* 友（2026-09-24）。fr＝一覧を開いているか／frId＝訪ねている友／frMsg＝その場の一言 */
   fr: false, frId: null, frMsg: '',
-  detailRO: false, nmMsg: '', rwi: null,
+  detailRO: false, detailBase: false, nmMsg: '', rwi: null,   // detailBase＝図鑑から開いた札（素のまま見せる・2026-10-01）
   /* お役目（2026-09-24）。mi＝開いているか／miTab＝選んでいるタグ */
   mi: false, miTab: '日課', miMsg: '', tt: false, reset: 0, pwUp: 0,
   /* 武将強化の三つの札（2026-09-26）。'稽古' / '覚醒' / '魂' / null */
@@ -27629,7 +27629,7 @@ function screenDex() {
         const card = has ? cardArt(c) : unknownCardUrl('front');
         return el('button', {
           class: 'dc' + (has ? '' : ' no yet') + (card ? ' card art' : ''),
-          onclick: () => { openCard(has ? c : UNKNOWN); },
+          onclick: () => { openCard(has ? c : UNKNOWN, false, true); },
         },
           card ? (has ? cardImg(c) : el('img', { class: 'cf', src: card, alt: '未奉公', loading: 'lazy' }))
                : el('span', { class: 'f', style: has ? chipStyle(c) : '' }, has ? null : el('i', {}, '？')),
@@ -27756,7 +27756,7 @@ function cardStatOverlay(c, ro) {
   if (!lay || !lay.stat) return [];
   const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
   const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
-  const g = (!ro && P.own.includes(c.no)) ? grownStats(c) : (c.stats || {});
+  const g = (!ro && P.own.includes(c.no)) ? grownStats(c) : (c.stats || {});   // ro＝素のまま
   const out = lay.stat.map(t => el('b', {
     class: 'clv num',
     style: `left:${pc(t.cx, 864)};top:${pc(t.cy, 1280)};font-size:${fs(t.size)}`,
@@ -27786,7 +27786,7 @@ function cardSheet(c) {
   const fr = un ? unknownCardUrl('front') : cardUrl(c.no, 'front');
   const bk = un ? unknownCardUrl('back') : cardUrl(c.no, 'back');
   const zoom = S.side;
-  const close = () => { S.detail = null; S.side = null; S.detailRO = false; draw(); };
+  const close = () => { S.detail = null; S.side = null; S.detailRO = false; S.detailBase = false; draw(); };
   /* 焼いた札には、育てば変わる数（升の数値・特技の位）が入っていない（2026-09-27）。
      いま持っている値をその場で重ねるので、強化しても継承しても札がすぐ追いつく。
      置き場所は札ごとに layout に控えてある。無い札はこれまでどおり焼いた数が出る */
@@ -27796,7 +27796,7 @@ function cardSheet(c) {
     const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
     const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
     const out = [];
-    if (side === 'front') out.push(...cardStatOverlay(c, S.detailRO));
+    if (side === 'front') out.push(...cardStatOverlay(c, cardRaw()));
     if (side === 'back' && lay.slot) {
       /* 特技の枠は3つ。焼いてあるのは元の技なので、継承で中身が入れ替わった枠だけ
          和紙で塗りつぶして描き直す（2026-09-27）。
@@ -27804,9 +27804,9 @@ function cardSheet(c) {
          枠どうしの入れ替えも、枠ごとに「焼いた技名」と今の技名を見くらべるので拾える。
          一の枠（固有◆）に位は無く、空いている枠にも出さない */
       const sl = slotsOf(c);
-      const sk = (!S.detailRO && P.own.includes(c.no)) ? skillLvOf(c.no) : [1, 1, 1];
+      const sk = (!cardRaw() && P.own.includes(c.no)) ? skillLvOf(c.no) : [1, 1, 1];
       const k = lay.sk, patch = k ? cardPatchUrl(c.no) : null;
-      const mine2 = !S.detailRO && P.own.includes(c.no);
+      const mine2 = !cardRaw() && P.own.includes(c.no);
       for (const t of lay.slot) {
         const now = mine2 ? sl[t.slot] : null;
         const nm = now && now.sk ? now.sk.name : null;
@@ -29230,7 +29230,17 @@ function cardArt(c) {
   if (!c || c.no == null) return null;
   return c.no === '未奉公' ? unknownCardUrl('front') : cardUrl(c.no, 'front');
 }
-function openCard(c, ro) { if (!c) return; S.detail = c.no; S.side = null; S.detailRO = !!ro; draw(); }
+/* 札を開く（2026-10-01 に印をひとつ足した）。
+   ro   … 読むだけ（強化などの釦も出さない。敵の札・友の部隊）
+   base … 釦は出すが、札の数と技は「手に入れたときのまま」を見せる（図鑑）
+   図鑑は「どんな武将がいるか」を見る台帳なので、
+   自分が育てたぶんを混ぜると、素の強さが どこにも見られなくなる */
+function openCard(c, ro, base) {
+  if (!c) return;
+  S.detail = c.no; S.side = null; S.detailRO = !!ro; S.detailBase = !!base; draw();
+}
+/* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか */
+const cardRaw = () => S.detailRO || S.detailBase;
 /* 育成の画面の顔を押すと、その武将のカードが開く（2026-09-23） */
 function faceBtn(c) {
   return el('button', {

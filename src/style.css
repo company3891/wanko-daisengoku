@@ -4911,3 +4911,8 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .evagain{flex:1 1 100%;margin:4px 0 0;font-size:10.5px;color:var(--text3)}
 /* 取ったあとも挑める祭りは、薄く落とさない */
 .evrank.done.again{opacity:1}
+
+/* 「編成中」の絞込み（2026-10-01）。入っているときは陣の色（緑）で光らせ、
+   位や属性の金とぶつからないようにする */
+.chip.sqf.on{border-color:#4fa36b;background:#4fa36b26;color:#bde8cd;
+  box-shadow:0 0 0 1px #4fa36b inset}

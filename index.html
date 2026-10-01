@@ -4927,6 +4927,11 @@ header{padding-top:calc(var(--safetop) + 8px)}
 /* 取ったあとも挑める祭りは、薄く落とさない */
 .evrank.done.again{opacity:1}
 
+/* 「編成中」の絞込み（2026-10-01）。入っているときは陣の色（緑）で光らせ、
+   位や属性の金とぶつからないようにする */
+.chip.sqf.on{border-color:#4fa36b;background:#4fa36b26;color:#bde8cd;
+  box-shadow:0 0 0 1px #4fa36b inset}
+
 </style>
 </head>
 <body>
@@ -27427,9 +27432,13 @@ const pfSet = (ks, k, v) => { if (ks[k]) S[ks[k]] = v; SFX.pick(); draw(); };
 function pickApply(list, ks, opt) {
   const rar = pfGet(ks, 'rar', 'すべて');
   const att = pfGet(ks, 'att', 'すべて');
+  /* 編成中だけに絞る（2026-10-01）。五つの部隊のどれかに入っている武将。
+     「いま出している子だけ育てたい」ときに、位も属性も関係なく拾える */
+  const sq = !!pfGet(ks, 'sq', false);
   const out = list.filter(c =>
     (rar === 'すべて' || c.rarity === rar) &&
-    (att === 'すべて' || c.attr === att));
+    (att === 'すべて' || c.attr === att) &&
+    (!sq || inSquad(c.no)));
   const so = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
   const up = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
   return out.sort((a, b) => { const d = so.v(a) - so.v(b); return (up ? d : -d) || a.no - b.no; });
@@ -27452,6 +27461,13 @@ function pickRows(ks, opt) {
       class: 'chip' + (att === a ? ' on' : '') + (a !== 'すべて' && attrUrl(a) ? ' aic' : ''),
       onclick: () => pfSet(ks, 'att', a),
     }, a === 'すべて' ? 'すべて' : attrTag(a, 'sm'))), 'attrf'),
+    /* 「編成中」は絞込みなので、位・属性と同じ段に置く（2026-10-01）。
+       押すたびに入り切りが変わる。五つの部隊のどれかに入っていれば出る */
+    pfRow('部隊', [el('button', {
+      class: 'chip sqf' + (pfGet(ks, 'sq', false) ? ' on' : ''),
+      title: '五つの部隊のどれかに入っている武将だけ',
+      onclick: () => pfSet(ks, 'sq', !pfGet(ks, 'sq', false)),
+    }, '編成中')]),
     pfRow('並び', DEXSORT.map(x => el('button', {
       class: 'chip' + (so.k === x.k ? ' on' : ''),
       title: so.k === x.k ? 'もう一度押すと向きが変わる' : null,
@@ -27463,9 +27479,9 @@ function pickRows(ks, opt) {
     }, x.name, so.k === x.k ? el('i', { class: 'sar' }, up ? '▲' : '▼') : null))),
   ];
 }
-const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc' };
-const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc' };
-const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc' };
+const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq' };
+const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc',   sq: 'tSq' };
+const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc',  sq: 'cpSq' };
 function screenDex() {
   /* 位と属性は「かつ」で重ねて当たる。並びは、その絞り込んだ中での順番。
      図鑑だけは 未奉公の札も出す（2026-09-30）。

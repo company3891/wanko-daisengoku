@@ -3089,7 +3089,7 @@ function screenSkillUp() {
                 SFX.win();
               } else {
                 S.skMsg = '';
-                S.win = { bad: true, title: '特技強化 失敗', name: sk.name,
+                S.win = { bad: true, title: '特技強化 失敗', name: sk.name, mats,
                           note: `${lostNames(mats)} は失われました` };
                 SFX.pick();
               }
@@ -3102,7 +3102,7 @@ function screenSkillUp() {
             S.skm = []; S.skch = null; S.skAsk = false;
             if (!r) S.skMsg = '素材が足りない';
             else if (r.ok) { S.skMsg = ''; S.win = { title: '特技強化 成功', name: sk.name, lv: r.lv }; SFX.win(); }
-            else { S.skMsg = ''; S.win = { bad: true, title: '特技強化 失敗', name: sk.name,
+            else { S.skMsg = ''; S.win = { bad: true, title: '特技強化 失敗', name: sk.name, mats,
                     note: `${lostNames(mats)} は失われました` }; SFX.pick(); }
             draw();
           }, () => { S.skAsk = false; draw(); }) : null)
@@ -3222,6 +3222,23 @@ function lostNames(ms) {
   }
   return Object.entries(c).map(([n, k]) => (k > 1 ? `${n} ×${k}` : n)).join('・');
 }
+/* 失ったものを札の顔で並べる（2026-10-01）。
+   名前だけ並べても「誰を食べたのか」が頭に入らない。
+   絵が無い武将は属性の色の札に名を載せる（絵が無くても動く決まり） */
+function lostTiles(ms) {
+  const byNo = {}; let books = 0;
+  for (const m of (ms || [])) { if (m.book) books++; else byNo[m.no] = (byNo[m.no] || 0) + 1; }
+  const tile = (pic, name, n) => el('div', { class: 'wlt' },
+    el('span', { class: 'wlti' }, pic),
+    el('b', {}, name), n > 1 ? el('em', {}, '×' + n) : null);
+  const out = [];
+  for (const [no, n] of Object.entries(byNo)) {
+    const o = charOf(Number(no)); if (!o) continue;
+    out.push(tile(cardArt(o) ? cardImg(o) : el('i', { style: chipStyle(o) }), o.name, n));
+  }
+  if (books) out.push(tile(itemIcon(BOOK), BOOK, books));
+  return out.length ? el('div', { class: 'wlostr' }, out) : null;
+}
 /* 特技名から先頭の（属性）を落とす。札では属性は要らない（2026-09-24） */
 const plainSkill = n => String(n || '').replace(/^[（(][^）)]*[）)]\s*/, '');
 function winSheet() {
@@ -3250,7 +3267,11 @@ function winSheet() {
         w.from ? el('span', { class: 'wfrom' },
           el('i', {}, w.from), el('em', {}, '➜'), el('i', { class: 'to' }, w.to)) : null,
         w.lost ? el('span', { class: 'wlost' }, `${w.lost} は失われました`) : null,
-        w.note ? el('span', { class: 'wnote' }, w.note) : null)));
+        /* しくじったときは、何を失ったのかを顔で見せる（2026-10-01）。
+           絵を出すなら名を二度書くことはない。文は見出しに替える */
+        w.mats ? el('span', { class: 'wnote' }, '失われたもの')
+               : (w.note ? el('span', { class: 'wnote' }, w.note) : null),
+        w.mats ? lostTiles(w.mats) : null)));
 }
 
 /* 最後の1枚を使うときの確認（2026-09-21／文言を正した 2026-09-25）。
@@ -3492,7 +3513,7 @@ function screenInherit() {
               SFX.win();
             } else {
               S.ihMsg = '';
-              S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name,
+              S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name, mats,
                         note: `${lostNames(mats)} は失われました` };
               SFX.pick();
             }
@@ -3506,7 +3527,7 @@ function screenInherit() {
           if (!r) S.ihMsg = '素材が足りない';
           else if (r.ok) { S.ihMsg = ''; S.win = { title: '特技継承 成功', name: g.sk.name,
                             from: src.name, to: c.name, lost: lostNames(mats) }; SFX.win(); }
-          else { S.ihMsg = ''; S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name,
+          else { S.ihMsg = ''; S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name, mats,
                   note: `${lostNames(mats)} は失われました` }; SFX.pick(); }
           draw();
         }, () => { S.ihAsk = false; draw(); }) : null)),
@@ -6412,33 +6433,47 @@ const DMG_FOLD = { normal: 'normal', counter: 'normal', support: 'normal', dying
 function battleStat(res) {
   const us = res.units || [];
   const by = {}; const unit = {};
-  let crit = 0, hits = 0, taken = 0;
+  let crit = 0, hits = 0, taken = 0, cover = 0, heal = 0;
+  /* 武将ごとの控え。傷を与えなかった者も並べたいので、作るところを一つにまとめた */
+  const uOf = no => unit[no] || (unit[no] = { no, all: 0, normal: 0, skill: 0, unique: 0,
+                                              ult: 0, kaeshi: 0, cover: 0, heal: 0 });
   for (const e of (res.log || [])) {
-    if (e.type !== 'dmg') continue;
-    if (String(e.src).startsWith('A-')) {
-      const v = e.via || 'normal';
-      by[v] = (by[v] || 0) + e.v; hits++; if (e.crit) crit++;
-      const no = parseInt(String(e.src).split('-')[1], 10);
-      const u = unit[no] || (unit[no] = { no, all: 0, normal: 0, skill: 0, unique: 0, ult: 0, kaeshi: 0 });
-      u.all += e.v; u[DMG_FOLD[v] || 'normal'] += e.v;
-      if (v === 'counter') u.kaeshi++;
-    } else taken += e.v;
+    const mine = String(e.src || '').startsWith('A-');
+    if (e.type === 'dmg') {
+      if (mine) {
+        const v = e.via || 'normal';
+        by[v] = (by[v] || 0) + e.v; hits++; if (e.crit) crit++;
+        const u = uOf(parseInt(String(e.src).split('-')[1], 10));
+        u.all += e.v; u[DMG_FOLD[v] || 'normal'] += e.v;
+        if (v === 'counter') u.kaeshi++;
+      } else taken += e.v;
+      continue;
+    }
+    if (!mine) continue;
+    const no = parseInt(String(e.src).split('-')[1], 10);
+    /* かばった数と癒した量も数える（2026-10-01）。
+       守り役と癒し役は傷の数字に出ないので、働きが見えなかった */
+    if (e.type === 'cover') { uOf(no).cover++; cover++; }
+    else if (e.type === 'heal') { uOf(no).heal += (e.v || 0); heal += (e.v || 0); }
   }
   for (const k of Object.keys(by)) by[k] = Math.round(by[k]);
   // 出陣した味方は、傷を与えられなかった者も並べる。「何もできなかった」ことも戦いぶり
-  for (const u of us) if (u.side === 'A' && !unit[u.no]) {
-    unit[u.no] = { no: u.no, all: 0, normal: 0, skill: 0, unique: 0, ult: 0, kaeshi: 0 };
-  }
+  for (const u of us) if (u.side === 'A') uOf(u.no);
   const units = Object.values(unit).map(u => ({
     ...u, all: Math.round(u.all), normal: Math.round(u.normal),
     skill: Math.round(u.skill), unique: Math.round(u.unique), ult: Math.round(u.ult),
+    heal: Math.round(u.heal),
     alive: !!(us.find(x => x.side === 'A' && x.no === u.no) || {}).alive,
-  })).sort((a, b) => b.all - a.all);
+  /* 並べ替えは 傷＋癒し（2026-10-01）。
+     癒しだけの武将がいつも最後に沈んでいたので、働きの大きさで並べる */
+  })).sort((a, b) => (b.all + b.heal) - (a.all + a.heal));
   return {
     ko:   us.filter(u => u.side === 'B' && !u.alive).length,
     lost: us.filter(u => u.side === 'A' && !u.alive).length,
     dmg:  Math.round(us.filter(u => u.side === 'A').reduce((a, u) => a + (u.dmgDealt || 0), 0)),
     taken: Math.round(taken), crit, hits, by, units,
+    cover, heal: Math.round(heal),
+    kaeshi: Object.values(unit).reduce((a, u) => a + u.kaeshi, 0),
     turn: (res.log || []).reduce((a, e) => (e.turn > a ? e.turn : a), 0),
   };
 }
@@ -6547,30 +6582,45 @@ function dmgUnitRow(u, top) {
     el('div', { class: 'dgub' },
       el('div', { class: 'dguh' },
         el('span', { class: 'dgun' }, c.name || ('No.' + u.no)),
+        /* 癒した量は、傷の数のとなりに緑で添える（2026-10-01）。
+           癒し役は傷が 0 のままなので、これが無いと「何もしていない」に見えていた */
+        u.heal ? el('em', { class: 'dgheal' }, '癒 ' + num(u.heal)) : null,
         el('b', { class: 'dgut' }, num(u.all))),
       el('div', { class: 'dgbar' }, el('i', { style: `width:${Math.round(100 * u.all / top)}%` })),
+      u.heal ? el('div', { class: 'dgbar heal' },
+        el('i', { style: `width:${Math.round(100 * u.heal / top)}%` })) : null,
       el('div', { class: 'dgcs' },
         cell('通常', u.normal), cell('特技', u.skill),
         cell('固有', u.unique), cell('奥義', u.ult),
         el('span', { class: 'dgc' + (u.kaeshi ? '' : ' zero') },
-          el('i', {}, '反撃'), el('b', {}, num(u.kaeshi) + '回')))));
+          el('i', {}, '反撃'), el('b', {}, num(u.kaeshi) + '回')),
+        el('span', { class: 'dgc' + (u.cover ? '' : ' zero') },
+          el('i', {}, 'かばう'), el('b', {}, num(u.cover) + '回')),
+        el('span', { class: 'dgc' + (u.heal ? ' heal' : ' zero') },
+          el('i', {}, '癒し'), el('b', {}, num(u.heal))))));
 }
 function dmgSheet() {
   const st = (S.res && S.res.stat) || {};
   const us = st.units || [];
   const close = () => { S.dmg = false; SFX.pick(); draw(); };
-  const top = Math.max(1, ...us.map(u => u.all));
+  const top = Math.max(1, ...us.map(u => Math.max(u.all, u.heal || 0)));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 dgbox' },
       el('b', { class: 'dgttl' }, '戦いぶり'),
       el('div', { class: 'dgtop' },
         el('div', {}, el('span', {}, '与えた傷'), el('b', {}, num(st.dmg || 0))),
         el('div', {}, el('span', {}, '受けた傷'), el('b', {}, num(st.taken || 0)))),
+      /* 守りと癒しも並べる（2026-10-01）。
+         傷の数字だけだと、かばい役・癒し役の働きが どこにも残らなかった */
       el('div', { class: 'dgsub' },
         el('span', {}, '撃破 ', el('b', {}, num(st.ko || 0))),
         el('span', {}, '逃走 ', el('b', {}, num(st.lost || 0))),
         el('span', {}, '会心 ', el('b', {}, num(st.crit || 0))),
         el('span', {}, '手数 ', el('b', {}, num(st.turn || 0)))),
+      el('div', { class: 'dgsub sub2' },
+        el('span', {}, 'かばう ', el('b', {}, num(st.cover || 0) + '回')),
+        el('span', {}, '反撃 ', el('b', {}, num(st.kaeshi || 0) + '回')),
+        el('span', { class: 'heal' }, '癒し ', el('b', {}, num(st.heal || 0)))),
       us.length ? el('div', { class: 'dglist' }, us.map(u => dmgUnitRow(u, top)))
                 : el('p', { class: 'note' }, '戦いぶりが残っておらぬ'),
       closeX(close)));

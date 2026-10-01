@@ -2828,6 +2828,19 @@ main.hasnav{padding-bottom:124px}
   text-shadow:0 0 12px #59c56c66}
 .winbox.slim .wbody .wnote{font-size:13px;font-weight:700;color:#8fd48a;letter-spacing:.04em}
 .winbox.slim.lose .wbody .wnote{color:#e0907a}
+/* しくじりで失ったものを札の顔で並べる（2026-10-01） */
+.wlostr{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.wlt{width:64px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.wlti{width:64px;aspect-ratio:.72;border-radius:8px;overflow:hidden;display:grid;place-items:center;
+  background:#00000055;border:1px solid #a8523c66;box-shadow:0 2px 8px #0008}
+.wlti img{width:100%;height:100%;object-fit:cover;display:block}
+.wlti i{width:100%;height:100%;display:block}
+.wlti .itic{width:100%;height:100%;min-width:0;border:0;background:none;box-shadow:none;
+  border-radius:0;padding:7px}
+.wlti .itic img{width:100%;height:100%;object-fit:contain}
+.wlt b{font-size:10px;font-weight:700;color:#e8d6bb;max-width:100%;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.wlt em{font-style:normal;font-size:10px;font-weight:800;color:#e0907a}
 
 /* ---- お知らせ（2026-09-24）----
    ホームの「報」から開く。更新と不具合の2つのタグ。
@@ -4315,6 +4328,10 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .dgsub{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;
   font-size:10px;color:var(--text3)}
 .dgsub b{font-family:var(--mincho);font-size:13px;color:var(--text2)}
+/* 二段目は守りと癒し（2026-10-01）。一段目より少し小さく、下に添える */
+.dgsub.sub2{margin-top:3px;font-size:9.5px}
+.dgsub.sub2 b{font-size:12px}
+.dgsub .heal,.dgsub .heal b{color:#3f8b5e}
 /* 武将ごとの戦いぶり（2026-09-29）。
    コマの絵・名・総合・帯・内わけを一行にまとめる。
    反撃は傷ではなく回数（通常の攻めをもう一度しているだけなので、傷は通常に混ぜてある） */
@@ -4328,17 +4345,24 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .dgf i{width:100%;height:100%;display:block}
 .dgub{flex:1;min-width:0}
 .dguh{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
-.dgun{font-size:11px;font-weight:700;color:var(--text);
+.dgun{flex:1 1 auto;min-width:0;font-size:11px;font-weight:700;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 癒した量は名の右に緑で添える（2026-10-01） */
+.dgheal{flex:0 0 auto;font-style:normal;font-size:10.5px;font-weight:700;color:#3f8b5e;
+  font-family:var(--mincho)}
 .dgut{font-family:var(--mincho);font-size:15px;color:var(--gold);flex:0 0 auto}
 .dgbar{height:5px;border-radius:99px;background:#00000014;overflow:hidden;margin:3px 0 4px}
 .dgbar i{display:block;height:100%;border-radius:99px;
   background:linear-gradient(90deg,#d8a94a,#a8802c)}
+/* 癒しの帯は緑。傷の帯と同じものさしで並べる（2026-10-01） */
+.dgbar.heal{height:4px;margin:-2px 0 4px}
+.dgbar.heal i{background:linear-gradient(90deg,#4fa36b,#2f7a4e)}
 .dgcs{display:flex;gap:6px;flex-wrap:wrap}
 .dgc{display:inline-flex;gap:3px;align-items:baseline;font-size:8.5px;color:var(--text3)}
 .dgc i{font-style:normal}
 .dgc b{font-size:10.5px;font-weight:700;color:var(--text2)}
 .dgc.zero{opacity:.42}
+.dgc.heal b{color:#3f8b5e}
 .dgbox .ghost.wide{margin-top:14px}
 
 

@@ -2843,6 +2843,19 @@ main.hasnav{padding-bottom:124px}
   text-shadow:0 0 12px #59c56c66}
 .winbox.slim .wbody .wnote{font-size:13px;font-weight:700;color:#8fd48a;letter-spacing:.04em}
 .winbox.slim.lose .wbody .wnote{color:#e0907a}
+/* しくじりで失ったものを札の顔で並べる（2026-10-01） */
+.wlostr{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.wlt{width:64px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.wlti{width:64px;aspect-ratio:.72;border-radius:8px;overflow:hidden;display:grid;place-items:center;
+  background:#00000055;border:1px solid #a8523c66;box-shadow:0 2px 8px #0008}
+.wlti img{width:100%;height:100%;object-fit:cover;display:block}
+.wlti i{width:100%;height:100%;display:block}
+.wlti .itic{width:100%;height:100%;min-width:0;border:0;background:none;box-shadow:none;
+  border-radius:0;padding:7px}
+.wlti .itic img{width:100%;height:100%;object-fit:contain}
+.wlt b{font-size:10px;font-weight:700;color:#e8d6bb;max-width:100%;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.wlt em{font-style:normal;font-size:10px;font-weight:800;color:#e0907a}
 
 /* ---- お知らせ（2026-09-24）----
    ホームの「報」から開く。更新と不具合の2つのタグ。
@@ -4330,6 +4343,10 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .dgsub{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;
   font-size:10px;color:var(--text3)}
 .dgsub b{font-family:var(--mincho);font-size:13px;color:var(--text2)}
+/* 二段目は守りと癒し（2026-10-01）。一段目より少し小さく、下に添える */
+.dgsub.sub2{margin-top:3px;font-size:9.5px}
+.dgsub.sub2 b{font-size:12px}
+.dgsub .heal,.dgsub .heal b{color:#3f8b5e}
 /* 武将ごとの戦いぶり（2026-09-29）。
    コマの絵・名・総合・帯・内わけを一行にまとめる。
    反撃は傷ではなく回数（通常の攻めをもう一度しているだけなので、傷は通常に混ぜてある） */
@@ -4343,17 +4360,24 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .dgf i{width:100%;height:100%;display:block}
 .dgub{flex:1;min-width:0}
 .dguh{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
-.dgun{font-size:11px;font-weight:700;color:var(--text);
+.dgun{flex:1 1 auto;min-width:0;font-size:11px;font-weight:700;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 癒した量は名の右に緑で添える（2026-10-01） */
+.dgheal{flex:0 0 auto;font-style:normal;font-size:10.5px;font-weight:700;color:#3f8b5e;
+  font-family:var(--mincho)}
 .dgut{font-family:var(--mincho);font-size:15px;color:var(--gold);flex:0 0 auto}
 .dgbar{height:5px;border-radius:99px;background:#00000014;overflow:hidden;margin:3px 0 4px}
 .dgbar i{display:block;height:100%;border-radius:99px;
   background:linear-gradient(90deg,#d8a94a,#a8802c)}
+/* 癒しの帯は緑。傷の帯と同じものさしで並べる（2026-10-01） */
+.dgbar.heal{height:4px;margin:-2px 0 4px}
+.dgbar.heal i{background:linear-gradient(90deg,#4fa36b,#2f7a4e)}
 .dgcs{display:flex;gap:6px;flex-wrap:wrap}
 .dgc{display:inline-flex;gap:3px;align-items:baseline;font-size:8.5px;color:var(--text3)}
 .dgc i{font-style:normal}
 .dgc b{font-size:10.5px;font-weight:700;color:var(--text2)}
 .dgc.zero{opacity:.42}
+.dgc.heal b{color:#3f8b5e}
 .dgbox .ghost.wide{margin-top:14px}
 
 
@@ -6259,7 +6283,12 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         const targets = wide ? live(allies) : tg;
         for (const e of targets) {
         if (e.statuses['回復不能']) { if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'healBlocked', tgt: e.id }); continue; }
+        /* 癒した量を控えに書く（2026-10-01）。戦いぶりで「誰がどれだけ癒したか」を出すため。
+           兵量いっぱいで溢れたぶんは数えない（効いた量だけが戦いぶり） */
+        const was = e.hp;
         e.hp = Math.min(e.maxHp, e.hp + amt * (1 + modSum(e, 'healTaken')));
+        if (ctx.log && e.hp > was)
+          ctx.log.push({ t: +ctx.t.toFixed(1), type: 'heal', src: self.id, tgt: e.id, v: +(e.hp - was).toFixed(1) });
       }
         // 敵に「敵が回復したとき自身も同量回復する」持ちが居れば、その者も回復する
         for (const f of live(foes))
@@ -6268,7 +6297,12 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         break;
       }
       case 'healPctMaxHp':
-        for (const e of tg) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * eff.pct * (ctx.rules.damage.healScale ?? 1));
+        for (const e of tg) {
+          const was = e.hp;                                   // 癒した量を控える（2026-10-01）
+          e.hp = Math.min(e.maxHp, e.hp + e.maxHp * eff.pct * (ctx.rules.damage.healScale ?? 1));
+          if (ctx.log && e.hp > was)
+            ctx.log.push({ t: +ctx.t.toFixed(1), type: 'heal', src: self.id, tgt: e.id, v: +(e.hp - was).toFixed(1) });
+        }
         break;
       case 'buff': case 'debuff': {
         // v2.2: 回復＝補助特技の効果指数。かける側の回復力で効果量が伸びる
@@ -9245,6 +9279,15 @@ const P = {
   /* はじめての手引き（2026-09-30）。何歩目かを持つ。0＝出さない（済み・古い保存）。
      P に並べておかないと保存から読み戻らない */
   gstep: 0,
+  /* 「はじめの一度だけ必ず成功」の札（2026-10-01）。使ったら消える。
+     もとは「手引きが進んでいるあいだ（P.gstep > 0）」を条件にしていたが、
+     手引きの歩が指す先を見失ったまま止まると P.gstep が 0 に戻らず、
+     強化も継承も **ずっと必ず成功** になっていた（しくじりの札が一生出ない）。
+     一度きりの札なら、どこで止まっても二度目からは素直にさいころを振る。
+     古い保存には無いので、既定は false（もう何度も試している人に只の成功は配らない）。
+     はじめる人には grantStarter が true を立てる。
+     P に並べておかないと保存から読み戻らない */
+  firstSure: { up: false, inh: false },
   /* 番付（2026-09-25）。段・持ち点・表の種・対戦札・留守番の記録など。
      P に並べておかないと保存から読み戻らない。中身は rank.js の決めごとに合わせる */
   rk: null,
@@ -9603,9 +9646,11 @@ function skillUp(no, slot, skillName, mats, charm) {
   if (needBook) useItem(BOOK, needBook);
   if (!eatMats(byNo, no)) return null;
   if (charm) useItem(charm, 1);
-  /* 手ほどきのあいだは必ず成功（2026-09-30）。
+  /* はじめの一度だけ必ず成功（2026-09-30／札を一度きりに直した 2026-10-01）。
      はじめて触る所で失敗させると、何が悪かったのか分からないまま素材だけ減る */
-  const ok = P.gstep > 0 ? true : Math.random() * 100 < rate;
+  const sure = !!(P.firstSure && P.firstSure.up);
+  if (sure) P.firstSure.up = false;
+  const ok = sure ? true : Math.random() * 100 < rate;
   if (ok) sk[slot]++;
   savePlayer();
   return { ok, rate, lv: sk[slot] };
@@ -9693,7 +9738,10 @@ function inherit(target, slot, g, mats, charm) {
   const rate = inhRate(target, g, mats.length, charm);
   if (!eatMats(byNo, target.no)) return null;
   if (charm) useItem(charm, 1);            // 失敗しても戻らない（強化の護符と同じ）
-  const ok = P.gstep > 0 ? true : Math.random() * 100 < rate;   // 手ほどきは必ず成功（2026-09-30）
+  /* はじめの一度だけ必ず成功（札を一度きりに直した 2026-10-01。強化と同じ） */
+  const sureI = !!(P.firstSure && P.firstSure.inh);
+  if (sureI) P.firstSure.inh = false;
+  const ok = sureI ? true : Math.random() * 100 < rate;
   if (ok) {
     const inh = inhOf(target.no);
     inh[slot] = { sk: { ...g.sk }, uniq: g.uniq, from: g.from || null };
@@ -10053,6 +10101,7 @@ function grantStarter(no, mate) {
   /* 十連は手引きのいちばん最後に回した（2026-09-30）ので、ここで城へ出られるようにする */
   P.tutorial = 2;
   P.gstep = 1;
+  P.firstSure = { up: true, inh: true };   // はじめの強化と継承は必ず成功（2026-10-01）
   savePlayer();
 }
 
@@ -26810,7 +26859,7 @@ function screenSkillUp() {
                 SFX.win();
               } else {
                 S.skMsg = '';
-                S.win = { bad: true, title: '特技強化 失敗', name: sk.name,
+                S.win = { bad: true, title: '特技強化 失敗', name: sk.name, mats,
                           note: `${lostNames(mats)} は失われました` };
                 SFX.pick();
               }
@@ -26823,7 +26872,7 @@ function screenSkillUp() {
             S.skm = []; S.skch = null; S.skAsk = false;
             if (!r) S.skMsg = '素材が足りない';
             else if (r.ok) { S.skMsg = ''; S.win = { title: '特技強化 成功', name: sk.name, lv: r.lv }; SFX.win(); }
-            else { S.skMsg = ''; S.win = { bad: true, title: '特技強化 失敗', name: sk.name,
+            else { S.skMsg = ''; S.win = { bad: true, title: '特技強化 失敗', name: sk.name, mats,
                     note: `${lostNames(mats)} は失われました` }; SFX.pick(); }
             draw();
           }, () => { S.skAsk = false; draw(); }) : null)
@@ -26943,6 +26992,23 @@ function lostNames(ms) {
   }
   return Object.entries(c).map(([n, k]) => (k > 1 ? `${n} ×${k}` : n)).join('・');
 }
+/* 失ったものを札の顔で並べる（2026-10-01）。
+   名前だけ並べても「誰を食べたのか」が頭に入らない。
+   絵が無い武将は属性の色の札に名を載せる（絵が無くても動く決まり） */
+function lostTiles(ms) {
+  const byNo = {}; let books = 0;
+  for (const m of (ms || [])) { if (m.book) books++; else byNo[m.no] = (byNo[m.no] || 0) + 1; }
+  const tile = (pic, name, n) => el('div', { class: 'wlt' },
+    el('span', { class: 'wlti' }, pic),
+    el('b', {}, name), n > 1 ? el('em', {}, '×' + n) : null);
+  const out = [];
+  for (const [no, n] of Object.entries(byNo)) {
+    const o = charOf(Number(no)); if (!o) continue;
+    out.push(tile(cardArt(o) ? cardImg(o) : el('i', { style: chipStyle(o) }), o.name, n));
+  }
+  if (books) out.push(tile(itemIcon(BOOK), BOOK, books));
+  return out.length ? el('div', { class: 'wlostr' }, out) : null;
+}
 /* 特技名から先頭の（属性）を落とす。札では属性は要らない（2026-09-24） */
 const plainSkill = n => String(n || '').replace(/^[（(][^）)]*[）)]\s*/, '');
 function winSheet() {
@@ -26971,7 +27037,11 @@ function winSheet() {
         w.from ? el('span', { class: 'wfrom' },
           el('i', {}, w.from), el('em', {}, '➜'), el('i', { class: 'to' }, w.to)) : null,
         w.lost ? el('span', { class: 'wlost' }, `${w.lost} は失われました`) : null,
-        w.note ? el('span', { class: 'wnote' }, w.note) : null)));
+        /* しくじったときは、何を失ったのかを顔で見せる（2026-10-01）。
+           絵を出すなら名を二度書くことはない。文は見出しに替える */
+        w.mats ? el('span', { class: 'wnote' }, '失われたもの')
+               : (w.note ? el('span', { class: 'wnote' }, w.note) : null),
+        w.mats ? lostTiles(w.mats) : null)));
 }
 
 /* 最後の1枚を使うときの確認（2026-09-21／文言を正した 2026-09-25）。
@@ -27213,7 +27283,7 @@ function screenInherit() {
               SFX.win();
             } else {
               S.ihMsg = '';
-              S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name,
+              S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name, mats,
                         note: `${lostNames(mats)} は失われました` };
               SFX.pick();
             }
@@ -27227,7 +27297,7 @@ function screenInherit() {
           if (!r) S.ihMsg = '素材が足りない';
           else if (r.ok) { S.ihMsg = ''; S.win = { title: '特技継承 成功', name: g.sk.name,
                             from: src.name, to: c.name, lost: lostNames(mats) }; SFX.win(); }
-          else { S.ihMsg = ''; S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name,
+          else { S.ihMsg = ''; S.win = { bad: true, title: '特技継承 失敗', name: g.sk.name, mats,
                   note: `${lostNames(mats)} は失われました` }; SFX.pick(); }
           draw();
         }, () => { S.ihAsk = false; draw(); }) : null)),
@@ -30133,33 +30203,47 @@ const DMG_FOLD = { normal: 'normal', counter: 'normal', support: 'normal', dying
 function battleStat(res) {
   const us = res.units || [];
   const by = {}; const unit = {};
-  let crit = 0, hits = 0, taken = 0;
+  let crit = 0, hits = 0, taken = 0, cover = 0, heal = 0;
+  /* 武将ごとの控え。傷を与えなかった者も並べたいので、作るところを一つにまとめた */
+  const uOf = no => unit[no] || (unit[no] = { no, all: 0, normal: 0, skill: 0, unique: 0,
+                                              ult: 0, kaeshi: 0, cover: 0, heal: 0 });
   for (const e of (res.log || [])) {
-    if (e.type !== 'dmg') continue;
-    if (String(e.src).startsWith('A-')) {
-      const v = e.via || 'normal';
-      by[v] = (by[v] || 0) + e.v; hits++; if (e.crit) crit++;
-      const no = parseInt(String(e.src).split('-')[1], 10);
-      const u = unit[no] || (unit[no] = { no, all: 0, normal: 0, skill: 0, unique: 0, ult: 0, kaeshi: 0 });
-      u.all += e.v; u[DMG_FOLD[v] || 'normal'] += e.v;
-      if (v === 'counter') u.kaeshi++;
-    } else taken += e.v;
+    const mine = String(e.src || '').startsWith('A-');
+    if (e.type === 'dmg') {
+      if (mine) {
+        const v = e.via || 'normal';
+        by[v] = (by[v] || 0) + e.v; hits++; if (e.crit) crit++;
+        const u = uOf(parseInt(String(e.src).split('-')[1], 10));
+        u.all += e.v; u[DMG_FOLD[v] || 'normal'] += e.v;
+        if (v === 'counter') u.kaeshi++;
+      } else taken += e.v;
+      continue;
+    }
+    if (!mine) continue;
+    const no = parseInt(String(e.src).split('-')[1], 10);
+    /* かばった数と癒した量も数える（2026-10-01）。
+       守り役と癒し役は傷の数字に出ないので、働きが見えなかった */
+    if (e.type === 'cover') { uOf(no).cover++; cover++; }
+    else if (e.type === 'heal') { uOf(no).heal += (e.v || 0); heal += (e.v || 0); }
   }
   for (const k of Object.keys(by)) by[k] = Math.round(by[k]);
   // 出陣した味方は、傷を与えられなかった者も並べる。「何もできなかった」ことも戦いぶり
-  for (const u of us) if (u.side === 'A' && !unit[u.no]) {
-    unit[u.no] = { no: u.no, all: 0, normal: 0, skill: 0, unique: 0, ult: 0, kaeshi: 0 };
-  }
+  for (const u of us) if (u.side === 'A') uOf(u.no);
   const units = Object.values(unit).map(u => ({
     ...u, all: Math.round(u.all), normal: Math.round(u.normal),
     skill: Math.round(u.skill), unique: Math.round(u.unique), ult: Math.round(u.ult),
+    heal: Math.round(u.heal),
     alive: !!(us.find(x => x.side === 'A' && x.no === u.no) || {}).alive,
-  })).sort((a, b) => b.all - a.all);
+  /* 並べ替えは 傷＋癒し（2026-10-01）。
+     癒しだけの武将がいつも最後に沈んでいたので、働きの大きさで並べる */
+  })).sort((a, b) => (b.all + b.heal) - (a.all + a.heal));
   return {
     ko:   us.filter(u => u.side === 'B' && !u.alive).length,
     lost: us.filter(u => u.side === 'A' && !u.alive).length,
     dmg:  Math.round(us.filter(u => u.side === 'A').reduce((a, u) => a + (u.dmgDealt || 0), 0)),
     taken: Math.round(taken), crit, hits, by, units,
+    cover, heal: Math.round(heal),
+    kaeshi: Object.values(unit).reduce((a, u) => a + u.kaeshi, 0),
     turn: (res.log || []).reduce((a, e) => (e.turn > a ? e.turn : a), 0),
   };
 }
@@ -30268,30 +30352,45 @@ function dmgUnitRow(u, top) {
     el('div', { class: 'dgub' },
       el('div', { class: 'dguh' },
         el('span', { class: 'dgun' }, c.name || ('No.' + u.no)),
+        /* 癒した量は、傷の数のとなりに緑で添える（2026-10-01）。
+           癒し役は傷が 0 のままなので、これが無いと「何もしていない」に見えていた */
+        u.heal ? el('em', { class: 'dgheal' }, '癒 ' + num(u.heal)) : null,
         el('b', { class: 'dgut' }, num(u.all))),
       el('div', { class: 'dgbar' }, el('i', { style: `width:${Math.round(100 * u.all / top)}%` })),
+      u.heal ? el('div', { class: 'dgbar heal' },
+        el('i', { style: `width:${Math.round(100 * u.heal / top)}%` })) : null,
       el('div', { class: 'dgcs' },
         cell('通常', u.normal), cell('特技', u.skill),
         cell('固有', u.unique), cell('奥義', u.ult),
         el('span', { class: 'dgc' + (u.kaeshi ? '' : ' zero') },
-          el('i', {}, '反撃'), el('b', {}, num(u.kaeshi) + '回')))));
+          el('i', {}, '反撃'), el('b', {}, num(u.kaeshi) + '回')),
+        el('span', { class: 'dgc' + (u.cover ? '' : ' zero') },
+          el('i', {}, 'かばう'), el('b', {}, num(u.cover) + '回')),
+        el('span', { class: 'dgc' + (u.heal ? ' heal' : ' zero') },
+          el('i', {}, '癒し'), el('b', {}, num(u.heal))))));
 }
 function dmgSheet() {
   const st = (S.res && S.res.stat) || {};
   const us = st.units || [];
   const close = () => { S.dmg = false; SFX.pick(); draw(); };
-  const top = Math.max(1, ...us.map(u => u.all));
+  const top = Math.max(1, ...us.map(u => Math.max(u.all, u.heal || 0)));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 dgbox' },
       el('b', { class: 'dgttl' }, '戦いぶり'),
       el('div', { class: 'dgtop' },
         el('div', {}, el('span', {}, '与えた傷'), el('b', {}, num(st.dmg || 0))),
         el('div', {}, el('span', {}, '受けた傷'), el('b', {}, num(st.taken || 0)))),
+      /* 守りと癒しも並べる（2026-10-01）。
+         傷の数字だけだと、かばい役・癒し役の働きが どこにも残らなかった */
       el('div', { class: 'dgsub' },
         el('span', {}, '撃破 ', el('b', {}, num(st.ko || 0))),
         el('span', {}, '逃走 ', el('b', {}, num(st.lost || 0))),
         el('span', {}, '会心 ', el('b', {}, num(st.crit || 0))),
         el('span', {}, '手数 ', el('b', {}, num(st.turn || 0)))),
+      el('div', { class: 'dgsub sub2' },
+        el('span', {}, 'かばう ', el('b', {}, num(st.cover || 0) + '回')),
+        el('span', {}, '反撃 ', el('b', {}, num(st.kaeshi || 0) + '回')),
+        el('span', { class: 'heal' }, '癒し ', el('b', {}, num(st.heal || 0)))),
       us.length ? el('div', { class: 'dglist' }, us.map(u => dmgUnitRow(u, top)))
                 : el('p', { class: 'note' }, '戦いぶりが残っておらぬ'),
       closeX(close)));

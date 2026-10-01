@@ -113,6 +113,15 @@ export const P = {
   /* はじめての手引き（2026-09-30）。何歩目かを持つ。0＝出さない（済み・古い保存）。
      P に並べておかないと保存から読み戻らない */
   gstep: 0,
+  /* 「はじめの一度だけ必ず成功」の札（2026-10-01）。使ったら消える。
+     もとは「手引きが進んでいるあいだ（P.gstep > 0）」を条件にしていたが、
+     手引きの歩が指す先を見失ったまま止まると P.gstep が 0 に戻らず、
+     強化も継承も **ずっと必ず成功** になっていた（しくじりの札が一生出ない）。
+     一度きりの札なら、どこで止まっても二度目からは素直にさいころを振る。
+     古い保存には無いので、既定は false（もう何度も試している人に只の成功は配らない）。
+     はじめる人には grantStarter が true を立てる。
+     P に並べておかないと保存から読み戻らない */
+  firstSure: { up: false, inh: false },
   /* 番付（2026-09-25）。段・持ち点・表の種・対戦札・留守番の記録など。
      P に並べておかないと保存から読み戻らない。中身は rank.js の決めごとに合わせる */
   rk: null,
@@ -471,9 +480,11 @@ export function skillUp(no, slot, skillName, mats, charm) {
   if (needBook) useItem(BOOK, needBook);
   if (!eatMats(byNo, no)) return null;
   if (charm) useItem(charm, 1);
-  /* 手ほどきのあいだは必ず成功（2026-09-30）。
+  /* はじめの一度だけ必ず成功（2026-09-30／札を一度きりに直した 2026-10-01）。
      はじめて触る所で失敗させると、何が悪かったのか分からないまま素材だけ減る */
-  const ok = P.gstep > 0 ? true : Math.random() * 100 < rate;
+  const sure = !!(P.firstSure && P.firstSure.up);
+  if (sure) P.firstSure.up = false;
+  const ok = sure ? true : Math.random() * 100 < rate;
   if (ok) sk[slot]++;
   savePlayer();
   return { ok, rate, lv: sk[slot] };
@@ -561,7 +572,10 @@ export function inherit(target, slot, g, mats, charm) {
   const rate = inhRate(target, g, mats.length, charm);
   if (!eatMats(byNo, target.no)) return null;
   if (charm) useItem(charm, 1);            // 失敗しても戻らない（強化の護符と同じ）
-  const ok = P.gstep > 0 ? true : Math.random() * 100 < rate;   // 手ほどきは必ず成功（2026-09-30）
+  /* はじめの一度だけ必ず成功（札を一度きりに直した 2026-10-01。強化と同じ） */
+  const sureI = !!(P.firstSure && P.firstSure.inh);
+  if (sureI) P.firstSure.inh = false;
+  const ok = sureI ? true : Math.random() * 100 < rate;
   if (ok) {
     const inh = inhOf(target.no);
     inh[slot] = { sk: { ...g.sk }, uniq: g.uniq, from: g.from || null };
@@ -921,6 +935,7 @@ export function grantStarter(no, mate) {
   /* 十連は手引きのいちばん最後に回した（2026-09-30）ので、ここで城へ出られるようにする */
   P.tutorial = 2;
   P.gstep = 1;
+  P.firstSure = { up: true, inh: true };   // はじめの強化と継承は必ず成功（2026-10-01）
   savePlayer();
 }
 

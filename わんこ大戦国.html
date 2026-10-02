@@ -5372,6 +5372,11 @@ const RANGE_TAG = {
   '十字': 'cross1',
   '周囲': 'around1',
   '指定範囲': 'targetAround1',
+  /* 範囲の呼び名を「前列」から「正面」に改めた（2026-10-03）。
+     陣形の段（前列・中列・後列）とまぎらわしかったため。
+     古い書き方も読めるようにしておく（正典を直す前の文が残っていても落ちない） */
+  '正面3マス': 'frontRow3',
+  '正面2マス': 'frontRow2',
   '前列3マス': 'frontRow3',
   '前列2マス': 'frontRow2',
   '自身と左右': 'selfAndAdjacent',
@@ -5555,9 +5560,9 @@ function parseSentence(s, out) {
   }
   // ② 通常攻撃の範囲を恒久的に変える
   {
-    const SHAPE = { 十字: 'cross1', 周囲: 'around1', 一直線: 'line', 前列3マス: 'frontRow3', 敵全体: 'allEnemies', 全体: 'allEnemies',
+    const SHAPE = { 十字: 'cross1', 周囲: 'around1', 一直線: 'line', 正面3マス: 'frontRow3', 前列3マス: 'frontRow3', 敵全体: 'allEnemies', 全体: 'allEnemies',
                     '自身の周囲1マス': 'around1', '周囲1マス': 'around1' };
-    const SHK = '十字|自身の周囲1マス|周囲1マス|周囲|一直線|前列3マス|敵全体|全体';
+    const SHK = '十字|自身の周囲1マス|周囲1マス|周囲|一直線|正面3マス|前列3マス|敵全体|全体';
     let mm = s.match(new RegExp('通常攻撃の(?:範囲|対象)が(' + SHK + ')になる'))
           || s.match(new RegExp('(?:自身の)?通常攻撃の(?:範囲|対象)を(' + SHK + ')にする'));
     if (mm) push({ kind: 'attackShape', shape: SHAPE[mm[1]] });
@@ -5705,8 +5710,9 @@ function parseSentence(s, out) {
     const mm = s.match(new RegExp('自身の(火力|賢さ|知力|知略|防御|守備|回復|速さ)ステータスを攻撃力と(?:し|する|して)(?:て)?([^。]*)'));
     if (mm) {
       const tail = mm[2] || '';
-      const SH = { '十字': 'cross1', '周囲': 'around1', '一直線': 'line', '前列3マス': 'frontRow3',
-                   '前列2マス': 'frontRow2', '全体': 'allEnemies' };
+      const SH = { '十字': 'cross1', '周囲': 'around1', '一直線': 'line',
+                   '正面3マス': 'frontRow3', '正面2マス': 'frontRow2',
+                   '前列3マス': 'frontRow3', '前列2マス': 'frontRow2', '全体': 'allEnemies' };
       let shape = 'enemy1';
       for (const k of Object.keys(SH)) if (tail.indexOf(k) >= 0) { shape = SH[k]; break; }
       const rm = tail.match(new RegExp(N + '%'));
@@ -5724,10 +5730,10 @@ function parseSentence(s, out) {
   }
   // 通常攻撃の範囲：言い回しの揺れと新しい形
   {
-    const SH2 = { '前列2マス':'frontRow2', '前列3マス':'frontRow3', '自身の周り全体':'around1', '周囲':'around1',
+    const SH2 = { '正面2マス':'frontRow2', '正面3マス':'frontRow3', '前列2マス':'frontRow2', '前列3マス':'frontRow3', '自身の周り全体':'around1', '周囲':'around1',
                   '自身の周囲1マス':'around1', '周囲1マス':'around1',
                   '十字':'cross1', '一直線':'line', '敵全体':'allEnemies', '全体':'allEnemies' };
-    const SH2K = '前列2マス|前列3マス|自身の周り全体|自身の周囲1マス|周囲1マス|周囲|十字|一直線|敵全体|全体';
+    const SH2K = '正面2マス|正面3マス|前列2マス|前列3マス|自身の周り全体|自身の周囲1マス|周囲1マス|周囲|十字|一直線|敵全体|全体';
     let mm = s.match(new RegExp('通常攻撃(?:の範囲|範囲)?が(' + SH2K + ')にな[るり]'))
           || s.match(new RegExp('(?:自身の)?攻撃範囲が(' + SH2K + ')にな[るり]'));
     if (mm) push({ kind: 'attackShape', shape: SH2[mm[1]] });
@@ -6591,16 +6597,29 @@ const foesOf = (ctx, u) => teamOf(ctx, effSide(u) === 'A' ? 'B' : 'A');
 
 const facing = (u) => (u.side === 'A' ? -1 : 1);
 
+/* 薙ぎ払いの巻き添えを選ぶ（2026-10-03）。
+   狙った敵（primary）を先頭に、あと n-1 体。
+   through が false なら「狙った敵に隣り合う敵（八方）」だけ、
+   true なら相手を選ばず、自分に近い順に拾う（貫通）。
+   同じ戦をもう一度まわしても同じ答えになるよう、距離→兵量→番号で並べる */
+const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+function sweepTargets(self, enemies, primary, n, through) {
+  if (!primary || !primary.alive) return [];
+  const rest = live(enemies).filter(e => e !== primary
+    && (through || chebyshev(e, primary) <= 1));
+  rest.sort((a, b) => dist(self, a) - dist(self, b) || a.hp - b.hp || a.no - b.no);
+  return [primary, ...rest.slice(0, Math.max(0, n - 1))];
+}
 function resolveTargets(eff, self, allies, enemies, primary) {
   // 天守は「味方」としては数えない（2026-10-02）。守り手の癒しや強化が城に吸われないように
   allies = allies.filter(a => !a.isKeep);
   const t = eff.target;
   // --- 9×9盤面の範囲パターン ---
-  if (t === 'line') {
-    // 正面（敵陣方向）へ一直線。同じ列にいる敵全員
-    const d = facing(self);
-    return live(enemies).filter(e => e.x === self.x && (e.y - self.y) * d > 0);
-  }
+  /* 一直線（貫通）の読み替え（2026-10-03）。
+     もとは「自分と同じ列の前方」。実測で平均1.01体 ── 事実上いつも単体だった。
+     効果文はどれも「最大3体・距離が近い順に選ぶ」と書いてあるので、
+     狙った敵を先頭に、自分に近い者から三体まで貫く、と読み替えた */
+  if (t === 'line') return sweepTargets(self, enemies, primary, 3, true);
   if (t === 'cross1') return live(enemies).filter(e => Math.abs(e.x - self.x) + Math.abs(e.y - self.y) === 1);
   if (t === 'around1') return live(enemies).filter(e => Math.max(Math.abs(e.x - self.x), Math.abs(e.y - self.y)) === 1);
   if (t === 'targetAround1') {
@@ -6618,9 +6637,14 @@ function resolveTargets(eff, self, allies, enemies, primary) {
       (kind === 'farEnemies' ? d(b) - d(a) : d(a) - d(b)) || a.no - b.no);
     return sorted.slice(0, n);
   }
-  if (t === 'frontRow3') return primary ? live(enemies).filter(e => e.y === primary.y && Math.abs(e.x - primary.x) <= 1) : [];
-  // 前列2マス：対象のマスと、その右隣の1マス（横に2マス分）
-  if (t === 'frontRow2') return primary ? live(enemies).filter(e => e.y === primary.y && e.x - primary.x >= 0 && e.x - primary.x <= 1) : [];
+  /* 前列（薙ぎ払い）の読み替え（2026-10-03）。
+     もとは「狙った敵と同じ行で、左右1マス」だった。
+     ところが盤は9×9で五騎しか居らず、しかも動きまわるので横に並ばない。
+     実測で 前列3マスは平均1.30体・前列2マスは1.18体 ── ほとんど単体攻撃だった。
+     そこで「並び」ではなく「狙った敵に隣り合う敵（斜めも含む）」で数える。
+     これで名のとおりの体数が当たる。巻き添えは自分に近い者から選ぶ。 */
+  if (t === 'frontRow3') return primary ? sweepTargets(self, enemies, primary, 3) : [];
+  if (t === 'frontRow2') return primary ? sweepTargets(self, enemies, primary, 2) : [];
   if (t === 'front1' || t === 'enemy1' || t === 'backEnemy' || t === 'target') return primary && primary.alive ? [primary] : [];
   if (t === 'allAllies') return live(allies);
   if (t === 'selfAndAdjacent') return live(allies).filter(a => a === self || dist(a, self) <= 1);
@@ -17522,7 +17546,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)赤甲の突破・極",
-    "text": "【範囲:前列2マス】正面の敵2マスの敵に火力155%のダメージ。",
+    "text": "【範囲:正面2マス】正面の敵2マスの敵に火力155%のダメージ。",
     "element": "猛将",
     "cost": 4
    },
@@ -17655,7 +17679,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)百足の追撃・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力120%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力120%のダメージ。",
     "element": "猛将",
     "cost": 3
    },
@@ -17706,7 +17730,7 @@ const DB = {
    "range": 2,
    "unique": {
     "name": "(智将)伏せ犬の挟撃◆",
-    "text": "【範囲:前列2マス】通常攻撃の範囲が前列2マスになる。",
+    "text": "【範囲:正面2マス】通常攻撃の範囲が正面2マスになる。",
     "element": "智将",
     "timing": "常時"
    },
@@ -17861,7 +17885,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)雷斬りの号令・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力100%のダメージ。対象の速さ-15%を3ターン付与。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力100%のダメージ。対象の速さ-15%を3ターン付与。",
     "element": "猛将",
     "cost": 5
    },
@@ -18422,7 +18446,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)六文銭・紅蓮突貫",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力130%のダメージを与える。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力130%のダメージを与える。",
     "element": "猛将",
     "cost": 5
    },
@@ -18780,7 +18804,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)雪道の突進・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -18997,7 +19021,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)黒旗の前進・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -19069,7 +19093,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)豪犬の一押し・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -19215,7 +19239,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)風林火山・猛犬突撃",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力180%のダメージを与える。3ターン、自身の防御+15%。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力180%のダメージを与える。3ターン、自身の防御+15%。",
     "element": "猛将",
     "cost": 4
    },
@@ -19577,7 +19601,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)山風の槍・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力130%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -19793,7 +19817,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)柿色の突き・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -20293,7 +20317,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)若虎の槍・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -20488,7 +20512,7 @@ const DB = {
    "range": 2,
    "unique": {
     "name": "(神速)雷花閃◆",
-    "text": "【範囲:単体】移動+1、攻撃範囲が前列2マスになる。",
+    "text": "【範囲:単体】移動+1、攻撃範囲が正面2マスになる。",
     "element": "神速",
     "timing": "常時"
    },
@@ -20719,7 +20743,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)槍先の圧・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -20858,7 +20882,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)赤犬の踏み込み・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -21357,7 +21381,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)槍犬の気合・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -21648,7 +21672,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)鬼島津・突破の牙",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力180%のダメージを与える。3ターン、自身の火力+10%。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力180%のダメージを与える。3ターン、自身の火力+10%。",
     "element": "猛将",
     "cost": 5
    },
@@ -22235,7 +22259,7 @@ const DB = {
    "range": 1,
    "unique": {
     "name": "(神速)雷迅の槍◆",
-    "text": "【範囲:前列3マス】5ターンの間自身は敵の攻撃対象にならない。通常攻撃が前列3マスになる。",
+    "text": "【範囲:正面3マス】5ターンの間自身は敵の攻撃対象にならない。通常攻撃が正面3マスになる。",
     "element": "神速",
     "timing": "戦闘開始時",
     "condText": "1〜5ターン目（的にならない）"
@@ -22325,7 +22349,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)赤備え・犬牙の号令",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力170%のダメージを与える。4ターン、自身の火力+15%。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力170%のダメージを与える。4ターン、自身の火力+15%。",
     "element": "猛将",
     "cost": 5
    },
@@ -22451,7 +22475,7 @@ const DB = {
    "range": 2,
    "unique": {
     "name": "(智将)海国の采配◆",
-    "text": "【範囲:単体】海中、川を移動可能、通常攻撃範囲が前列2マスになる。",
+    "text": "【範囲:単体】海中、川を移動可能、通常攻撃範囲が正面2マスになる。",
     "element": "智将",
     "timing": "常時"
    },
@@ -23075,7 +23099,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)鬼面の押し込み・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -23291,7 +23315,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)大犬の咆哮・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -23867,7 +23891,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)土佐の若槍・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -23939,7 +23963,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)鈴鳴りの突撃・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -24155,7 +24179,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)森駆けの一撃・極",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力105%のダメージ。",
     "element": "猛将",
     "cost": 5
    },
@@ -24498,7 +24522,7 @@ const DB = {
    "range": 1,
    "unique": {
     "name": "(猛将)二天一流◆",
-    "text": "【範囲:前列3マス】通常攻撃の範囲が前列3マスになる。被弾時に30%の確率で1.2倍の攻撃力で反撃する。",
+    "text": "【範囲:正面3マス】通常攻撃の範囲が正面3マスになる。被弾時に30%の確率で1.2倍の攻撃力で反撃する。",
     "element": "猛将",
     "timing": "常時",
     "rate": 0.3,
@@ -24522,7 +24546,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)巌の位・燕返し",
-    "text": "【範囲:前列2マス】正面の敵2マスの敵に火力200%のダメージ。次のターンから自身の会心率+50%",
+    "text": "【範囲:正面2マス】正面の敵2マスの敵に火力200%のダメージ。次のターンから自身の会心率+50%",
     "element": "猛将",
     "cost": 5
    },
@@ -24670,7 +24694,7 @@ const DB = {
    ],
    "ultimate": {
     "name": "(猛将)竜の鱗・三日月斬り",
-    "text": "【範囲:前列3マス】正面の敵とその左右1マスの敵に火力170%のダメージを与える。3ターン、自身の火力+10%。",
+    "text": "【範囲:正面3マス】正面の敵とその左右1マスの敵に火力170%のダメージを与える。3ターン、自身の火力+10%。",
     "element": "猛将",
     "cost": 4
    },
@@ -24882,7 +24906,7 @@ const DB = {
     },
     {
      "name": "(共通)怒涛の覚醒",
-     "text": "【範囲:前列3マス】味方に女性武将がいると、通常攻撃の範囲が前列3マスになる。",
+     "text": "【範囲:正面3マス】味方に女性武将がいると、通常攻撃の範囲が正面3マスになる。",
      "element": null,
      "timing": "常時",
      "rate": null

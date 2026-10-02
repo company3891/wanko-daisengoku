@@ -5572,9 +5572,11 @@ function screenTeam() {
         el('select', {
           class: 'sqsel', title: 'どの部隊を組むか',
           onchange: e => { P.active = +e.target.value; savePlayer(); SFX.pick(); draw(); },
+        /* 名で選ぶ（2026-10-02）。騎の数だけでは、どれが「先鋒」でどれが
+           「守りの陣」なのか見分けられなかった。名を付けていない部隊だけ数で出す */
         }, P.squads.map((q, i) => el('option', {
           value: String(i), selected: i === P.active ? 'selected' : null,
-        }, `${i + 1}　${q.nos.length}騎`))),
+        }, `${i + 1}　${(q.name || '').trim() || `名無し（${q.nos.length}騎）`}`))),
         el('input', {
           class: 'nameIn', type: 'text', maxlength: 12, value: S.name,
           oninput: e => { P.squads[P.active].name = e.target.value.slice(0, 12); saveSquads(); },
@@ -6950,10 +6952,11 @@ function resSheet() {
     if (toTw) {
       fxToken++; BATTLE = null;
       S.screen = 'tower'; S.twSel = null;
-      /* 褒美の中身は勝ちの札で見せたので、ここでは抜けたことだけ（2026-10-01） */
-      S.twMsg = twW
-        ? (twW.first ? `${twF}階を抜けた` : `${twF}階を抜けた（褒美は受け取り済み）`)
-        : `届かなんだ　― ${(twN || []).join('／')}`;
+      /* 勝ったときは何も出さない（2026-10-02）。
+         褒美も「抜けた」ことも、勝ちの札でもう見せている。
+         塔へ戻ってからもう一度言うと、次の階の課題の邪魔になるだけだった。
+         届かなかったときだけ、何が足りなかったかを残す */
+      S.twMsg = twW ? '' : `届かなんだ　― ${(twN || []).join('／')}`;
       SFX.pick(); draw(); return;
     }
     if (toMap || toEv || toFr || toRk) { fxToken++; const id = BATTLE.ev && BATTLE.ev.id; BATTLE = null;
@@ -7571,8 +7574,13 @@ function screenTower() {
           el('div', { class: 'twconds' },
             el('span', { class: 'twc' }, el('i', {}, '条'), t.t)));
       })(),
-      /* 真ん中：待ち受ける者 */
-      twFoes(f),
+      /* 真ん中：待ち受ける者。忠告はその上に重ねる（2026-10-02）。
+         下の釦のそばに置くと、褒美と釦のあいだを押し広げて
+         武将が上へせり上がり、課題の帯に頭をぶつけていた */
+      el('div', { class: 'twmid' },
+        twFoes(f),
+        ng.length ? el('p', { class: 'twwarn' },
+          el('i', {}, '！'), `いまの編成では通らぬ　― ${ng.join('／')}`) : null),
       first ? el('div', { class: 'gtalk slim twsay' + (tart ? ' art' : '') },
         tart ? keepImg({ class: 'gtface', src: tart, alt: tc ? tc.name : '' })
              : el('i', { class: 'gtface' }, '犬'),
@@ -7585,9 +7593,6 @@ function screenTower() {
       el('div', { class: 'twfoot' },
         twPrize(t, twGot(f)),
         S.twMsg ? el('p', { class: 'twng' }, S.twMsg) : null,
-        /* いまの編成では通らない、と先に出す（2026-10-02） */
-        ng.length ? el('p', { class: 'twwarn' },
-          el('i', {}, '！'), `いまの編成では通らぬ　― ${ng.join('／')}`) : null,
         /* 脇の二つは木の額の絵（ui/tw_hensei.png / tw_houbi.png）。
            絵が無ければ、これまでどおり一字の丸い印に落ちる（2026-10-01） */
         (() => {

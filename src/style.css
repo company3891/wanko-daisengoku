@@ -2061,6 +2061,13 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 
 /* 所持アイテム（2026-09-21）。絵の下に個数。種類ごとに札で分ける */
 .sheet .card2.bagbox{max-width:440px}
+/* 家で絞る引き出し（2026-10-02）。丸い札と同じ背丈・同じ色にそろえる */
+.clanrow{margin:0 0 2px}
+.clansel{font-family:inherit;font-size:12px;color:#f3e7cc;cursor:pointer;
+  padding:6px 28px 6px 12px;border-radius:999px;border:1px solid var(--line);
+  background:#ffffff0a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0h10L5 6z' fill='%23d8a94a'/></svg>") no-repeat right 11px center;
+  -webkit-appearance:none;appearance:none;max-width:60%}
+.clansel:focus{outline:none;border-color:#d8a94a88}
 /* 図鑑の棚えらび（2026-10-02）。武将の棚と技の棚 */
 .dextabs{margin:6px 0 8px}
 /* 技の棚（2026-10-02）。一行＝ひとつの技。

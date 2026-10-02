@@ -3879,6 +3879,17 @@ const DEXSORT = [
      同じ段のときは、下の並べ替えが No. で揃えるので崩れない */
   { k: 'lv',   name: 'レベル', up: false, v: c => charState(c.no).lv },
 ];
+/* 家（所属の勢力）の一覧（2026-10-02）。
+   38家もあるので丸い札では並びきらない。一行の引き出し（select）にする。
+   並びは人数の多い順 ── 武田・徳川・織田…と、よく探す家が先に来る */
+let CLANS = null;
+const clanList = () => {
+  if (CLANS) return CLANS;
+  const n = {};
+  for (const c of C) if (c.clan) n[c.clan] = (n[c.clan] || 0) + 1;
+  CLANS = Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b, 'ja'));
+  return CLANS;
+};
 const pfGet = (ks, k, d) => { const v = ks[k] ? S[ks[k]] : null; return v == null ? d : v; };
 const pfSet = (ks, k, v) => { if (ks[k]) S[ks[k]] = v; SFX.pick(); draw(); };
 /* 絞込みを当てて、並べ替えて返す */
@@ -3888,9 +3899,11 @@ function pickApply(list, ks, opt) {
   /* 編成中だけに絞る（2026-10-01）。五つの部隊のどれかに入っている武将。
      「いま出している子だけ育てたい」ときに、位も属性も関係なく拾える */
   const sq = !!pfGet(ks, 'sq', false);
+  const cl = pfGet(ks, 'clan', 'すべて');     // 家（2026-10-02）
   const out = list.filter(c =>
     (rar === 'すべて' || c.rarity === rar) &&
     (att === 'すべて' || c.attr === att) &&
+    (cl === 'すべて' || (c.clan || '') === cl) &&
     (!sq || inSquad(c.no)));
   const so = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
   const up = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
@@ -3918,6 +3931,16 @@ function pickRows(ks, opt) {
     /* 並びの段のいちばん右に「編成中」を並べる（2026-10-01）。
        段がひとつ減って、武将の札が一列ぶん早く見えるようになる。
        中身は絞込みなので、色を変えて（緑）並べ替えの札と見分ける */
+    /* 家で絞る（2026-10-02）。同じ家の者をそろえて見たい、という話。
+       家は38もあるので札ではなく引き出しにした。並べ替えの段の左に置く */
+    pfRow([
+      el('select', {
+        class: 'clansel', title: '家で絞る',
+        onchange: e => pfSet(ks, 'clan', e.target.value),
+      }, ['すべて', ...clanList()].map(cn => el('option', {
+        value: cn, selected: pfGet(ks, 'clan', 'すべて') === cn ? 'selected' : null,
+      }, cn === 'すべて' ? '家：すべて' : cn))),
+    ], 'clanrow'),
     pfRow([
       ...DEXSORT.map(x => el('button', {
         class: 'chip' + (so.k === x.k ? ' on' : ''),
@@ -3936,9 +3959,9 @@ function pickRows(ks, opt) {
     ]),
   ];
 }
-const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq' };
-const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc',   sq: 'tSq' };
-const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc',  sq: 'cpSq' };
+const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq', clan: 'dexClan' };
+const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc',   sq: 'tSq',  clan: 'tClan' };
+const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc',  sq: 'cpSq', clan: 'cpClan' };
 /* ---- 特技の一覧（2026-10-02）----
    図鑑は武将の棚だったが、「この技は誰が持っているのか」を探す場が無かった。
    継承の相手をさがすのに、武将を一枚ずつ裏返して回るしかなかったので、

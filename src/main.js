@@ -4563,6 +4563,14 @@ function menuSheet() {
             : 'ブラウザは、しばらく使われていない置き場から順に記録を消すことがあります。'
               + 'ホーム画面に追加して、そこから遊ぶと消えにくくなります。'
               + '大事な記録は「保存の控えを書き出す」でファイルに残してください。') : null,
+        /* はじめての手引きのやり直し（2026-10-02）。
+           手引きの中の「やめる」を押すと、これまでは二度と出てこなかった。
+           やめた歩（P.gquit）を覚えてあれば そのつづきから、
+           無ければ はじめから。手引きの最中は、語りの中に「やめる」があるので出さない */
+        guideOn() ? null : row('はじめての手引き', P.gquit > 0 ? 'つづきから' : 'はじめから', () => {
+          P.gstep = P.gquit > 0 ? P.gquit : 1; P.gquit = 0; savePlayer();
+          S.menu = false; SFX.pick(); draw();
+        }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
       el('p', { class: 'ver' }, 'わんこ大戦国　開発中の版'),
@@ -5143,13 +5151,11 @@ function pullBtn(kind, label, price, can, on, ptext) {
   },
     art ? el('img', { class: 'pimg', src: art, alt: label }) : null,
     el('b', {}, label),
-    /* 帯の字は渡された値札をそのまま出す（2026-10-02）。
-       「初回無料」の決め打ちだと、一日ひとたびのただ引きにも同じ字が出てしまう */
-    (art && freeBadge) ? el('span', { class: 'freeband' },
-      typeof price === 'string' ? price : '無料') : null,
-    /* 上の金の帯に同じ字を出したときは、中の値札は出さない（2026-10-02）。
-       「1回無料 1回無料」と二度 出ていた */
-    (art && freeBadge) ? null : el('span', { class: 'pr' }, price));
+    /* 「無料」も値段とおなじ黒帯の中に書く（2026-10-02 改）。
+       前は絵の上ぎわに金の丸帯を浮かせていたが、絵の外に飛び出して
+       隣の釦や上の飾りと重なり、どの釦の札なのか分からなくなっていた。
+       値段が出る場所と同じなら、目はいつも同じ所を見ればよい */
+    el('span', { class: 'pr' + (freeBadge ? ' freeword' : '') }, price));
 }
 /* ---- 宝箱の演出（2026-09-26）----
    引いたらすぐ札を見せず、宝の前に立たせる。押して開けた瞬間に出るほうが、
@@ -5603,7 +5609,12 @@ function screenTeam() {
       }, el('i', {}, '★'), 'おすすめ編成（総戦力が最大）'),
       grid,
       el('div', { class: 'acts' },
-        el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); draw(); } }, S.twBack ? '塔へ' : '部隊へ'),
+        /* 左下の追従の釦と行き先が同じなので、下まで巻いたとき二つ重なって見えた。
+           追従の釦が出ているあいだは、ここは場所取りだけにする（2026-10-02）。
+           戦を預かっているとき（S.sqpHold）だけは、追従が「戦へ」で行き先が別なので残す */
+        S.sqpHold
+          ? el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); draw(); } }, S.twBack ? '塔へ' : '部隊へ')
+          : el('div', { class: 'spacer', style: 'flex:0 0 76px' }),
         el('div', { class: 'info' },
           el('span', { class: 'ic' }, el('b', { class: over ? 'over' : '' }, `${cost()}`), ` / ${costMax()}`,
             costBuff() ? el('em', { class: 'cbuff' }, `+${costBuff().add}　あと${costBuffLeft()}`) : null),
@@ -8338,8 +8349,11 @@ function gdBubble(g, hit) {
       el('div', { class: 'gdb' }, el('b', {}, g.say[0]), el('p', {}, g.say[1])),
       /* 逃げ道（2026-09-30）。戻るなどで思わぬ画面へ行くと、
          指す先が別の画面にあって進めなくなることがあった。いつでも降りられるようにする */
+      /* やめた歩を覚えておく（2026-10-02）。
+         前は 0 に戻すだけだったので、途中でやめると二度と出てこなかった。
+         三本線（環境設定）から、やめた所のつづきに戻れるようにする */
       el('button', { class: 'gdquit', title: '手引きをやめる',
-        onclick: () => { P.gstep = 0; savePlayer(); SFX.pick(); draw(); } }, 'やめる'));
+        onclick: () => { P.gquit = P.gstep; P.gstep = 0; savePlayer(); SFX.pick(); draw(); } }, 'やめる'));
     document.body.append(say);
   }
   if (!hit) {                                   // 指す先が無いときは、いつもの下ぎわ

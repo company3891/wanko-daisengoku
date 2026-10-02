@@ -1108,9 +1108,13 @@ main.hasnav ~ .sheet, .sheet{padding-bottom:calc(16px + var(--nav,104px));
   .pull .tkp .ci{width:26px;height:26px}
   .pull .tkp em{font-size:12px}
 }
-.pull.art .freeband{position:absolute;left:50%;top:-7px;transform:translateX(-50%);z-index:3;
-  font-size:10px;font-weight:800;letter-spacing:.08em;color:#1a1509;background:var(--gold);
-  border-radius:999px;padding:2px 10px;box-shadow:0 2px 6px #000a;white-space:nowrap}
+/* 「無料」の字は、値段と同じ黒帯の中に置く（2026-10-02）。
+   前は絵の上ぎわに金の丸帯を浮かせていたが、絵の外へ飛び出して
+   隣の釦や上の飾りと重なっていた。帯の中なら、どの釦の札かが一目で分かる。
+   ただ引きは目を引かせたいので、字だけ金に寄せて少し大きくする */
+.pull.art .pr.freeword{font-size:13px;letter-spacing:.1em;color:#ffe9a8;
+  text-shadow:0 0 4px #c8902088,0 1px 2px #000}
+@media (max-width:380px){ .pull.art .pr.freeword{font-size:12px} }
 /* 一祈りと十連は横に並べる（2026-09-21 もどし）。
    絵は横長（およそ 2.8:1）なので、2つ並べても文字が読める */
 .pulls.art{flex-direction:row;gap:10px;align-items:stretch}

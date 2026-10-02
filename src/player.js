@@ -67,6 +67,9 @@ export const P = {
      { <くじの印>: { sr, ssr, ur, draws } }。P に並べないと保存から読み戻らない */
   pity: {},
   firstFree: true,    // 初回10連が無料かどうか
+  /* 一日ひとたびの ただ引き（2026-10-02）。{ <くじの印>: '使った日' }。
+     P の既定値に並べておかないと loadPlayer が読み戻さない */
+  gfree: {},
   /* 音の入り切り（2026-09-28）。前は画面の覚え（S）に置いていたので、
      入れても開き直すたびにオフへ戻っていた。P に並べて覚えさせる。
      はじめから入にしておく（2026-09-30）。端末は人が触るまで鳴らせないが、
@@ -878,14 +881,26 @@ export function pityOf(id) {
   return P.pity[id];
 }
 
+/* 一日ひとたびの ただ引き（2026-10-02）。
+   きょう まだ引いていなければ true。くじごとに別で数える */
+export function gFreeOk(g) {
+  if (!g || !g.freeDay) return false;
+  if (!P.gfree || typeof P.gfree !== 'object') P.gfree = {};
+  return P.gfree[g.id] !== today();
+}
 export function pull(count, pool, gid, opt = {}) {
   const free = count === 10 && P.firstFree;
+  /* 一日ひとたびの ただ引き（2026-10-02）。一度引きのときだけ。
+     札より先に見るので、ただの日は札も石も減らない */
+  const freeOne = count === 1 && !!opt.freeOne;
   /* 祭りのくじは札で引ける（2026-09-30）。
      opt.ticket が立っているくじでは、札を先に減らし、足りなければ石に落ちる。
      石は貯めておきたい人が多いので、持っている札から使い切るほうが親切 */
   const tneed = count === 10 ? TICKET_PRICE.ten : TICKET_PRICE.single;
-  const byTicket = !free && !!opt.ticket && item(TICKET) >= tneed;
-  const cost = (free || byTicket) ? 0 : (count === 10 ? PRICE.ten : PRICE.single);
+  const byTicket = !free && !freeOne && !!opt.ticket && item(TICKET) >= tneed;
+  const cost = (free || freeOne || byTicket) ? 0 : (count === 10 ? PRICE.ten : PRICE.single);
+  if (freeOne) { if (!P.gfree || typeof P.gfree !== 'object') P.gfree = {};
+                 P.gfree[gid] = today(); }
   if (byTicket) P.items[TICKET] -= tneed;
   else if (cost && !spendStones(cost)) return null;
   const base = omikujiBase();

@@ -13,7 +13,7 @@ import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, m
          mkNext } from './market.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
-import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
+import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
@@ -4377,9 +4377,11 @@ function screenGacha() {
   /* 祭の札で引けるくじでは、札が先（2026-09-30）。
      持っていれば値札が札に変わり、尽きたら黙って石の値札に戻る */
   const tkt = curGacha().ticket ? item(TICKET) : 0;
-  const byOne = tkt >= TICKET_PRICE.single;
+  /* 一日ひとたびの ただ引き（2026-10-02）。札よりも石よりも先に見る */
+  const oneFree = gFreeOk(curGacha());
+  const byOne = !oneFree && tkt >= TICKET_PRICE.single;
   const byTen = tkt >= TICKET_PRICE.ten;
-  const canOne = byOne || stones() >= PRICE.single;
+  const canOne = oneFree || byOne || stones() >= PRICE.single;
   const canTen = P.firstFree || byTen || stones() >= PRICE.ten;
   const [toSSR, toUR] = pityLeft();
   /* 宝の前の景色は、引いてから札を見終わるまで敷いたままにする（2026-09-26） */
@@ -4405,10 +4407,12 @@ function screenGacha() {
         : S.rvall ? revealAll(S.rvall)
         : waiting ? gachaBox()
         : el('div', { class: 'pulls' + (uiUrl('pull_one') || uiUrl('pull_ten') ? ' art' : '') },
-            pullBtn('one', '一度引く',
-              byOne ? tktPrice(TICKET_PRICE.single) : stonePrice(PRICE.single),
-              canOne, () => doPull(1),
-              byOne ? `祭の札 ${TICKET_PRICE.single}枚` : `${num(PRICE.single)} 石`),
+            pullBtn('one' + (oneFree ? ' free' : ''), '一度引く',
+              oneFree ? '1回無料'
+                : byOne ? tktPrice(TICKET_PRICE.single) : stonePrice(PRICE.single),
+              oneFree || canOne, () => doPull(1),
+              oneFree ? '1回無料'
+                : byOne ? `祭の札 ${TICKET_PRICE.single}枚` : `${num(PRICE.single)} 石`),
             pullBtn('ten' + (P.firstFree ? ' free' : ''), '十連',
               P.firstFree ? '初回無料'
                 : byTen ? tktPrice(TICKET_PRICE.ten) : stonePrice(PRICE.ten),
@@ -5128,8 +5132,13 @@ function pullBtn(kind, label, price, can, on, ptext) {
   },
     art ? el('img', { class: 'pimg', src: art, alt: label }) : null,
     el('b', {}, label),
-    (art && freeBadge) ? el('span', { class: 'freeband' }, '初回無料') : null,
-    el('span', { class: 'pr' }, price));
+    /* 帯の字は渡された値札をそのまま出す（2026-10-02）。
+       「初回無料」の決め打ちだと、一日ひとたびのただ引きにも同じ字が出てしまう */
+    (art && freeBadge) ? el('span', { class: 'freeband' },
+      typeof price === 'string' ? price : '無料') : null,
+    /* 上の金の帯に同じ字を出したときは、中の値札は出さない（2026-10-02）。
+       「1回無料 1回無料」と二度 出ていた */
+    (art && freeBadge) ? null : el('span', { class: 'pr' }, price));
 }
 /* ---- 宝箱の演出（2026-09-26）----
    引いたらすぐ札を見せず、宝の前に立たせる。押して開けた瞬間に出るほうが、
@@ -5436,7 +5445,8 @@ async function doPull(count, noDup) {
       pool[r2] = rest.length ? rest : BASE[r2];
     }
   }
-  const r = pull(count, pool, curGacha().id, { ticket: !!curGacha().ticket });
+  const r = pull(count, pool, curGacha().id,
+                 { ticket: !!curGacha().ticket, freeOne: count === 1 && gFreeOk(curGacha()) });
   if (!r) return;
   const pre = preloadPull(r);   // 絵の先読みは、芝居のあいだに裏で走らせる（2026-09-30）
   /* 宝箱があるときは、そちらに預けて手を止める（2026-09-26） */

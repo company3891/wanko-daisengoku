@@ -662,6 +662,19 @@ main.hasnav:has(.home.art){padding-bottom:var(--nav,104px)}
   background:#12100ec4;backdrop-filter:blur(3px)}
 .home.art .stats div{background:#12100ed6;border-color:#ffffff26;backdrop-filter:blur(4px)}
 
+/* 城に誰も立っていないときの一枚（2026-10-02）。
+   立ち絵が立つところ（参道の真ん中）に置く。
+   座の札は z-index:4 なので、それより下の 3 にして端にも寄せない。
+   横幅を絞って、左右の座の札とぶつからないようにする */
+.home .homeempty{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
+  z-index:3;width:min(300px,62%);display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:14px 16px;border-radius:14px;cursor:pointer;font-family:inherit;text-align:center;
+  border:1px solid #d8a94a4d;background:#12100edd;backdrop-filter:blur(4px);
+  box-shadow:0 4px 16px #000a}
+.home .homeempty b{font-size:15px;letter-spacing:.04em;color:#f7ecd0}
+.home .homeempty span{font-size:11px;color:var(--text3)}
+.home .homeempty:active{transform:translate(-50%,-50%) translateY(1px);filter:brightness(.94)}
+
 /* ---- 総大将を大きく立たせる（2026-09-21）----
    背景の参道の上に立つように、画面幅の7割で置く。足元に光の輪を敷いて浮かせない。 */
 .home .lordstage{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;

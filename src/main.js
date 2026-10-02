@@ -1132,10 +1132,22 @@ function screenHome() {
               : el('div', { class: 'lordart chip', style: chipStyle(gen) }))) : null,
       /* 戦績の数字と「編成へ」は出さない（2026-09-21）。
          下ナビに編成があるので重複だったし、絵と城を隠していた。 */
-      gen ? null : el('div', { class: 'front' },
-        el('div', { class: 'lord none' }, el('div', { class: 'say' },
-          el('b', {}, 'まだ武将がおらぬ'),
-          el('span', {}, 'わんこみくじで武将を集めよ')))),
+      /* 城に誰も立っていないときの一枚（2026-10-02 に作り直した）。
+         前は「まだ武将がおらぬ／わんこみくじで武将を集めよ」の一種類だけで、
+         武将を百体持っていても いまの部隊が空なら この字が出ていた。
+         しかも置き場が下すぎて、試練の塔の札のうしろに隠れていた。
+         ・ほんとうに一体もいない … くじへ
+         ・部隊が空なだけ        … 編成へ
+         参道の真ん中、立ち絵が立つところに置く */
+      gen ? null : (() => {
+        const none = !P.own.some(hasCard);
+        return el('button', {
+          class: 'homeempty',
+          onclick: () => { S.screen = none ? 'gachalist' : 'squads'; SFX.pick(); draw(); },
+        },
+          el('b', {}, none ? 'まだ武将がおらぬ' : `${(q && q.name) || '部隊'}に 誰もおらぬ`),
+          el('span', {}, none ? 'わんこみくじで武将を集めよ' : '編成から武将を並べよ'));
+      })(),
       homeMenu('TL'), homeMenu('BL'), homeMenu('BR'),
       tebikiCard()),
     nav: true,

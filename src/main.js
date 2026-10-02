@@ -6600,6 +6600,10 @@ async function showEvent(e, my) {
       const un = (e.skills || []).map(skillShort).filter(Boolean);
       const uname = un.length ? (un.slice(0, 2).join('／') + (un.length > 2 ? '　ほか' : ''))
                               : uniqNameOf(no);
+      /* カットインは一戦に一度だけ（2026-10-02）。
+         engine が first を立てた回だけ出す。二度目からは光と音で済ませる。
+         常時の固有は hold つきで来る＝「名乗りを上げた」だけで、効き目はもう乗っている */
+      if (!e.first) { await sleep(120); return; }
       const ms = cutIn(document.body, { name: e.name, skill: uname,
                                         art: null, img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
       await sleep(Math.min(ms, 560)); return;

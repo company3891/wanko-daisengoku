@@ -7129,6 +7129,20 @@ function act(u, allies, enemies, ctx) {
   const { rules, rng, log, t } = ctx;
   ctx._actionId = (ctx._actionId || 0) + 1;   // 反撃の「1行動1回」判定に使う
   u.acts++;
+  /* 常時の固有も、はじめの一手で名乗りを上げる（2026-10-02）。
+     常時の効果に「発動の瞬間」は無いが、それだと49体のうち29体は
+     一度も見せ場が無いまま戦が終わってしまう。
+     開戦にまとめて出すと両軍で十枚続いて長いので、
+     その武将がはじめて動くときに一枚だけ出す（効き目はもう開戦から乗っている）。
+     ここでは何も掛けない。カットインを出すためだけのしるし */
+  {
+    const ut = u.compiled.uniqueTrig;
+    if (ut && !u._uniqShown && ALWAYS_TIMINGS.has(ut.timing)) {
+      u._uniqShown = true;
+      if (log) log.push({ t: +t.toFixed(1), type: 'unique', src: u.id, name: u.name,
+                          skills: u.uniqNames || [], timing: ut.timing, first: true, hold: true });
+    }
+  }
   // 手動操作の部隊は指示どおりに動く。指示が無ければそこで入力待ちにする
   if (u.manualPlay && ctx.commands) {
     const cmd = commandFor(u, ctx);
@@ -7455,8 +7469,12 @@ function fireSkills(u, timing, allies, enemies, target, ctx) {
   if (ut && ut.timing === timing) {
     const effs = uniqFire(ut.effects);
     if (effs.length && skillFires(u, ut, ctx)) {
+      /* 見せ場は一戦に一度だけ（2026-10-02）。
+         first が立っている回だけ、盤がカットインを出す。
+         二度目からは光と音だけ ── 同じ札が何度も画面を覆うと盤が見えない */
+      const shown = !u._uniqShown; u._uniqShown = true;
       if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'unique', src: u.id, name: u.name,
-                                  skills: u.uniqNames || [], timing });
+                                  skills: u.uniqNames || [], timing, first: shown });
       withVia(ctx, 'unique', () => applyEffects(effs, u, allies, enemies, target, ctx));
     }
   }
@@ -31291,6 +31309,10 @@ async function showEvent(e, my) {
       const un = (e.skills || []).map(skillShort).filter(Boolean);
       const uname = un.length ? (un.slice(0, 2).join('／') + (un.length > 2 ? '　ほか' : ''))
                               : uniqNameOf(no);
+      /* カットインは一戦に一度だけ（2026-10-02）。
+         engine が first を立てた回だけ出す。二度目からは光と音で済ませる。
+         常時の固有は hold つきで来る＝「名乗りを上げた」だけで、効き目はもう乗っている */
+      if (!e.first) { await sleep(120); return; }
       const ms = cutIn(document.body, { name: e.name, skill: uname,
                                         art: null, img: faceUrl(no, '真剣') || cutinUrl(no), kind: 'unique' });
       await sleep(Math.min(ms, 560)); return;

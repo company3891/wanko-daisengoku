@@ -29092,9 +29092,14 @@ function cardSheet(c) {
   card.onclick = e => { e.stopPropagation(); if (sw && sw.on) return; close(); };
 
   const mine = !un && !S.detailRO && P.own.includes(c.no);
+  /* 札から育成の三画面へ飛ぶ（2026-10-02 に S.gpop を足した）。
+     前は画面だけ替えていたので、着いた先は「武将をえらぶ」一覧だった。
+     いま見ている札の子を育てたくて押しているのに、
+     その子をもう一度 一覧から探さされていた。
+     S.gpop＝その武将の中身をひらいた状態。育成の三画面はこれを見ている */
   const goto = (screen, set) => e => {
     e.stopPropagation();
-    set(); S.detail = null; S.side = null; S.screen = screen; SFX.pick(); draw();
+    set(); S.gpop = true; S.detail = null; S.side = null; S.screen = screen; SFX.pick(); draw();
   };
   const arw = dir => el('button', {
     class: 'cdarw ' + dir, title: side === 'front' ? '裏を見る' : '表を見る', onclick: flip,

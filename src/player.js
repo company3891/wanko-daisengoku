@@ -167,11 +167,15 @@ export const ITEMS = {
   '稽古の書':   { kind: '稽古', exp: 1000,   price: 300,  desc: '武将の経験を 1,000 積む' },
   '大稽古の書': { kind: '稽古', exp: 5000,   price: 1200, desc: '武将の経験を 5,000 積む' },
   '皆伝の書':   { kind: '稽古', exp: 25000,  price: 5000, desc: '武将の経験を 25,000 積む' },
-  '兵糧丸':     { kind: '兵糧', food: 30,    price: 400,  use: true, desc: '兵糧を 30 もどす' },
+  /* 兵糧は小判ではなく石で買う（2026-10-02）。
+     小判は戦えば際限なく貯まるので、小判で兵糧が買えると
+     いつまでも出陣し続けられてしまい、兵糧という仕掛けそのものが意味を失う。
+     石は数にかぎりがあるので、「今日はここまで」の線が引ける */
+  '兵糧丸':     { kind: '兵糧', food: 30,    stone: 30,   use: true, desc: '兵糧を 30 もどす' },
   /* 兵糧俵は 1000 → 5000（2026-10-02）。
      兵糧丸（30もどす）が400なので、満たす一俵が1000では安すぎて
      「待つ」という決まりごとが無いのと同じになっていた */
-  '兵糧俵':     { kind: '兵糧', food: 9999,  price: 5000, use: true, desc: '兵糧を満たす' },
+  '兵糧俵':     { kind: '兵糧', food: 9999,  stone: 100,  use: true, desc: '兵糧を満たす' },
   /* 伝書と護符は小判では買えない（2026-10-02）。
      小判で買えると、特技の位も継承も「通えば上がる」ものになってしまい、
      重ねを食わせる・しくじるという山場が無くなる。
@@ -644,7 +648,10 @@ export function dailyDeals() {
   const out = [deal(badgeMat(attr, rank))];
   /* 棚に出さない品（伝書・護符・祭の札）は 振り売りにも出さない（2026-10-02）。
      蔵から外しても、日替わりの安売りに顔を出したら意味がない */
-  const pool = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== '覚醒' && !ITEMS[k].noShop);
+  /* 石で買う品も 振り売りには出さない（2026-10-02）。
+     振り売りは小判の安売りなので、値が石の品を混ぜると値札が合わない */
+  const pool = Object.keys(ITEMS).filter(k =>
+    ITEMS[k].kind !== '覚醒' && !ITEMS[k].noShop && !ITEMS[k].stone);
   for (let i = 0; i < 2 && pool.length; i++) out.push(deal(pool.splice(Math.floor(rnd() * pool.length), 1)[0]));
   return out;
 }
@@ -661,12 +668,21 @@ export const dealBought = name => !!shopState().bought[name];
 export function buyItem(name, n = 1) {
   if ((ITEMS[name] || {}).noShop) return null;
   const it = ITEMS[name]; if (!it) return null;
+  /* 石で買う品（2026-10-02）。いまは兵糧だけ。
+     cur を返しておくと、買えたときの知らせで通貨の名を出し分けられる */
+  if (it.stone) {
+    const cost = it.stone * n;
+    if (!spendStones(cost)) return null;
+    P.items[name] = item(name) + n;
+    savePlayer();
+    return { name, n, cost, cur: 'stone' };
+  }
   const cost = it.price * n;
   if (P.koban < cost) return null;
   P.koban -= cost;
   P.items[name] = item(name) + n;
   savePlayer();
-  return { name, n, cost };
+  return { name, n, cost, cur: 'koban' };
 }
 /* 振り売りで買う。1日ひとつずつ */
 export function buyDeal(name) {

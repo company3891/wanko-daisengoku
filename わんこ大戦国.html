@@ -6590,7 +6590,7 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
           a.alive = true;
           a.hp = Math.max(1, Math.round(a.maxHp * (eff.pct || 0)));
           a.statuses = {};
-          if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'revive', tgt: a.id, all: true });
+          if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'revive', tgt: a.id, all: true, hp: Math.round(a.hp) });
         }
         break;
       }
@@ -6913,14 +6913,17 @@ function kill(src, tgt, ctx) {
   const en = (tgt.passives || []).find(p => p.kind === 'endure' && condOk(tgt, p));
   if (en && !tgt._enduredUsed && rng.chance(en.chance)) {
     tgt._enduredUsed = true; tgt.hp = 1;
-    if (log) log.push({ t: +t.toFixed(1), type: 'endure', tgt: tgt.id });
+    /* 残った兵量もログに入れる（2026-10-02）。
+       盤は dmg の引き算で見かけを作っているので、ここを渡さないと
+       耐えた者が「0なのに立っている」ように見えていた */
+    if (log) log.push({ t: +t.toFixed(1), type: 'endure', tgt: tgt.id, hp: 1 });
     return;
   }
   // 蘇生（味方の誰かが蘇生効果を持っていれば1回だけ復帰）
   const ally = mineOf(ctx, tgt).find(u => u.alive && u.reviveAvailable > 0);
   if (ally) {
     tgt.hp = tgt.maxHp * ally.reviveAvailable; ally.reviveAvailable = 0;
-    if (log) log.push({ t: +t.toFixed(1), type: 'revive', tgt: tgt.id });
+    if (log) log.push({ t: +t.toFixed(1), type: 'revive', tgt: tgt.id, hp: Math.round(tgt.hp) });
     return;
   }
   // 道連れ反撃：戦闘不能になる「前に」1度だけ反撃する（固有の常時効果）
@@ -9606,11 +9609,15 @@ const ITEMS = {
   '稽古の書':   { kind: '稽古', exp: 1000,   price: 300,  desc: '武将の経験を 1,000 積む' },
   '大稽古の書': { kind: '稽古', exp: 5000,   price: 1200, desc: '武将の経験を 5,000 積む' },
   '皆伝の書':   { kind: '稽古', exp: 25000,  price: 5000, desc: '武将の経験を 25,000 積む' },
-  '兵糧丸':     { kind: '兵糧', food: 30,    price: 400,  use: true, desc: '兵糧を 30 もどす' },
+  /* 兵糧は小判ではなく石で買う（2026-10-02）。
+     小判は戦えば際限なく貯まるので、小判で兵糧が買えると
+     いつまでも出陣し続けられてしまい、兵糧という仕掛けそのものが意味を失う。
+     石は数にかぎりがあるので、「今日はここまで」の線が引ける */
+  '兵糧丸':     { kind: '兵糧', food: 30,    stone: 30,   use: true, desc: '兵糧を 30 もどす' },
   /* 兵糧俵は 1000 → 5000（2026-10-02）。
      兵糧丸（30もどす）が400なので、満たす一俵が1000では安すぎて
      「待つ」という決まりごとが無いのと同じになっていた */
-  '兵糧俵':     { kind: '兵糧', food: 9999,  price: 5000, use: true, desc: '兵糧を満たす' },
+  '兵糧俵':     { kind: '兵糧', food: 9999,  stone: 100,  use: true, desc: '兵糧を満たす' },
   /* 伝書と護符は小判では買えない（2026-10-02）。
      小判で買えると、特技の位も継承も「通えば上がる」ものになってしまい、
      重ねを食わせる・しくじるという山場が無くなる。
@@ -10083,7 +10090,10 @@ function dailyDeals() {
   const out = [deal(badgeMat(attr, rank))];
   /* 棚に出さない品（伝書・護符・祭の札）は 振り売りにも出さない（2026-10-02）。
      蔵から外しても、日替わりの安売りに顔を出したら意味がない */
-  const pool = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== '覚醒' && !ITEMS[k].noShop);
+  /* 石で買う品も 振り売りには出さない（2026-10-02）。
+     振り売りは小判の安売りなので、値が石の品を混ぜると値札が合わない */
+  const pool = Object.keys(ITEMS).filter(k =>
+    ITEMS[k].kind !== '覚醒' && !ITEMS[k].noShop && !ITEMS[k].stone);
   for (let i = 0; i < 2 && pool.length; i++) out.push(deal(pool.splice(Math.floor(rnd() * pool.length), 1)[0]));
   return out;
 }
@@ -10100,12 +10110,21 @@ const dealBought = name => !!shopState().bought[name];
 function buyItem(name, n = 1) {
   if ((ITEMS[name] || {}).noShop) return null;
   const it = ITEMS[name]; if (!it) return null;
+  /* 石で買う品（2026-10-02）。いまは兵糧だけ。
+     cur を返しておくと、買えたときの知らせで通貨の名を出し分けられる */
+  if (it.stone) {
+    const cost = it.stone * n;
+    if (!spendStones(cost)) return null;
+    P.items[name] = item(name) + n;
+    savePlayer();
+    return { name, n, cost, cur: 'stone' };
+  }
   const cost = it.price * n;
   if (P.koban < cost) return null;
   P.koban -= cost;
   P.items[name] = item(name) + n;
   savePlayer();
-  return { name, n, cost };
+  return { name, n, cost, cur: 'koban' };
 }
 /* 振り売りで買う。1日ひとつずつ */
 function buyDeal(name) {
@@ -28186,8 +28205,11 @@ function shopBuy(name, price, n, kind) {
   return () => {
     const r = kind === 'deal' ? buyDeal(name) : buyItem(name, n);
     if (r && kind === 'deal') miBump('deal');   // お役目の数（2026-10-02）
-    if (r) { miBump('buy'); SFX.coin(); S.shopMsg = `${name} を ${r.n} つ手に入れた（小判 ${num(r.cost)}）`; }   // お役目の数（門出・2026-09-26）
-    else { SFX.pick(); S.shopMsg = '小判が足りない'; }
+    /* 通貨で字を出し分ける（2026-10-02）。兵糧は石で買う */
+    const st = !!(ITEMS[name] || {}).stone;
+    if (r) { miBump('buy'); SFX.coin();
+      S.shopMsg = `${name} を ${r.n} つ手に入れた（${r.cur === 'stone' ? '石' : '小判'} ${num(r.cost)}）`; }
+    else { SFX.pick(); S.shopMsg = st ? '石が足りない' : '小判が足りない'; }
     draw();
   };
 }
@@ -28288,20 +28310,24 @@ function screenShop() {
               : kind === '編成' ? '陣触れの蔵' : kind === '陣中' ? '陣中の蔵' : '特技の蔵'),
             el('div', { class: 'shoplist' }, names.map(name => {
               const it = ITEMS[name];
+              /* 石で買う品（兵糧）と小判で買う品が同じ棚に並ぶ（2026-10-02）。
+                 値札も「足りているか」も、その品の通貨で出し分ける */
+              const st = !!it.stone, cost = st ? it.stone : it.price;
+              const have = () => (st ? stones() : P.koban);
               return el('div', { class: 'shoprow' },
                 itemIcon(name),
                 el('div', { class: 'sitm' },
                   el('b', {}, name, el('span', { class: 'have' }, `持 ${num(item(name))}`)),
                   el('span', { class: 'sd' }, it.desc),
-                  el('span', { class: 'sp2' }, `小判 ${num(it.price)}`)),
+                  el('span', { class: 'sp2' }, st ? `石 ${num(cost)}` : `小判 ${num(cost)}`)),
                 el('div', { class: 'sbtns' },
                   el('button', {
-                    class: 'go sm', disabled: P.koban < it.price ? true : null,
-                    onclick: shopBuy(name, it.price, 1),
+                    class: 'go sm', disabled: have() < cost ? true : null,
+                    onclick: shopBuy(name, cost, 1),
                   }, '×1'),
                   el('button', {
-                    class: 'go sm', disabled: P.koban < it.price * 10 ? true : null,
-                    onclick: shopBuy(name, it.price, 10),
+                    class: 'go sm', disabled: have() < cost * 10 ? true : null,
+                    onclick: shopBuy(name, cost, 10),
                   }, '×10')));
             })));
         })) : null,
@@ -30815,10 +30841,31 @@ function applyEvent(live, e) {
       if (a && b) { const t = { x: a.x, y: a.y }; a.x = b.x; a.y = b.y; b.x = t.x; b.y = t.y; } break; }
     case 'dmg': case 'supportFire': case 'counter': case 'dyingStrike': case 'burn': {
       const t = get(e.tgt); if (t && e.v != null) t.hp = Math.max(0, t.hp - e.v); break; }
+    /* 癒しを盤にも効かせる（2026-10-02）。
+       ここが抜けていたので、削られた見かけはターンの終わりまで下がりっぱなしで、
+       次のスナップショットで急に戻っていた。
+       遊ぶ人には「兵量0なのに立っている」「0から回復して生き返った」と見えていた。
+       all は味方ぜんぶ（e.src の陣営） */
+    case 'heal': {
+      const amt = e.v || 0;
+      if (e.all) {
+        const side = String(e.src || '')[0];
+        for (const u of live.values())
+          if (u.alive && u.id.startsWith(side + '-')) u.hp = Math.min(u.maxHp, u.hp + amt);
+      } else { const t = get(e.tgt); if (t) t.hp = Math.min(t.maxHp, t.hp + amt); }
+      break; }
+    // 受けた分をそのまま戻す（2026-10-02）
+    case 'damageToHeal': { const t = get(e.tgt); if (t) t.hp = Math.min(t.maxHp, t.hp + (e.v || 0)); break; }
+    // 兵量1で耐えた（2026-10-02）。engine が残りの兵量を渡してくる
+    case 'endure': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(1, t.hp); } break; }
     case 'ko': { const t = get(e.tgt); if (t) { t.alive = false; t.hp = 0; } break; }
     case 'withdraw': { const u = get(e.src); if (u) u.alive = false; break; }
-    case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = Math.max(t.hp, 1); } break; }
+    case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(t.hp, 1); } break; }
   }
+  /* 最後の歯止め（2026-10-02）。
+     engine は兵量が0になった者をその場で退かせるので、立っている者の兵量は必ず1以上。
+     盤の引き算がどこかで取りこぼしても、0は「退いた」としか読ませない */
+  for (const u of live.values()) if (u.alive && u.hp <= 0) u.hp = 1;
 }
 const liveUnits = () => [...BATTLE.live.values()];
 function troops(units, side) {

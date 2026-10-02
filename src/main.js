@@ -3666,8 +3666,11 @@ function shopBuy(name, price, n, kind) {
   return () => {
     const r = kind === 'deal' ? buyDeal(name) : buyItem(name, n);
     if (r && kind === 'deal') miBump('deal');   // お役目の数（2026-10-02）
-    if (r) { miBump('buy'); SFX.coin(); S.shopMsg = `${name} を ${r.n} つ手に入れた（小判 ${num(r.cost)}）`; }   // お役目の数（門出・2026-09-26）
-    else { SFX.pick(); S.shopMsg = '小判が足りない'; }
+    /* 通貨で字を出し分ける（2026-10-02）。兵糧は石で買う */
+    const st = !!(ITEMS[name] || {}).stone;
+    if (r) { miBump('buy'); SFX.coin();
+      S.shopMsg = `${name} を ${r.n} つ手に入れた（${r.cur === 'stone' ? '石' : '小判'} ${num(r.cost)}）`; }
+    else { SFX.pick(); S.shopMsg = st ? '石が足りない' : '小判が足りない'; }
     draw();
   };
 }
@@ -3768,20 +3771,24 @@ function screenShop() {
               : kind === '編成' ? '陣触れの蔵' : kind === '陣中' ? '陣中の蔵' : '特技の蔵'),
             el('div', { class: 'shoplist' }, names.map(name => {
               const it = ITEMS[name];
+              /* 石で買う品（兵糧）と小判で買う品が同じ棚に並ぶ（2026-10-02）。
+                 値札も「足りているか」も、その品の通貨で出し分ける */
+              const st = !!it.stone, cost = st ? it.stone : it.price;
+              const have = () => (st ? stones() : P.koban);
               return el('div', { class: 'shoprow' },
                 itemIcon(name),
                 el('div', { class: 'sitm' },
                   el('b', {}, name, el('span', { class: 'have' }, `持 ${num(item(name))}`)),
                   el('span', { class: 'sd' }, it.desc),
-                  el('span', { class: 'sp2' }, `小判 ${num(it.price)}`)),
+                  el('span', { class: 'sp2' }, st ? `石 ${num(cost)}` : `小判 ${num(cost)}`)),
                 el('div', { class: 'sbtns' },
                   el('button', {
-                    class: 'go sm', disabled: P.koban < it.price ? true : null,
-                    onclick: shopBuy(name, it.price, 1),
+                    class: 'go sm', disabled: have() < cost ? true : null,
+                    onclick: shopBuy(name, cost, 1),
                   }, '×1'),
                   el('button', {
-                    class: 'go sm', disabled: P.koban < it.price * 10 ? true : null,
-                    onclick: shopBuy(name, it.price, 10),
+                    class: 'go sm', disabled: have() < cost * 10 ? true : null,
+                    onclick: shopBuy(name, cost, 10),
                   }, '×10')));
             })));
         })) : null,
@@ -6295,10 +6302,31 @@ function applyEvent(live, e) {
       if (a && b) { const t = { x: a.x, y: a.y }; a.x = b.x; a.y = b.y; b.x = t.x; b.y = t.y; } break; }
     case 'dmg': case 'supportFire': case 'counter': case 'dyingStrike': case 'burn': {
       const t = get(e.tgt); if (t && e.v != null) t.hp = Math.max(0, t.hp - e.v); break; }
+    /* 癒しを盤にも効かせる（2026-10-02）。
+       ここが抜けていたので、削られた見かけはターンの終わりまで下がりっぱなしで、
+       次のスナップショットで急に戻っていた。
+       遊ぶ人には「兵量0なのに立っている」「0から回復して生き返った」と見えていた。
+       all は味方ぜんぶ（e.src の陣営） */
+    case 'heal': {
+      const amt = e.v || 0;
+      if (e.all) {
+        const side = String(e.src || '')[0];
+        for (const u of live.values())
+          if (u.alive && u.id.startsWith(side + '-')) u.hp = Math.min(u.maxHp, u.hp + amt);
+      } else { const t = get(e.tgt); if (t) t.hp = Math.min(t.maxHp, t.hp + amt); }
+      break; }
+    // 受けた分をそのまま戻す（2026-10-02）
+    case 'damageToHeal': { const t = get(e.tgt); if (t) t.hp = Math.min(t.maxHp, t.hp + (e.v || 0)); break; }
+    // 兵量1で耐えた（2026-10-02）。engine が残りの兵量を渡してくる
+    case 'endure': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(1, t.hp); } break; }
     case 'ko': { const t = get(e.tgt); if (t) { t.alive = false; t.hp = 0; } break; }
     case 'withdraw': { const u = get(e.src); if (u) u.alive = false; break; }
-    case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = Math.max(t.hp, 1); } break; }
+    case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(t.hp, 1); } break; }
   }
+  /* 最後の歯止め（2026-10-02）。
+     engine は兵量が0になった者をその場で退かせるので、立っている者の兵量は必ず1以上。
+     盤の引き算がどこかで取りこぼしても、0は「退いた」としか読ませない */
+  for (const u of live.values()) if (u.alive && u.hp <= 0) u.hp = 1;
 }
 const liveUnits = () => [...BATTLE.live.values()];
 function troops(units, side) {

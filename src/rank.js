@@ -1,4 +1,5 @@
 // わんこ大戦国 番付（2026-09-25）
+import { P } from './player.js';
 // プレイヤー同士の腕くらべ。いまはサーバーが無いので、表の空きは NPC で埋める。
 // サーバーができたら rkRoom() が返す顔ぶれを本物に差し替えるだけでよい。
 // ここには画面の都合と戦闘そのものは持ち込まない（数と決めごとだけ）。
@@ -99,7 +100,13 @@ export function rkName(rnd) {
   const h = NM_HEAD[Math.floor(rnd() * NM_HEAD.length)];
   const b = NM_BODY[Math.floor(rnd() * NM_BODY.length)];
   const t = NM_TAIL[Math.floor(rnd() * NM_TAIL.length)];
-  return h + b + t;
+  const nm = h + b + t;
+  /* 主と同じ名の者は出さない（2026-10-02）。
+     NM_BODY には「ころ」「ぽち」など ありふれた呼び名が入っているので、
+     そのまま使うと 番付や取引所に自分と同じ名が並び、どちらが自分か分からなくなる。
+     名を縛るのではなく、こちらが一字ずらして譲る */
+  if (nm && nm === P.name) return nm + '丸';
+  return nm;
 }
 
 /* ---- 番付表の空き席（NPC）----

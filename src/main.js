@@ -2055,14 +2055,21 @@ function rkLastSheet(last) {
    チュートリアルの段（P.tutorial）とは切り離してあるので、
    すでに遊んでいた人にも一度だけ出て、そのあとは二度と出ない。 */
 const NAME_MAX = 8;
+/* 名乗りの札は 一度だけ作って使い回す（2026-10-02）。
+   画面はどこを押しても まるごと組み直すので、作り直すたびに
+   ・入りの動き（.card2 の up）が鳴り直して点滅する
+   ・打ちかけの字と、字を打つ場所（focus）が飛ぶ
+   の二つが起きていた。中身で変わるのは断りの一行だけなので、そこだけ書き換える */
+let NM_NODE = null;
 function nameSheet() {
+  if (NM_NODE) { nmMsgPut(); return NM_NODE; }
   const save = () => {
-    const i = document.querySelector('.nminp');
+    const i = NM_NODE ? NM_NODE.querySelector('.nminp') : document.querySelector('.nminp');
     const v = (i ? i.value : '').trim().slice(0, NAME_MAX);
-    if (!v) { S.nmMsg = '名がないと出陣できぬわん'; draw(); return; }
-    P.name = v; savePlayer(); S.nmMsg = ''; SFX.win(); draw();
+    if (!v) { S.nmMsg = '名がないと出陣できぬわん'; nmMsgPut(); SFX.pick(); return; }
+    P.name = v; savePlayer(); S.nmMsg = ''; NM_NODE = null; SFX.win(); draw();
   };
-  return el('div', { class: 'sheet nmsh' },
+  NM_NODE = el('div', { class: 'sheet nmsh' },
     el('div', { class: 'card2 nmbox' },
       el('b', { class: 'nmttl' }, '名を名乗るわん'),
       el('p', { class: 'nmsub' }, 'この名で天下に知られるわん'),
@@ -2071,8 +2078,19 @@ function nameSheet() {
         placeholder: '八文字まで入るわん', autocomplete: 'off', spellcheck: 'false',
         onkeydown: e => { if (e.key === 'Enter') { e.preventDefault(); save(); } },
       }),
-      S.nmMsg ? el('p', { class: 'nmmsg' }, S.nmMsg) : null,
+      /* 断りの一行はいつも置いておき、字の有る無しで見せ隠しする。
+         出したり消したりすると札の高さが動いて、これも点滅に見える */
+      el('p', { class: 'nmmsg', style: 'display:none' }, ''),
       el('button', { class: 'go wide', onclick: save }, 'この名で参る')));
+  nmMsgPut();
+  return NM_NODE;
+}
+/* 断りの一行だけを書き換える。札は作り直さない */
+function nmMsgPut() {
+  const e = NM_NODE && NM_NODE.querySelector('.nmmsg');
+  if (!e) return;
+  e.textContent = S.nmMsg || '';
+  e.style.display = S.nmMsg ? '' : 'none';
 }
 
 /* ================= 友（2026-09-24）=================
@@ -8471,8 +8489,11 @@ function draw() {
        重ねて出すとカードが友の札の裏に隠れてしまう。閉じれば友の家に戻る */
     S.detail == null ? (S.frId ? frHomeSheet() : (S.fr ? frSheet() : null)) : null,
     /* 名乗りが済むまで、どの画面の上にも出る。
-       ただしスタートの画面だけは別（2026-09-25）。一枚絵を見せる場なので札を重ねない */
-    (!P.name && S.screen !== 'title') ? nameSheet() : null,
+       ただしスタートの画面と 読み込みの画面は別。
+       ・スタート（2026-09-25）… 一枚絵を見せる場なので札を重ねない
+       ・読み込み（2026-10-02）… bootLoad が絵を六枚読むたびに draw を呼ぶので、
+         ここに札を出すと そのたび作り直され、入りの動きが鳴り続けて点滅して見えた */
+    (!P.name && S.screen !== 'title' && S.screen !== 'loading') ? nameSheet() : null,
     S.bag ? bagSheet() : null,
     /* 褒美の中身は、お役目の札のさらに上に重ねる（2026-09-30） */
     S.rwi ? rwInfoSheet() : null,

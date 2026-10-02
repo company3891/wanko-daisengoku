@@ -28646,12 +28646,17 @@ const DEXSORT = [
 /* 家（所属の勢力）の一覧（2026-10-02）。
    38家もあるので丸い札では並びきらない。一行の引き出し（select）にする。
    並びは人数の多い順 ── 武田・徳川・織田…と、よく探す家が先に来る */
+/* 家に入っていない者（浪人・忍者・女人など10体）の呼び名（2026-10-02）。
+   家ではないので人数の多い順には混ぜず、引き出しの末尾に置く */
+const NOCLAN = '無所属';
 let CLANS = null;
 const clanList = () => {
   if (CLANS) return CLANS;
   const n = {};
-  for (const c of C) if (c.clan) n[c.clan] = (n[c.clan] || 0) + 1;
+  let bare = 0;
+  for (const c of C) { if (c.clan) n[c.clan] = (n[c.clan] || 0) + 1; else bare++; }
   CLANS = Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b, 'ja'));
+  if (bare) CLANS.push(NOCLAN);
   return CLANS;
 };
 const pfGet = (ks, k, d) => { const v = ks[k] ? S[ks[k]] : null; return v == null ? d : v; };
@@ -28667,7 +28672,7 @@ function pickApply(list, ks, opt) {
   const out = list.filter(c =>
     (rar === 'すべて' || c.rarity === rar) &&
     (att === 'すべて' || c.attr === att) &&
-    (cl === 'すべて' || (c.clan || '') === cl) &&
+    (cl === 'すべて' || (cl === NOCLAN ? !c.clan : (c.clan || '') === cl)) &&
     (!sq || inSquad(c.no)));
   const so = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
   const up = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);

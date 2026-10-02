@@ -3404,6 +3404,9 @@ function ihList(c) {
   return P.own.filter(no => matLeft(no, c.no) > 0).filter(no => {
     const o = charOf(no); if (!o) return false;
     if (rar !== 'すべて' && o.rarity !== rar) return false;
+    /* 渡せる技が一つも無い子は並べない（2026-10-02）。
+       三枠ぜんぶを継承で埋めた武将は、もう渡せるものが残っていない */
+    if (!givableOf(o).length) return false;
     if (el2 === 'すべて' && !S.ihUniq) return true;
     const gs = givableOf(o);
     if (S.ihUniq && !gs.some(g => g.uniq && canInherit(c, g))) return false;
@@ -3417,10 +3420,14 @@ function screenInherit() {
   if (!c) return { body: el('div', {}, el('p', { class: 'note' }, 'まだ武将がいない')), nav: true };
   const slots = slotsOf(c);
   const src = S.ihsrc != null ? charOf(S.ihsrc) : null;
-  const giv = src ? givableOf(src).map(g => ({ ...g, from: src.no })) : [];
-  if (src && (S.ihg == null || S.ihg >= giv.length)) S.ihg = 0;
+  /* 継いだ技も並べる（2026-10-02）。押せない形で見せておかないと、
+     「この子の三枠目はどこへ行った」と探させてしまう */
+  const giv = src ? givableOf(src, true).map(g => ({ ...g, from: src.no })) : [];
+  if (src && (S.ihg == null || S.ihg >= giv.length || !(giv[S.ihg] || {}).give)) {
+    const i0 = giv.findIndex(x => x.give); S.ihg = i0 < 0 ? 0 : i0;
+  }
   const g = src ? giv[S.ihg] : null;
-  const ok = g ? canInherit(c, g) : false;
+  const ok = g ? (!!g.give && canInherit(c, g)) : false;
   // 空きがあればそこ、無ければ二の枠。一の枠（固有）も選べる
   const firstFree = [0, 1, 2].find(i => !slots[i]);
   const slot = (S.ihslot != null) ? S.ihslot : (firstFree != null ? firstFree : 1);
@@ -3497,30 +3504,37 @@ function screenInherit() {
 
         src ? el('div', {},
           /* 渡す側は「いま枠に入っている3つ」（2026-09-23）。
-             その武将が継承で手に入れた特技も、そのまま渡せる。
+             ただし渡せるのは、その武将がもともと持っていた技だけ（2026-10-02）。
+             よそから継いだ技まで渡せると、重ねの多い安い武将に強い◆をいちど継がせ、
+             その子の重ねの数だけ同じ◆を配れてしまう。
              渡しても元の武将からは消えない */
           el('h3', {}, `${src.name} の特技（いまの3枠）`),
           el('div', { class: 'sklist' }, giv.map((x, i) => {
-            const able = canInherit(c, x);
+            const able = !!x.give && canInherit(c, x);
             return el('button', {
               class: 'skrow' + (i === S.ihg ? ' on' : '') + (able ? '' : ' max')
-                + (x.own ? ' ownuniq' : ''),
-              onclick: () => { S.ihg = i; S.ihMsg = ''; SFX.pick(); draw(); },
+                + (x.own ? ' ownuniq' : '') + (x.give ? '' : ' borrowed'),
+              /* 継いだ技は押せない（2026-10-02）。並べるのは「無くなった」と
+                 思わせないためで、えらべるものではない */
+              disabled: x.give ? null : true,
+              onclick: x.give ? (() => { S.ihg = i; S.ihMsg = ''; SFX.pick(); draw(); }) : null,
             },
               el('div', { class: 'skhd' },
                 el('b', {}, x.sk.name),
                 el('span', { class: 'sklv' },
-                  x.own ? '固有◆' : x.uniq ? '継いだ◆' : `Lv.${x.lv}`)),
+                  !x.give ? '継いだ技' : x.own ? '固有◆' : x.uniq ? '継いだ◆' : `Lv.${x.lv}`)),
               el('span', { class: 'skst' },
-                x.uniq
-                  ? (x.sk.element
-                      ? (able ? `${x.sk.element} の武将に継げる` : `${x.sk.element} の武将にしか継げない`)
-                      : 'この◆は属性が分からず、いまは渡せない')
-                  : `${stars(starOf(x.sk.name))}　素材1つで ${INH_RATE_NORMAL}%`),
+                !x.give
+                  ? 'よそから継いだ技は、さらに渡せない'
+                  : x.uniq
+                    ? (x.sk.element
+                        ? (able ? `${x.sk.element} の武将に継げる` : `${x.sk.element} の武将にしか継げない`)
+                        : 'この◆は属性が分からず、いまは渡せない')
+                    : `${stars(starOf(x.sk.name))}　素材1つで ${INH_RATE_NORMAL}%`),
               el('span', { class: 'sktx' }, x.sk.text));
           })),
           el('p', { class: 'note' },
-            'いまその武将が持っている特技なら、継いで手に入れたものでも渡せる。'
+            'その武将がもともと持っている特技だけを渡せる。よそから継いだ技は渡せない。'
             + '渡しても元の武将からは消えない。受け取る側では通常特技は Lv1 から'),
           el('p', { class: 'note' },
             '固有を継承で上書きした武将は、その固有をもう渡せない。'

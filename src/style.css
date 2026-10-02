@@ -1108,6 +1108,10 @@ main.hasnav ~ .sheet, .sheet{padding-bottom:calc(16px + var(--nav,104px));
   .pull .tkp .ci{width:26px;height:26px}
   .pull .tkp em{font-size:12px}
 }
+/* よそから継いだ技の行（2026-10-02）。並べるが、えらべない。
+   .max（属性ちがいで継げない）より さらに沈めて、押せないことを目で分かるようにする */
+.skrow.borrowed{opacity:.42;cursor:default}
+.skrow.borrowed .sklv{color:var(--text3)}
 /* 「無料」の字は、値段と同じ黒帯の中に置く（2026-10-02）。
    前は絵の上ぎわに金の丸帯を浮かせていたが、絵の外へ飛び出して
    隣の釦や上の飾りと重なっていた。帯の中なら、どの釦の札かが一目で分かる。

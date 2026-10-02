@@ -551,21 +551,25 @@ export const lostUnique = no => !!inhOf(no)[0];
 /* マスタで固有が空の武将が59体いる（2026-09-21 時点）。
    名前の無い固有は「持っていない」として扱う */
 export const hasUniq = ch => !!(ch && ch.unique && ch.unique.name);
-/* ---- 渡せるのは「いまその武将が持っている特技」（2026-09-23）----
-   枠に入っている3つがそのまま対象。継承で手に入れた特技も渡せる。
+/* ---- 渡せるのは「その武将がもともと持っている特技」（2026-10-02 改）----
+   前は「いま枠に入っている3つ」すべてを渡せた。継いだ特技も渡せたので、
+   重ねの多い安い武将に強い◆をいちど継がせると、その子の重ねの数だけ
+   同じ◆を配れてしまった（重ね10枚なら10回挑める）。
+   くじで引いた本人からしか継げないようにして、その抜け道をふさぐ。
    渡しても元の武将からは失われない（重ね／カード本体を食う形は変わらない）。
    固有を継承で上書きしていれば、その固有はもう渡せない（枠に無いので）。
-   常に3つなので、固有◆を3つ持つ武将から継ぐときも選択肢は散らからない。
    なお解雇して手札が0枚になると育てたぶんも継いだ特技も消える（setCnt を見よ）ので、
-   引き直した武将はマスタどおりの姿に戻る。 */
-export function givableOf(ch) {
-  return slotsOf(ch).filter(Boolean).map(x => ({
+   引き直した武将はマスタどおりの姿に戻る。
+   all＝true のときは、画面に出すために 継いだ特技も含めて返す（give で選り分ける） */
+export function givableOf(ch, all) {
+  return slotsOf(ch).filter(Boolean).filter(x => all || !x.inherited).map(x => ({
     sk: { ...x.sk, element: x.uniq ? (x.sk.element ?? (x.own ? ch.attr : null)) : x.sk.element },
     uniq: !!x.uniq,
     slot: x.slot,
     own: !!x.own,            // その武将が元から持っていた固有か
     inherited: !!x.inherited, // 継いで手に入れたものか
     from: x.from || null,     // 誰から継いだか
+    give: !x.inherited,       // 他の武将へ渡せるか（継いだものは渡せない）
     lv: x.uniq ? null : (skillLvOf(ch.no)[x.slot] || 1),
   }));
 }
@@ -583,6 +587,10 @@ export function inhRate(target, g, n, charm) {
 export function inherit(target, slot, g, mats, charm) {
   if (slot < 0 || slot > 2) return null;     // 一の枠（固有◆）も入れ替えられる
   if (!mats.length || mats.length > INH_MAT_MAX) return null;
+  /* 継いだ特技は、さらに渡せない（2026-10-02）。
+     画面で押せないようにしてあるが、ここでも止める。
+     ここが抜けていると、強い◆が重ねの数だけ増やせてしまう */
+  if (g && (g.inherited || g.give === false)) return null;
   if (!canInherit(target, g)) return null;
   const byNo = {};
   for (const m of mats) byNo[m.no] = (byNo[m.no] || 0) + 1;

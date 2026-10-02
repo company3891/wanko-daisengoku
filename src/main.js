@@ -5681,8 +5681,11 @@ function disbandSheet() {
 }
 
 function screenTeam() {
-  // 編成に並ぶのは所持している武将だけ（2026-09-21）
-  const mine = C.filter(c => owns(c.no));
+  /* 編成に並ぶのは「いま手元にいる」武将だけ（2026-10-03 直し）。
+     owns() は「かつて手に入れたか」なので、解雇して0枚になった武将や
+     取引所に出している武将も並び、選べてしまっていた。
+     選ぶと部隊に残り、出陣のときに黙って抜け落ちて四騎で戦うことになる */
+  const mine = C.filter(c => hasCard(c.no));
   const on = c => S.picked.some(p => p.no === c.no);
   const sorted = pickApply(mine, PF_TEAM);
 

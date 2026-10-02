@@ -819,6 +819,17 @@ export function loadPlayer(FORMS) {
     if (!Array.isArray(q.nos)) q.nos = [];
     if (!Array.isArray(q.slots)) q.slots = [];
     if (!FORMS.includes(q.form)) q.form = FORMS[0];
+    /* もう持っていない武将を部隊から外す（2026-10-03）。
+       編成の一覧が「かつて手に入れたか（P.own）」で並べていたので、
+       解雇して0枚になった武将も選べてしまい、部隊に残ったままになっていた。
+       残っていると出陣のときに黙って抜け落ち、五騎のつもりが四騎で戦うことになる。
+       古い保存を開いたときに ここで掃除する */
+    const gone = q.nos.filter(n => !hasCard(n));
+    if (gone.length) {
+      q.nos = q.nos.filter(n => hasCard(n));
+      q.slots = q.slots.map(n => (n != null && hasCard(n) ? n : null));
+      if (q.general != null && !hasCard(q.general)) q.general = q.nos[0] ?? null;
+    }
   }
   return P;
 }

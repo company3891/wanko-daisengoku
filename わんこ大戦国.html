@@ -6678,6 +6678,7 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         // 仁将：味方全員の状態異常を解除する
         for (const e of tg) e.statuses = {};
         if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'cleanse', src: self.id, n: tg.length });
+        uniqProc(self, 'cleanse', ctx);
         break;
       case 'cover':
         self.cover = { who: eff.who, ratio: eff.ratio, left: eff.dur ?? Infinity };
@@ -6842,6 +6843,7 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
     tgt._counterActionId = ctx._actionId;
     ctx._inCounter = true;
     if (log) log.push({ t: +t.toFixed(1), type: 'counter', src: tgt.id, tgt: src.id });
+    uniqProc(tgt, 'counter', ctx);
     // 基本反撃は通常攻撃をもう一度。効果文でダメージ元を指定していればそれを使う（火力か賢さのみ）
     const cStat = tgt.counterStat || tgt.primaryStat;
     const cRateMul = tgt.counterStat ? cRatio : rules.damage.normalAttackRate * cRatio;
@@ -6899,6 +6901,7 @@ function supportFire(attacker, target, allies, ctx) {
     if (!rng.chance(e.chance)) continue;
     ctx._inSupport = true;
     if (log) log.push({ t: +t.toFixed(1), type: 'supportFire', src: a.id, tgt: target.id, from: attacker.id });
+    uniqProc(a, 'supportFire', ctx);
     withVia(ctx, 'support', () => dealDamage(a, target, e.stat, e.rate, ctx, a.attr));
     ctx._inSupport = false;
     fired++;
@@ -6930,6 +6933,7 @@ function applyAttackStatus(src, tgt, ctx) {
     const def = rules.status[name] || {};
     tgt.statuses[name] = a.dur ?? def.defaultDur ?? rules.time.secPerTurn * 2;
     if (log) log.push({ t: +t.toFixed(1), type: 'status', src: src.id, tgt: tgt.id, name });
+    uniqProc(src, 'attackStatus', ctx);
   }
 }
 
@@ -6949,6 +6953,7 @@ function kill(src, tgt, ctx) {
   const en = (tgt.passives || []).find(p => p.kind === 'endure' && condOk(tgt, p));
   if (en && !tgt._enduredUsed && rng.chance(en.chance)) {
     tgt._enduredUsed = true; tgt.hp = 1;
+    uniqProc(tgt, 'endure', ctx);
     /* 残った兵量もログに入れる（2026-10-02）。
        盤は dmg の引き算で見かけを作っているので、ここを渡さないと
        耐えた者が「0なのに立っている」ように見えていた */
@@ -7435,6 +7440,21 @@ const SETUP = new Set(['startGauge', 'critCounter', 'scaleOnHpLost', 'revive', '
    「通常攻撃に N% で◯◯を付与する」の一文は、読み手が status と attackStatus の
    二つを作る。付与そのものは attackStatus（常時）が毎回の攻撃で受け持っているので、
    裸の status はその写しとみなして落とす（2026-10-02。落とさないと二重に掛かる） */
+/* 確率つきの固有が実ったときの見せ場（2026-10-02）。
+   「25%で反撃」「50%で耐える」のような固有は、常時の仕掛け（反撃・耐える・付与…）が
+   受け持っていて fireSkills を通らない。だから first の一度だけでは、
+   いちばん見せたい「実った瞬間」に何も出なかった。
+   実った場でこれを呼ぶと、盤がその回ごとにカットインを出す。
+   100%の固有は毎手番あたりまえに効くので、ここでは出さない（はじめの一度だけ）。
+   その固有が本当にその種類を持っているときだけ鳴らす ── 通常特技の反撃と取り違えないため */
+function uniqProc(u, kind, ctx) {
+  const ut = u && u.compiled && u.compiled.uniqueTrig;
+  if (!ut || ut.rate == null || ut.rate >= 1) return;
+  if (!(ut.effects || []).some(e => e.kind === kind)) return;
+  u._uniqShown = true;
+  if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'unique', src: u.id, name: u.name,
+                              skills: u.uniqNames || [], timing: ut.timing, first: true, proc: kind });
+}
 const uniqFire = (effs) => {
   const list = (effs || []).filter(e => !PASSIVE.has(e.kind) && !SETUP.has(e.kind));
   const onAtk = (effs || []).some(e => e.kind === 'attackStatus');
@@ -7770,6 +7790,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
           if (rng.chance(e.chance)) {
             u._hideLeft = e.turns;
             if (log) log.push({ t: +t.toFixed(1), type: 'hide', src: u.id, turns: e.turns });
+            uniqProc(u, 'hideForTurns', ctx);
           }
         }
       }
@@ -7794,6 +7815,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
             const amt = stat(u, '回復') * (e.rate || 1) * (rules.damage.healScale ?? 1);
             for (const a of live(mine)) a.hp = Math.min(a.maxHp, a.hp + amt);
             if (log) log.push({ t: +t.toFixed(1), type: 'heal', src: u.id, v: amt, all: true });
+            uniqProc(u, 'healEveryTurn', ctx);
           } else if (e.kind === 'focusTurn') {
             if (!rng.chance(e.chance)) continue;
             u._skipTurn = turn;                 // そのターンは動かない
@@ -7806,6 +7828,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
             if (want > cur) {
               u.mods.push({ stat: e.to, pct: (want - cur) / Math.max(1, u.base[e.to]), left: (e.turns || 1) * SECT });
               if (log) log.push({ t: +t.toFixed(1), type: 'matchStat', src: u.id, to: e.to, from: e.from });
+              uniqProc(u, 'matchStat', ctx);
             }
           } else if (e.kind === 'charm') {
             if (!rng.chance(e.chance)) continue;

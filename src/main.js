@@ -349,7 +349,9 @@ function foodLeftText() {
   const w = foodWait();
   if (!w.next) return '';
   const sec = Math.ceil(w.next / 1000);
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  /* 分も二けたにそろえる（2026-10-02）。1:31 と 01:31 が入れ替わると
+     字の幅が変わって、ヘッダーの数がぴくぴく動いて見えた */
+  return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 }
 /* 残りの字だけを毎秒書きかえる（2026-10-01）。
    draw() を毎秒呼ぶと札も盤も作り直してしまうので、ここは字だけ差す */
@@ -2843,9 +2845,14 @@ function growPickPage(mode, onPick) {
   const list = pickApply(P.own.filter(hasCard).map(charOf).filter(Boolean), PF_GROW);
   return el('div', { class: 'gpick' },
     pickRows(PF_GROW),
+    /* 長押しで札がひらく（2026-10-02）。素材えらびと同じ手ざわりにそろえた。
+       どの子だったかを確かめるのに、いちいち図鑑まで回らずに済む */
     el('div', { class: 'pickgrid' }, list.map(ch => el('button', {
       class: 'pg',
-      onclick: () => { onPick(ch.no); S.gpop = true; SFX.pick(); draw(); },
+      title: `${ch.name}（長押しでカード）`,
+      ...holdCard(ch),
+      onclick: () => { if (heldJust()) return;
+                       onPick(ch.no); S.gpop = true; SFX.pick(); draw(); },
     }, cardImg(ch) || el('i', { style: chipStyle(ch) }),
        /* 武将強化はレベル、特技強化と継承は重ねの数が選ぶ手がかり（2026-09-23） */
        mode === 'lv' ? el('span', { class: 'own lvb2' }, `Lv.${charState(ch.no).lv}`)
@@ -2882,7 +2889,11 @@ function pickSheet() {
       el('div', { class: 'pickgrid' }, list.map(ch => {
         return el('button', {
           class: 'pg',
-          onclick: () => { const fn = S.cpFor; S.cp = false; S.cpFor = null; S.cpMode = null; if (fn) fn(ch.no); SFX.pick(); draw(); },
+          title: `${ch.name}（長押しでカード）`,
+          ...holdCard(ch),
+          onclick: () => { if (heldJust()) return;
+                           const fn = S.cpFor; S.cp = false; S.cpFor = null; S.cpMode = null;
+                           if (fn) fn(ch.no); SFX.pick(); draw(); },
         }, cardImg(ch) || el('i', { style: chipStyle(ch) }),
            /* 武将強化では「いま何レベルか」が選ぶ手がかりになるので、
               所持枚数ではなくレベルを出す（2026-09-23）。特技強化・継承は重ねが要るので枚数のまま */
@@ -7651,7 +7662,9 @@ function evSkip(id, rank) {
 function screenEvent() {
   evState();                                  // 日付・週の切り替わりをここで通す
   /* 日が変わって出なくなったお祭りを開いたままにしない（2026-09-29） */
-  const open = S.evId && evShownToday(evOf(S.evId)) ? evOf(S.evId) : null;
+  const o0 = S.evId ? evOf(S.evId) : null;
+  const gone = !!(o0 && o0.once && EV_RANKS.every((_, r) => evCleared(o0.id, r)));
+  const open = (o0 && evShownToday(o0) && !gone) ? o0 : null;
   if (!open) {
     return {
       body: el('div', {},
@@ -7659,7 +7672,10 @@ function screenEvent() {
         S.evMsg ? el('div', { class: 'shopmsg' }, S.evMsg) : null,
         /* その日に出るお祭りだけ並べる（2026-09-29）。
            武将覚醒は月〜金、特技強化は土日 */
-        el('div', { class: 'evlist' }, EVENTS.filter(evShownToday).map(ev => {
+        /* 一度きりの祭り（武将獲得）は、ぜんぶ取ったら並べない（2026-10-02）。
+           級ごとに決まった武将をひとり配る祭りなので、取り切ったら渡すものが無い */
+        el('div', { class: 'evlist' }, EVENTS.filter(evShownToday).filter(ev =>
+          !(ev.once && EV_RANKS.every((_, r) => evCleared(ev.id, r)))).map(ev => {
           const done = EV_RANKS.filter((_, r) => evCleared(ev.id, r)).length;
           const left = EV_RANKS.filter((_, r) => evOpen(ev.id, r) && !evDone(ev.id, r)).length;
           const art = uiUrl(ev.icon);
@@ -7691,8 +7707,10 @@ function screenEvent() {
               el('span', { class: 'evnote' }, ev.id === 'awake'
                 ? `${ev.note}　／　今日は ${awakeAttrsToday().join('・')}` : ev.note)),
             el('span', { class: 'evn' }, el('b', {}, done), ` / ${EV_RANKS.length}`),
-            left ? el('em', { class: 'evbadge' }, left)
-                 : (again ? el('em', { class: 'evagain' }, '何度でも') : null));
+            /* 右上の赤丸（残りの級）は外した（2026-10-02）。
+               右の「済んだ数 / 4」で足りるうえ、常設の祭りは毎日 赤丸が点くので、
+               「見ていない知らせ」の赤丸と見分けがつかなくなっていた */
+            again ? el('em', { class: 'evagain' }, '何度でも') : null);
         }))),
       nav: true,
     };
@@ -8510,6 +8528,14 @@ function draw() {
     /* 出す部隊をえらぶ札は、いちばん上に重ねる（2026-09-29）。
        友の家や番付の札の下に潜ってしまい、稽古が申し込めなくなっていた */
     /* 部隊えらびの札から編成へ抜けているあいだ、戦へ戻る道を左下に置く（2026-09-30） */
+    /* 武将をえらぶ画面に、追従の戻り道を左下に置く（2026-10-02）。
+       武将の升は縦に長く、下の「塔へ」まで巻かないと戻れなかった。
+       陣形の画面は升が一枚で収まるので、そこには出さない */
+    (!S.sqpHold && S.screen === 'team')
+      ? el('button', { class: 'sqback', title: S.twBack ? '塔へもどる' : '部隊へもどる',
+          onclick: () => { S.screen = twBackGo(); SFX.pick(); draw(); } },
+          S.twBack ? '← 塔へ' : '← 部隊へ')
+      : null,
     (S.sqpHold && (S.screen === 'team' || S.screen === 'form'))
       ? el('button', { class: 'sqback', title: '戦へもどる',
           onclick: () => { const h = S.sqpHold; S.sqpHold = null;

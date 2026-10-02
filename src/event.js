@@ -77,7 +77,9 @@ export const EVENTS = [
     reward: r => ({ items: { 稽古の書: [5, 12, 25, 50][r] } }),
   },
   {
-    id: 'weekly', kind: 'weekly', name: '武将獲得', mark: '得',
+    /* once（2026-10-02）＝級をぜんぶ取ったら、一覧から消える。
+       級ごとに決まった武将をひとり配る祭りなので、取り切ったら渡すものが無い */
+    id: 'weekly', kind: 'weekly', once: true, name: '武将獲得', mark: '得',
     note: '週にひと勝負。勝てば武将がひとり増える', icon: 'ev_weekly',
     reward: r => ({ chars: [WEEKLY_PICK[r].no], stone: [100, 300, 700, 1500][r] }),
   },

@@ -303,6 +303,7 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 .cell.t-WALL{background:#4a4238}.cell.t-GATE_OPEN{background:#5a4a33}.cell.t-GATE_CLOSED{background:#3a332a}
 .cell.t-MOAT{background:#16232e}.cell.t-CLIFF{background:#2b2723}.cell.t-ROCK{background:#3b3630}
 .cell.t-BUILDING{background:#453a30}
+.cell.t-KEEP{background:#2a2520}   /* 天守の足もと（2026-10-02） */
 .cell .ter{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:#ffffff22;font-size:11px;pointer-events:none}
 .pawn{position:absolute;inset:8%;border-radius:7px;display:flex;flex-direction:column;
@@ -5290,6 +5291,28 @@ button.mkpv:active{transform:translateY(1px)}
 .mkpc i{display:block;width:100%;aspect-ratio:.675}
 .mkpc:active{transform:translateY(1px);filter:brightness(.92)}
 
+/* ===== 天守（拠点）2026-10-02 =====
+   盤の一マスに立つが、絵は三マス幅・二マス高で見上げる大きさにする。
+   足もとをマスの下端にそろえ、頭は盤の外へはみ出させる（.cell は overflow:visible）。
+   絵が無ければ黒漆の櫓の形に落ちる */
+.pawn.keep{inset:auto;left:-110%;right:-110%;bottom:-10%;height:300%;
+  background:none!important;box-shadow:none!important;border-radius:0;
+  pointer-events:none;z-index:2;overflow:visible}
+.pawn.keep img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;object-position:center bottom;
+  filter:drop-shadow(0 2px 6px #000b)}
+.pawn.keep.bare::before{content:'';position:absolute;left:28%;right:28%;bottom:0;height:55%;
+  background:linear-gradient(#2a2520,#12100e);
+  border:2px solid var(--gold,#d8a94a);border-bottom:none;border-radius:4px 4px 0 0;
+  box-shadow:0 0 12px #0008}
+.pawn.keep.bare::after{content:'天守';position:absolute;left:0;right:0;bottom:18%;
+  text-align:center;color:var(--gold,#d8a94a);font-size:9px;font-weight:700;letter-spacing:.1em}
+/* 残りの兵量。城そのものに重ねる（盤の外の顔の列には出ないため） */
+.pawn.keep > .khp{position:absolute;left:34%;right:34%;bottom:-3px;height:4px;
+  background:#000a;border:1px solid #0008;border-radius:3px;overflow:hidden;z-index:3}
+.pawn.keep > .khp > i{display:block;height:100%;width:100%;
+  background:linear-gradient(90deg,#a8802c,#f5e2a8);transition:width .2s linear}
+
 </style>
 </head>
 <body>
@@ -6066,9 +6089,13 @@ function findPath(from, to, rules, blocked) {
     for (const [dx, dy] of DIRS) {
       const nx = cur.x + dx, ny = cur.y + dy;
       if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-      if (!isWalkable(nx, ny, rules)) continue;
-      // 目的地そのものは「敵がいるマス」なので塞がっていても通す
+      // 目的地そのものは「敵がいるマス」なので塞がっていても通す。
+      /* 通れない地形でも、そこが目的地なら隣までは行ける（2026-10-02）。
+         天守は通れないマスに立っている的なので、ここを先に見ないと
+         経路が見つからず、攻め手が盤の上で固まったまま動かなくなっていた
+         （実測：守り兵を抜いたあと20ターン、誰も城へ寄らなかった） */
       const isGoal = nx === to.x && ny === to.y;
+      if (!isGoal && !isWalkable(nx, ny, rules)) continue;
       if (!isGoal && blocked && blocked(nx, ny)) continue;
       const c = isGoal ? 0 : moveCost(nx, ny, rules);
       if (!isFinite(c)) continue;
@@ -6097,6 +6124,77 @@ function findPath(from, to, rules, blocked) {
 
 const BSTATS = ['火力', '賢さ', '防御', '回復', '速さ'];
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/* ================= 天守（拠点）2026-10-02 =================
+   盤の上に置く「動かない的」。壊せる城。
+   rules.keep = { hp, x, y, wall } と書いたときだけ立つ。
+   書かなければ盤にも勝ち負けにも一切ひびかない（ほかの戦は今までどおり）。
+
+   かたち … 一マスの通れない地形（KEEP）。3×3 に見せるのは絵の仕事。
+   ふるまい … 動かず・攻めず・反撃せず。守るのは まわりの守り兵。
+   勝ち負け … 天守を落とせば攻め手の勝ち。残っていれば守り手の勝ち。
+              敵兵を全部倒しても、天守が立っているうちは終わらない。 */
+const KEEP_CODE = 'KEEP';
+const KEEP_TYPE = { label: '天守', walkable: false, cost: null, blocksLine: true, keep: true };
+
+/* 盤に天守を刻む。rules は作り直して返す（元の rules は触らない）。
+   画面側（盤の描き手）も同じ盤を見る必要があるので、外にも出している */
+function withKeep(rules) {
+  const k = rules && rules.keep;
+  if (!k) return rules;
+  const W = rules.board.width, H = rules.board.height;
+  const x = k.x == null ? Math.floor(W / 2) : k.x;
+  const y = k.y == null ? 0 : k.y;                       // 守り手（B軍）は盤の上側
+  const src = (rules.stage && rules.stage.map) || null;
+  const map = [];
+  for (let yy = 0; yy < H; yy++) {
+    const row = (src && src[yy]) ? src[yy].slice() : new Array(W).fill('PLAIN');
+    map.push(row);
+  }
+  map[y][x] = KEEP_CODE;
+  /* 両わきは石垣（2026-10-02）。射程1は天守の正面一マスからしか斬れなくなり、
+     射程2以上は石垣ごしに届く ＝ 弓と鉄砲に値打ちが出る */
+  if (k.wall !== false) {
+    for (const dx of [-1, 1]) { const xx = x + dx; if (xx >= 0 && xx < W) map[y][xx] = 'WALL'; }
+  }
+  /* 天守の正面は開けておく（2026-10-02）。
+     城郭の盤には建物が置かれているので、そのままだと天守の真ん前が塞がり、
+     射程1の者がどこからも斬りかかれない「落とせない城」になっていた。
+     手前三マスを参道にして、近間の者が立てる場所をかならず一つ作る */
+  const dir = y < H / 2 ? 1 : -1;
+  const fy = y + dir;
+  if (fy >= 0 && fy < H) for (const dx of [-1, 0, 1]) {
+    const xx = x + dx; if (xx >= 0 && xx < W) map[fy][xx] = 'CASTLE_PATH';
+  }
+  const types = { ...((rules.terrain && rules.terrain.types) || {}) };
+  if (!types[KEEP_CODE]) types[KEEP_CODE] = KEEP_TYPE;
+  return { ...rules,
+    stage: { ...rules.stage, map },
+    terrain: { ...(rules.terrain || {}), types } };
+}
+
+/* 天守そのもの。武将と同じ形をした、中身の空っぽな一体 */
+function makeKeepUnit(rules) {
+  const k = rules.keep;
+  const W = rules.board.width;
+  const x = k.x == null ? Math.floor(W / 2) : k.x;
+  const y = k.y == null ? 0 : k.y;
+  const hp = k.hp || Math.round((rules.troops.base || 10000) * 0.7);
+  const base = {}; for (const kk of BSTATS) base[kk] = 0;
+  return {
+    id: 'K-0', no: 0, name: k.name || '天守', side: 'B', attr: null, role: '', clan: '', tags: [],
+    rarity: '', cost: 1000, range: 1, isKeep: true, isGeneral: false,
+    counterRateBase: 0, coverRateBase: 0, ground: null,
+    widenNext: false, base, mods: [], stacks: {}, x, y, fy: 0, xInit: x, yInit: y,
+    hp, maxHp: hp, gauge: 0, ult: 0, uniqueCd: 0, alive: true,
+    statuses: {}, barrier: 0, critCounterEvery: 0, critCounter: 0, forcedCrit: false,
+    _critTurn: 0, _charm: 0, _durPlus: 0,
+    reviveAvailable: 0, shockTimer: 0, hpUpPct: 0, cover: null, counter: 0, counterStat: null,
+    counterRate: 0, coverRate: 0, passives: [], weatherPct: 0, formPct: 0, affinityPenalty: 0,
+    compiled: { unique: [], normals: [], ultimate: [], trait: [], normalTriggers: [], uniqueTrig: null },
+    dmgDealt: 0, dmgTaken: 0, kills: 0, acts: 0, crits: 0, evaded: 0,
+  };
+}
 
 /* ================= 編成の検証 ================= */
 function validateTeam(team, rules) {
@@ -6494,6 +6592,8 @@ const foesOf = (ctx, u) => teamOf(ctx, effSide(u) === 'A' ? 'B' : 'A');
 const facing = (u) => (u.side === 'A' ? -1 : 1);
 
 function resolveTargets(eff, self, allies, enemies, primary) {
+  // 天守は「味方」としては数えない（2026-10-02）。守り手の癒しや強化が城に吸われないように
+  allies = allies.filter(a => !a.isKeep);
   const t = eff.target;
   // --- 9×9盤面の範囲パターン ---
   if (t === 'line') {
@@ -7021,6 +7121,15 @@ function pickTarget(u, allies, enemies, rules, rng) {
   const visible = live(enemies).filter(e => !hidden(e));
   let l = visible.length ? visible : live(enemies);
   if (!l.length) return null;
+  /* 天守（2026-10-02）。射程1の者は「ほかに届く敵がいないとき」だけ城を叩く。
+     射程2以上はいつでも狙える。これで
+       ・近間の者＝守り兵を抜いてから崩す
+       ・遠間の者＝守られながら崩す
+     の二筋が、何も指図しなくても自然に生まれる */
+  if (l.some(e => e.isKeep)) {
+    const others = l.filter(e => !e.isKeep);
+    if (others.length && rangeOf(u) < 2 && others.some(e => canReach(u, e, rangeOf(u), rules))) l = others;
+  }
   // 挑発（2026-09-19）：注意を引き付けている敵が居るなら、そちらを優先して狙う
   {
     // 「敵N体の注意を引き付ける」で名指しされている場合は、その相手だけを狙う
@@ -7580,6 +7689,7 @@ function applyBonds(A, B, rules, log) {
 }
 
 function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
+  rules = withKeep(rules);                 // 天守を盤に刻む（2026-10-02／rules.keep が無ければ素通り）
   const rng = makeRng(seed);
   const log = opts.log ? [] : null;
   const build = (team, side) => layout(team, side, rules)
@@ -7633,6 +7743,10 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       return u;
     });
   const A = build(teamA, 'A'), B = build(teamB, 'B');
+  /* 天守は守り手（B）の一員として立てる（2026-10-02）。
+     行動順からは外してあるので、動きも攻めもしない。殴られるためだけに居る */
+  const KEEP = rules.keep ? makeKeepUnit(rules) : null;
+  if (KEEP) B.push(KEEP);
   /* 兵量を減らして始める（2026-10-01）。試練の塔の「瀕死の陣」で使う。
      rules.startHp = { A: 1 } のように、陣営ごとに始まりの兵量を決め打ちにする。
      書かなければ今までどおり満タン。0 以下にはしない（始まる前に倒れてしまうので） */
@@ -7677,7 +7791,9 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
   }
   // v2.2 属性相性: 弱点属性の敵が占める割合に応じて自分の全ステータスが下がる
   if (rules.affinity?.enabled) {
-    for (const [team, other] of [[A, B], [B, A]]) {
+    for (const [team0, other0] of [[A, B], [B, A]]) {
+      // 天守は属性を持たないので、相性の数えには入れない（2026-10-02）
+      const team = team0.filter(u => !u.isKeep), other = other0.filter(u => !u.isKeep);
       for (const u of team) {
         const weakTo = rules.affinity.cycle[u.attr];
         const n = other.filter(e => e.attr === weakTo).length;
@@ -7685,7 +7801,9 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       }
     }
   }
-  for (const [team, other] of [[A, B], [B, A]]) {
+  for (const [team0, other0] of [[A, B], [B, A]]) {
+    // 天守は「味方」として数えない（2026-10-02）。生存数も同勢力も印も、城は勘定の外
+    const team = team0.filter(u => !u.isKeep), other = other0.filter(u => !u.isKeep);
     const clans = team.map(u => u.clan).filter(Boolean);
     for (const u of team) u._teamClans = clans;
     const g = team.find(u => u.isGeneral);
@@ -7893,7 +8011,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         if (rules.onTurnConsumesAction !== false) u._skipTurn = turn;
       }
       // 行動順：速さの降順。速さが同じなら戦闘ごとの先制値
-      const order = A.concat(B).filter(u => u.alive)
+      const order = A.concat(B).filter(u => u.alive && !u.isKeep)   // 天守は動かない（2026-10-02）
         .sort((a, b) => stat(b, '速さ') - stat(a, '速さ') || b.initiative - a.initiative);
       for (const u of order) {
         if (!u.alive || u.statuses['ひるみ']) continue;
@@ -7908,7 +8026,10 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         if (ctx.awaiting) break;             // 手動操作の入力待ち。ここで止める
         const ga = A.find(x => x.isGeneral), gb = B.find(x => x.isGeneral);
         if (!ga?.alive) { winner = 'B'; reason = '総大将撃破'; break; }
-        if (!gb?.alive) { winner = 'A'; reason = '総大将撃破'; break; }
+        /* 天守のある戦では、終わらせるのは城だけ（2026-10-02）。
+           守り兵を全部倒しても、城が立っているうちは勝ちにならない */
+        if (KEEP) { if (!KEEP.alive) { winner = 'A'; reason = '天守を落とした'; break; } }
+        else if (!gb?.alive) { winner = 'A'; reason = '総大将撃破'; break; }
       }
       if (ctx.awaiting) break;
     }
@@ -7925,7 +8046,8 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       /* 守り切ったら勝ち（2026-10-01）。試練の塔の「籠城」で使う。
          rules.holdWin に陣営を書くと、決着のターンまで残ったその側の勝ちになる。
          書かなければ今までどおり 残り人数→兵量→総大将 の順で比べる */
-      if (rules.holdWin) { winner = rules.holdWin; reason = '守り切った'; }
+      if (KEEP) { winner = 'B'; reason = '天守を守り切られた'; }   // 2026-10-02
+      else if (rules.holdWin) { winner = rules.holdWin; reason = '守り切った'; }
       else {
         reason = '時間切れ判定';
         const order = rules.timeoutOrder || ['alive', 'hp', 'general'];
@@ -7967,7 +8089,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       const foes = TEAM(effSide(u) === 'A' ? 'B' : 'A');
       u._frontEnemyCount = live(foes).filter(e => Math.abs(e.x - u.x) <= 1 && Math.abs(e.y - u.y) <= 3).length;
     }
-    const order = A.concat(B).filter(u => u.alive && u.gauge >= TH && !u.statuses['ひるみ'])
+    const order = A.concat(B).filter(u => u.alive && !u.isKeep && u.gauge >= TH && !u.statuses['ひるみ'])
       .sort((a, b) => b.gauge - a.gauge || b.initiative - a.initiative);
     for (const u of order) {
       if (!u.alive || u.statuses['ひるみ']) continue;
@@ -7975,7 +8097,8 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       act(u, TEAM(effSide(u)), TEAM(effSide(u) === 'A' ? 'B' : 'A'), ctx);
       const ga = A.find(x => x.isGeneral), gb = B.find(x => x.isGeneral);
       if (!ga?.alive) { winner = 'B'; reason = '総大将撃破'; break; }
-      if (!gb?.alive) { winner = 'A'; reason = '総大将撃破'; break; }
+      if (KEEP) { if (!KEEP.alive) { winner = 'A'; reason = '天守を落とした'; break; } }
+      else if (!gb?.alive) { winner = 'A'; reason = '総大将撃破'; break; }
     }
     if (winner) break;
   }
@@ -7989,8 +8112,8 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     const lA = A.filter(u => u.alive).length, lB = B.filter(u => u.alive).length;
     const hA = A.reduce((s, u) => s + u.hp, 0), hB = B.reduce((s, u) => s + u.hp, 0);
     const gA = A.find(u => u.isGeneral).hp, gB = B.find(u => u.isGeneral).hp;
-    reason = rules.holdWin ? '守り切った' : '時間切れ判定';
-    winner = rules.holdWin ? rules.holdWin
+    reason = KEEP ? '天守を守り切られた' : rules.holdWin ? '守り切った' : '時間切れ判定';
+    winner = KEEP ? 'B' : rules.holdWin ? rules.holdWin
       : lA !== lB ? (lA > lB ? 'A' : 'B') : hA !== hB ? (hA > hB ? 'A' : 'B') : gA !== gB ? (gA > gB ? 'A' : 'B') : 'DRAW';
   }
   return makeResult(winner, reason, seed, t, A, B, log);
@@ -8002,10 +8125,11 @@ function makeResult(winner, reason, seed, t, A, B, log) {
     initial: A.concat(B).map(u => ({
       id: u.id, no: u.no, name: u.name, side: u.side, x: u.xInit, y: u.yInit, attr: u.attr,
       cost: u.cost, rarity: u.rarity, isGeneral: u.isGeneral, maxHp: u.maxHp, role: u.role,
+      isKeep: !!u.isKeep,
     })),
     units: A.concat(B).map(u => ({
       id: u.id, no: u.no, name: u.name, side: u.side, cost: u.cost, attr: u.attr, rarity: u.rarity,
-      alive: u.alive, hp: Math.round(u.hp), maxHp: u.maxHp, isGeneral: u.isGeneral,
+      alive: u.alive, hp: Math.round(u.hp), maxHp: u.maxHp, isGeneral: u.isGeneral, isKeep: !!u.isKeep,
       dmgDealt: Math.round(u.dmgDealt), kills: u.kills, acts: u.acts, crits: u.crits, evaded: u.evaded,
     })),
     log,
@@ -8600,6 +8724,26 @@ function regionMask(cells, W, H, code) {
 function pawns(board, initial) {
   const map = new Map();
   for (const u of initial) {
+    /* 天守（2026-10-02）。盤に立つ「動かない的」。
+       中身は一マスだが、絵は三マス幅で立てて見上げる大きさにする。
+       絵が無ければ黒漆の櫓の形に落ちる（絵が無くても動く、は崩さない） */
+    if (u.isKeep) {
+      const k = document.createElement('div');
+      k.className = 'pawn keep';
+      const art = pickUrl('terrain', '天守');
+      if (art) {
+        const img = document.createElement('img');
+        img.src = art; img.alt = '天守'; img.draggable = false;
+        img.onerror = () => { img.remove(); k.classList.add('bare'); };
+        k.append(img);
+      } else k.classList.add('bare');
+      const bar = document.createElement('span');
+      bar.className = 'khp';
+      bar.append(document.createElement('i'));
+      k.append(bar);
+      map.set(u.id, k);
+      continue;
+    }
     const p = document.createElement('div');
     p.className = 'pawn ' + u.side + (u.isGeneral ? ' gen' : '');
     p.style.background = ATTR_BG[u.attr] || '#888';
@@ -8681,6 +8825,14 @@ function render(board, pawnMap, snapUnits, rules) {
     const cell = board.children[u.y * W + u.x];
     if (p.parentElement !== cell) cell.append(p);
     cell.style.zIndex = String(u.y + 1);      // 手前の列が奥の列に重なる
+    /* 天守の帯（2026-10-02）。天守は盤の外の顔の列に出ないので、
+       残りの兵量は城そのものに重ねて見せる。落ちたら盤から消す（落城） */
+    if (p.classList.contains('keep')) {
+      const i = p.querySelector('.khp > i');
+      if (i) i.style.width = Math.max(0, Math.min(100, u.maxHp ? u.hp / u.maxHp * 100 : 0)) + '%';
+      p.style.display = u.alive ? '' : 'none';
+      continue;
+    }
     // 戦闘不能は盤面から消す。死体は残さない（逃走の演出は showEvent 側）
     p.style.display = u.alive ? '' : 'none';
     p.classList.toggle('dead', !u.alive);
@@ -11690,6 +11842,10 @@ function poolOf(g, POOL) {
    （階そのものに書く持ち物）
    hold:N               決着のターンを N にし、守り切った側（こちら）を勝ちにする
    hp1:true             味方はみな兵量1から始まる（先に癒す手を作らねば勝てない）
+   keep:{hp}            盤の奥に天守（壊せる城）を立てる。2026-10-02
+                        守り兵を全部倒しても、城が立っているうちは終わらない。
+                        射程1は城の正面一マスからしか斬れず、射程2以上は石垣ごしに届く
+   limit:N              決着のターンを N にする（攻め城は時がかかるので伸ばす）
 
    しばりは二段で見る。
    ・「編成」の段（tower.js の checkTeam）… 出陣の前に弾ける
@@ -11732,7 +11888,9 @@ const TOWER = [
   { f:27, name:'森に潜む', t:'射程1の武将だけで勝つ', cond:[{ k:'range', v:1 }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5 } } },
   { f:28, name:'壁ごしに', t:'射程2以上の武将だけで勝つ', cond:[{ k:'range', min:2 }], stage:'城郭', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5 } } },
   { f:29, name:'山を駆ける', t:'神速だけで勝つ', cond:[{ k:'attr', v:'神速' }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5 } } },
-  { f:30, name:'城落とし', t:'10ターン以内に、誰も倒されずに勝つ', cond:[{ k:'turns', max:10 }, { k:'noDeath' }], stage:'城郭', hard:4, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:600, koban:5400, items:{ '稽古の書': 10, '特技の伝書': 6 }, title:'地の利' } },
+  /* 30階・60階・100階は「天守落とし」（2026-10-02）。盤の奥に壊せる城が立つ。
+     守り兵を倒しても終わらない ＝ 何を倒すかではなく、何を壊すかで編成が変わる */
+  { f:30, name:'城落とし', t:'誰も倒されずに天守を落とす', cond:[{ k:'noDeath' }], keep:{ hp:3000 }, limit:25, stage:'城郭', hard:4, enemy:{ cost:620, lv:30, soul:60, skill:1 }, rw:{ stone:600, koban:5400, items:{ '稽古の書': 10, '特技の伝書': 6 }, title:'地の利' } },
   { f:31, name:'織田の旗', t:'織田家だけで勝つ', cond:[{ k:'clan', v:'織田家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2 } } },
   { f:32, name:'武田の旗', t:'武田家だけで勝つ', cond:[{ k:'clan', v:'武田家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2 } } },
   { f:33, name:'上杉の旗', t:'上杉家だけで勝つ', cond:[{ k:'clan', v:'上杉家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2 } } },
@@ -11752,7 +11910,10 @@ const TOWER = [
   { f:47, name:'大将は高みに', t:'総大将が一度も傷を負わずに勝つ', cond:[{ k:'genSafe' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3 } } },
   { f:48, name:'奥義に頼らず', t:'奥義を使わず、誰も倒されずに勝つ', cond:[{ k:'noUlt' }, { k:'noDeath' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3 } } },
   { f:49, name:'姫の陣', t:'女武将だけで、誰も倒されずに勝つ', cond:[{ k:'gender', v:'女' }, { k:'noDeath' }], stage:'河川', hard:5, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3 } } },
-  { f:50, name:'満身', t:'全員が兵量満タンのまま勝つ', cond:[{ k:'hpLeft', pct:100 }], stage:'河川', hard:5, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:700, koban:10800, items:{ '大稽古の書': 6, '特技の伝書': 6 }, title:'無傷の名' } },
+  /* 50階も天守の階にした（2026-10-02）。
+     もとは「満身（全員が兵量満タンのまま勝つ）」。攻め城で無傷は成り立たないので、
+     五重の題（無傷）は残したまま「誰も倒されずに落とす」に読み替えた */
+  { f:50, name:'無傷の城落とし', t:'誰も倒されずに天守を落とす', cond:[{ k:'noDeath' }], keep:{ hp:3500 }, limit:25, stage:'城郭', hard:5, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:700, koban:10800, items:{ '大稽古の書': 6, '特技の伝書': 6 }, title:'無傷の名' } },
   { f:51, name:'八手', t:'8ターン以内に勝つ', cond:[{ k:'turns', max:8 }], stage:'草原', hard:3, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:52, name:'六手', t:'6ターン以内に勝つ', cond:[{ k:'turns', max:6 }], stage:'草原', hard:3, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:53, name:'五手', t:'5ターン以内に勝つ', cond:[{ k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
@@ -11762,7 +11923,7 @@ const TOWER = [
   { f:57, name:'単騎八手', t:'一人で 8ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:8 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:58, name:'三手', t:'3ターン以内に勝つ', cond:[{ k:'turns', max:3 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:59, name:'懐に入る', t:'射程1だけで 4ターン以内に勝つ', cond:[{ k:'range', v:1 }, { k:'turns', max:4 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  { f:60, name:'三手の無傷', t:'3ターン以内に、誰も倒されずに勝つ', cond:[{ k:'turns', max:3 }, { k:'noDeath' }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },
+  { f:60, name:'疾き城落とし', t:'18ターン以内に天守を落とす', cond:[{ k:'turns', max:18 }], keep:{ hp:3500 }, limit:25, stage:'城郭', hard:5, enemy:{ cost:860, lv:58, soul:300, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },
   { f:61, name:'前を張る', t:'役目に「前衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'前衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
   { f:62, name:'後ろを支える', t:'役目に「後衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'後衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
   { f:63, name:'懐の間合い', t:'射程1だけで勝つ', cond:[{ k:'range', v:1 }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
@@ -11802,7 +11963,7 @@ const TOWER = [
   { f:97, name:'三重の枷', t:'兵量1から始まり、三人まで・奥義なしで勝つ', cond:[{ k:'units', max:3 }, { k:'noUlt' }], hp1:true, stage:'城郭', hard:5, enemy:{ cost:1060, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2 } } },
   { f:98, name:'無手の単騎', t:'一人で、奥義を使わずに勝つ', cond:[{ k:'units', max:1 }, { k:'noUlt' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2 } } },
   { f:99, name:'五者五様', t:'位も属性もすべてちがう編成で勝つ', cond:[{ k:'rarity', allDiff:true }, { k:'attr', allDiff:true }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2 } } },
-  { f:100, name:'天守の主', t:'一人で・倒されず・10ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'noDeath' }, { k:'turns', max:10 }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:3000, koban:48000, items:{ '皆伝の書': 4, '特技の伝書': 6 }, title:'天守の主' } },
+  { f:100, name:'天守の主', t:'一人で、倒されずに天守を落とす', cond:[{ k:'units', max:1 }, { k:'noDeath' }], keep:{ hp:4000 }, limit:30, stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:3000, koban:48000, items:{ '皆伝の書': 4, '特技の伝書': 6 }, title:'天守の主' } },
 ];
 
 const towerOf = f => TOWER.find(x => x.f === f) || null;
@@ -16544,6 +16705,14 @@ const RULES = {
         "walkable": false,
         "cost": null,
         "blocksLine": true
+      },
+      "KEEP": {
+        "label": "天守",
+        "walkable": false,
+        "cost": null,
+        "blocksLine": true,
+        "keep": true,
+        "_note": "天守（拠点）2026-10-02。壊せる城。rules.keep があるとき engine が盤に刻む。絵は terrain/天守.png"
       }
     },
     "default": "PLAIN",
@@ -31011,6 +31180,14 @@ function startBattle(camp, evb, spar, bout, tw) {
     const t0 = towerOf(tw.f) || {};
     if (t0.hold) rules = { ...rules, holdWin: 'A', time: { ...rules.time, maxTurns: t0.hold } };
     if (t0.hp1) rules = { ...rules, startHp: { A: 1 } };
+    /* 天守（2026-10-02）。盤の奥に壊せる城を立てる。
+       withKeep をここで掛けておくのは、盤を描く側（boardEl）も
+       engine とおなじ盤を見なければならないため。engine 側でもう一度掛かるが、
+       もう KEEP が刻まれているので二度めは同じ盤になる（何度掛けても変わらない） */
+    if (t0.keep) {
+      if (t0.limit) rules = { ...rules, time: { ...rules.time, maxTurns: t0.limit } };
+      rules = withKeep({ ...rules, keep: { x: 4, y: 0, ...t0.keep } });
+    }
   }
   let B = camp ? campEnemy(camp.pref, camp.step, rng)
             : spar ? campEnemy(spar.pref, spar.pref.battles - 1, rng)

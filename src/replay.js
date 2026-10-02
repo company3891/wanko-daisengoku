@@ -584,6 +584,26 @@ function regionMask(cells, W, H, code) {
 export function pawns(board, initial) {
   const map = new Map();
   for (const u of initial) {
+    /* 天守（2026-10-02）。盤に立つ「動かない的」。
+       中身は一マスだが、絵は三マス幅で立てて見上げる大きさにする。
+       絵が無ければ黒漆の櫓の形に落ちる（絵が無くても動く、は崩さない） */
+    if (u.isKeep) {
+      const k = document.createElement('div');
+      k.className = 'pawn keep';
+      const art = pickUrl('terrain', '天守');
+      if (art) {
+        const img = document.createElement('img');
+        img.src = art; img.alt = '天守'; img.draggable = false;
+        img.onerror = () => { img.remove(); k.classList.add('bare'); };
+        k.append(img);
+      } else k.classList.add('bare');
+      const bar = document.createElement('span');
+      bar.className = 'khp';
+      bar.append(document.createElement('i'));
+      k.append(bar);
+      map.set(u.id, k);
+      continue;
+    }
     const p = document.createElement('div');
     p.className = 'pawn ' + u.side + (u.isGeneral ? ' gen' : '');
     p.style.background = ATTR_BG[u.attr] || '#888';
@@ -665,6 +685,14 @@ export function render(board, pawnMap, snapUnits, rules) {
     const cell = board.children[u.y * W + u.x];
     if (p.parentElement !== cell) cell.append(p);
     cell.style.zIndex = String(u.y + 1);      // 手前の列が奥の列に重なる
+    /* 天守の帯（2026-10-02）。天守は盤の外の顔の列に出ないので、
+       残りの兵量は城そのものに重ねて見せる。落ちたら盤から消す（落城） */
+    if (p.classList.contains('keep')) {
+      const i = p.querySelector('.khp > i');
+      if (i) i.style.width = Math.max(0, Math.min(100, u.maxHp ? u.hp / u.maxHp * 100 : 0)) + '%';
+      p.style.display = u.alive ? '' : 'none';
+      continue;
+    }
     // 戦闘不能は盤面から消す。死体は残さない（逃走の演出は showEvent 側）
     p.style.display = u.alive ? '' : 'none';
     p.classList.toggle('dead', !u.alive);

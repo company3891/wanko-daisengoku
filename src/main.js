@@ -1,6 +1,6 @@
 // わんこ大戦国 プロトタイプ（2026-09-20）
 // 編成 → 陣形 → 戦闘 → 勝敗。戦闘ルールは sim/src/engine.mjs をそのまま呼ぶ。
-import { runBattle, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
+import { runBattle, withKeep, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
 import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, gachaUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
 
 import { GACHAS, gachaOf, poolOf, urListOf, urRatesOf } from './gachas.js';
@@ -6259,6 +6259,14 @@ function startBattle(camp, evb, spar, bout, tw) {
     const t0 = towerOf(tw.f) || {};
     if (t0.hold) rules = { ...rules, holdWin: 'A', time: { ...rules.time, maxTurns: t0.hold } };
     if (t0.hp1) rules = { ...rules, startHp: { A: 1 } };
+    /* 天守（2026-10-02）。盤の奥に壊せる城を立てる。
+       withKeep をここで掛けておくのは、盤を描く側（boardEl）も
+       engine とおなじ盤を見なければならないため。engine 側でもう一度掛かるが、
+       もう KEEP が刻まれているので二度めは同じ盤になる（何度掛けても変わらない） */
+    if (t0.keep) {
+      if (t0.limit) rules = { ...rules, time: { ...rules.time, maxTurns: t0.limit } };
+      rules = withKeep({ ...rules, keep: { x: 4, y: 0, ...t0.keep } });
+    }
   }
   let B = camp ? campEnemy(camp.pref, camp.step, rng)
             : spar ? campEnemy(spar.pref, spar.pref.battles - 1, rng)

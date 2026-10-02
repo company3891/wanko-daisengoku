@@ -288,6 +288,7 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 .cell.t-WALL{background:#4a4238}.cell.t-GATE_OPEN{background:#5a4a33}.cell.t-GATE_CLOSED{background:#3a332a}
 .cell.t-MOAT{background:#16232e}.cell.t-CLIFF{background:#2b2723}.cell.t-ROCK{background:#3b3630}
 .cell.t-BUILDING{background:#453a30}
+.cell.t-KEEP{background:#2a2520}   /* 天守の足もと（2026-10-02） */
 .cell .ter{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:#ffffff22;font-size:11px;pointer-events:none}
 .pawn{position:absolute;inset:8%;border-radius:7px;display:flex;flex-direction:column;
@@ -5274,3 +5275,25 @@ button.mkpv:active{transform:translateY(1px)}
 .mkpc img{display:block;width:100%;height:auto}
 .mkpc i{display:block;width:100%;aspect-ratio:.675}
 .mkpc:active{transform:translateY(1px);filter:brightness(.92)}
+
+/* ===== 天守（拠点）2026-10-02 =====
+   盤の一マスに立つが、絵は三マス幅・二マス高で見上げる大きさにする。
+   足もとをマスの下端にそろえ、頭は盤の外へはみ出させる（.cell は overflow:visible）。
+   絵が無ければ黒漆の櫓の形に落ちる */
+.pawn.keep{inset:auto;left:-110%;right:-110%;bottom:-10%;height:300%;
+  background:none!important;box-shadow:none!important;border-radius:0;
+  pointer-events:none;z-index:2;overflow:visible}
+.pawn.keep img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;object-position:center bottom;
+  filter:drop-shadow(0 2px 6px #000b)}
+.pawn.keep.bare::before{content:'';position:absolute;left:28%;right:28%;bottom:0;height:55%;
+  background:linear-gradient(#2a2520,#12100e);
+  border:2px solid var(--gold,#d8a94a);border-bottom:none;border-radius:4px 4px 0 0;
+  box-shadow:0 0 12px #0008}
+.pawn.keep.bare::after{content:'天守';position:absolute;left:0;right:0;bottom:18%;
+  text-align:center;color:var(--gold,#d8a94a);font-size:9px;font-weight:700;letter-spacing:.1em}
+/* 残りの兵量。城そのものに重ねる（盤の外の顔の列には出ないため） */
+.pawn.keep > .khp{position:absolute;left:34%;right:34%;bottom:-3px;height:4px;
+  background:#000a;border:1px solid #0008;border-radius:3px;overflow:hidden;z-index:3}
+.pawn.keep > .khp > i{display:block;height:100%;width:100%;
+  background:linear-gradient(90deg,#a8802c,#f5e2a8);transition:width .2s linear}

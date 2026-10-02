@@ -2061,6 +2061,26 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 
 /* 所持アイテム（2026-09-21）。絵の下に個数。種類ごとに札で分ける */
 .sheet .card2.bagbox{max-width:440px}
+/* 図鑑の棚えらび（2026-10-02）。武将の棚と技の棚 */
+.dextabs{margin:6px 0 8px}
+/* 技の棚（2026-10-02）。一行＝ひとつの技。
+   上に 属性・名・固有の印・星、下に効き目、いちばん下に持ち主 */
+.skbook{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.skbr{padding:10px 12px;border-radius:12px;border:1px solid var(--line);
+  background:#ffffff06;display:flex;flex-direction:column;gap:5px}
+.skbr.yet{opacity:.5;border-style:dashed}
+.skbh{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.skbh b{font-size:13.5px;letter-spacing:.02em}
+.skbu{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.06em;
+  color:#2a1d07;background:var(--gold);border-radius:999px;padding:1px 7px}
+.skbs{margin-left:auto;font-size:10px;color:var(--gold);letter-spacing:-.04em}
+.skbt{font-size:11.5px;line-height:1.6;color:var(--text2)}
+.skbw{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:11px;color:var(--text3)}
+/* 持ち主の名は押せる。押すとその武将の札がひらく */
+.skbn{font-family:inherit;font-size:11px;color:#f3e7cc;cursor:pointer;
+  padding:3px 9px;border-radius:999px;border:1px solid #d8a94a4d;background:#12100e99}
+.skbn:active{transform:translateY(1px);filter:brightness(.93)}
+.skby{font-style:normal;font-size:10.5px;color:var(--text3)}
 .bagtabs{margin:10px 0 4px}
 .bagtabs .chip{margin:0}
 .baggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:8px;margin:10px 0}

@@ -3939,11 +3939,114 @@ function pickRows(ks, opt) {
 const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq' };
 const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc',   sq: 'tSq' };
 const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc',  sq: 'cpSq' };
+/* ---- 特技の一覧（2026-10-02）----
+   図鑑は武将の棚だったが、「この技は誰が持っているのか」を探す場が無かった。
+   継承の相手をさがすのに、武将を一枚ずつ裏返して回るしかなかったので、
+   技のほうから引ける棚を足す。
+
+   並べるのは 固有◆と通常特技だけ。奥義と大将特性は継げないので棚に出さない。
+   同じ名の技を何人も持っていることがあるので、技の名でひとまとめにして
+   持ち主を並べる（いちばん多いもので17体）。 */
+let SKBOOK = null;
+function skBook() {
+  if (SKBOOK) return SKBOOK;
+  const m = new Map();
+  const put = (name, text, el2, c, kind) => {
+    if (!name) return;
+    let o = m.get(name);
+    if (!o) { o = { name, text: text || '', attr: el2 || c.attr, kinds: new Set(), who: [] }; m.set(name, o); }
+    if (!o.text && text) o.text = text;
+    o.kinds.add(kind);
+    o.who.push({ no: c.no, name: c.name, kind });
+  };
+  for (const c of C) {
+    const u = c.unique || {};
+    if (u.name) put(u.name, u.text, u.element, c, '固有');
+    for (const n of (c.normals || [])) put(n.name, n.text, n.element, c, '通常');
+  }
+  SKBOOK = [...m.values()].sort((a, b) => a.who[0].no - b.who[0].no);
+  return SKBOOK;
+}
+/* その技を、ひとりでも持っている武将を奉公させていれば「見つけた」技 */
+const skFound = o => o.who.some(w => owns(w.no));
+function skList() {
+  const at = S.skAttr || 'すべて';
+  const kd = S.skKind || 'すべて';
+  return skBook().filter(o =>
+    (at === 'すべて' || (o.attr || '共通') === at) &&
+    (kd === 'すべて' || o.kinds.has(kd)) &&
+    (!S.skMine || skFound(o)));
+}
+function dexSkills() {
+  const list = skList();
+  const found = list.filter(skFound).length;
+  const chip = (now, val, label, key) => el('button', {
+    class: 'chip' + (now === val ? ' on' : ''),
+    onclick: () => { S[key] = val; SFX.pick(); draw(); },
+  }, label);
+  return el('div', {},
+    el('div', { class: 'row chapters bagtabs attrf' },
+      ['すべて', ...ATTRS, '共通'].map(a =>
+        chip(S.skAttr || 'すべて', a, a === 'すべて' || a === '共通' ? a : attrTag(a, 'sm'), 'skAttr'))),
+    el('div', { class: 'row chapters bagtabs' }, [
+      ...['すべて', '固有', '通常'].map(k => chip(S.skKind || 'すべて', k, k, 'skKind')),
+      el('button', {
+        class: 'chip sqf' + (S.skMine ? ' on' : ''),
+        title: '手持ちの武将が持っている技だけ',
+        onclick: () => { S.skMine = !S.skMine; SFX.pick(); draw(); },
+      }, '持っている技'),
+    ]),
+    el('p', { style: 'font-size:11px;color:var(--text3);margin:6px 0 8px' },
+      `この絞り込みでは ${found}/${list.length} の技`),
+    el('div', { class: 'skbook' }, list.map(o => {
+      const got = skFound(o);
+      /* まだ誰も奉公していない技は、名も効き目も伏せる（2026-10-02）。
+         武将の棚が「未奉公」の裏札を並べるのと同じ考え。
+         何種あるかだけは見せて、中身は引いてからの楽しみにする */
+      if (!got) return el('div', { class: 'skbr yet' },
+        el('div', { class: 'skbh' }, el('b', {}, '未奉公')),
+        el('span', { class: 'skbw' }, 'まだ誰も召し抱えていない'));
+      const mine = o.who.filter(w => owns(w.no));
+      const yet = o.who.length - mine.length;
+      return el('div', { class: 'skbr' },
+        el('div', { class: 'skbh' },
+          attrTag(o.attr, 'sm'),
+          el('b', {}, o.name),
+          o.kinds.has('固有') ? el('em', { class: 'skbu' }, '固有') : null,
+          /* 星は通常特技だけ（2026-10-02）。固有には段が無いので、
+             既定の★1が出ると「弱い技」と読まれてしまう */
+          o.kinds.has('通常') ? el('span', { class: 'skbs' }, stars(starOf(o.name))) : null),
+        el('span', { class: 'skbt' }, o.text),
+        el('span', { class: 'skbw' },
+          mine.map(w => el('button', {
+            class: 'skbn', title: `${w.name} の札を見る`,
+            onclick: () => { const c = charOf(w.no); if (c) openCard(c, false, true); },
+          }, `No.${w.no}　${w.name}`)),
+          yet ? el('i', { class: 'skby' }, `未奉公 ${yet}体`) : null));
+    })));
+}
 function screenDex() {
   /* 位と属性は「かつ」で重ねて当たる。並びは、その絞り込んだ中での順番。
      図鑑だけは 未奉公の札も出す（2026-09-30）。
      「何が残っているか」を見に来る画面なので、まだ見ぬ者が並んでいてよい。
      編成・育成・特技えらびは もとから持っている武将しか並ばない */
+  /* 武将の棚と技の棚を、上の二つの札で行き来する（2026-10-02） */
+  const tab = S.dexTab === 'skill' ? 'skill' : 'char';
+  const tabs = el('div', { class: 'row chapters bagtabs dextabs' },
+    [['char', '武将を見る'], ['skill', '特技を見る']].map(([k, nm]) => el('button', {
+      class: 'chip' + (tab === k ? ' on' : ''),
+      onclick: () => { S.dexTab = k; SFX.pick(); draw(); },
+    }, nm)));
+  if (tab === 'skill') {
+    const all = skBook();
+    return {
+      body: el('div', {},
+        el('h2', {}, `特技（${all.filter(skFound).length}/${all.length}）`),
+        tabs,
+        dexSkills()),
+      nav: true,
+    };
+  }
   const sorted = pickApply(C, PF_DEX, { sort0: 'no' });
   const list = sorted;
   const got = list.filter(c => owns(c.no)).length;
@@ -3951,6 +4054,7 @@ function screenDex() {
     body: el('div', {},
       el('h2', {}, `図鑑（${P.own.length}/${C.length}）`,
         el('span', { class: 'sub2' }, `　手持ち ${num(P.own.reduce((a, n) => a + cntOf(n), 0))} 枚`)),
+      tabs,
       pickRows(PF_DEX, { sort0: 'no' }),
       el('p', { style: 'font-size:11px;color:var(--text3);margin:6px 0 8px' },
         `この絞り込みでは ${got}/${list.length} 体`),

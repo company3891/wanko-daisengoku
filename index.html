@@ -7083,6 +7083,11 @@ function applyAttackStatus(src, tgt, ctx) {
 
 function kill(src, tgt, ctx) {
   const { log, t, rng, rules } = ctx;
+  /* すでに倒れている者を もう一度 倒さない（2026-10-03）。
+     道連れの一撃に相手が反撃を返すと、その反撃の中で先に倒れてしまい、
+     戻ってきた外側でもう一度「撃破」が数えられていた（400戦で44回）。
+     撃破の数はお役目と塔のしばりが見ているので、二重に数えると結果が狂う */
+  if (!tgt.alive) return;
   /* 倒れない陣営（2026-10-02）。手引きの初陣で使う。
      rules.noLose に陣営（'A' / 'B'）を書くと、その側は何度でも兵量1で踏みとどまる。
      はじめての一戦でつまずくと、手引きの道すじがそこで切れてしまうので、
@@ -7118,6 +7123,9 @@ function kill(src, tgt, ctx) {
     if (log) log.push({ t: +t.toFixed(1), type: 'dyingStrike', src: tgt.id, tgt: src.id });
     withVia(ctx, 'dying', () => dealDamage(tgt, src, ds.stat, ds.rate, ctx, tgt.attr));
     ctx._inDying = false;
+    /* 道連れの一撃に反撃が返り、その中で先に倒れていることがある（2026-10-03）。
+       道連れは「倒れる前の一撃」なので、もう済んでいる。ここで切り上げる */
+    if (!tgt.alive) return;
   }
   tgt.hp = 0; tgt.alive = false; src.kills++;
   if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: tgt.id });
@@ -16628,7 +16636,7 @@ const RULES = {
   "_moveAndAttack_note": "移動してから攻撃できる（2026-09-19）。移動と攻撃が排他だと、1手番を移動に使うだけで約2.7pt損するため、後退も陣中交代も必ず損になり戦術が成立しない。moveAndAttackRate は移動後の攻撃倍率（1.0＝減衰なし）。",
   "splitDamageByTargets": true,
   "_splitDamageByTargets_note": "範囲攻撃の頭割り（2026-09-19）。効果文に書かれた威力を、範囲内に居る敵の人数で割る。範囲内が1体なら100%（単体攻撃と同じ）、2体なら50%ずつ、5体なら20%ずつ。範囲内全員に100%ずつ入ると範囲攻撃が強すぎるため。奥義・スキルの範囲ダメージ、◆で広がった通常攻撃、一騎駆けのすべてに適用。",
-  "aoeTotalBonus": 0,
+  "aoeTotalBonus": 0.2,
   "terrain": {
     "_note": "地形の定義（2026-09-20 実装）。仕様書§13／開発設計書§8のとおり。walkable=false は通行不可、cost は進入コスト（1ターンに1.0ぶん回復する移動力を消費する）",
     "types": {
@@ -16762,7 +16770,8 @@ const RULES = {
     "goodWeatherPct": 0.04,
     "badWeatherPct": -0.04,
     "_weather_note": "得意／苦手の天候。属性ごとの天候表（WEATHER_TABLE）とは別に、その武将だけ上下する。天候は「天候の品」で変えられるので、編成に合う空を自分で呼べる"
-  }
+  },
+  "_aoeTotalBonus_note": "広く当てるほど総量が増える（2026-10-03）。頭割りは (1 + b×(n-1)) ÷ n。b=0.2 なら 二体で各60%（合計120%）・三体で各47%（合計140%）・五体で各36%（合計180%）。b=0 だと何体に当てても合計は変わらず、範囲技の値打ちが出なかった。"
 }
 ;
 const DB = {

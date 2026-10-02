@@ -1441,9 +1441,16 @@ function miTake(m) {
   for (const [k, v] of Object.entries(rw.items || {})) P.items[k] = (P.items[k] || 0) + v;
   if (rw.title) gainTitle(rw.title);
   P.mi[MI_GOT[m.tab]].push(m.id);
-  // 果たしたお役目の通算（称号「門前の子犬」に使う・2026-09-25）。
-  // miBump を使うと日が変わっていたときに今いれた gd が飛ぶので、通算だけ直に足す
+  /* 受け取ったお役目の数（2026-09-25／2026-10-02 に日と週へも足した）。
+     miBump を使うと日が変わっていたときに、いま入れた gd が飛ぶ。
+     だから miRoll を通さず、三つの箱へ直に足す */
   P.mi.t.duty = (P.mi.t.duty || 0) + 1;
+  P.mi.d.duty = (P.mi.d.duty || 0) + 1;
+  P.mi.w.duty = (P.mi.w.duty || 0) + 1;
+  /* 褒美でもらった小判も「集めた合計」に入れる（2026-10-02） */
+  if (rw.koban) { P.mi.d.koban = (P.mi.d.koban || 0) + rw.koban;
+                  P.mi.w.koban = (P.mi.w.koban || 0) + rw.koban;
+                  P.mi.t.koban = (P.mi.t.koban || 0) + rw.koban; }
   savePlayer();
   return rw;
 }
@@ -1911,6 +1918,7 @@ function rkStart(npc) {
 }
 /* 挑んだ戦の決着。点を動かして、その場で見せる言葉を返す */
 function rkFinish(bout, won) {
+  if (won) miBump('rkWin');   // お役目の数（2026-10-02）
   const r = rkState();
   const d = rkPoint(bout.minePt, bout.foePt, won);
   r.pt = Math.max(0, r.pt + d);
@@ -2924,6 +2932,7 @@ function spPanel(c) {
         class: 'go', disabled: total ? null : true,
         onclick: () => {
           const n = commitSp(c.no, spDraft(c.no));
+          if (n) miBump('soulUp');   // お役目の数（2026-10-02）
           S.spEdit = null; S.sp = null;
           if (n) SFX.win(); else SFX.pick();
           draw();
@@ -3249,6 +3258,7 @@ function fireSheet() {
           class: 'go sm danger', disabled: max < 1 ? true : null,
           onclick: () => {
             const r = dismiss(c.no, c.rarity, n);
+            if (r) miBump('fire', n);   // お役目の数（2026-10-02）
             S.fire = null; S.fireN = null;
             if (r) { SFX.win(); if (r.left <= 0) { S.detail = null; S.side = null; } }
             else SFX.pick();
@@ -3612,6 +3622,7 @@ function kobanRow() {
 function shopBuy(name, price, n, kind) {
   return () => {
     const r = kind === 'deal' ? buyDeal(name) : buyItem(name, n);
+    if (r && kind === 'deal') miBump('deal');   // お役目の数（2026-10-02）
     if (r) { miBump('buy'); SFX.coin(); S.shopMsg = `${name} を ${r.n} つ手に入れた（小判 ${num(r.cost)}）`; }   // お役目の数（門出・2026-09-26）
     else { SFX.pick(); S.shopMsg = '小判が足りない'; }
     draw();
@@ -5991,7 +6002,8 @@ function startBattle(camp, evb, spar, bout, tw) {
   if (camp) miBump('camp');
   if (evb) miBump('ev');
   if (spar) miBump('spar');
-  if (tw) miBump('battle');
+  /* 塔に挑んだ数は twGo2 で数えている（2026-10-02）。
+     ここで battle をもう一度足していたので、塔の一戦が二度に数えられていた */
   const seed = camp ? campSeed(camp.pref.id, camp.step)
              : spar ? campSeed(spar.id + ':' + today(), spar.pref.battles - 1)
              : bout ? rkSeed(bout.npc.id + ':' + today())
@@ -6571,6 +6583,9 @@ function drawBattle() {
       }
       // 番付の点はその場で動く（2026-09-25）。挑まれたぶんは日が変わってからまとめて
       if (BATTLE.bout) BATTLE.boutPt = rkFinish(BATTLE.bout, res.winner === 'A');
+      miAfterWin(won0);                      // お役目の数（2026-10-02）
+      if (BATTLE.evWon) miEvMat(BATTLE.evWon);
+      if (BATTLE.twWon) miBump('twOk');
       miRefresh();   // 制した国の数や称号を、戦のあとに整える（2026-09-24）
       /* 勝敗は画面の下ではなく、中央のポップアップで知らせる（2026-09-23）。
          制覇したときは、勝利のあとにもう一枚「◯◯ 制覇」を続けて出す。
@@ -6585,6 +6600,26 @@ function drawBattle() {
   }
 }
 
+/* 戦が終わったときに数えるお役目（2026-10-02）。
+   盤面を見た戦も 早送りも、同じここを通す。
+   勝ったときだけ数えるものを集めてある（挑んだ数は startBattle 側で数える） */
+function miAfterWin(won) {
+  if (!won) return;
+  miBump('win');
+  if (S.form === 'V字') miBump('vWin');
+  /* おまかせ＝一度も手で指図しなかった戦。
+     modes に manual:true が一つも無ければオートで勝ったとみなす */
+  if (!BATTLE || !(BATTLE.modes || []).some(x => x.manual)) miBump('autoWin');
+  if (BATTLE && BATTLE.spar && BATTLE.spar.duel) miBump('duelWin');
+}
+/* 催しの褒美に覚醒の品（具足・軍配・無銘）が入っていたか（2026-10-02） */
+function miEvMat(rw) {
+  if (!rw || !rw.items) return;
+  const n = Object.entries(rw.items)
+    .filter(([k, v]) => v > 0 && (ITEMS[k] || {}).kind === '覚醒')
+    .reduce((a, [, v]) => a + v, 0);
+  if (n) miBump('evMat', n);
+}
 /* 戦いぶりを数える（2026-09-29）。
    盤面を見た戦も、早送りの戦も、同じここを通す。
    エンジンが一つ一つの傷に「出どころ」を書いているので、足し上げるだけでよい。
@@ -7071,6 +7106,7 @@ function twGo2(f) {
     S.food = true; SFX.pick(); draw(); return;
   }
   P.stamina -= TOWER_FOOD; savePlayer();
+  miBump('tower');   // お役目の数（2026-10-02）
   S.twMsg = '';
   startBattle(null, null, null, null, { f });
 }
@@ -7258,6 +7294,7 @@ function mkBuyBar(c, it) {
         e.stopPropagation();
         const r = mkBuy(it);
         if (!r) { S.mkMsg = '買えなかった'; SFX.pick(); draw(); return; }
+        miBump('mkBuy');   // お役目の数（2026-10-02）
         closeDetail();
         S.mkMsg = `${c.name} を召し抱えた`;
         SFX.win(); draw();
@@ -7333,6 +7370,7 @@ function mkPutSheet() {
           class: 'go sm', disabled: mkCanList(c.no) ? null : true,
           onclick: () => {
             const r = mkList(c.no, price);
+            if (r) miBump('mkList');   // お役目の数（2026-10-02）
             S.mkPut = null; S.mkPrice = 0; S.mkPEdit = false;
             S.mkMsg = r ? `${c.name} を取引に出した` : '出せなかった';
             if (r) SFX.win(); else SFX.pick();
@@ -7573,6 +7611,8 @@ function evSkip(id, rank) {
   BATTLE = { ev: { id, rank }, camp: null, reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank]), march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）
+  miAfterWin(won);                           // お役目の数（2026-10-02）
+  if (BATTLE.evWon) miEvMat(BATTLE.evWon);
   /* 早送りでも本当の数を出す（2026-09-29）。
      ここは盤面を見せないだけで、戦そのものは同じように解いている */
   const st2 = battleStat(res);

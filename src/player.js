@@ -1002,6 +1002,9 @@ export function giveReward(won, mul = 1, food = 0) {
     mul: mul > 1 ? mul : undefined,
   };
   P.free += r.stone; P.koban += r.koban; P.soul += r.soul;
+  /* 集めた小判の合計（2026-10-02）。お役目「小判を一万集める」はこれを見る。
+     使った小判は引かない。「稼いだ覚え」なので、減らすと数えられなくなる */
+  if (r.koban) miBump('koban', r.koban);
   // 勝つと稽古の書が1冊もらえる（2026-09-21）
   P.items['稽古の書'] = (P.items['稽古の書'] || 0) + 1; r.book = 1;
   P.wins++;

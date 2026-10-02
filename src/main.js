@@ -6121,6 +6121,21 @@ function startBattle(camp, evb, spar, bout, tw) {
      手引きの「初陣」の歩にいるあいだだけ、相手も総大将ひとりにする */
   const first = camp && guideOn() && P.gstep === GUIDE_FIGHT;
   if (first && B.length > 1) B = B.slice(0, 1);
+  /* 初陣は必ず勝てるようにする（2026-10-02）。
+     はじめての一戦でつまずくと、手引きの道すじがそこで切れてしまう。
+     相手を弱くするのではなく「負ける道を塞ぐ」ほうを選んだ。見た目はふつうの一騎打ちのまま。
+       noLose … こちらは倒れない（何度でも兵量1で踏みとどまる。画面には「耐えた」と出る）
+       holdWin … 決着のターンまで残れば こちらの勝ち（押し切れなくても負けにならない）
+     この二つで、負ける道が無くなる */
+  if (first) {
+    rules = { ...rules, noLose: 'A', holdWin: 'A' };
+    /* 相手は育てない（2026-10-02）。campEnemy は 1章の雑兵でも Lv16・魂104 で渡してくる。
+       それと Lv1 のこちらが一騎打ちをすると、十ターンでは互いに倒しきれず
+       「残兵量で負けているのに勝ち」という妙な絵になる。
+       初陣の相手は国の軍勢ではなく物見の一騎、と読んで、素のまま立たせる */
+    const raw = C.find(c => c.no === (B[0] || {}).no);
+    if (raw) B = [raw];
+  }
   const bForm = FORMS[Math.floor(rng() * FORMS.length)];
   // 手動⇄オートは戦闘中に切り替えるので、編成側は常に manual 扱いで回し、
   // 実際にどちらで動くかは modes（そのターン以降この方式）で決める
@@ -6140,7 +6155,7 @@ function startBattle(camp, evb, spar, bout, tw) {
      手で動かせるようにはしない。切り替えの札も盤面に出さない */
   /* 初陣は手で動かすところから覚えてもらう（2026-09-30）。そのあともしばらく手動のまま */
   if (first) P.manual = true;
-  BATTLE = { seed, rules, B, bForm, commands: [], modes: [{ turn: 0, manual: (spar || bout) ? false : !!P.manual }],
+  BATTLE = { seed, rules, B, bForm, first, commands: [], modes: [{ turn: 0, manual: (spar || bout) ? false : !!P.manual }],
              shown: 0, live: null, playing: true, sel: null, busy: false, camp: camp || null,
              ev: evb || null,
              spar: spar || null,
@@ -6686,7 +6701,11 @@ function drawBattle() {
          drawBattle は draw の最後に呼ばれるので、次の回に持ち越して出す */
       /* 負けの札に出す数（2026-09-29）。
          倒した数・討たれた数・かかった手数。褒美が無いぶん、戦いぶりを残す */
-      S.res = { i: 0, won: res.winner === 'A', reason: res.reason, ta, tb, stat: battleStat(res) };
+      /* 初陣だけは言い方を変える（2026-10-02）。
+         勝ち方が「守り切った」でも「総大将撃破」でも、はじめの一戦は「初陣を飾った」でよい */
+      S.res = { i: 0, won: res.winner === 'A',
+                reason: (BATTLE && BATTLE.first && res.winner === 'A') ? '初陣を飾った' : res.reason,
+                ta, tb, stat: battleStat(res) };
       setTimeout(draw, 40);
     }
     /* 下の帯の戦闘結果はやめた（2026-09-23）。

@@ -6908,7 +6908,17 @@ function applyAttackStatus(src, tgt, ctx) {
 }
 
 function kill(src, tgt, ctx) {
-  const { log, t, rng } = ctx;
+  const { log, t, rng, rules } = ctx;
+  /* 倒れない陣営（2026-10-02）。手引きの初陣で使う。
+     rules.noLose に陣営（'A' / 'B'）を書くと、その側は何度でも兵量1で踏みとどまる。
+     はじめての一戦でつまずくと、手引きの道すじがそこで切れてしまうので、
+     相手を弱くするのではなく「負ける道を塞ぐ」ほうを選んだ。
+     見た目はふつうの一騎打ちのまま、画面には「耐えた」と出る */
+  if (rules.noLose && tgt.side === rules.noLose) {
+    tgt.hp = Math.max(1, tgt.hp);
+    if (log) log.push({ t: +t.toFixed(1), type: 'endure', tgt: tgt.id, hp: 1 });
+    return;
+  }
   // 兵量1で耐える（守将の固有）。1体につき1回まで
   const en = (tgt.passives || []).find(p => p.kind === 'endure' && condOk(tgt, p));
   if (en && !tgt._enduredUsed && rng.chance(en.chance)) {
@@ -7669,11 +7679,14 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
           const dmg = (b.src || 0) * (b.pct || 0);
           u.hp -= dmg;
           if (log) log.push({ t: +t.toFixed(1), type: 'burn', tgt: u.id, v: Math.round(dmg) });
-          if (u.hp <= 0) { u.hp = 0; u.alive = false; if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: u.id }); }
+          // 倒れない陣営はここでも踏みとどまる（2026-10-02）。炎上は kill を通らない
+          if (u.hp <= 0 && rules.noLose === u.side) u.hp = 1;
+          else if (u.hp <= 0) { u.hp = 0; u.alive = false; if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: u.id }); }
         }
         if (u.statuses['感電']) {
           u.hp -= u.maxHp * rules.status.感電.tickPctMaxHp * SEC;
-          if (u.hp <= 0) { u.hp = 0; u.alive = false; if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: u.id }); }
+          if (u.hp <= 0 && rules.noLose === u.side) u.hp = 1;      // 2026-10-02
+          else if (u.hp <= 0) { u.hp = 0; u.alive = false; if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: u.id }); }
         }
         const foes = TEAM(effSide(u) === 'A' ? 'B' : 'A');
         u._frontEnemyCount = live(foes).filter(e => Math.abs(e.x - u.x) <= 1 && Math.abs(e.y - u.y) <= 3).length;
@@ -7826,7 +7839,8 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         if (u.shockTimer >= rules.status.感電.tickSec) {
           u.shockTimer = 0;
           u.hp -= u.maxHp * rules.status.感電.tickPctMaxHp;
-          if (u.hp <= 0) { u.hp = 0; u.alive = false; if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: u.id }); }
+          if (u.hp <= 0 && rules.noLose === u.side) u.hp = 1;      // 2026-10-02
+          else if (u.hp <= 0) { u.hp = 0; u.alive = false; if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: u.id }); }
         }
       }
       // 行動頻度は「コストあたりの速さ」で決まる。絶対値だと高コスト1体が手数でも勝ってしまう
@@ -30660,6 +30674,21 @@ function startBattle(camp, evb, spar, bout, tw) {
      手引きの「初陣」の歩にいるあいだだけ、相手も総大将ひとりにする */
   const first = camp && guideOn() && P.gstep === GUIDE_FIGHT;
   if (first && B.length > 1) B = B.slice(0, 1);
+  /* 初陣は必ず勝てるようにする（2026-10-02）。
+     はじめての一戦でつまずくと、手引きの道すじがそこで切れてしまう。
+     相手を弱くするのではなく「負ける道を塞ぐ」ほうを選んだ。見た目はふつうの一騎打ちのまま。
+       noLose … こちらは倒れない（何度でも兵量1で踏みとどまる。画面には「耐えた」と出る）
+       holdWin … 決着のターンまで残れば こちらの勝ち（押し切れなくても負けにならない）
+     この二つで、負ける道が無くなる */
+  if (first) {
+    rules = { ...rules, noLose: 'A', holdWin: 'A' };
+    /* 相手は育てない（2026-10-02）。campEnemy は 1章の雑兵でも Lv16・魂104 で渡してくる。
+       それと Lv1 のこちらが一騎打ちをすると、十ターンでは互いに倒しきれず
+       「残兵量で負けているのに勝ち」という妙な絵になる。
+       初陣の相手は国の軍勢ではなく物見の一騎、と読んで、素のまま立たせる */
+    const raw = C.find(c => c.no === (B[0] || {}).no);
+    if (raw) B = [raw];
+  }
   const bForm = FORMS[Math.floor(rng() * FORMS.length)];
   // 手動⇄オートは戦闘中に切り替えるので、編成側は常に manual 扱いで回し、
   // 実際にどちらで動くかは modes（そのターン以降この方式）で決める
@@ -30679,7 +30708,7 @@ function startBattle(camp, evb, spar, bout, tw) {
      手で動かせるようにはしない。切り替えの札も盤面に出さない */
   /* 初陣は手で動かすところから覚えてもらう（2026-09-30）。そのあともしばらく手動のまま */
   if (first) P.manual = true;
-  BATTLE = { seed, rules, B, bForm, commands: [], modes: [{ turn: 0, manual: (spar || bout) ? false : !!P.manual }],
+  BATTLE = { seed, rules, B, bForm, first, commands: [], modes: [{ turn: 0, manual: (spar || bout) ? false : !!P.manual }],
              shown: 0, live: null, playing: true, sel: null, busy: false, camp: camp || null,
              ev: evb || null,
              spar: spar || null,
@@ -31225,7 +31254,11 @@ function drawBattle() {
          drawBattle は draw の最後に呼ばれるので、次の回に持ち越して出す */
       /* 負けの札に出す数（2026-09-29）。
          倒した数・討たれた数・かかった手数。褒美が無いぶん、戦いぶりを残す */
-      S.res = { i: 0, won: res.winner === 'A', reason: res.reason, ta, tb, stat: battleStat(res) };
+      /* 初陣だけは言い方を変える（2026-10-02）。
+         勝ち方が「守り切った」でも「総大将撃破」でも、はじめの一戦は「初陣を飾った」でよい */
+      S.res = { i: 0, won: res.winner === 'A',
+                reason: (BATTLE && BATTLE.first && res.winner === 'A') ? '初陣を飾った' : res.reason,
+                ta, tb, stat: battleStat(res) };
       setTimeout(draw, 40);
     }
     /* 下の帯の戦闘結果はやめた（2026-09-23）。

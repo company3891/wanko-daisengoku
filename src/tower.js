@@ -106,20 +106,20 @@ export const TOWER = [
   { f:47, name:'大将は高みに', t:'総大将が一度も傷を負わずに勝つ', cond:[{ k:'genSafe' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3 } } },
   { f:48, name:'奥義に頼らず', t:'奥義を使わず、誰も倒されずに勝つ', cond:[{ k:'noUlt' }, { k:'noDeath' }], stage:'河川', hard:4, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3 } } },
   { f:49, name:'姫の陣', t:'女武将だけで、誰も倒されずに勝つ', cond:[{ k:'gender', v:'女' }, { k:'noDeath' }], stage:'河川', hard:5, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:300, koban:3600, items:{ '大稽古の書': 3 } } },
-  /* 50階も天守の階にした（2026-10-02）。
-     もとは「満身（全員が兵量満タンのまま勝つ）」。攻め城で無傷は成り立たないので、
-     五重の題（無傷）は残したまま「誰も倒されずに落とす」に読み替えた */
-  { f:50, name:'無傷の城落とし', t:'誰も倒されずに天守を落とす', cond:[{ k:'noDeath' }], keep:{ hp:3500 }, limit:25, stage:'城郭', hard:5, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:700, koban:10800, items:{ '大稽古の書': 6, '特技の伝書': 6 }, title:'無傷の名' } },
+  { f:50, name:'満身', t:'全員が兵量満タンのまま勝つ', cond:[{ k:'hpLeft', pct:100 }], stage:'河川', hard:5, enemy:{ cost:850, lv:55, soul:300, skill:2 }, rw:{ stone:700, koban:10800, items:{ '大稽古の書': 6, '特技の伝書': 6 }, title:'無傷の名' } },
   { f:51, name:'八手', t:'8ターン以内に勝つ', cond:[{ k:'turns', max:8 }], stage:'草原', hard:3, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:52, name:'六手', t:'6ターン以内に勝つ', cond:[{ k:'turns', max:6 }], stage:'草原', hard:3, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:53, name:'五手', t:'5ターン以内に勝つ', cond:[{ k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:54, name:'疾風五手', t:'神速だけで 5ターン以内に勝つ', cond:[{ k:'attr', v:'神速' }, { k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  { f:55, name:'四手', t:'4ターン以内に勝つ', cond:[{ k:'turns', max:4 }], stage:'草原', hard:4, enemy:{ cost:1040, lv:69, soul:420, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 3 } } },
+  /* 六重の関を天守の階にした（2026-10-03）。
+     塔は一階ずつしか登れないので、天守の階が遠いと誰も触れない。
+     節目の関なら「いつもと違う戦」が来ても驚かれない */
+  { f:55, name:'疾き城落とし', t:'14ターン以内に天守を落とす', cond:[{ k:'turns', max:14 }], keep:{ hp:3500 }, limit:25, stage:'城郭', hard:4, enemy:{ cost:900, lv:60, soul:300, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 3 } } },
   { f:56, name:'三人六手', t:'三人までで 6ターン以内に勝つ', cond:[{ k:'units', max:3 }, { k:'turns', max:6 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:57, name:'単騎八手', t:'一人で 8ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:8 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:58, name:'三手', t:'3ターン以内に勝つ', cond:[{ k:'turns', max:3 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:59, name:'懐に入る', t:'射程1だけで 4ターン以内に勝つ', cond:[{ k:'range', v:1 }, { k:'turns', max:4 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  { f:60, name:'疾き城落とし', t:'18ターン以内に天守を落とす', cond:[{ k:'turns', max:18 }], keep:{ hp:3500 }, limit:25, stage:'城郭', hard:5, enemy:{ cost:860, lv:58, soul:300, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },
+  { f:60, name:'三手の無傷', t:'3ターン以内に、誰も倒されずに勝つ', cond:[{ k:'turns', max:3 }, { k:'noDeath' }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },
   { f:61, name:'前を張る', t:'役目に「前衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'前衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
   { f:62, name:'後ろを支える', t:'役目に「後衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'後衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
   { f:63, name:'懐の間合い', t:'射程1だけで勝つ', cond:[{ k:'range', v:1 }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },

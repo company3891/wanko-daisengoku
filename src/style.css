@@ -464,6 +464,9 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 .stand{position:absolute;inset:0;display:flex;flex-direction:column;
   align-items:center;justify-content:center;pointer-events:none}
 .field.tilt .stand{transform:rotateX(calc(var(--tilt) * -1));transform-origin:50% 100%}
+/* 天守も起こす（2026-10-03）。犬と同じく、盤は傾いても建物は立たせる。
+   入れていなかったので、地面にぺたりと倒れて見えていた */
+.field.tilt .pawn.keep{transform:rotateX(calc(var(--tilt) * -1));transform-origin:50% 100%}
 .field.tilt .popwrap{position:absolute;inset:0;pointer-events:none;
   transform:rotateX(calc(var(--tilt) * -1));transform-origin:50% 100%}
 /* 傾かない遠景。<テーマ>_背景.jpg があれば敷く。画面の端まで広げ、枠で切る */
@@ -5280,7 +5283,7 @@ button.mkpv:active{transform:translateY(1px)}
    盤の一マスに立つが、絵は三マス幅・二マス高で見上げる大きさにする。
    足もとをマスの下端にそろえ、頭は盤の外へはみ出させる（.cell は overflow:visible）。
    絵が無ければ黒漆の櫓の形に落ちる */
-.pawn.keep{inset:auto;left:-110%;right:-110%;bottom:-10%;height:300%;
+.pawn.keep{inset:auto;left:-105%;right:-105%;bottom:0;height:290%;
   background:none!important;box-shadow:none!important;border-radius:0;
   pointer-events:none;z-index:2;overflow:visible}
 .pawn.keep img{position:absolute;inset:0;width:100%;height:100%;

@@ -13,7 +13,7 @@ import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, m
          mkNext } from './market.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
-import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
+import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
@@ -328,6 +328,7 @@ function attrTag(a, cls) {
            : el('span', { class: 'attr a-' + a + (cls ? ' ' + cls : '') }, a || '―');
 }
 const nextExp = () => expNeed(P.lv);      // 位の表は player.js（2026-10-01）
+const lvMaxed = () => P.lv >= LV_MAX_PLAYER;   // 位の上限に着いたか（2026-10-03）
 // プレイヤーの顔は、いま選んでいる部隊の総大将を使う
 /* 育成の三画面の既定に使う（2026-09-29）。
    ホームに立っている武将＝いま選んでいる部隊の総大将。
@@ -363,7 +364,8 @@ function foodClock() {
 }
 function playerBar() {
   const f = faceChar();
-  const pct = Math.max(0, Math.min(100, P.exp / nextExp() * 100));
+  // 上限に着いたら帯は満ちたまま（2026-10-03）
+  const pct = lvMaxed() ? 100 : Math.max(0, Math.min(100, P.exp / nextExp() * 100));
   return el('div', { class: 'pbar' },
     el('div', { class: 'me' },
       // 額（ふち）の絵があれば顔の上に重ねる

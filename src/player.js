@@ -1026,8 +1026,14 @@ export const REWARD = { winStone: 100, winKoban: 500, winSoul: 5, expWin: 20 };
    全国71戦の兵糧は合わせて 451〜489（はじめの国で少し変わる）。
    ×10 で 4510〜4890。下の位の表の積み上げは Lv40 で 4524 なので、
    全国を取りきると ちょうど Lv39〜40 に届く。 */
-export const EXP_PER_FOOD = 10;
-export const EXP_MIN = 30, EXP_MAX = 120;
+/* 経験の取り分を半分にした（2026-10-03）。
+   ×10 だと Lv.175 まで上がってしまい、位が軽くなりすぎていた。
+   ×5・下限15・上限60 なら、全国を取りきって Lv.28 前後に落ち着く */
+export const EXP_PER_FOOD = 5;
+export const EXP_MIN = 15, EXP_MAX = 60;
+/* 主の位の上限（2026-10-03）。ここで頭打ち。
+   上限に着いたら経験は貯めない（帯は満ちたまま） */
+export const LV_MAX_PLAYER = 200;
 export const expForFood = food =>
   Math.max(EXP_MIN, Math.min(EXP_MAX, Math.round((food || 0) * EXP_PER_FOOD)));
 /* 次の位までに要る経験。Lv1 は 40、以後ひとつ上がるごとに +4 */
@@ -1062,9 +1068,12 @@ export function giveReward(won, mul = 1, food = 0) {
   // 勝つと稽古の書が1冊もらえる（2026-09-21）
   P.items['稽古の書'] = (P.items['稽古の書'] || 0) + 1; r.book = 1;
   P.wins++;
-  P.exp += r.exp;
+  /* 位の上限に着いていたら経験を入れない（2026-10-03） */
+  if (P.lv >= LV_MAX_PLAYER) { P.lv = LV_MAX_PLAYER; P.exp = 0; r.exp = 0; }
+  else P.exp += r.exp;
   r.lvUp = 0;
-  while (P.exp >= expNeed(P.lv)) { P.exp -= expNeed(P.lv); P.lv++; r.lvUp++; P.staminaMax += 2; P.stamina = P.staminaMax; P.foodAt = Date.now(); }
+  while (P.lv < LV_MAX_PLAYER && P.exp >= expNeed(P.lv)) { P.exp -= expNeed(P.lv); P.lv++; r.lvUp++; P.staminaMax += 2; P.stamina = P.staminaMax; P.foodAt = Date.now(); }
+  if (P.lv >= LV_MAX_PLAYER) { P.lv = LV_MAX_PLAYER; P.exp = 0; }
   savePlayer();
   return r;
 }

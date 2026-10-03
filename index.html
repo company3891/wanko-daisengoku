@@ -2932,6 +2932,12 @@ main.hasnav{padding-bottom:124px}
 .fcard.on .ftg{color:#fff}
 /* 遊び方（合戦の手引き・2026-09-24） */
 .helpbox{max-width:460px}
+/* 手引きの目次（2026-10-03）。章が増えたので、横に流れる札で頭出しする。
+   並びは一段きりで、はみ出したぶんは横に巻く */
+.helpidx{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  gap:5px;margin:0 0 8px;padding-bottom:4px;scrollbar-width:none}
+.helpidx::-webkit-scrollbar{display:none}
+.helpidx .chip{flex:0 0 auto;padding:5px 11px;font-size:11px}
 .helplist{max-height:62dvh;overflow:auto;-webkit-overflow-scrolling:touch;
   margin:8px 0 10px;padding-right:2px}
 .hsec{background:#ffffff08;border:1px solid #ffffff10;border-radius:10px;
@@ -29174,7 +29180,7 @@ function screenDex() {
      特技を見る … 技のほうから引く棚 */
   const tab = (S.dexTab === 'skill' || S.dexTab === 'own') ? S.dexTab : 'char';
   const tabs = el('div', { class: 'row chapters bagtabs dextabs' },
-    [['own', '育成武将'], ['char', '武将を見る'], ['skill', '特技を見る']].map(([k, nm]) => el('button', {
+    [['own', '育成武将'], ['char', '図鑑武将'], ['skill', '特技を見る']].map(([k, nm]) => el('button', {
       class: 'chip' + (tab === k ? ' on' : ''),
       onclick: () => { S.dexTab = k; SFX.pick(); draw(); },
     }, nm)));
@@ -29857,6 +29863,20 @@ function menuSheet() {
           P.speed = SPEEDS[(i + 1) % SPEEDS.length].v;
           savePlayer(); SFX.pick(); draw();
         }),
+        /* 戦のやり方（2026-10-03）。盤面の釦だけだと、戦が始まってからでないと
+           変えられなかった。ここで先に決めておけるようにする。
+           戦のさなかに押したときは、盤面の釦と同じ段取り（toggleAuto）に預ける。
+           稽古と番付は必ずオートなので、そのときは触らせない */
+        (() => {
+          const inWar = !!(BATTLE && BATTLE.res);
+          const spar = inWar && (BATTLE.spar || BATTLE.bout);
+          const now = inWar && !spar ? manualNow() : !!P.manual;
+          if (spar) return row('戦のやり方', 'オート（稽古）');
+          return row('戦のやり方', now ? '手動' : 'オート', () => {
+            if (inWar) { S.menu = false; toggleAuto(); draw(); return; }
+            P.manual = !P.manual; savePlayer(); SFX.pick(); draw();
+          });
+        })(),
         row('通知', '近日'),
         row('データ引き継ぎ', P.link.code ? '発行済み' : '未発行',
           () => { S.menu = false; lkOpen(); }),
@@ -29896,12 +29916,14 @@ const HELP = [
   { t: '合戦の進み方', p: [
     '速さの順に手番がまわる。相手の兵量をゼロにするか、決着のターンまでに多く残したほうが勝ち。',
     '総大将が逃げ出しても負けにはならないが、大将特性は消える。',
+    '出陣には兵糧が要る。兵糧は時とともに戻るが、道具でも戻せる。道具で戻したぶんは上限を超えて貯められる。',
   ] },
   { t: 'オートと手動', p: [
     '盤面の右上のボタンで、戦のさなかにいつでも切り替えられる。',
+    '戦の前に決めておくなら、三本線の「戦のやり方」で選べる。',
     '合戦の進む速さは、三本線の「合戦の速さ」で変えられる。通常・1.5倍・2倍の三つ。',
     'オートから手動に変えたときは、見せ終わったターンをやり直さないよう次のターンから効く。',
-    '選んだ方式は次の戦にも引き継がれる。',
+    '選んだ方式は次の戦にも引き継がれる。稽古と番付は必ずオート。',
   ] },
   { t: '手番でできること', p: [
     '白い破線の枠＝いま動かせる自分の武将。押すと待機して手番を送る。',
@@ -29913,6 +29935,31 @@ const HELP = [
     '接近戦の武将は上下左右の隣にしか届かない。斜めには届かない。',
     '弓や槍のように間合いの長い武将は、斜めにも届く。',
     '十字や周囲に広がるのは、特技と奥義の効きかた。',
+  ] },
+  /* 範囲の読み替え（2026-10-03）。並びではなく隣り合いで数えるようにしたので、
+     「正面」が何を指すのかを書いておく。数は書かない */
+  { t: '範囲の広がり', p: [
+    '正面・一直線・十字・周囲・全体と、技ごとに届く形が違う。',
+    '正面と一直線は、まず狙いを定め、そこに隣り合う者へ広がっていく。縦一列に並んでいなくても巻き込める。',
+    '広く当たったときほど、与える傷の総量は増える。狙いを絞るか、巻き込むかで値打ちが変わる。',
+  ] },
+  /* 反撃まわり（2026-10-03）。反撃に反撃は返らない、を はっきり書いておく */
+  { t: '反撃と道連れ', p: [
+    '反撃は、斬りかかられたときだけ返る。反撃に対して反撃は返らない。',
+    '倒れぎわに一度だけ斬り返す者がいる。その一撃は必ず届いてから倒れる。',
+    '間合いが届かないところからの一撃には、反撃を返せない。',
+  ] },
+  { t: 'かばうと癒し', p: [
+    'かばう持ちの味方は、総大将への一撃を身代わりに受けることがある。',
+    '味方みなをかばう者もいるが、かばえる回数には限りがある。',
+    '癒す者は、傷ついた味方を手当てする。誰も傷ついていなければ、その技は温存される。',
+    '味方が斬りかかったとき、同じ相手へ追い撃ちをかける者もいる。',
+  ] },
+  { t: '奥義と固有の技', p: [
+    '奥義のゲージは、動いたり傷を受けたりして溜まる。満ちたら、使うまでそれ以上は溜まらない。',
+    '固有の技は、戦のはじめ・味方が倒れたとき・瀕死のときなど、武将ごとに決まったときに ひとりでに出る。',
+    '見せ場の絵（カットイン）は一度の戦につき一度だけ。二度目からは黙って効く。',
+    '継いだ技も、戦ではそのまま使われる。',
   ] },
   { t: '得意と苦手', p: [
     '武将にはそれぞれ得意と苦手がある。地面がふたつ、天候がひとつ、陣形がひとつ。カードの裏に書いてある。',
@@ -29929,10 +29976,25 @@ const HELP = [
     '秘薬は味方だけ。天候の品は両軍にかかる。',
     '使った道具は、負けても戻らない。',
   ] },
+  /* 天守（2026-10-02 に入れた）。塔の一部の階にだけ立つ */
+  { t: '城を落とす戦', p: [
+    '盤に天守が立っている戦がある。守り兵をみな倒しても、天守が立っているかぎり決着はつかない。',
+    '天守は動かず、斬りかかってもこない。石垣のように、矢や槍の通り道もふさぐ。',
+    '接近戦の武将は、天守の正面に開いた参道からしか届かない。間合いの長い武将は、離れたところからでも崩せる。',
+    '決着のターンまで落とせなければ、守り切られて負けになる。',
+  ] },
+  /* 試練の塔（2026-10-01）。階ごとのお題は塔の画面に出るが、
+     「ふつうの戦と決まりが違う」ことだけ手引きにも書いておく */
+  { t: '試練の塔', p: [
+    '階ごとにお題がある。倒されずに勝つ、何ターン以内に勝つ、ひとりで勝つ、など。',
+    '持ちこたえるだけでよい階や、味方がみな瀕死から始まる階もある。',
+    '同じ階は何度でも挑めるが、褒美を受け取れるのは初めて越えたときだけ。',
+  ] },
   { t: '盤面の見かた', p: [
     '盤面の外、上が敵・下が味方。顔の下の数が残りの兵量。',
     '顔の左上の印が総大将。右下に出るものはその武将にかかっている効き。',
     '逃げ出した武将には赤い×が付く。',
+    '天守には、下に細い帯で残りの構えが出る。細くなるほど崩れが近い。',
   ] },
 ];
 /* ================= お知らせ（2026-09-24）=================
@@ -30061,11 +30123,23 @@ function newsSheet() {
 
 function helpSheet() {
   const close = () => { S.help = false; draw(); };
+  /* 目次を付けた（2026-10-03）。章が十三まで増えて、
+     「反撃はどうなってる？」と探すのに ずっと巻かねばならなかった。
+     押すとその章の頭まで飛ぶ */
+  const jump = i => () => {
+    const n = document.querySelector(`.helplist .hsec[data-h="${i}"]`);
+    const box = document.querySelector('.helpbox .helplist');
+    if (!n || !box) return;
+    box.scrollTop += n.getBoundingClientRect().top - box.getBoundingClientRect().top - 4;
+    SFX.pick();
+  };
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 helpbox' },
       el('b', { class: 'mittl' }, '合戦の手引き'),
-      el('div', { class: 'helplist' }, HELP.map(h =>
-        el('div', { class: 'hsec' },
+      el('div', { class: 'row chapters helpidx' }, HELP.map((h, i) =>
+        el('button', { class: 'chip', onclick: jump(i) }, h.t))),
+      el('div', { class: 'helplist' }, HELP.map((h, i) =>
+        el('div', { class: 'hsec', 'data-h': String(i) },
           el('h4', {}, h.t),
           h.p.map(x => el('p', {}, x))))),
       closeX(close)));

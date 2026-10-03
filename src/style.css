@@ -2917,6 +2917,12 @@ main.hasnav{padding-bottom:124px}
 .fcard.on .ftg{color:#fff}
 /* 遊び方（合戦の手引き・2026-09-24） */
 .helpbox{max-width:460px}
+/* 手引きの目次（2026-10-03）。章が増えたので、横に流れる札で頭出しする。
+   並びは一段きりで、はみ出したぶんは横に巻く */
+.helpidx{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  gap:5px;margin:0 0 8px;padding-bottom:4px;scrollbar-width:none}
+.helpidx::-webkit-scrollbar{display:none}
+.helpidx .chip{flex:0 0 auto;padding:5px 11px;font-size:11px}
 .helplist{max-height:62dvh;overflow:auto;-webkit-overflow-scrolling:touch;
   margin:8px 0 10px;padding-right:2px}
 .hsec{background:#ffffff08;border:1px solid #ffffff10;border-radius:10px;

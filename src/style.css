@@ -2692,6 +2692,23 @@ main.hasnav{padding-bottom:124px}
 .rf img{width:100%;height:100%;object-fit:contain;display:block}
 .rf i{display:block;width:100%;height:100%;background-size:cover;background-position:center}
 .rc.gen .rf{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 9px #d8a94a4d}
+/* いま手番の者（2026-10-03）。
+   総大将の金の枠は「誰が大将か」の印なので触らず、手番の印は別に足す。
+   色は白。味方の枠は蒼、敵の枠は朱、大将は金 ── どれとも当たらないのは白だけで、
+   盤の「いま動かせる」白い破線とも同じ色なので、盤の光と下の札が目で繋がる。
+   札ごと少し浮かせて、色が見分けにくいときでも位置で分かるようにした */
+.rc.act{transform:translateY(-3px)}
+.rc.act .rf{border-color:#fff;
+  box-shadow:0 0 0 2px #fff,0 0 12px #ffffff8c,0 4px 10px #0008}
+/* 大将がその手番なら、金の輪の外に白い輪を重ねる（どちらも消さない） */
+.rc.gen.act .rf{border-color:var(--gold);
+  box-shadow:0 0 0 1px var(--gold),0 0 0 3px #fff,0 0 12px #ffffff8c,0 4px 10px #0008}
+/* ゆっくり息をするように明るさだけ揺らす。形は動かさないので目が疲れない */
+@keyframes actBreath{0%,100%{filter:brightness(1)}50%{filter:brightness(1.14)}}
+.rc.act .rf{animation:actBreath 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.rc.act .rf{animation:none}}
+/* 押したときの沈み込みは、浮かせたぶんを打ち消さずに重ねる */
+.roster .rc.act.tapc:active{transform:translateY(-2px)}
 .rgen{position:absolute;left:-1px;top:-1px;min-width:15px;height:15px;line-height:15px;
   text-align:center;font-size:9px;font-weight:700;border-radius:5px 0 6px 0;
   background:linear-gradient(135deg,#f0dda6,#d8a94a);color:#231a06}

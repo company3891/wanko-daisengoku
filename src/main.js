@@ -6742,6 +6742,9 @@ async function play() {
 const STATUS_FX = { 炎上: 'burn', 感電: 'shock', 混乱: 'confuse', ひるみ: 'stun',
                     回復不能: 'buff_down', 挑発: 'shock' };
 async function showEvent(e, my) {
+  /* いま誰が動いているか（2026-10-03）。盤の外の顔の列で、その札だけ光らせる。
+     出来事の起こし手（e.src）がそのまま手番の者になる */
+  if (e.src) BATTLE.actor = e.src;
   const live = BATTLE.live;
   const posOf = id => live.get(id) || { x: 0, y: 0 };
   const before = snapshotRects(pawnCache);
@@ -6881,6 +6884,12 @@ function seekTo(idx) {
 function drawBattle() {
   const { res } = BATTLE;
   const units = liveUnits();
+  /* 手番の者を、顔の列を組み直す前に決めておく（2026-10-03）。
+     ・指図待ち … その武将
+     ・流れているあいだ … 直前に出来事を起こした者（showEvent が入れている）
+     ・戦が終わったら … 誰も光らせない */
+  if (res.awaiting && BATTLE.shown >= res.log.length && !BATTLE.busy) BATTLE.actor = res.awaiting.unit;
+  else if (!res.awaiting && BATTLE.shown >= res.log.length && !BATTLE.busy) BATTLE.actor = null;
   for (const n of boardCache.querySelectorAll('.reach,.go-move,.go-atk,.go-wait')) n.remove();
   render(boardCache, pawnCache, units, BATTLE.rules);
   const ta = troops(units, 'A'), tb = troops(units, 'B');
@@ -8313,7 +8322,10 @@ function rosterRow(box, side) {
       /* 顔を押すと、その武将の札が開く（2026-09-30）。
          戦のさなかに数値や特技を確かめたいのに、押しても何も起きず、
          長押しすると端末の「画像を保存」が出てしまっていた */
-      class: 'rc' + (u.alive ? '' : ' dead') + (no === genNo ? ' gen' : '') + (c ? ' tapc' : ''),
+      /* act ＝ いま手番の者（2026-10-03）。
+         総大将の金の枠（gen）は残したまま、その外に蒼い輪を重ねる */
+      class: 'rc' + (u.alive ? '' : ' dead') + (no === genNo ? ' gen' : '') + (c ? ' tapc' : '')
+           + (u.alive && u.id === BATTLE.actor ? ' act' : ''),
       title: c ? `${c.name}　兵量 ${num(hp)} / ${num(u.maxHp || 0)}　（押すと札）`
                : `兵量 ${num(hp)} / ${num(u.maxHp || 0)}`,
       /* 味方は育った姿で出す（2026-10-03）。継承した◆も特技の位もここで確かめたい。

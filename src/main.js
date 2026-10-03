@@ -3688,6 +3688,15 @@ function kobanRow() {
     coin('stone', '石', '石', stones(), true, CUR_ART.stone),   // 石の蔵を足したので財布にも出す（2026-10-03）
     coin('gun', '功', '軍功', P.gun || 0, true, CUR_ART.gun));
 }
+/* 買う釦に、その数ぶんの総額を乗せる（2026-10-03）。
+   ×1／×10 だけだと「いくら出るのか」を上の値札と暗算することになっていた。
+   上に数（×10 や「買う」）、下に通貨の絵と総額。
+   cur は 'koban'／'stone'／'gun' */
+function buyBtn(cur, total, label, dis, on) {
+  return el('button', {
+    class: 'go sm buyb', disabled: dis ? true : null, onclick: dis ? null : on,
+  }, el('em', {}, label), el('span', { class: 'bprice' }, curIcon(cur), num(total)));
+}
 function shopBuy(name, price, n, kind) {
   return () => {
     const r = kind === 'deal' ? buyDeal(name) : buyItem(name, n);
@@ -3760,10 +3769,10 @@ function screenShop() {
               el('b', {}, d.name, el('span', { class: 'off' }, `${d.off}%引`)),
               el('span', { class: 'sd' }, it.desc),
               el('span', { class: 'sp2' }, el('s', {}, num(it.price)), ` 小判 ${num(d.price)}`)),
-            el('button', {
-              class: 'go sm', disabled: (done || P.koban < d.price) ? true : null,
-              onclick: shopBuy(d.name, d.price, 1, 'deal'),
-            }, done ? '買った' : '買う'));
+            done
+              ? el('button', { class: 'go sm', disabled: true }, '買った')
+              : buyBtn('koban', d.price, '買う', P.koban < d.price,
+                  shopBuy(d.name, d.price, 1, 'deal')));
         }),
         el('p', { class: 'note' }, '振り売りは日付が変わると入れ替わる')) : null,
 
@@ -3779,8 +3788,9 @@ function screenShop() {
                 g.once ? el('span', { class: 'off' }, '一度きり') : null),
               el('span', { class: 'sd' }, g.desc),
               el('span', { class: 'sp2' }, `軍功 ${num(g.price)}`)),
-            el('button', { class: 'go sm', disabled: (done || poor) ? true : null,
-              onclick: () => rkTrade(g) }, done ? '交換済' : '換える'));
+            done
+              ? el('button', { class: 'go sm', disabled: true }, '交換済')
+              : buyBtn('gun', g.price, '換える', poor, () => rkTrade(g)));
         })),
         el('p', { class: 'note' }, '軍功は番付の月末の褒美で手に入るわん')) : null,
 
@@ -3809,14 +3819,10 @@ function screenShop() {
                   el('span', { class: 'sd' }, it.desc),
                   el('span', { class: 'sp2' }, st ? `石 ${num(cost)}` : `小判 ${num(cost)}`)),
                 el('div', { class: 'sbtns' },
-                  el('button', {
-                    class: 'go sm', disabled: have() < cost ? true : null,
-                    onclick: shopBuy(name, cost, 1),
-                  }, '×1'),
-                  el('button', {
-                    class: 'go sm', disabled: have() < cost * 10 ? true : null,
-                    onclick: shopBuy(name, cost, 10),
-                  }, '×10')));
+                  buyBtn(st ? 'stone' : 'koban', cost, '×1',
+                    have() < cost, shopBuy(name, cost, 1)),
+                  buyBtn(st ? 'stone' : 'koban', cost * 10, '×10',
+                    have() < cost * 10, shopBuy(name, cost, 10))));
             })));
         })) : null,
 
@@ -3844,14 +3850,8 @@ function screenShop() {
                 el('span', { class: 'sd' }, it.desc),
                 el('span', { class: 'sp2' }, `石 ${num(cost)}`)),
               el('div', { class: 'sbtns' },
-                el('button', {
-                  class: 'go sm', disabled: stones() < cost ? true : null,
-                  onclick: shopBuy(name, cost, 1),
-                }, '×1'),
-                el('button', {
-                  class: 'go sm', disabled: stones() < cost * 10 ? true : null,
-                  onclick: shopBuy(name, cost, 10),
-                }, '×10')));
+                buyBtn('stone', cost, '×1', stones() < cost, shopBuy(name, cost, 1)),
+                buyBtn('stone', cost * 10, '×10', stones() < cost * 10, shopBuy(name, cost, 10))));
           })),
           el('p', { class: 'note' },
             '買った品は袋に入る。使うのは三本線の「道具」から。' +
@@ -3877,14 +3877,8 @@ function screenShop() {
                 el('span', { class: 'sd' }, it.desc),
                 el('span', { class: 'sp2' }, `小判 ${num(it.price)}`)),
               el('div', { class: 'sbtns' },
-                el('button', {
-                  class: 'go sm', disabled: P.koban < it.price ? true : null,
-                  onclick: shopBuy(name, it.price, 1),
-                }, '×1'),
-                el('button', {
-                  class: 'go sm', disabled: P.koban < it.price * 5 ? true : null,
-                  onclick: shopBuy(name, it.price, 5),
-                }, '×5')));
+                buyBtn('koban', it.price, '×1', P.koban < it.price, shopBuy(name, it.price, 1)),
+                buyBtn('koban', it.price * 5, '×5', P.koban < it.price * 5, shopBuy(name, it.price, 5))));
           })),
           el('p', { class: 'note' },
             pick === '共通'

@@ -1924,6 +1924,19 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .shoprow .sbtns{flex:0 0 auto;display:flex;flex-direction:column;gap:4px}
 .shoprow .sbtns .go.sm,.shoprow > .go.sm{min-width:64px;flex:0 0 auto;padding:7px 10px}
 .shoprow .sgo{width:64px}
+/* 値の乗った買う釦（2026-10-03）。上に数、下に通貨の絵と総額。
+   二行になるぶん高さが出るので、左右の内余白を詰めて横幅はそのままに収める */
+.go.sm.buyb{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;line-height:1.15;padding:6px 8px}
+.shoprow .sbtns .go.sm.buyb,.shoprow > .go.sm.buyb{min-width:84px;padding:6px 8px}
+.go.sm.buyb em{font-style:normal;font-size:12px;font-weight:700;letter-spacing:.02em}
+.go.sm.buyb .bprice{display:inline-flex;align-items:center;gap:2px;
+  font-size:10.5px;font-weight:700;opacity:.88}
+.go.sm.buyb .bprice .ci.cur{width:13px;height:13px}
+.go.sm.buyb .bprice i{font-style:normal;font-size:9px;line-height:1;
+  width:13px;height:13px;border-radius:50%;display:inline-grid;place-items:center;
+  border:1px solid currentColor}
+.go.sm.buyb:disabled .bprice{opacity:.75}
 .foodbar{display:flex;align-items:center;gap:8px;background:#ffffff08;border-radius:10px;
   padding:9px 12px;margin:8px 0;position:relative;overflow:hidden}
 .foodbar span{font-size:12px;color:var(--text2);z-index:1}

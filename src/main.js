@@ -4032,6 +4032,9 @@ function pickRows(ks, opt) {
 const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq', clan: 'dexClan' };
 const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc',   sq: 'tSq',  clan: 'tClan' };
 const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc',  sq: 'cpSq', clan: 'cpClan' };
+/* 図鑑の「育成武将」の棚（2026-10-03）。図鑑の棚とは別の覚えにして、
+   行き来しても それぞれの絞込みが残るようにする */
+const PF_OWNC = { rar: 'doRar',  att: 'doAttr',  sort: 'doSort',  asc: 'doAsc',  sq: 'doSq', clan: 'doClan' };
 /* ---- 特技の一覧（2026-10-02）----
    図鑑は武将の棚だったが、「この技は誰が持っているのか」を探す場が無かった。
    継承の相手をさがすのに、武将を一枚ずつ裏返して回るしかなかったので、
@@ -4124,12 +4127,54 @@ function screenDex() {
      「何が残っているか」を見に来る画面なので、まだ見ぬ者が並んでいてよい。
      編成・育成・特技えらびは もとから持っている武将しか並ばない */
   /* 武将の棚と技の棚を、上の二つの札で行き来する（2026-10-02） */
-  const tab = S.dexTab === 'skill' ? 'skill' : 'char';
+  /* 棚は三つ（2026-10-03）。
+     育成武将 … 自分の持っている武将を、育てたままの姿で並べる
+     武将を見る … 未奉公もふくめた台帳。札は焼いたまま（素）
+     特技を見る … 技のほうから引く棚 */
+  const tab = (S.dexTab === 'skill' || S.dexTab === 'own') ? S.dexTab : 'char';
   const tabs = el('div', { class: 'row chapters bagtabs dextabs' },
-    [['char', '武将を見る'], ['skill', '特技を見る']].map(([k, nm]) => el('button', {
+    [['own', '育成武将'], ['char', '武将を見る'], ['skill', '特技を見る']].map(([k, nm]) => el('button', {
       class: 'chip' + (tab === k ? ' on' : ''),
       onclick: () => { S.dexTab = k; SFX.pick(); draw(); },
     }, nm)));
+  /* ---- 育成武将（2026-10-03）----
+     持っている武将だけを、位・覚醒・特技の位まで「いまの姿」で見る棚。
+     図鑑（素のまま）と違い、押すと育てたままの札が開く。
+     札の右下に段を出して、どこまで育てたかが並べたまま読めるようにした */
+  if (tab === 'own') {
+    const mine = C.filter(c => hasCard(c.no));
+    const sorted = pickApply(mine, PF_OWNC, { sort0: 'lv' });
+    const maxLv = mine.filter(c => charState(c.no).lv >= lvCapOf(c.no)).length;
+    return {
+      body: el('div', {},
+        el('h2', {}, `育成武将（${mine.length}体）`,
+          el('span', { class: 'sub2' }, `　限界まで育てた者 ${maxLv}体`)),
+        tabs,
+        pickRows(PF_OWNC, { sort0: 'lv' }),
+        el('p', { style: 'font-size:11px;color:var(--text3);margin:6px 0 8px' },
+          `この絞り込みでは ${sorted.length}体　／　押すと育てたままの札が開く`),
+        !mine.length ? el('button', {
+          class: 'notice', onclick: () => { S.screen = 'gachalist'; draw(); },
+        }, el('b', {}, '武将がまだおらぬ'), el('span', {}, 'わんこみくじで引いてから育てる')) : null,
+        el('div', { class: 'dex' }, sorted.map(c => {
+          const st = charState(c.no);
+          const card = cardArt(c);
+          const cap = lvCapOf(c.no);
+          return el('button', {
+            class: 'dc' + (card ? ' card art' : ''),
+            title: `${c.name}　Lv.${st.lv}`,
+            onclick: () => { openCard(c); },      // 素ではなく、育てたままの姿で開く
+          },
+            card ? cardImg(c) : el('span', { class: 'f', style: chipStyle(c) }),
+            el('span', { class: 'lvb' + (st.lv >= cap ? ' cap' : '') },
+              el('em', {}, 'Lv.'), String(st.lv)),
+            el('span', { class: 'own' + (cntOf(c.no) ? '' : ' zero') }, `×${num(cntOf(c.no))}`),
+            card ? null : el('span', { class: 'n' }, c.name.slice(0, 6)),
+            card ? null : rarTag(c.rarity, 'sm'));
+        }))),
+      nav: true,
+    };
+  }
   if (tab === 'skill') {
     const all = skBook();
     return {
@@ -8738,6 +8783,9 @@ const PAGE_TALK = {
   squads:  ['部隊をえらぶワン！！', '五つまで組み置けるワン。戦ごとに出す部隊を選べるワン'],
   form:    ['陣を敷くワン！！', '並べ方で得意・苦手が変わるワン。相手の陣立てを見てから決めるとよいワン'],
   dex:     ['武将を眺めるワン！！', '集めた者も、まだ見ぬ者も、みなここに載るワン'],
+  /* 育成武将の棚は、図鑑と見ているものが違う（2026-10-03）。
+     台帳ではなく「手元の子がどこまで育ったか」の棚なので、語りも分けた */
+  dexown:  ['育てた子を並べるワン！！', '位も技も、いま育っているままの姿で見られるワン'],
   shop:    ['買い物をするワン！！', '小判・石・軍功で品を換えるワン。兵糧は石の蔵で戻すワン'],
   event:   ['お祭りに出るワン！！', '兵糧を使って小さな戦に挑むワン。前の級を取ると次が開くワン'],
   /* 出陣の画面は、県の名と家紋の大きな見出しがもう上にあるので語りは置かない（2026-09-29） */
@@ -8751,6 +8799,8 @@ function talkerNo(screen) {
   return list[h % list.length];
 }
 function pageTalk(screen) {
+  // 図鑑の「育成武将」の棚だけ語りを差し替える（2026-10-03）
+  if (screen === 'dex' && S.dexTab === 'own') screen = 'dexown';
   const t = PAGE_TALK[screen];
   if (!t) return null;
   const no = talkerNo(screen);

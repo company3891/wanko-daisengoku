@@ -5323,6 +5323,14 @@ button.mkpv:active{transform:translateY(1px)}
 .pawn.keep.low > .khp > i{background:linear-gradient(90deg,#8d3326,#e0654f 60%,#ffb3a3);
   box-shadow:0 0 6px #e0654f88}
 
+/* ===== 石の蔵の「いまの兵糧」 2026-10-03 =====
+   どれだけ戻るのか分からないまま買うのを避けたいので、棚の頭に出す */
+.foodnow{display:flex;align-items:center;gap:8px;margin:2px 0 10px;padding:8px 12px;
+  background:#12100eb3;border:1px solid var(--gold,#d8a94a);border-radius:10px}
+.foodnow img,.foodnow i{width:22px;height:22px;flex:0 0 auto}
+.foodnow b{font-size:16px;color:var(--gold-l,#f5e2a8);letter-spacing:.02em}
+.foodnow span{margin-left:auto;font-size:11px;color:var(--text3)}
+
 </style>
 </head>
 <body>
@@ -28627,7 +28635,10 @@ function screenInherit() {
    2〜4割安いかわりに1日ひとつずつ。日付から決め打ちなので端末が変わっても同じ品が並ぶ。 */
 const SHOP_TABS = [
   { key: 'furi', name: '振り売り', note: '今日だけの安売り。ひとつずつ' },
-  { key: 'kura', name: '蔵', note: 'いつでも買える品' },
+  { key: 'kura', name: '蔵', note: '小判で買える品' },
+  /* 石の蔵（2026-10-03）。兵糧を石で戻す品だけを別の棚にした。
+     小判の品と同じ棚に並んでいると、どちらの財布から出るのか紛れていた */
+  { key: 'stone', name: '石の蔵', note: '石で買う品。兵糧はここで戻す' },
   { key: 'awake', name: '具足屋', note: '覚醒に要る具足と軍配。属性ごとに別の品が要る' },
   { key: 'rank',  name: '番付の蔵', note: '軍功と引き換える。番付でしか手に入らぬ品' },
   /* 「持ち物」の棚は外した（2026-09-26）。三本線の「所持アイテム」（袋）で
@@ -28670,6 +28681,7 @@ function kobanRow() {
   return el('div', { class: 'wallet' },
     coin('koban', '判', '小判', P.koban, true),
     coin('soul', '魂', '武士の魂', P.soul, true),
+    coin('stone', '石', '石', stones(), true, CUR_ART.stone),   // 石の蔵を足したので財布にも出す（2026-10-03）
     coin('gun', '功', '軍功', P.gun || 0, true, CUR_ART.gun));
 }
 function shopBuy(name, price, n, kind) {
@@ -28773,7 +28785,8 @@ function screenShop() {
          伝書と護符も noShop にしたので、特技の蔵は空になって自動で消える */
       tab === 'kura' ? el('div', {},
         ITEM_KINDS.map(kind => {
-          const names = Object.keys(ITEMS).filter(k => ITEMS[k].kind === kind && !ITEMS[k].noShop);
+          // 石で買う品は「石の蔵」へ移した（2026-10-03）
+          const names = Object.keys(ITEMS).filter(k => ITEMS[k].kind === kind && !ITEMS[k].noShop && !ITEMS[k].stone);
           if (!names.length) return null;
           return el('div', {},
             el('h3', { class: 'shoph' },
@@ -28802,6 +28815,43 @@ function screenShop() {
                   }, '×10')));
             })));
         })) : null,
+
+      /* 石の蔵（2026-10-03）。石で買う品だけ。
+         いちばん上に いまの兵糧と「次の一つまで」を出す。
+         どれだけ戻るのかが分からないまま買うのを避けたい */
+      tab === 'stone' ? (() => {
+        const names = Object.keys(ITEMS).filter(k => ITEMS[k].stone && !ITEMS[k].noShop);
+        const w = foodWait();
+        return el('div', {},
+          el('div', { class: 'foodnow' },
+            curIcon('food'),
+            el('b', {}, `${num(P.stamina)} / ${num(P.staminaMax)}`),
+            el('span', {}, P.stamina >= P.staminaMax ? '満ちておる'
+              : `次の一つまで ${foodLeftText()}`)),
+          el('div', { class: 'shoplist' }, names.map(name => {
+            const it = ITEMS[name];
+            const cost = it.stone;
+            const full = P.stamina >= P.staminaMax;
+            return el('div', { class: 'shoprow' },
+              itemIcon(name),
+              el('div', { class: 'sitm' },
+                el('b', {}, name, el('span', { class: 'have' }, `持 ${num(item(name))}`)),
+                el('span', { class: 'sd' }, it.desc),
+                el('span', { class: 'sp2' }, `石 ${num(cost)}`)),
+              el('div', { class: 'sbtns' },
+                el('button', {
+                  class: 'go sm', disabled: stones() < cost ? true : null,
+                  onclick: shopBuy(name, cost, 1),
+                }, '×1'),
+                el('button', {
+                  class: 'go sm', disabled: stones() < cost * 10 ? true : null,
+                  onclick: shopBuy(name, cost, 10),
+                }, '×10')));
+          })),
+          el('p', { class: 'note' },
+            '買った品は袋に入る。使うのは三本線の「道具」から。' +
+            (P.stamina >= P.staminaMax ? '兵糧は満ちているので、いま使っても溢れる' : '')));
+      })() : null,
 
       tab === 'awake' ? (() => {
         const pick = S.shopAttr || ATTRS[0];
@@ -33657,7 +33707,7 @@ const PAGE_TALK = {
   squads:  ['部隊をえらぶワン！！', '五つまで組み置けるワン。戦ごとに出す部隊を選べるワン'],
   form:    ['陣を敷くワン！！', '並べ方で得意・苦手が変わるワン。相手の陣立てを見てから決めるとよいワン'],
   dex:     ['武将を眺めるワン！！', '集めた者も、まだ見ぬ者も、みなここに載るワン'],
-  shop:    ['買い物をするワン！！', '小判と軍功で品を換えるワン。振り売りは日が変わると入れ替わるワン'],
+  shop:    ['買い物をするワン！！', '小判・石・軍功で品を換えるワン。兵糧は石の蔵で戻すワン'],
   event:   ['お祭りに出るワン！！', '兵糧を使って小さな戦に挑むワン。前の級を取ると次が開くワン'],
   /* 出陣の画面は、県の名と家紋の大きな見出しがもう上にあるので語りは置かない（2026-09-29） */
 };

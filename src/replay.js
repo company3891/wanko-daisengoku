@@ -689,7 +689,9 @@ export function render(board, pawnMap, snapUnits, rules) {
        残りの兵量は城そのものに重ねて見せる。落ちたら盤から消す（落城） */
     if (p.classList.contains('keep')) {
       const i = p.querySelector('.khp > i');
-      if (i) i.style.width = Math.max(0, Math.min(100, u.maxHp ? u.hp / u.maxHp * 100 : 0)) + '%';
+      const pct = Math.max(0, Math.min(100, u.maxHp ? u.hp / u.maxHp * 100 : 0));
+      if (i) i.style.width = pct + '%';
+      p.classList.toggle('low', pct <= 30);    // 残りわずかは朱に（2026-10-03）
       p.style.display = u.alive ? '' : 'none';
       continue;
     }

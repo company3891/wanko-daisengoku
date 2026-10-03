@@ -5310,11 +5310,18 @@ button.mkpv:active{transform:translateY(1px)}
   box-shadow:0 0 12px #0008}
 .pawn.keep.bare::after{content:'天守';position:absolute;left:0;right:0;bottom:18%;
   text-align:center;color:var(--gold,#d8a94a);font-size:9px;font-weight:700;letter-spacing:.1em}
-/* 残りの兵量。城そのものに重ねる（盤の外の顔の列には出ないため） */
-.pawn.keep > .khp{position:absolute;left:34%;right:34%;bottom:-3px;height:4px;
-  background:#000a;border:1px solid #0008;border-radius:3px;overflow:hidden;z-index:3}
+/* 残りの兵量（2026-10-03 で見やすくした）。盤の外の顔の列には出ないので、
+   城の足もとに金の帯を敷く。細すぎて見えなかったので太くし、縁を付けた */
+.pawn.keep > .khp{position:absolute;left:18%;right:18%;bottom:-5px;height:7px;
+  background:#12100ecc;border:1px solid var(--gold,#d8a94a);border-radius:4px;
+  overflow:hidden;z-index:4;box-shadow:0 1px 3px #000a}
 .pawn.keep > .khp > i{display:block;height:100%;width:100%;
-  background:linear-gradient(90deg,#a8802c,#f5e2a8);transition:width .2s linear}
+  background:linear-gradient(90deg,#a8802c,#f5e2a8 60%,#fff6d8);
+  box-shadow:0 0 6px #f5e2a877;transition:width .25s linear}
+/* 残りが少なくなったら朱に寄せる（数字は出さない） */
+.pawn.keep.low > .khp{border-color:var(--red,#e0654f)}
+.pawn.keep.low > .khp > i{background:linear-gradient(90deg,#8d3326,#e0654f 60%,#ffb3a3);
+  box-shadow:0 0 6px #e0654f88}
 
 </style>
 </head>
@@ -6454,6 +6461,12 @@ function modSum(u, key) {
   return v;
 }
 const rangeOf = (u) => Math.max(1, (u.range || 1) + modSum(u, 'range'));
+/* 奥義ゲージの上限（2026-10-03）。
+   盤の上限（maxGauge=5）ではなく、その武将の必要量までしか溜まらない。
+   前は 4で撃てる武将でも 5まで溜まり、画面に「5/4」と出ていた。
+   溜まりきったら、撃つまでそれ以上は貯まらない */
+const ultCapOf = (u, rules) => Math.min(rules.ultimate.maxGauge,
+  u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge);
 function condOk(u, m) {
   const c = m.cond; if (!c) return true;
   switch (c.type) {
@@ -6743,7 +6756,7 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
       }
       case 'mod':
         for (const e of tg) {
-          if (eff.key === 'gauge') { e.ult = Math.min(ctx.rules.ultimate.maxGauge, e.ult + (eff.gauge != null ? eff.gauge : eff.pct)); continue; }
+          if (eff.key === 'gauge') { e.ult = Math.min(ultCapOf(e, ctx.rules), e.ult + (eff.gauge != null ? eff.gauge : eff.pct)); continue; }
           if (eff.key === 'hpUp') { e.hpUpPct += eff.pct; const r = e.hp / e.maxHp; e.maxHp = Math.round(e.maxHp * (1 + eff.pct)); e.hp = e.maxHp * r; continue; }
           const plus2 = (eff.pct > 0 && self._durPlus) ? self._durPlus * (ctx.rules.time?.secPerTurn ?? 2) : 0;
           e.mods.push({ key: eff.key, pct: eff.pct, left: eff.dur != null ? eff.dur + plus2 : Infinity, cond: eff.cond });
@@ -6862,7 +6875,7 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         const g = ctx.rules.ultimate;
         const add = eff.gauge != null ? eff.gauge : g.maxGauge * (eff.pct / 100);
         for (const e of (eff.target === 'allAllies' ? live(allies) : [self]))
-          e.ult = Math.min(g.maxGauge, e.ult + add);
+          e.ult = Math.min(ultCapOf(e, ctx.rules), e.ult + add);
         break;
       }
       case 'teleportBack': case 'stackOnKill': case 'onAttack': break;
@@ -6971,7 +6984,7 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
     tgt.hp = Math.min(tgt.maxHp, tgt.hp + d);
     if (log) log.push({ t: +t.toFixed(1), type: 'damageToHeal', tgt: tgt.id, v: d });
   }
-  tgt.ult = Math.min(rules.ultimate.maxGauge, tgt.ult + (rules.ultimate.gainPerDamageTaken || 0));
+  tgt.ult = Math.min(ultCapOf(tgt, rules), tgt.ult + (rules.ultimate.gainPerDamageTaken || 0));
   if (log) log.push({ t: +t.toFixed(1), type: 'dmg', src: src.id, tgt: tgt.id, v: d, stat: statName, crit, via: ctx._via || 'normal' });
   if (tgt.hp <= 0) { kill(src, tgt, ctx); return; }
   // 神速の「追い落とし」：兵量が一定以下まで削れた相手はそのまま討ち取る
@@ -7506,7 +7519,7 @@ function payMove(u, step, rules) {
 // 動かずに殴り続ける編成ではゲージが溜まらないので、盤面を使うことに意味が出る。
 function gainGaugeOnMove(u, rules) {
   const g = rules.ultimate;
-  u.ult = Math.min(g.maxGauge, u.ult + (g.gainPerMove ?? 1));
+  u.ult = Math.min(ultCapOf(u, rules), u.ult + (g.gainPerMove ?? 1));
 }
 
 // 後退（2026-09-19）。移動は上下左右1マスのまま、敵から離れる方向へ1マスだけ下がる。
@@ -7871,7 +7884,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     for (const e of alwaysNormals.concat(u.compiled.unique, u.compiled.ultimate)) {
       // startGauge は「奥義ゲージ+N%」表記。上限5ゲージの世界に換算して足す
       if (e.kind === 'startGauge')
-        u.ult = Math.min(rules.ultimate.maxGauge,
+        u.ult = Math.min(ultCapOf(u, rules),
           u.ult + (e.gauge != null ? e.gauge : rules.ultimate.maxGauge * (e.pct / 100)));
       if (e.kind === 'critCounter') u.critCounterEvery = e.every;
       if (e.kind === 'scaleOnHpLost') u.scaleOnHpLost = { stat: e.stat, max: e.max };
@@ -8869,7 +8882,9 @@ function render(board, pawnMap, snapUnits, rules) {
        残りの兵量は城そのものに重ねて見せる。落ちたら盤から消す（落城） */
     if (p.classList.contains('keep')) {
       const i = p.querySelector('.khp > i');
-      if (i) i.style.width = Math.max(0, Math.min(100, u.maxHp ? u.hp / u.maxHp * 100 : 0)) + '%';
+      const pct = Math.max(0, Math.min(100, u.maxHp ? u.hp / u.maxHp * 100 : 0));
+      if (i) i.style.width = pct + '%';
+      p.classList.toggle('low', pct <= 30);    // 残りわずかは朱に（2026-10-03）
       p.style.display = u.alive ? '' : 'none';
       continue;
     }
@@ -11975,12 +11990,11 @@ const TOWER = [
   { f:52, name:'六手', t:'6ターン以内に勝つ', cond:[{ k:'turns', max:6 }], stage:'草原', hard:3, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:53, name:'五手', t:'5ターン以内に勝つ', cond:[{ k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:54, name:'疾風五手', t:'神速だけで 5ターン以内に勝つ', cond:[{ k:'attr', v:'神速' }, { k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  /* 六重の関を天守の階にした（2026-10-03）。
-     塔は一階ずつしか登れないので、天守の階が遠いと誰も触れない。
-     節目の関なら「いつもと違う戦」が来ても驚かれない */
-  { f:55, name:'疾き城落とし', t:'25ターン以内に天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:12000 }, limit:30, stage:'城郭', hard:4, enemy:{ cost:1100, lv:60, soul:300, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 3 } } },
+  { f:55, name:'四手', t:'4ターン以内に勝つ', cond:[{ k:'turns', max:4 }], stage:'草原', hard:4, enemy:{ cost:1040, lv:69, soul:420, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 3 } } },
   { f:56, name:'三人六手', t:'三人までで 6ターン以内に勝つ', cond:[{ k:'units', max:3 }, { k:'turns', max:6 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  { f:57, name:'単騎八手', t:'一人で 8ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:8 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
+  /* 天守の階は、いま登っているすぐ上に置く（2026-10-03）。
+     塔は一階ずつしか登れないので、遠いと誰も触れない。置き場はあとで決める */
+  { f:57, name:'疾き城落とし', t:'25ターン以内に天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:12000 }, limit:30, stage:'城郭', hard:4, enemy:{ cost:1100, lv:60, soul:300, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:58, name:'三手', t:'3ターン以内に勝つ', cond:[{ k:'turns', max:3 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:59, name:'懐に入る', t:'射程1だけで 4ターン以内に勝つ', cond:[{ k:'range', v:1 }, { k:'turns', max:4 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:60, name:'三手の無傷', t:'3ターン以内に、誰も倒されずに勝つ', cond:[{ k:'turns', max:3 }, { k:'noDeath' }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },
@@ -26984,7 +26998,7 @@ function rkFoeSheet(foe) {
           el('i', {}, `${foe.rank} 位　${rkSide(r.pt, foe.pt)}　総合力 ${num(foe.power)}`)),
         el('em', { class: 'frrec' }, `${num(foe.pt)} pt`)),
       el('div', { class: 'frteam' }, team.map((c, i) =>
-        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true) },
+        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true, true) },
           cardArt(c) ? keepImg({ class: 'cf', src: cardArt(c), alt: c.name, loading: 'lazy' })
                      : el('i', { style: chipStyle(c) }, el('b', {}, (c.name || '')[0] || '')),
           i === 0 ? genMark() : null))),
@@ -27288,7 +27302,7 @@ function frHomeSheet() {
          二度出るだけだったのでやめた。総大将は札の隅の「大」で分かる。
          カードの絵が無い武将は属性の色に名の一字（壊れた画像を出さない） */
       el('div', { class: 'frteam' }, fr.team.map((c, i) =>
-        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true) },
+        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true, true) },
           cardArt(c) ? keepImg({ class: 'cf', src: cardArt(c), alt: c.name, loading: 'lazy' })
                      : el('i', { style: chipStyle(c) }, el('b', {}, (c.name || '')[0] || '')),
           i === 0 ? genMark() : null))),
@@ -30849,8 +30863,11 @@ function openCard(c, ro, base) {
   if (!c) return;
   S.detail = c.no; S.side = null; S.detailRO = !!ro; S.detailBase = !!base; draw();
 }
-/* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか */
-const cardRaw = () => S.detailRO || S.detailBase;
+/* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか。
+   読むだけ（detailRO）と 素のまま（detailBase）を分けた（2026-10-03）。
+   戦のさなかに味方の顔を押したとき、素の札を出していたので
+   継承した◆も、上げた特技の位も出ていなかった（戦っているのは育った姿なのに） */
+const cardRaw = () => S.detailBase;
 /* 育成の画面の顔を押すと、その武将のカードが開く（2026-09-23） */
 function faceBtn(c) {
   return el('button', {
@@ -33102,7 +33119,9 @@ function rosterRow(box, side) {
       class: 'rc' + (u.alive ? '' : ' dead') + (no === genNo ? ' gen' : '') + (c ? ' tapc' : ''),
       title: c ? `${c.name}　兵量 ${num(hp)} / ${num(u.maxHp || 0)}　（押すと札）`
                : `兵量 ${num(hp)} / ${num(u.maxHp || 0)}`,
-      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true); }) : null,
+      /* 味方は育った姿で出す（2026-10-03）。継承した◆も特技の位もここで確かめたい。
+         敵は こちらの育ちと関わりが無いので素のまま */
+      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true, side === 'B'); }) : null,
     },
       el('div', { class: 'rf' },
         art ? el('img', { src: art, alt: '' }) : el('i', { style: c ? chipStyle(c) : '' }),

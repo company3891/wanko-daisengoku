@@ -2002,7 +2002,7 @@ function rkFoeSheet(foe) {
           el('i', {}, `${foe.rank} 位　${rkSide(r.pt, foe.pt)}　総合力 ${num(foe.power)}`)),
         el('em', { class: 'frrec' }, `${num(foe.pt)} pt`)),
       el('div', { class: 'frteam' }, team.map((c, i) =>
-        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true) },
+        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true, true) },
           cardArt(c) ? keepImg({ class: 'cf', src: cardArt(c), alt: c.name, loading: 'lazy' })
                      : el('i', { style: chipStyle(c) }, el('b', {}, (c.name || '')[0] || '')),
           i === 0 ? genMark() : null))),
@@ -2306,7 +2306,7 @@ function frHomeSheet() {
          二度出るだけだったのでやめた。総大将は札の隅の「大」で分かる。
          カードの絵が無い武将は属性の色に名の一字（壊れた画像を出さない） */
       el('div', { class: 'frteam' }, fr.team.map((c, i) =>
-        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true) },
+        el('button', { class: 'frc' + (i === 0 ? ' gen' : ''), title: c.name, onclick: () => openCard(c, true, true) },
           cardArt(c) ? keepImg({ class: 'cf', src: cardArt(c), alt: c.name, loading: 'lazy' })
                      : el('i', { style: chipStyle(c) }, el('b', {}, (c.name || '')[0] || '')),
           i === 0 ? genMark() : null))),
@@ -5867,8 +5867,11 @@ function openCard(c, ro, base) {
   if (!c) return;
   S.detail = c.no; S.side = null; S.detailRO = !!ro; S.detailBase = !!base; draw();
 }
-/* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか */
-const cardRaw = () => S.detailRO || S.detailBase;
+/* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか。
+   読むだけ（detailRO）と 素のまま（detailBase）を分けた（2026-10-03）。
+   戦のさなかに味方の顔を押したとき、素の札を出していたので
+   継承した◆も、上げた特技の位も出ていなかった（戦っているのは育った姿なのに） */
+const cardRaw = () => S.detailBase;
 /* 育成の画面の顔を押すと、その武将のカードが開く（2026-09-23） */
 function faceBtn(c) {
   return el('button', {
@@ -8120,7 +8123,9 @@ function rosterRow(box, side) {
       class: 'rc' + (u.alive ? '' : ' dead') + (no === genNo ? ' gen' : '') + (c ? ' tapc' : ''),
       title: c ? `${c.name}　兵量 ${num(hp)} / ${num(u.maxHp || 0)}　（押すと札）`
                : `兵量 ${num(hp)} / ${num(u.maxHp || 0)}`,
-      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true); }) : null,
+      /* 味方は育った姿で出す（2026-10-03）。継承した◆も特技の位もここで確かめたい。
+         敵は こちらの育ちと関わりが無いので素のまま */
+      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true, side === 'B'); }) : null,
     },
       el('div', { class: 'rf' },
         art ? el('img', { src: art, alt: '' }) : el('i', { style: c ? chipStyle(c) : '' }),

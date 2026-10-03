@@ -5295,8 +5295,15 @@ button.mkpv:active{transform:translateY(1px)}
   box-shadow:0 0 12px #0008}
 .pawn.keep.bare::after{content:'天守';position:absolute;left:0;right:0;bottom:18%;
   text-align:center;color:var(--gold,#d8a94a);font-size:9px;font-weight:700;letter-spacing:.1em}
-/* 残りの兵量。城そのものに重ねる（盤の外の顔の列には出ないため） */
-.pawn.keep > .khp{position:absolute;left:34%;right:34%;bottom:-3px;height:4px;
-  background:#000a;border:1px solid #0008;border-radius:3px;overflow:hidden;z-index:3}
+/* 残りの兵量（2026-10-03 で見やすくした）。盤の外の顔の列には出ないので、
+   城の足もとに金の帯を敷く。細すぎて見えなかったので太くし、縁を付けた */
+.pawn.keep > .khp{position:absolute;left:18%;right:18%;bottom:-5px;height:7px;
+  background:#12100ecc;border:1px solid var(--gold,#d8a94a);border-radius:4px;
+  overflow:hidden;z-index:4;box-shadow:0 1px 3px #000a}
 .pawn.keep > .khp > i{display:block;height:100%;width:100%;
-  background:linear-gradient(90deg,#a8802c,#f5e2a8);transition:width .2s linear}
+  background:linear-gradient(90deg,#a8802c,#f5e2a8 60%,#fff6d8);
+  box-shadow:0 0 6px #f5e2a877;transition:width .25s linear}
+/* 残りが少なくなったら朱に寄せる（数字は出さない） */
+.pawn.keep.low > .khp{border-color:var(--red,#e0654f)}
+.pawn.keep.low > .khp > i{background:linear-gradient(90deg,#8d3326,#e0654f 60%,#ffb3a3);
+  box-shadow:0 0 6px #e0654f88}

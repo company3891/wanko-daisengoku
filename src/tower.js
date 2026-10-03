@@ -111,12 +111,11 @@ export const TOWER = [
   { f:52, name:'六手', t:'6ターン以内に勝つ', cond:[{ k:'turns', max:6 }], stage:'草原', hard:3, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:53, name:'五手', t:'5ターン以内に勝つ', cond:[{ k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:54, name:'疾風五手', t:'神速だけで 5ターン以内に勝つ', cond:[{ k:'attr', v:'神速' }, { k:'turns', max:5 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  /* 六重の関を天守の階にした（2026-10-03）。
-     塔は一階ずつしか登れないので、天守の階が遠いと誰も触れない。
-     節目の関なら「いつもと違う戦」が来ても驚かれない */
-  { f:55, name:'疾き城落とし', t:'25ターン以内に天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:12000 }, limit:30, stage:'城郭', hard:4, enemy:{ cost:1100, lv:60, soul:300, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 3 } } },
+  { f:55, name:'四手', t:'4ターン以内に勝つ', cond:[{ k:'turns', max:4 }], stage:'草原', hard:4, enemy:{ cost:1040, lv:69, soul:420, skill:2 }, rw:{ stone:400, koban:10000, items:{ '大稽古の書': 4, '特技の伝書': 3 } } },
   { f:56, name:'三人六手', t:'三人までで 6ターン以内に勝つ', cond:[{ k:'units', max:3 }, { k:'turns', max:6 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  { f:57, name:'単騎八手', t:'一人で 8ターン以内に勝つ', cond:[{ k:'units', max:1 }, { k:'turns', max:8 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
+  /* 天守の階は、いま登っているすぐ上に置く（2026-10-03）。
+     塔は一階ずつしか登れないので、遠いと誰も触れない。置き場はあとで決める */
+  { f:57, name:'疾き城落とし', t:'25ターン以内に天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:12000 }, limit:30, stage:'城郭', hard:4, enemy:{ cost:1100, lv:60, soul:300, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:58, name:'三手', t:'3ターン以内に勝つ', cond:[{ k:'turns', max:3 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:59, name:'懐に入る', t:'射程1だけで 4ターン以内に勝つ', cond:[{ k:'range', v:1 }, { k:'turns', max:4 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:60, name:'三手の無傷', t:'3ターン以内に、誰も倒されずに勝つ', cond:[{ k:'turns', max:3 }, { k:'noDeath' }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },

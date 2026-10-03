@@ -394,7 +394,9 @@ function playerBar() {
          あと何分かが分からないと手持ち無沙汰になる。
          字は foodClock が毎秒書きかえる（画面ぜんぶは描き直さない） */
       (() => { const w = foodWait(); return el('span', {
-        class: 'w food' + (uiUrl('coin_兵糧') ? ' art' : '') + (w.full ? ' wait' : ''),
+        // 上限を超えて蓄えているあいだは字を金に（2026-10-03）
+        class: 'w food' + (uiUrl('coin_兵糧') ? ' art' : '') + (w.full ? ' wait' : '')
+             + (P.stamina > P.staminaMax ? ' over' : ''),
         title: '兵糧（出陣に使う）',
       },
         uiUrl('coin_兵糧') ? keepImg({ class: 'ci', src: uiUrl('coin_兵糧'), alt: '' }) : el('i', {}, '糧'),
@@ -3822,7 +3824,8 @@ function screenShop() {
           el('div', { class: 'foodnow' },
             curIcon('food'),
             el('b', {}, `${num(P.stamina)} / ${num(P.staminaMax)}`),
-            el('span', {}, P.stamina >= P.staminaMax ? '満ちておる'
+            el('span', {}, P.stamina > P.staminaMax ? `上限を ${num(P.stamina - P.staminaMax)} 超えておる`
+              : P.stamina >= P.staminaMax ? '満ちておる'
               : `次の一つまで ${foodLeftText()}`)),
           el('div', { class: 'shoplist' }, names.map(name => {
             const it = ITEMS[name];
@@ -3846,7 +3849,7 @@ function screenShop() {
           })),
           el('p', { class: 'note' },
             '買った品は袋に入る。使うのは三本線の「道具」から。' +
-            (P.stamina >= P.staminaMax ? '兵糧は満ちているので、いま使っても溢れる' : '')));
+            '兵糧丸は満ちていても積める。上限を超えているあいだは、時では戻らぬ'));
       })() : null,
 
       tab === 'awake' ? (() => {
@@ -4991,7 +4994,10 @@ function foodSheet() {
         el('b', {}, `${num(P.stamina)} / ${num(P.staminaMax)}`)),
       /* 時間でも戻る（2026-09-26）。何分で1つ、までは言わない。
          「待てば戻る」と分かれば足りる（説明しすぎない） */
-      el('p', { class: 'note' }, P.stamina >= P.staminaMax ? '兵糧は満ちている' : '兵糧は時とともに戻る'),
+      el('p', { class: 'note' },
+        P.stamina > P.staminaMax ? '兵糧は時では戻らぬ（上限を超えているあいだ）'
+        : P.stamina >= P.staminaMax ? '兵糧は満ちている'
+        : '兵糧は時とともに戻る'),
       names.length ? el('div', { class: 'shoplist' }, names.map(name => {
         const it = ITEMS[name], have = item(name);
         return el('div', { class: 'shoprow' },
@@ -5000,7 +5006,10 @@ function foodSheet() {
             el('b', {}, name, el('span', { class: 'have' }, `持 ${num(have)}`)),
             el('span', { class: 'sd' }, it.desc)),
           el('button', {
-            class: 'go sm', disabled: P.stamina >= P.staminaMax ? true : null,
+            /* 数で戻す品（兵糧丸）は、満ちていても押せる（2026-10-03）。
+               上限を超えて積めるようにしたため。「満たす」品だけは無駄打ちさせない */
+            class: 'go sm',
+            disabled: (it.food >= 9999 && P.stamina >= P.staminaMax) ? true : null,
             onclick: () => {
               const r = useFood(name);
               if (!r) { SFX.pick(); draw(); return; }
@@ -5011,7 +5020,10 @@ function foodSheet() {
             },
           }, '使う'));
       })) : el('p', { class: 'note' }, '兵糧の道具を持っていない。ショップの「蔵」で買える'),
-      P.stamina >= P.staminaMax ? el('p', { class: 'note' }, 'もう満ちている') : null,
+      P.stamina >= P.staminaMax ? el('p', { class: 'note' },
+        P.stamina > P.staminaMax
+          ? `上限を ${num(P.stamina - P.staminaMax)} 超えて蓄えておる。超えているあいだは時でもどらぬ`
+          : 'もう満ちている。ここから先は道具で積める（超えたぶんは時でもどらぬ）') : null,
       closeX(close)));
 }
 

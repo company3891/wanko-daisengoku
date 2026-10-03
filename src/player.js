@@ -735,14 +735,20 @@ export function foodWait() {
   const next = Math.max(0, per - (passed % per));
   return { next, full: next + (P.staminaMax - P.stamina - 1) * per };
 }
+/* 道具で戻すぶんは、上限を超えて積める（2026-10-03）。
+   時間で戻るぶんは上限で止まるが、道具は払ったぶんがそのまま入る。
+   上限を超えているあいだは 時間では戻らない（refillFood が素通りする）ので、
+   「貯めてから一気に遠出する」という使い方ができる。
+   「兵糧を満たす」（兵糧俵）は、上限までを満たす品なので上限は超えない。 */
 export function useFood(name) {
   const it = ITEMS[name];
   if (!it || !it.food) return null;
   refillFood();                                     // 時間で戻ったぶんを先に足す（2026-09-26）
-  if (P.stamina >= P.staminaMax) return null;       // 満タンなら無駄打ちさせない
+  const fill = it.food >= 9999;                     // 「満たす」品か、数で戻す品か
+  if (fill && P.stamina >= P.staminaMax) return null;   // 満たす品は、満ちていれば無駄打ちさせない
   if (!useItem(name, 1)) return null;
   const before = P.stamina;
-  P.stamina = Math.min(P.staminaMax, P.stamina + it.food);
+  P.stamina = fill ? P.staminaMax : P.stamina + it.food;
   savePlayer();
   return { gain: P.stamina - before };
 }
@@ -1072,7 +1078,9 @@ export function giveReward(won, mul = 1, food = 0) {
   if (P.lv >= LV_MAX_PLAYER) { P.lv = LV_MAX_PLAYER; P.exp = 0; r.exp = 0; }
   else P.exp += r.exp;
   r.lvUp = 0;
-  while (P.lv < LV_MAX_PLAYER && P.exp >= expNeed(P.lv)) { P.exp -= expNeed(P.lv); P.lv++; r.lvUp++; P.staminaMax += 2; P.stamina = P.staminaMax; P.foodAt = Date.now(); }
+  while (P.lv < LV_MAX_PLAYER && P.exp >= expNeed(P.lv)) { P.exp -= expNeed(P.lv); P.lv++; r.lvUp++; P.staminaMax += 2;
+    // 位が上がると兵糧は満ちる。ただし道具で上限を超えて貯めているぶんは削らない（2026-10-03）
+    P.stamina = Math.max(P.stamina, P.staminaMax); P.foodAt = Date.now(); }
   if (P.lv >= LV_MAX_PLAYER) { P.lv = LV_MAX_PLAYER; P.exp = 0; }
   savePlayer();
   return r;

@@ -5315,3 +5315,8 @@ button.mkpv:active{transform:translateY(1px)}
 .foodnow img,.foodnow i{width:22px;height:22px;flex:0 0 auto}
 .foodnow b{font-size:16px;color:var(--gold-l,#f5e2a8);letter-spacing:.02em}
 .foodnow span{margin-left:auto;font-size:11px;color:var(--text3)}
+
+/* 兵糧が上限を超えて蓄えてあるとき（2026-10-03）。
+   数字を金に寄せて「ふだんと違う」と分かるようにする（説明は出さない） */
+.w.food.over{box-shadow:inset 0 0 0 1px var(--gold,#d8a94a)}
+.w.food.over, .w.food.over em{color:var(--gold-l,#f5e2a8)}

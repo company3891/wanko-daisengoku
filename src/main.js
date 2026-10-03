@@ -1217,7 +1217,7 @@ function squadCard(q, i, onPick, toEdit) {
   return el('button', {
     class: 'sq' + (on ? ' on' : '') + (empty ? ' empty' : '') + (dups.length ? ' dupl' : ''),
     onclick: () => {
-      if (on && toEdit) { S.screen = 'team'; SFX.pick(); draw(); return; }
+      if (on && toEdit) { S.teamFrom = 'squads'; S.screen = 'team'; SFX.pick(); draw(); return; }
       P.active = i; SFX.pick(); (onPick || draw)();
     },
   },
@@ -1265,6 +1265,12 @@ function squadCard(q, i, onPick, toEdit) {
         if (S.sqp) {
           S.sqpHold = { ask: S.sqp, from: S.screen, fr: S.fr, frId: S.frId, rk: S.rk };
           S.sqp = null; S.fr = false; S.frId = null; S.rk = false;
+          S.teamFrom = null;                 // 戻り道は「← 戦へ」が受け持つ
+        } else if (!toEdit) {
+          /* いまいる画面へ返す（2026-10-03）。
+             全国の出陣から編成へ入ったのに、戻ると育成の部隊一覧へ
+             飛ばされていた。知らぬ画面のときだけ部隊一覧に落とす */
+          S.teamFrom = TEAM_FROM_NAME[S.screen] ? S.screen : 'squads';
         }
         S.screen = toEdit ? 'map' : 'team';
         SFX.pick(); savePlayer(); draw();
@@ -1724,7 +1730,7 @@ function rwInfoSheet() {
    押させて覚えてもらう形にしてあるので、強くは止めない（閉じても進める）。
    済んだかどうかは、いまの持ち物や部隊を見て決める（別に数を持たない）。 */
 const TEBIKI = [
-  { k: '編成', text: '部隊に五人そろえるワン！', go: () => { S.screen = 'team'; },
+  { k: '編成', text: '部隊に五人そろえるワン！', go: () => { S.teamFrom = 'home'; S.screen = 'team'; },
     ok: () => (P.squads[P.active] || {}).nos.length >= 5 },
   { k: '強化', text: '武将を一度 強くするワン！', go: () => { S.screen = 'power'; },
     ok: () => Object.values(P.chars || {}).some(c => (c.lv || 1) > 1) },
@@ -2456,7 +2462,7 @@ function screenMarch() {
         : !ready ? el('p', { class: 'note' }, '部隊を編成してから出陣できる')
              : (!canMarch(p, step) ? el('p', { class: 'note' }, `兵糧が足りぬ（要 ${food}）。道具でもどせる`) : null),
       clash.length ? el('button', {
-        class: 'go wide', onclick: () => { S.screen = 'team'; SFX.pick(); draw(); },
+        class: 'go wide', onclick: () => { S.teamFrom = 'march'; S.screen = 'team'; SFX.pick(); draw(); },
       }, '編成を直す') : null,
       /* 出陣の釦（2026-09-26 に一枚絵にした）。
          絵に「出陣」と彫ってあるので字は重ねず、兵糧のことだけ下に小さく添える。
@@ -3907,7 +3913,7 @@ function screenSquads() {
         }, 'もどる'),
         el('button', {
           class: 'go big',
-          onclick: () => { S.screen = 'team'; draw(); },
+          onclick: () => { S.teamFrom = 'squads'; S.screen = 'team'; draw(); },
         }, '編成する'))),
     nav: true,
   };
@@ -5850,7 +5856,7 @@ function screenTeam() {
               S.fr = !!h.fr; S.frId = h.frId != null ? h.frId : null; S.rk = !!h.rk;
               SFX.pick(); draw(); } }, '← 戦へ')
           : el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); SFX.pick(); draw(); } },
-              S.twBack ? '← 塔へ' : '← 部隊へ'),
+              '← ' + twBackLabel() + 'へ'),
         el('div', { class: 'info' },
           el('span', { class: 'ic' }, el('b', { class: over ? 'over' : '' }, `${cost()}`), ` / ${costMax()}`,
             costBuff() ? el('em', { class: 'cbuff' }, `+${costBuff().add}　あと${costBuffLeft()}`) : null),
@@ -6110,7 +6116,8 @@ function screenForm() {
       el('div', { class: 'acts' },
         el('button', { class: 'ghost', onclick: () => { S.screen = 'team'; draw(); } }, '編成へ戻る'),
         el('div', { class: 'spacer' }),
-        el('button', { class: 'go', onclick: () => { S.screen = twBackGo(); draw(); } }, S.twBack ? '保存して塔へ' : '保存して部隊へ'))),
+        el('button', { class: 'go', onclick: () => { S.screen = twBackGo(); draw(); } },
+          '保存して' + twBackLabel() + 'へ'))),
     nav: true,
   };
 }
@@ -7475,8 +7482,19 @@ function twClear(f) {
    一覧はやめて、出陣の一枚に全部のせた。
    上＝階と試練の名としばり／真ん中＝待ち受ける敵の立ち姿／下＝褒美と釦。
    はじめて来たときだけ、語りで「どういう場か」を一度だけ伝える */
-/* 編成からの戻り先（2026-10-01）。塔から入ったときだけ塔へ返す */
-function twBackGo() { if (!S.twBack) return 'squads'; S.twBack = false; S.twMsg = ''; return 'tower'; }
+/* 編成からの戻り先（2026-10-01 → 2026-10-03 に作り直し）。
+   もとは「塔か、部隊か」の二択しかなかったので、全国の出陣から編成へ入ると
+   戻りが育成の部隊一覧へ飛んでしまっていた。
+   入った画面の名を S.teamFrom に覚えておき、そこへ返す */
+const TEAM_FROM_NAME = { tower: '塔', march: '全国', squads: '部隊', home: 'ホーム', event: '催し' };
+function twBackWhere() { return S.teamFrom || (S.twBack ? 'tower' : 'squads'); }
+function twBackLabel() { return TEAM_FROM_NAME[twBackWhere()] || '部隊'; }
+function twBackGo() {
+  const to = twBackWhere();
+  if (to === 'tower') { S.twBack = false; S.twMsg = ''; }
+  S.teamFrom = null;
+  return to;
+}
 function twRow() { return null; }      // 一覧はやめた（名は guidePaint などが探さないよう残す）
 
 /* その階で待ち受ける顔ぶれ。盤に出るのと同じ並びなので、見てから編成を組める */
@@ -7882,7 +7900,7 @@ function screenTower() {
           };
           return el('div', { class: 'twbtns' },
             side('tw_hensei', '陣', '編成', '部隊を組み直す',
-              () => { S.twBack = true; S.screen = 'team'; SFX.pick(); draw(); }),
+              () => { S.twBack = true; S.teamFrom = 'tower'; S.screen = 'team'; SFX.pick(); draw(); }),
             el('button', { class: 'go twgo',
               disabled: (q.nos.length && !ng.length) ? null : true,
               onclick: () => twGo(f) },

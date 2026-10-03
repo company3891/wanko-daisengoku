@@ -61,27 +61,19 @@ export const WEEKLY_PICK = [
    kind: 'daily'（1日1回）／'weekly'（週1回）／'free'（兵糧のつづく限り）
    reward(rank) が、その級で配るものを返す */
 export const EVENTS = [
+  /* 並びは「何のために通うか」でまとめる（2026-10-03）。
+     金 → 武将を育てる三つ（稽古・覚醒・特技）→ 魂 → 週にひと勝負。
+     育てる三つのあいだに別の祭りが挟まると、どれが強化の場か読み取りにくかった。
+     その日に出ない祭り（平日だけ・土日だけ）は screenEvent が並べない */
   {
     id: 'daily_koban', kind: 'free', name: '大判小判', mark: '判',
     note: '小判が出る。兵糧のつづく限り', icon: 'ev_koban',
     reward: r => ({ koban: [1500, 5000, 12000, 30000][r] }),
   },
   {
-    id: 'daily_soul', kind: 'free', days: 'weekend', allRanks: true, name: '武士の魂', mark: '魂',
-    note: '武士の魂が出る。土日のあいだ、どの級にも何度でも', icon: 'ev_soul',
-    reward: r => ({ soul: [15, 45, 100, 240][r] }),
-  },
-  {
     id: 'daily_book', kind: 'free', name: '武将強化の日', mark: '強',
     note: '稽古の書が出る。兵糧のつづく限り', icon: 'ev_book',
     reward: r => ({ items: { 稽古の書: [5, 12, 25, 50][r] } }),
-  },
-  {
-    /* once（2026-10-02）＝級をぜんぶ取ったら、一覧から消える。
-       級ごとに決まった武将をひとり配る祭りなので、取り切ったら渡すものが無い */
-    id: 'weekly', kind: 'weekly', once: true, name: '武将獲得', mark: '得',
-    note: '週にひと勝負。勝てば武将がひとり増える', icon: 'ev_weekly',
-    reward: r => ({ chars: [WEEKLY_PICK[r].no], stone: [100, 300, 700, 1500][r] }),
   },
   {
     /* repeat（2026-10-01）＝取ったあとも何度でも挑める。
@@ -114,6 +106,18 @@ export const EVENTS = [
       { '上達の護符・小': 1, '相伝の護符・小': 1 },
       { '上達の護符・中': 1 },
     ][r] }),
+  },
+  {
+    id: 'daily_soul', kind: 'free', days: 'weekend', allRanks: true, name: '武士の魂', mark: '魂',
+    note: '武士の魂が出る。土日のあいだ、どの級にも何度でも', icon: 'ev_soul',
+    reward: r => ({ soul: [15, 45, 100, 240][r] }),
+  },
+  {
+    /* once（2026-10-02）＝級をぜんぶ取ったら、一覧から消える。
+       級ごとに決まった武将をひとり配る祭りなので、取り切ったら渡すものが無い */
+    id: 'weekly', kind: 'weekly', once: true, name: '武将獲得', mark: '得',
+    note: '週にひと勝負。勝てば武将がひとり増える', icon: 'ev_weekly',
+    reward: r => ({ chars: [WEEKLY_PICK[r].no], stone: [100, 300, 700, 1500][r] }),
   },
 ];
 export const evOf = id => EVENTS.find(e => e.id === id) || null;

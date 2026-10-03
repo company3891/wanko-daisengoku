@@ -8146,7 +8146,16 @@ function screenEvent() {
             /* 右上の赤丸（残りの級）は外した（2026-10-02）。
                右の「済んだ数 / 4」で足りるうえ、常設の祭りは毎日 赤丸が点くので、
                「見ていない知らせ」の赤丸と見分けがつかなくなっていた */
-            again ? el('em', { class: 'evagain' }, '何度でも') : null);
+            again ? el('em', { class: 'evagain' }, '何度でも') : null,
+            /* いつ出る祭りかを右上の丸で出す（2026-10-03）。
+               日によって並びが入れ替わるので、「これは土日だけ」と
+               分かっていないと、昨日あった祭りが消えたように見えていた */
+            (() => {
+              const w = ev.days === 'weekend' ? ['土日', '限定']
+                      : ev.days === 'weekday' ? ['平日', '限定']
+                      : ev.kind === 'weekly'  ? ['週に', '一度'] : null;
+              return w ? el('span', { class: 'evlim' }, el('i', {}, w[0]), el('b', {}, w[1])) : null;
+            })());
         }))),
       nav: true,
     };

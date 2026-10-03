@@ -2815,6 +2815,22 @@ main.hasnav{padding-bottom:124px}
 .evkind.kfree{background:#8fd48a26;border:1px solid #8fd48a66;color:#a8e0a2}
 .evn{flex:0 0 auto;font-size:10.5px;color:var(--text3)}
 .evn b{font-size:15px;color:var(--gold);margin-right:1px}
+/* いつ出る祭りかの丸（2026-10-03）。幟の右上に貼る。
+   二行（土日／限定）で、上が大きく下が小さい。金の輪と黒漆の地 */
+.evlim{position:absolute;right:-4px;top:-6px;z-index:4;width:40px;height:40px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 32%,#2b2318,#12100e 78%);
+  border:1.5px solid var(--gold);box-shadow:0 2px 7px #000b,inset 0 0 9px #d8a94a33;
+  font-family:var(--mincho);line-height:1.08;pointer-events:none}
+.evlim i{font-style:normal;font-size:12px;font-weight:700;color:#f5e2a8;letter-spacing:.01em}
+.evlim b{font-size:9px;font-weight:700;color:#d8a94a;letter-spacing:.08em}
+/* 幟の行は絵いっぱいで、上下が 11px 重なっている（.evrow.bn + .evrow.bn）。
+   はみ出させると、ひとつ上の幟の印に見えてしまうので、角の内側に収める。
+   右の「済んだ数」は幟の右はし寄りの真ん中にあるので、丸は小ぶりにして上に逃がす */
+.evrow.bn .evlim{right:4px;top:3px;width:32px;height:32px}
+.evrow.bn .evlim i{font-size:10.5px}
+.evrow.bn .evlim b{font-size:8px;letter-spacing:.04em}
+.evrow.allDone .evlim, .evrow.bn.allDone .evlim{opacity:.85}
 .evbadge{position:absolute;right:-5px;top:-5px;min-width:20px;height:20px;line-height:20px;
   text-align:center;font-style:normal;font-size:11px;font-weight:700;border-radius:999px;
   background:linear-gradient(135deg,#f08a78,#c44a38);color:#fff;border:1.5px solid #12100e;

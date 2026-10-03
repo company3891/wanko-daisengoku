@@ -696,6 +696,7 @@ export function render(board, pawnMap, snapUnits, rules) {
       continue;
     }
     // 戦闘不能は盤面から消す。死体は残さない（逃走の演出は showEvent 側）
+    if (u.alive) unflee(p);          // 生き返ったら走り去る動きを取り消す（2026-10-03）
     p.style.display = u.alive ? '' : 'none';
     p.classList.toggle('dead', !u.alive);
     /* 盤面のコマには状態異常もステータス変化も出さない（2026-09-23）。
@@ -857,21 +858,33 @@ export let PMUL = 1;
 export const setPlayMul = m => { PMUL = m > 0 ? m : 1; };
 const pdur = ms => Math.round(ms * PMUL);  // 演出の長さ。skills.mjs の dur() と名前が当たるので pdur（2026-09-24）
 
+/* 走り去る動きを取り消して、コマ絵をもとに戻す（2026-10-03）。
+   fleeAway は fill:'forwards' で「消えたまま」止める作りなので、
+   生き返ったときはここで取り消さないと、盤の上に絵が出てこない */
+export function unflee(p) {
+  if (!p || !p._flee) return;
+  for (const a of p._flee) { try { a.cancel(); } catch (_) {} }
+  p._flee = null;
+}
 export function fleeAway(p, side) {
   if (!p) return pdur(620);
   const el = p.querySelector('img') || p;
   const dir = side === 'A' ? 1 : -1;
   const flip = side === 'A' ? -1 : 1;     // 走り去る向きに体を向ける
-  el.animate([
+  const away = el.animate([
     { transform: `translate(0,0) scaleX(${flip}) rotate(0deg)`, opacity: 1 },
     { transform: `translate(${dir * 4}px,${dir * -6}px) scaleX(${flip}) rotate(${dir * -8}deg)`, opacity: 1, offset: .12 },
     { transform: `translate(${dir * 18}px,${dir * 60}px) scaleX(${flip}) rotate(${dir * 6}deg)`, opacity: .9, offset: .5 },
     { transform: `translate(${dir * 34}px,${dir * 170}px) scaleX(${flip}) rotate(${dir * -4}deg)`, opacity: 0 },
   ], { duration: pdur(620), easing: 'cubic-bezier(.3,.1,.7,1)', fill: 'forwards' });
   // 走る足音がわりに上下に跳ねる
-  p.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' },
+  const hop = p.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' },
              { transform: 'translateY(0)' }, { transform: 'translateY(-3px)' },
              { transform: 'translateY(0)' }], { duration: pdur(620), easing: 'linear' });
+  /* 復活したときに取り消せるよう、動きを覚えておく（2026-10-03）。
+     走り去る動きは fill:'forwards' で「消えたまま」止めてあるので、
+     取り消さないかぎり、生き返ってもコマ絵が戻らなかった */
+  p._flee = [away, hop];
   // 砂ぼこりを一瞬
   const dust = document.createElement('span');
   dust.className = 'dust';

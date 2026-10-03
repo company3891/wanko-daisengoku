@@ -651,6 +651,21 @@ main.hasnav{padding-bottom:92px}
 /* 陣触れの品で上限が上がっているあいだ（2026-09-23） */
 .acts .info .cbuff{font-style:normal;font-size:10px;margin-left:6px;color:#8fd48a;
   background:#8fd48a1f;border:1px solid #8fd48a55;border-radius:999px;padding:1px 7px}
+/* 編成の帯だけ、画面の下（下ナビの上）に貼り付ける（2026-10-03）。
+   武将の升が縦に長く、コストと「陣形へ」を見るのに いちばん下まで巻いていた。
+   --nav は draw() がフッターの実測を入れている。ナビより一段うしろ（z-index 61）に
+   置いて、札や帯の重なりの順を崩さない */
+.acts.actsfix{position:fixed;left:0;right:0;bottom:0;z-index:61;
+  max-width:520px;margin:0 auto;box-sizing:border-box;
+  /* 下ナビの「ホーム」の丸は帯より上へはみ出している。--nav はその出っぱりの
+     てっぺんまでを測った値なので、そのぶんを下の内余白で埋める。
+     こうすると帯と下ナビのあいだに隙間が空かず、裏の札が覗かない */
+  margin-top:0;padding:8px 16px calc(var(--nav,104px) + 8px);gap:8px;
+  background:#12100ef2;backdrop-filter:blur(8px);
+  border-top:1px solid #a8802c;box-shadow:0 -4px 14px #0008}
+.acts.actsfix button{padding:10px 14px;font-size:12.5px}
+/* 帯の裏に武将の升の最後の列が隠れないよう、本文の下余白を足す */
+main.hasnav:has(.acts.actsfix){padding-bottom:calc(var(--nav,104px) + 72px)}
 /* おすすめ編成（2026-09-23） */
 .reco{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px;
   border-style:dashed;border-color:#5fb6ff66;color:#bfe6ff;letter-spacing:.04em;font-size:12px}
@@ -30856,13 +30871,18 @@ function screenTeam() {
         },
       }, el('i', {}, '★'), 'おすすめ編成（総戦力が最大）'),
       grid,
-      el('div', { class: 'acts' },
-        /* 左下の追従の釦と行き先が同じなので、下まで巻いたとき二つ重なって見えた。
-           追従の釦が出ているあいだは、ここは場所取りだけにする（2026-10-02）。
-           戦を預かっているとき（S.sqpHold）だけは、追従が「戦へ」で行き先が別なので残す */
+      /* 武将の升は縦に長い。コストと「陣形へ」を見るために いちいち
+         いちばん下まで巻くのが手間だったので、この帯ごと画面の下に貼り付けた
+         （2026-10-03）。追従していた左下の丸い戻り道は、この帯に戻り釦を
+         置いたので外した。ほかの画面の戻り釦はそのまま */
+      el('div', { class: 'acts actsfix' },
         S.sqpHold
-          ? el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); draw(); } }, S.twBack ? '塔へ' : '部隊へ')
-          : el('div', { class: 'spacer', style: 'flex:0 0 76px' }),
+          ? el('button', { class: 'ghost', onclick: () => { const h = S.sqpHold; S.sqpHold = null;
+              S.screen = h.from; S.sqp = h.ask;
+              S.fr = !!h.fr; S.frId = h.frId != null ? h.frId : null; S.rk = !!h.rk;
+              SFX.pick(); draw(); } }, '← 戦へ')
+          : el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); SFX.pick(); draw(); } },
+              S.twBack ? '← 塔へ' : '← 部隊へ'),
         el('div', { class: 'info' },
           el('span', { class: 'ic' }, el('b', { class: over ? 'over' : '' }, `${cost()}`), ` / ${costMax()}`,
             costBuff() ? el('em', { class: 'cbuff' }, `+${costBuff().add}　あと${costBuffLeft()}`) : null),
@@ -33850,15 +33870,9 @@ function draw() {
     /* 出す部隊をえらぶ札は、いちばん上に重ねる（2026-09-29）。
        友の家や番付の札の下に潜ってしまい、稽古が申し込めなくなっていた */
     /* 部隊えらびの札から編成へ抜けているあいだ、戦へ戻る道を左下に置く（2026-09-30） */
-    /* 武将をえらぶ画面に、追従の戻り道を左下に置く（2026-10-02）。
-       武将の升は縦に長く、下の「塔へ」まで巻かないと戻れなかった。
-       陣形の画面は升が一枚で収まるので、そこには出さない */
-    (!S.sqpHold && S.screen === 'team')
-      ? el('button', { class: 'sqback', title: S.twBack ? '塔へもどる' : '部隊へもどる',
-          onclick: () => { S.screen = twBackGo(); SFX.pick(); draw(); } },
-          S.twBack ? '← 塔へ' : '← 部隊へ')
-      : null,
-    (S.sqpHold && (S.screen === 'team' || S.screen === 'form'))
+    /* 武将をえらぶ画面の追従の戻り道は外した（2026-10-03）。
+       下に貼り付けた帯（.actsfix）に戻り釦が入ったので、二つあると重なる */
+    (S.sqpHold && S.screen === 'form')
       ? el('button', { class: 'sqback', title: '戦へもどる',
           onclick: () => { const h = S.sqpHold; S.sqpHold = null;
                            S.screen = h.from; S.sqp = h.ask;

@@ -5839,13 +5839,18 @@ function screenTeam() {
         },
       }, el('i', {}, '★'), 'おすすめ編成（総戦力が最大）'),
       grid,
-      el('div', { class: 'acts' },
-        /* 左下の追従の釦と行き先が同じなので、下まで巻いたとき二つ重なって見えた。
-           追従の釦が出ているあいだは、ここは場所取りだけにする（2026-10-02）。
-           戦を預かっているとき（S.sqpHold）だけは、追従が「戦へ」で行き先が別なので残す */
+      /* 武将の升は縦に長い。コストと「陣形へ」を見るために いちいち
+         いちばん下まで巻くのが手間だったので、この帯ごと画面の下に貼り付けた
+         （2026-10-03）。追従していた左下の丸い戻り道は、この帯に戻り釦を
+         置いたので外した。ほかの画面の戻り釦はそのまま */
+      el('div', { class: 'acts actsfix' },
         S.sqpHold
-          ? el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); draw(); } }, S.twBack ? '塔へ' : '部隊へ')
-          : el('div', { class: 'spacer', style: 'flex:0 0 76px' }),
+          ? el('button', { class: 'ghost', onclick: () => { const h = S.sqpHold; S.sqpHold = null;
+              S.screen = h.from; S.sqp = h.ask;
+              S.fr = !!h.fr; S.frId = h.frId != null ? h.frId : null; S.rk = !!h.rk;
+              SFX.pick(); draw(); } }, '← 戦へ')
+          : el('button', { class: 'ghost', onclick: () => { S.screen = twBackGo(); SFX.pick(); draw(); } },
+              S.twBack ? '← 塔へ' : '← 部隊へ'),
         el('div', { class: 'info' },
           el('span', { class: 'ic' }, el('b', { class: over ? 'over' : '' }, `${cost()}`), ` / ${costMax()}`,
             costBuff() ? el('em', { class: 'cbuff' }, `+${costBuff().add}　あと${costBuffLeft()}`) : null),
@@ -8833,15 +8838,9 @@ function draw() {
     /* 出す部隊をえらぶ札は、いちばん上に重ねる（2026-09-29）。
        友の家や番付の札の下に潜ってしまい、稽古が申し込めなくなっていた */
     /* 部隊えらびの札から編成へ抜けているあいだ、戦へ戻る道を左下に置く（2026-09-30） */
-    /* 武将をえらぶ画面に、追従の戻り道を左下に置く（2026-10-02）。
-       武将の升は縦に長く、下の「塔へ」まで巻かないと戻れなかった。
-       陣形の画面は升が一枚で収まるので、そこには出さない */
-    (!S.sqpHold && S.screen === 'team')
-      ? el('button', { class: 'sqback', title: S.twBack ? '塔へもどる' : '部隊へもどる',
-          onclick: () => { S.screen = twBackGo(); SFX.pick(); draw(); } },
-          S.twBack ? '← 塔へ' : '← 部隊へ')
-      : null,
-    (S.sqpHold && (S.screen === 'team' || S.screen === 'form'))
+    /* 武将をえらぶ画面の追従の戻り道は外した（2026-10-03）。
+       下に貼り付けた帯（.actsfix）に戻り釦が入ったので、二つあると重なる */
+    (S.sqpHold && S.screen === 'form')
       ? el('button', { class: 'sqback', title: '戦へもどる',
           onclick: () => { const h = S.sqpHold; S.sqpHold = null;
                            S.screen = h.from; S.sqp = h.ask;

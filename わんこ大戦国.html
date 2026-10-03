@@ -6257,10 +6257,13 @@ function makeKeepUnit(rules) {
   const x = k.x == null ? Math.floor(W / 2) : k.x;
   const y = k.y == null ? 0 : k.y;
   const hp = k.hp || (rules.troops.base || 10000);   // 既定は部隊ひとつぶん（2026-10-03）
-  /* 天守の数値（2026-10-03）。防御だけ持たせられる（既定は0＝傷がそのまま通る）。
-     石垣の厚みを足したいときに keep.def を書く。ほかの数値は持たない */
+  /* 天守の数値（2026-10-03）。厚み（傷の通りにくさ）だけ持たせられる。既定は0＝素通し。
+     火力の一撃は「防御」で、賢さの一撃は「回復」で受ける決まりなので、
+     防御だけ書くと 賢さの奥義が素通りして一撃で崩れていた。
+     keep.def を書いたら、断りがないかぎり同じ厚みを回復にも持たせる（keep.res で別にできる） */
   const base = {}; for (const kk of BSTATS) base[kk] = 0;
   base['防御'] = Math.max(0, k.def || 0);
+  base['回復'] = Math.max(0, k.res == null ? (k.def || 0) : k.res);
   return {
     id: 'K-0', no: 0, name: k.name || '天守', side: 'B', attr: null, role: '', clan: '', tags: [],
     rarity: '', cost: 1000, range: 1, isKeep: true, isGeneral: false,
@@ -11988,9 +11991,12 @@ function poolOf(g, POOL) {
    （階そのものに書く持ち物）
    hold:N               決着のターンを N にし、守り切った側（こちら）を勝ちにする
    hp1:true             味方はみな兵量1から始まる（先に癒す手を作らねば勝てない）
-   keep:{hp}            盤の奥に天守（壊せる城）を立てる。2026-10-02
+   keep:{hp,def}        盤の奥に天守（壊せる城）を立てる。2026-10-02
                         守り兵を全部倒しても、城が立っているうちは終わらない。
-                        射程1は城の正面一マスからしか斬れず、射程2以上は石垣ごしに届く
+                        射程1は城の正面一マスからしか斬れず、射程2以上は石垣ごしに届く。
+                        def ＝ 厚み（2026-10-03）。火力の一撃は防御で、賢さの一撃は回復で
+                        受ける決まりなので、def を書くと両方に同じ厚みが入る。
+                        厚み2500で、一撃の通りはおよそ半分以下になる
    limit:N              決着のターンを N にする（攻め城は時がかかるので伸ばす）
 
    しばりは二段で見る。
@@ -12067,7 +12073,12 @@ const TOWER = [
      塔は一階ずつしか登れないので、遠いと誰も触れない。置き場はあとで決める */
   { f:57, name:'疾き城落とし', t:'25ターン以内に天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:12000 }, limit:30, stage:'城郭', hard:4, enemy:{ cost:1100, lv:60, soul:300, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:58, name:'三手', t:'3ターン以内に勝つ', cond:[{ k:'turns', max:3 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
-  { f:59, name:'懐に入る', t:'射程1だけで 4ターン以内に勝つ', cond:[{ k:'range', v:1 }, { k:'turns', max:4 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
+  /* 中級の城（2026-10-03）。57階の城は奥義ひと振りで八割が飛んでいたので、
+     兵量を上げるだけでなく「厚み（keep.def）」を持たせた。
+     厚みは火力の一撃を防御で、賢さの一撃を回復で受ける。どちらも半分ほどに削ぐので、
+     ひと振りで落とすのではなく、何度も叩いて崩す形になる。
+     ※もとの「懐に入る」（射程1だけで4ターン）はここから外した */
+  { f:59, name:'厚き天守', t:'25ターン以内に、厚い天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:20000, def:2500 }, limit:30, stage:'城郭', hard:5, enemy:{ cost:1250, lv:75, soul:520, skill:3 }, rw:{ stone:400, koban:8000, items:{ '大稽古の書': 5, '特技の伝書': 3 } } },
   { f:60, name:'三手の無傷', t:'3ターン以内に、誰も倒されずに勝つ', cond:[{ k:'turns', max:3 }, { k:'noDeath' }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },
   { f:61, name:'前を張る', t:'役目に「前衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'前衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
   { f:62, name:'後ろを支える', t:'役目に「後衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'後衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },

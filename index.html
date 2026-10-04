@@ -6665,8 +6665,8 @@ function scaleOne(e, m, lv) {
      **目に見えないとバグだと思われる**ので、位ひとつにつき一つ増やす形にした。
      Lv1＝+1／Lv2＝+2／Lv3＝+3。玉の数で誰にでも分かる */
   if (typeof e.gauge === 'number' && lv > 1) put('gauge', e.gauge + (lv - 1));
-  /* 強化の続く時間を伸ばす仕掛けも同じ（3／4／5ターン） */
-  if (e.kind === 'durPlus' && typeof e.turns === 'number' && lv > 1) put('turns', e.turns + (lv - 1));
+  /* ターン数は伸ばさない（2026-10-05 ゆうごさんの指図）。
+     3ターンが5ターンになるのは効きすぎる。見直しは表で決めてから */
   return o || e;
 }
 function scaleNormals(u, lv) {
@@ -8647,7 +8647,7 @@ function makeResult(winner, reason, seed, t, A, B, log) {
 }
 
 // テスト用の内部公開（範囲パターンの単体検証に使う）
-const __test__ = { resolveTargets, facing, applyEffects, layout, canReach, rangeOf, manualAt };
+const __test__ = { resolveTargets, facing, applyEffects, layout, canReach, rangeOf, manualAt, scaleOne, SKILL_MULT };
 
 
 // 戦闘ログの再生（2026-09-20）

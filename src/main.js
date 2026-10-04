@@ -6948,7 +6948,15 @@ function drawBattle() {
     if (pawn) { pawn.style.outline = '2px dashed #fff'; pawn.style.outlineOffset = '2px'; }
     const W2 = BATTLE.rules.board.width, H2 = BATTLE.rules.board.height;
     const cellAt = (x, y) => boardCache.children[y * W2 + x];
-    const foes = units.filter(u => u.alive && u.id[0] !== a.unit[0]);
+    /* 誰が敵かは、洗脳を踏まえて決める（2026-10-04）。
+       洗脳されている者は向こう側として戦うので、
+       寝返った味方は斬る相手になり、寝返らせた敵は斬れない。
+       「敵に気づかれない」でいる相手も狙えない（盤に立っていても手が届かない）。
+       どちらも頭の上の印（恋・隠）で分かるようにしてある */
+    const sideOf = (u) => ((u.st || []).includes('洗脳') ? (u.id[0] === 'A' ? 'B' : 'A') : u.id[0]);
+    const myside = sideOf(BATTLE.live.get(a.unit) || { id: a.unit, st: [] });
+    const foes = units.filter(u => u.alive && sideOf(u) !== myside
+      && !(u.st || []).includes('隠れ身'));
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
     /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
        素の射程2は斜めにも届くが、「正面2マス」を継いだだけの者は筋の上しか届かない。
@@ -8307,7 +8315,7 @@ function screenBattle() {
 /* ---- 盤面の外に並べる顔（2026-09-23）----
    敵は上、味方は下。一体ずつ、兵量の帯・状態異常・強化弱化・総大将の印を添える。
    drawBattle から毎回組み直すので、中身はいつでも今の盤面と合っている。 */
-const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕' };
+const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 隠れ身: '👣' };
 function rosterRow(box, side) {
   if (!box) return;
   const units = liveUnits().filter(u => String(u.id).startsWith(side + '-'));

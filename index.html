@@ -389,14 +389,18 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 /* 絵があるときは絵だけ。台座は敷かない（2026-10-04）。
    下の .psb の背景・枠・内余白をここで打ち消しておかないと、
    絵の後ろに朱の箱が残る（顔の列の .rbad .sb.art と同じ考え） */
+/* .pawn.sprite img が position:absolute;inset:0 を当ててくるので打ち消す（2026-10-04）。
+   これを入れるまで印は流れから外れ、親の幅が0になって
+   translateX(-50%) が効かず、頭の右わきへずれていた（名前の当たりの類） */
+.pawn .pst .psb{position:static;inset:auto;flex:0 0 auto}
 .pst .psb.art{width:18px;height:18px;object-fit:contain;display:block;
   background:none;border:0;padding:0;border-radius:0;line-height:0;
   filter:drop-shadow(0 1px 1px #000c)}
-/* 絵が無いときだけ、一字の札に落ちる */
-.pst .psb{font-style:normal;font-size:8.5px;font-weight:700;line-height:14px;height:14px;
-  padding:0 4px;border-radius:7px;white-space:nowrap;
-  background:#a8523ce6;border:1px solid #c76a4e;color:#ffd9cc;
-  text-shadow:0 1px 2px #000}
+/* 絵が無いときは、字や絵文字をそのまま置く（2026-10-04）。
+   台座を敷くと絵の印と見た目が揃わないので、箱はやめて黒フチだけで浮かせる */
+.pst .psb{font-style:normal;font-size:13px;font-weight:700;line-height:1;
+  white-space:nowrap;background:none;border:0;padding:0;border-radius:0;color:#fff;
+  text-shadow:0 1px 0 #000,0 -1px 0 #000,1px 0 0 #000,-1px 0 0 #000,0 2px 3px #000c}
 /* いくつも付いているときは拍で入れ替わる。入れ替わりが分かるよう軽く点す */
 .pst.multi .psb{animation:stblink .5s steps(2,end) infinite}
 /* 2頭身の絵は頭が上のほうにあるので、そこへ合わせる */
@@ -2773,10 +2777,10 @@ main.hasnav{padding-bottom:124px}
 .rbad.multi .sb{animation:stblink .5s steps(2,end) infinite}
 /* 強化・弱化は色で見分けられるので、横に並べたまま出す */
 .rmod{flex-direction:row;gap:2px}
-/* 状態異常は札の上ばしの真ん中へ（2026-10-04）。
-   右上の角だと総大将の印（左上）と対になって「角の飾り」に見え、
-   盤のコマの頭に出した印とも場所が揃わなかった */
-.rbad{top:1px;left:50%;right:auto;transform:translateX(-50%);align-items:center}
+/* 顔の札の状態異常は右上へ戻した（2026-10-04）。
+   盤のコマは頭の真ん中、顔の札は右上 ── 置き場を分けたほうが、
+   小さな札では顔に重ならずに読める */
+.rbad{top:1px;right:1px;left:auto;transform:none;align-items:flex-end}
 .rmod{bottom:1px}
 /* 絵があるときは絵で出す。無いときだけ文字の札に落ちる（2026-09-23）。
    絵には台座を敷かない。下の .sb の背景・枠をここで打ち消す */
@@ -2785,9 +2789,12 @@ main.hasnav{padding-bottom:124px}
 .rbad .sb.art{width:18px;height:18px;object-fit:contain;display:block;
   background:none;border:0;padding:0;border-radius:0;line-height:0;
   filter:drop-shadow(0 1px 1px #000c)}
-.rbad .sb,.rmod .mb{font-size:8.5px;font-weight:700;line-height:13px;height:13px;padding:0 3px;
+/* 顔の札も台座は敷かない（2026-10-04）。絵の印と字の印で見た目を揃える */
+.rmod .mb{font-size:8.5px;font-weight:700;line-height:13px;height:13px;padding:0 3px;
   border-radius:4px;white-space:nowrap;text-shadow:0 1px 2px #000}
-.rbad .sb{background:#a8523cdd;border:1px solid #c76a4e;color:#ffd9cc}
+.rbad .sb{font-size:13px;font-weight:700;line-height:1;white-space:nowrap;
+  background:none;border:0;padding:0;border-radius:0;color:#fff;
+  text-shadow:0 1px 0 #000,0 -1px 0 #000,1px 0 0 #000,-1px 0 0 #000,0 2px 3px #000c}
 .rmod .mb.up{background:#3f6b3add;border:1px solid #8fd48a;color:#ddf5da}
 .rmod .mb.dn{background:#3a557add;border:1px solid #7fa8d8;color:#dae7f7}
 /* ステータスの上下は「矢印の向き＋色」だけで出す（2026-09-23 改訂）。
@@ -2818,7 +2825,8 @@ main.hasnav{padding-bottom:124px}
 /* 狭い画面では少し詰める */
 @media (max-width:380px){
   .rc{flex:0 1 54px}
-  .rbad .sb,.rmod .mb{font-size:8px;padding:0 2px}
+  .rmod .mb{font-size:8px;padding:0 2px}
+  .rbad .sb{font-size:12px}
   .rhpn{font-size:10.5px}
   .field .troop{width:min(180px,calc(100% - 165px));height:24px}
 }
@@ -7353,15 +7361,20 @@ function kill(src, tgt, ctx) {
 }
 
 /* ================= AI ================= */
+/* 「敵に気づかれない」でいるあいだ（2026-10-04）。
+   盤には立っているのに誰も狙ってこないので、見ている人には訳が分からない。
+   盤の記録にも「隠れ身」として出して、頭の上に印を立てる */
+function isHidden(e) {
+  return e._hideLeft > 0
+    || (e.passives || []).some(p => p.kind === 'untargetable' && condOk(e, p));
+}
 function pickTarget(u, allies, enemies, rules, rng) {
   if (u.statuses['混乱']) {
     const all = live(allies).filter(a => a !== u).concat(live(enemies));
     return all.length ? all[rng.int(all.length)] : null;
   }
   // 「敵の攻撃対象にならない」相手は候補から外す。全員が対象外なら仕方なく通常どおり選ぶ
-  const hidden = (e) => e._hideLeft > 0
-    || (e.passives || []).some(p => p.kind === 'untargetable' && condOk(e, p));
-  const visible = live(enemies).filter(e => !hidden(e));
+  const visible = live(enemies).filter(e => !isHidden(e));
   let l = visible.length ? visible : live(enemies);
   if (!l.length) return null;
   /* 天守（2026-10-02）。射程1の者は「ほかに届く敵がいないとき」だけ城を叩く。
@@ -7448,6 +7461,10 @@ function runCommand(u, cmd, allies, enemies, ctx) {
   const byId = id => allies.concat(enemies).find(x => x.id === id);
   const attack = (tg) => {
     if (!tg || !tg.alive || !canReach(u, tg, rangeOf(u), rules)) return false;
+    /* 人が指図しても、斬れない相手は斬れない（2026-10-04）。
+       洗脳で寝返っている者は いまこちら側なので斬らない。
+       「敵に気づかれない」でいる相手にも手は届かない（AI と同じ決まり） */
+    if (effSide(tg) === effSide(u) || isHidden(tg)) return false;
     fireSkills(u, '攻撃開始時', allies, enemies, tg, ctx);
     let mul = rules.damage.normalAttackRate;
     if (u.empowerNext) { mul *= u.empowerNext; u.empowerNext = null; }
@@ -8160,7 +8177,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
           // 射程と必要ゲージも入れる。手動操作の画面が「どこまで届くか」を出すのに使う
           range: rangeOf(u), straight: straightOnly(u) || undefined,
           ultCost: u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge,
-          st: Object.keys(u.statuses || {}),
+          st: Object.keys(u.statuses || {}).concat(isHidden(u) ? ['隠れ身'] : []),
           // いま掛かっている一時的な強化・弱化（2026-09-20）。
           // 常時の固有・特技は全員が持っていて印にならないので、持続時間つきのものだけ出す。
           mods: buffSigns(u),
@@ -8772,7 +8789,7 @@ let ST_STEP = 0;
 /* 複数あるときは並べずに、0.5秒ごとに1つずつ見せる（2026-09-20）。
    盤面の外の顔の列の状態異常（.rbad）からも呼ぶので外に出した（2026-09-23） */
 /* 状態異常の絵が無いときの一字（2026-10-04）。盤のコマの頭の上で使う */
-const ST_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '恋' };
+const ST_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 隠れ身: '👣' };
 function stFace(st) {
   const kids = st.children;
   if (!kids.length) return;
@@ -32241,7 +32258,15 @@ function drawBattle() {
     if (pawn) { pawn.style.outline = '2px dashed #fff'; pawn.style.outlineOffset = '2px'; }
     const W2 = BATTLE.rules.board.width, H2 = BATTLE.rules.board.height;
     const cellAt = (x, y) => boardCache.children[y * W2 + x];
-    const foes = units.filter(u => u.alive && u.id[0] !== a.unit[0]);
+    /* 誰が敵かは、洗脳を踏まえて決める（2026-10-04）。
+       洗脳されている者は向こう側として戦うので、
+       寝返った味方は斬る相手になり、寝返らせた敵は斬れない。
+       「敵に気づかれない」でいる相手も狙えない（盤に立っていても手が届かない）。
+       どちらも頭の上の印（恋・隠）で分かるようにしてある */
+    const sideOf = (u) => ((u.st || []).includes('洗脳') ? (u.id[0] === 'A' ? 'B' : 'A') : u.id[0]);
+    const myside = sideOf(BATTLE.live.get(a.unit) || { id: a.unit, st: [] });
+    const foes = units.filter(u => u.alive && sideOf(u) !== myside
+      && !(u.st || []).includes('隠れ身'));
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
     /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
        素の射程2は斜めにも届くが、「正面2マス」を継いだだけの者は筋の上しか届かない。
@@ -33600,7 +33625,7 @@ function screenBattle() {
 /* ---- 盤面の外に並べる顔（2026-09-23）----
    敵は上、味方は下。一体ずつ、兵量の帯・状態異常・強化弱化・総大将の印を添える。
    drawBattle から毎回組み直すので、中身はいつでも今の盤面と合っている。 */
-const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕' };
+const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 隠れ身: '👣' };
 function rosterRow(box, side) {
   if (!box) return;
   const units = liveUnits().filter(u => String(u.id).startsWith(side + '-'));

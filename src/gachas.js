@@ -7,6 +7,9 @@
            後ろの絵 app/assets/bg/gacha_<印>.jpg の名にもなる（置くだけで反映）
    pick    ピックアップ。そのくじで初めて出すURの武将番号。
            **そのくじだけのもの**で、ほかのくじには出ない（2026-10-04 の決めごと）
+   cast    そのくじで初めて出す武将の番号ぜんぶ（位は問わない）。
+           pick（UR）も合わせてここに書く。**そのくじだけのもの**で、
+           ほかのくじには位にかかわらず出ない（2026-10-04）
    home    true にすると「ふだんのくじ」。選ばれていないときの既定になる。
            一つだけ立てること
    pickUp  ピックアップがUR枠のうち何割を占めるか。書かなければ半分（0.5）
@@ -22,7 +25,8 @@
            使った日は P.gfree に くじの印ごとに控える。日が変われば また引ける
    どちらも書かなければ、これまでどおり全部のURが同じ率で出る。
 
-   UR以外（SSR・SR・R・N）は どのくじでも同じ顔ぶれ・同じ率。 */
+   UR以外（SSR・SR・R・N）も、cast に書いた者は そのくじだけに出る。
+   それ以外の顔ぶれと率は、どのくじでも同じ。 */
 export const GACHAS = [
   {
     id: 'kamimatsuri1', name: '神キャラ祭り第一弾', sub: '戦国を支えた者達',
@@ -31,6 +35,11 @@ export const GACHAS = [
     ticket: true,                // 祭の札で引ける（2026-09-30）
     bgUp: 80,                    // 題字を残したまま、二匹を少し大きく見せる（2026-09-30）
     pick: [103, 104],            // 宮本ムサシ土佐・千リキュパグ（このくじだけ）
+    /* 祭りで迎えた十体（2026-10-04）。位にかかわらず このくじだけに出る。
+       猿飛サスケニーズ・石川ゴエシュナ・宮本ムサシ土佐・千リキュパグ・
+       伊達マサシェパ・弥助クロラブ・出雲オクニパピヨン・望月チヨスピッツ・
+       果心コジゾイ・雑賀マゴハウンド */
+    cast: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
     // urs は書かない。共通ぶん（2・38・61・71）が自ずと入り、信わんは入らない
   },
   {
@@ -42,7 +51,8 @@ export const GACHAS = [
     home: true,                  // ふだんのくじ（えらばれていないときの既定・2026-10-04）
     freeDay: true,               // 一日にひとたび、一度引きがただ（2026-10-02）
     pick: [1],                   // 織田信わんはここだけ
-    // urs は書かない。共通ぶん（2・38・61・71）が自ずと入り、祭りの二匹は入らない
+    cast: [1],
+    // urs は書かない。共通ぶん（2・38・61・71）が自ずと入り、祭りの十体は入らない
   },
 ];
 /* ふだんのくじ（2026-10-04）。えらばれていないときは かならずここに落とす。
@@ -51,11 +61,31 @@ export const GACHAS = [
 export const homeGacha = () => GACHAS.find(g => g.home) || GACHAS[0];
 export const gachaOf = id => GACHAS.find(g => g.id === id) || homeGacha();
 
-/* どのくじのピックアップでもないUR＝みなの共通ぶん（2026-10-04）。
-   「あとから出すくじに、前のくじの顔ぶれは混ざらない」という決めごとを、
-   手で書き写さずに守るための仕掛け。新しいくじは pick を書くだけでよい */
+/* そのくじだけの顔ぶれ（2026-10-04）。pick（UR）と cast（位を問わず）を合わせたもの */
+const castOf = g => new Set([...((g && g.cast) || []), ...((g && g.pick) || [])]);
+/* ほかのくじのものになっている番号。ここに載っている者は このくじには出さない */
+function foreignOf(g) {
+  const mine = castOf(g);
+  const out = new Set();
+  for (const o of GACHAS) if (o !== g) for (const n of castOf(o)) if (!mine.has(n)) out.add(n);
+  return out;
+}
+/* ほかのくじのものを取りのぞいた顔ぶれ（位ごと）。
+   「あとから出すくじに、前のくじの顔ぶれは混ざらない」を、
+   手で書き写さずに守るための仕掛け。新しいくじは pick と cast を書くだけでよい */
+export function castPool(g, POOL) {
+  const ng = foreignOf(g);
+  if (!ng.size) return POOL;
+  const out = {};
+  for (const r of Object.keys(POOL)) {
+    const kept = POOL[r].filter(c => !ng.has(c.no));
+    out[r] = kept.length ? kept : POOL[r];   // 空になるなら元のまま（絵が無くても動く、と同じ考え）
+  }
+  return out;
+}
+/* どのくじのものでもないUR＝みなの共通ぶん */
 function commonUrs(POOL) {
-  const taken = new Set(GACHAS.flatMap(g => g.pick || []));
+  const taken = new Set(GACHAS.flatMap(g => [...castOf(g)]));
   return (POOL.UR || []).map(c => c.no).filter(n => !taken.has(n));
 }
 
@@ -86,7 +116,9 @@ export function urRatesOf(g, POOL, urRate) {
    drawOne は並びから等しく1枚引くので、枚数がそのまま重みになる。
    こうすると引き当ての決まり（御籤番号から同じ結果が出る）を崩さずに済む。
    そのくじのURが1体もいなければ全部のURに落とす（「絵が無くても動く」と同じ考え） */
-export function poolOf(g, POOL) {
+export function poolOf(g, POOL0) {
+  // まず ほかのくじのものを取りのぞく（位を問わず）。そのうえでURの重みを付ける
+  const POOL = castPool(g, POOL0);
   const { pick, rest } = urListOf(g, POOL);
   if (!pick.length && !rest.length) return POOL;
   if (!pick.length || !rest.length) {

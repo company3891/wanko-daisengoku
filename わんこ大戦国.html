@@ -8200,13 +8200,24 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     snapshot(0);
     for (let turn = 1; turn <= maxTurn && !winner; turn++) {
       t = turn * SEC; ctx.t = t;
-      /* 伏兵（敵に攻撃されなくなる）の出入りは、盤を写すより先に済ませる（2026-10-04）。
-         前はスナップショットのあとで数を引いていたので、
-         もう切れている者に 👣 が立ったまま、そのターンに斬られていた。
-         張るほうも一拍遅れて見えていた。鬮（くじ）を引く順はそのままなので、
+      /* 盤に出す印は、そのターンの中身とぴったり合わせる（2026-10-04）。
+         前は「盤を写す → 目減りさせる」の順だったので、
+         残り1ターンの印が立ったまま、そのターンにはもう効いていなかった。
+         実測で ひるみ90.1%・洗脳50%・混乱28.1%・炎上28.1%・感電12.5%・
+         強化弱化の矢印7.3% が嘘をついていた。
+         そこで「目減り → 盤を写す → 兵量の減る手当て」の順に組み替えた。
+         兵量を削る炎上と感電だけは写したあとに置く ── 写した兵量に
+         盤が炎上の出来事を重ねて引くので、先に引くと二重になる。
+         鬮（くじ）を引くのは伏兵のところだけで、その順は変えていないので、
          同じ種では同じ戦になる */
       for (const u of A.concat(B)) {
         if (!u.alive) continue;
+        u.uniqueCd = Math.max(0, u.uniqueCd - SEC);
+        for (const m of u.mods) m.left -= SEC;
+        u.mods = u.mods.filter(m => m.left > 0);
+        for (const k of Object.keys(u.statuses)) { u.statuses[k] -= SEC; if (u.statuses[k] <= 0) delete u.statuses[k]; }
+        if (u.cover) { u.cover.left -= SEC; if (u.cover.left <= 0) u.cover = null; }
+        u._turn = turn;
         // 「N%の確率でMターン敵に攻撃されなくなる」（2026-09-20）
         if (u._hideLeft > 0) u._hideLeft -= 1;
         for (const e of (u.passives || [])) {
@@ -8220,14 +8231,9 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         }
       }
       snapshot(turn);
-      // ターン開始時の更新（継続時間・状態異常・感電）
+      // 兵量の減る手当て（炎上・感電）は、盤を写したあと
       for (const u of A.concat(B)) {
         if (!u.alive) continue;
-        u.uniqueCd = Math.max(0, u.uniqueCd - SEC);
-        for (const m of u.mods) m.left -= SEC;
-        u.mods = u.mods.filter(m => m.left > 0);
-        for (const k of Object.keys(u.statuses)) { u.statuses[k] -= SEC; if (u.statuses[k] <= 0) delete u.statuses[k]; }
-        if (u.cover) { u.cover.left -= SEC; if (u.cover.left <= 0) u.cover = null; }
         // 炎上（2026-09-20）：掛けた側の火力の N% を毎ターン削る
         if (u.statuses['炎上']) {
           const b = u._burn || {};
@@ -8245,8 +8251,14 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         }
         const foes = TEAM(effSide(u) === 'A' ? 'B' : 'A');
         u._frontEnemyCount = live(foes).filter(e => Math.abs(e.x - u.x) <= 1 && Math.abs(e.y - u.y) <= 3).length;
-        u._turn = turn;
       }
+      /* 検め用の控え（2026-10-04）。opts.markCheck を立てたときだけ流す。
+         盤に出した印（snapshot）と、そのターンに本当に効いている中身が
+         合っているかを tools/mark_test.mjs が突き合わせる */
+      if (log && opts.markCheck) log.push({ t: +t.toFixed(1), type: 'truth', turn,
+        units: A.concat(B).map(u => ({ id: u.id,
+          st: Object.keys(u.statuses || {}).concat(isHidden(u) ? ['伏兵'] : []),
+          mods: buffSigns(u) })) });
       /* ターンの頭でころがす常時効果は、状態異常の目減りが**全員ぶん終わってから**まわす
          （2026-09-28）。同じまわしの中でやると、洗脳をかけた相手がそのすぐあとに
          目減りを受けてしまい、2ターンのはずが1ターンで切れていた */
@@ -8339,6 +8351,13 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       const order = A.concat(B).filter(u => u.alive && !u.isKeep)   // 天守は動かない（2026-10-02）
         .sort((a, b) => stat(b, '速さ') - stat(a, '速さ') || b.initiative - a.initiative);
       for (const u of order) {
+        /* ひるんで手番を落としたことを盤に伝える（2026-10-04）。
+           ひるみは既定2秒＝1ターンで、付けた次のターンの頭には消えている。
+           つまり「付いたそのターンに、まだ動いていなければ手番を落とす」技。
+           盤の記録（ターンの頭の写し）には乗らないので、
+           このときだけ出来事として流して、頭の上に 怯 を出す */
+        if (u.alive && u.statuses['ひるみ'] && log)
+          log.push({ t: +t.toFixed(1), type: 'flinch', src: u.id });
         if (!u.alive || u.statuses['ひるみ']) continue;
         if (u._skipTurn === turn) continue;   // ターン開始時の効果で行動を使い切った
         /* 洗脳（2026-09-28）。寝返っているあいだは、向こう側の一員として動く。
@@ -32005,6 +32024,10 @@ function applyEvent(live, e) {
     // 兵量1で耐えた（2026-10-02）。engine が残りの兵量を渡してくる
     case 'endure': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(1, t.hp); } break; }
     case 'ko': { const t = get(e.tgt); if (t) { t.alive = false; t.hp = 0; } break; }
+    /* ひるんで手番を落とした（2026-10-04）。
+       ひるみは1ターンでターンの頭の写しには乗らないので、ここで印だけ足す。
+       次の写しで消える */
+    case 'flinch': { const t = get(e.src); if (t) t.st = [...new Set([...(t.st || []), 'ひるみ'])]; break; }
     case 'withdraw': { const u = get(e.src); if (u) u.alive = false; break; }
     case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(t.hp, 1); } break; }
   }
@@ -32105,6 +32128,9 @@ async function showEvent(e, my) {
       else SFX.hit();
       await sleep(e.crit ? 260 : 150); return;
     }
+    case 'flinch':
+      applyEvent(live, e); drawBattle(); await sleep(260); return;
+
     case 'burn':
       applyEvent(live, e); drawBattle();
       fxBurst(cellOf(e.tgt), 'burn', { ms: 440 });

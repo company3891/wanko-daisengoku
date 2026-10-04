@@ -6673,6 +6673,10 @@ function applyEvent(live, e) {
     // 兵量1で耐えた（2026-10-02）。engine が残りの兵量を渡してくる
     case 'endure': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(1, t.hp); } break; }
     case 'ko': { const t = get(e.tgt); if (t) { t.alive = false; t.hp = 0; } break; }
+    /* ひるんで手番を落とした（2026-10-04）。
+       ひるみは1ターンでターンの頭の写しには乗らないので、ここで印だけ足す。
+       次の写しで消える */
+    case 'flinch': { const t = get(e.src); if (t) t.st = [...new Set([...(t.st || []), 'ひるみ'])]; break; }
     case 'withdraw': { const u = get(e.src); if (u) u.alive = false; break; }
     case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(t.hp, 1); } break; }
   }
@@ -6773,6 +6777,9 @@ async function showEvent(e, my) {
       else SFX.hit();
       await sleep(e.crit ? 260 : 150); return;
     }
+    case 'flinch':
+      applyEvent(live, e); drawBattle(); await sleep(260); return;
+
     case 'burn':
       applyEvent(live, e); drawBattle();
       fxBurst(cellOf(e.tgt), 'burn', { ms: 440 });

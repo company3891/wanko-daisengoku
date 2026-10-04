@@ -810,6 +810,10 @@ const kuSum = b => `${b && b.name || '名前未設定'}　Lv.${(b && b.lv) || 1}
 
 async function kuPush(force) {
   if (!linked()) return { ok: false, err: 'off' };
+  /* 「あとで決める」のあいだは自動の控えを止める（2026-10-04）。
+     どうせ版が食い違って弾かれるので、送るたびに同じ札が出てうるさい。
+     〈今すぐ〉を押したとき（force）だけは通す ── 人が望んで送っているので */
+  if (S.kuHold && !force) return { ok: false, err: 'hold' };
   const blob = kuBlob();
   const text = JSON.stringify(blob);
   if (!force && text === kuLast) return { ok: true, same: true };
@@ -876,6 +880,7 @@ async function kuClaim() {
 function kuTakeGo(blob, rev) {
   if (!replacePlayer(blob)) { S.kuMsg = 'この端末に書き込めませんでした'; draw(); return; }
   setRev(rev);
+  S.kuPend = null; S.kuHold = false;
   location.reload();
 }
 
@@ -893,11 +898,17 @@ function kuWarSheet() {
     el('button', { class: 'go wide', onclick: async () => {
       S.kuMsg = '送っています…'; draw();
       const r = await pushSaveForce(kuBlob(), w.rev);
-      S.kuWar = null; S.kuMsg = r.ok ? 'この端末の記録を残しました' : '送れませんでした';
+      S.kuWar = null;
+      if (r.ok) { S.kuPend = null; S.kuHold = false; S.kuMsg = 'この端末の記録を残しました'; }
+      else S.kuMsg = '送れませんでした';
       kuWatch(); draw();
     } }, 'この端末を残す'),
     el('button', { class: 'ghost wide', onclick: () => kuTakeGo(w.blob, w.rev) }, 'サーバーを残す'),
-    el('button', { class: 'ghost wide', onclick: close }, 'あとで決める')));
+    /* あとで決める＝まだ選びたくない。自動の控えを止めて、
+       引き継ぎの札から選び直せるように、食い違いの中身を取っておく（2026-10-04） */
+    el('button', { class: 'ghost wide', onclick: () => {
+      S.kuPend = w; S.kuHold = true; close();
+    } }, 'あとで決める')));
 }
 
 /* 別の端末から持ってくるときの、最後の確かめ */
@@ -1007,8 +1018,13 @@ function linkSheet() {
     /* 蔵への控え（2026-10-04）。蔵が無い作りでも遊べるよう、KURA が空なら出さない */
     KURA ? el('div', { class: 'lkpass' },
       el('span', { class: 'l' }, 'バックアップ'),
-      el('span', { class: 'd' }, linked() ? '接続済み' : '未接続'),
-      linked()
+      el('span', { class: 'd' }, S.kuPend ? '記録が二つ' : linked() ? '接続済み' : '未接続'),
+      S.kuPend
+        /* 「あとで決める」のまま止まっている。ここから選び直せる（2026-10-04） */
+        ? el('button', { class: 'ghost sm', onclick: () => {
+            S.kuWar = S.kuPend; S.kuMsg = ''; SFX.pick(); draw();
+          } }, 'えらぶ')
+        : linked()
         ? el('button', { class: 'ghost sm', onclick: async () => {
             S.lkMsg = '送っています…'; draw();
             const r = await kuPush(true);

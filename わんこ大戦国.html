@@ -6645,20 +6645,28 @@ function applyWeather(units, w, rules) {
    伸ばすのは効果量（pct・上限・付与率）と、間隔（何回ごと）だけ。
    持続ターン数・ゲージ量・かばう割合は動かさない */
 const SKILL_MULT = [1, 1, 1.15, 1.3];
-function scaleOne(e, m) {
+function scaleOne(e, m, lv) {
   let o = null;
   const put = (k, v) => { o = o || { ...e }; o[k] = v; };
   if (typeof e.pct === 'number') put('pct', e.pct * m);
   if (typeof e.max === 'number') put('max', e.max * m);
   if (typeof e.chance === 'number') put('chance', Math.min(1, e.chance * m));
-  /* 開幕の奥義ゲージも位で伸ばす（2026-10-04）。
-     「奥義ゲージ+1」は整数なので、位を上げても 1 のままだった。
-     ゲージは小数のまま持てるので 1.3 をそのまま足す。
-     画面の玉は切り捨てで描くから見た目は変わらないが、奥義が来るのが少し早くなる。
-     ★数字を見せずに効かせる、という見せ方の決めごとにも合う */
-  if (typeof e.gauge === 'number') put('gauge', e.gauge * m);
+  /* 倍率で効くものも位で伸ばす（2026-10-05）。
+     「回復100%」「死に際の一撃150%」などは rate で持っているのに掛け忘れていた。
+     pct と同じ仲間なので同じように伸ばす */
+  if (typeof e.rate === 'number') put('rate', e.rate * m);
   if (typeof e.proc === 'number') put('proc', Math.min(1, e.proc * m));
   if (typeof e.every === 'number') put('every', Math.max(1, Math.round(e.every / m)));
+  /* 倍率しか持たない仕掛け（褒美1.5倍・次の一撃1.5倍・特効）も伸ばす。
+     ほかに伸びるところがある仕掛け（当たる見込み＋倍率など）は二重に効くので触らない */
+  if (o === null && typeof e.mul === 'number') put('mul', e.mul * m);
+  /* ---- 整数で効くものは、倍率では動かない（2026-10-05 ゆうごさんの指図）----
+     「奥義ゲージ+1」に1.3を掛けても四捨五入で1に戻る。小数で足す手もあったが、
+     **目に見えないとバグだと思われる**ので、位ひとつにつき一つ増やす形にした。
+     Lv1＝+1／Lv2＝+2／Lv3＝+3。玉の数で誰にでも分かる */
+  if (typeof e.gauge === 'number' && lv > 1) put('gauge', e.gauge + (lv - 1));
+  /* 強化の続く時間を伸ばす仕掛けも同じ（3／4／5ターン） */
+  if (e.kind === 'durPlus' && typeof e.turns === 'number' && lv > 1) put('turns', e.turns + (lv - 1));
   return o || e;
 }
 function scaleNormals(u, lv) {
@@ -6666,10 +6674,11 @@ function scaleNormals(u, lv) {
   if (!ns || !ns.length) return;
   let any = false;
   const out = ns.map((eff, i) => {
-    const m = SKILL_MULT[lv[i] || 1] || 1;
-    if (m === 1 || !eff) return eff;
+    const n = lv[i] || 1;
+    const m = SKILL_MULT[n] || 1;
+    if (n <= 1 || !eff) return eff;
     any = true;
-    return eff.map(e => scaleOne(e, m));
+    return eff.map(e => scaleOne(e, m, n));
   });
   if (!any) return;
   u.compiled = {
@@ -30470,10 +30479,14 @@ function cardSheet(c) {
            合戦中に敵の札を開くと、明智ミツワンの特技が三つとも「空き」になっていたのはこれ */
         const moved = mine2 && patch && t.row != null && nm !== (t.baked || null);
         if (moved) out.push(...redrawSlot(k, patch, t, now, c.no));
-        /* 固有（◆）に位は無い。継いだ◆を二・三の枠に入れると
-           Lv.1/3 と出てしまっていたので、固有の枠には出さない（2026-10-04） */
+        /* 固有（◆）に位は無い（2026-10-05 改）。
+           はじめは「枠の中身が固有か」で見ていたが、それだと図鑑など
+           持ち物の記録が無いところで 位がまるごと消えてしまった。
+           ◆は札に刷ってある字なので、**名に◆が付いていたら出さない**。
+           これなら持っていない武将の札でも同じ判定で通る */
         const cur = moved ? now : sl[t.slot];
-        if (t.slot && cur && !cur.uniq) out.push(el('b', {
+        const nmNow = (cur && cur.sk && cur.sk.name) || t.baked || '';
+        if (t.slot && cur && !nmNow.includes('◆')) out.push(el('b', {
           class: 'clv lv',
           style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};font-size:${fs(t.size)}`,
         }, `Lv.${sk[t.slot] || 1}/3`));

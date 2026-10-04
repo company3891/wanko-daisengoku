@@ -4798,10 +4798,14 @@ function cardSheet(c) {
            合戦中に敵の札を開くと、明智ミツワンの特技が三つとも「空き」になっていたのはこれ */
         const moved = mine2 && patch && t.row != null && nm !== (t.baked || null);
         if (moved) out.push(...redrawSlot(k, patch, t, now, c.no));
-        /* 固有（◆）に位は無い。継いだ◆を二・三の枠に入れると
-           Lv.1/3 と出てしまっていたので、固有の枠には出さない（2026-10-04） */
+        /* 固有（◆）に位は無い（2026-10-05 改）。
+           はじめは「枠の中身が固有か」で見ていたが、それだと図鑑など
+           持ち物の記録が無いところで 位がまるごと消えてしまった。
+           ◆は札に刷ってある字なので、**名に◆が付いていたら出さない**。
+           これなら持っていない武将の札でも同じ判定で通る */
         const cur = moved ? now : sl[t.slot];
-        if (t.slot && cur && !cur.uniq) out.push(el('b', {
+        const nmNow = (cur && cur.sk && cur.sk.name) || t.baked || '';
+        if (t.slot && cur && !nmNow.includes('◆')) out.push(el('b', {
           class: 'clv lv',
           style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};font-size:${fs(t.size)}`,
         }, `Lv.${sk[t.slot] || 1}/3`));

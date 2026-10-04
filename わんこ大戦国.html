@@ -380,10 +380,11 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 /* 癒した量は水色で（2026-10-04）。「かばう」「耐えた」などの言葉は緑のまま、
    数だけ水色にして、白い傷の数と並んでも一目で見分けられるようにする */
 .pop.heal.hp{color:#8fe0ff;text-shadow:0 1px 0 #04243a,0 0 7px #2a9fe0,0 1px 3px #000}
-/* 状態異常はコマ絵の頭の上（2026-10-04）。
-   .stand の中なので、盤が傾いても印だけは立っている。
-   コマの上ばしから少し浮かせて、犬の顔にかぶらないようにした */
-.pst{position:absolute;left:50%;top:-14%;transform:translateX(-50%);z-index:36;
+/* 状態異常はコマ絵の頭の中央に重ねる（2026-10-04）。
+   はじめ頭の「上」に浮かせたが、前後の列のコマと近くて
+   どの犬の印か迷ったので、頭そのものに重ねることにした。
+   .stand の中なので、盤が傾いても印だけは立っている */
+.pst{position:absolute;left:50%;top:2%;transform:translateX(-50%);z-index:36;
   display:flex;gap:1px;align-items:center;pointer-events:none}
 .pst .psb.art{width:17px;height:17px;object-fit:contain;display:block;
   filter:drop-shadow(0 1px 2px #000) drop-shadow(0 0 3px #000)}
@@ -393,8 +394,8 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
   text-shadow:0 1px 2px #000}
 /* いくつも付いているときは拍で入れ替わる。入れ替わりが分かるよう軽く点す */
 .pst.multi .psb{animation:stblink .5s steps(2,end) infinite}
-/* 2頭身の絵は頭が上へはみ出しているので、その上に逃がす */
-.pawn.sprite .pst{top:-20%}
+/* 2頭身の絵は頭が上のほうにあるので、そこへ合わせる */
+.pawn.sprite .pst{top:6%}
 .pawn.dead .pst{display:none}
 .pop.ko{font-size:12px;color:#ff8d7a}
 /* 会心は別物として見せる。明朝の太字、黄から赤へのグラデ、黒フチ、上に「会心」 */
@@ -5676,6 +5677,14 @@ function parseSentence(s, out) {
   if ((m = s.match(new RegExp('戦闘不能になる[^。]{0,20}?(火力|賢さ|知力|知略|防御|守備|回復|速さ)' + N + '%で反撃')))) {
     push({ kind: 'dyingStrike', stat: normalizeStat(m[1]), rate: +m[2] / 100, target: 'enemy1' });
   }
+  /* 言い回し違いの道連れ（2026-10-04）。
+     「自身が死亡時、自身の◯◯を攻撃力とし、敵総大将に150%のダメージを与える」
+     ── 雑賀マゴハウンドの鷹の目がこの形で、どこにも引っかからず
+     ただのダメージ技として宙に浮いていた（timing も常時だったので一度も出なかった） */
+  if ((m = s.match(new RegExp('(?:自身が)?死亡時[^。]{0,24}?(火力|賢さ|知力|知略|防御|守備|回復|速さ)(?:ステータス)?を攻撃力とし[^。]{0,16}?' + N + '%のダメージ')))) {
+    // 「◯◯を攻撃力とし」は正式記法なので statAsAttack を立てる（立てないと火力に倒される）
+    push({ kind: 'dyingStrike', stat: normalizeStat(m[1]), rate: +m[2] / 100, target: 'enemy1', statAsAttack: true });
+  }
   // ② 通常攻撃の範囲を恒久的に変える
   {
     const SHAPE = { 十字: 'cross1', 周囲: 'around1', 一直線: 'line', 正面3マス: 'frontRow3', 前列3マス: 'frontRow3', 敵全体: 'allEnemies', 全体: 'allEnemies',
@@ -6056,6 +6065,13 @@ function parseEffect(text) {
     const before = effects.length;
     const ok = parseSentence(s, effects);
     if (!ok && effects.length === before) unparsed.push(s);
+  }
+  /* 道連れと同じ一撃が、ふつうのダメージ技としても二重に読まれることがある（2026-10-04）。
+     「自身が死亡時、…を攻撃力とし、…150%のダメージ」は
+     道連れの筋でも ダメージの筋でも引っかかるので、重なったほうを落とす */
+  for (const d of effects.filter(e => e.kind === 'dyingStrike')) {
+    const i = effects.findIndex(e => e.kind === 'damage' && e.stat === d.stat && e.rate === d.rate);
+    if (i >= 0) effects.splice(i, 1);
   }
   for (let i = 0; i < effects.length; i++) {
     if (effects[i].kind === 'stackMax') {
@@ -7273,11 +7289,16 @@ function kill(src, tgt, ctx) {
     const mine = mineOf(ctx, tgt), foes = foesOf(ctx, tgt);
     for (const a of live(mine)) fireSkills(a, '味方が戦闘不能になったとき', mine, foes, live(foes)[0] || null, ctx);
   }
-  for (const e of src.compiled.normals.flat().concat(src.compiled.unique))
-    if (e.kind === 'stackOnKill') for (const k of e.stats) {
-      const cur = src.stacks[k] || 0;
-      src.stacks[k] = e.max != null ? Math.min(e.max, cur + e.pct) : cur + e.pct;
-    }
+  /* 「味方が敵を倒すたびに自身の◯◯+N%」は、倒した本人だけでなく
+     その陣の味方みなに積む（2026-10-04）。
+     前は倒した者だけを見ていたので、千リキュパグの「医療の神秘」は
+     自分で敵を倒したときしか積まず、ほとんど効いていなかった */
+  for (const a of live(mineOf(ctx, src)))
+    for (const e of a.compiled.normals.flat().concat(a.compiled.unique))
+      if (e.kind === 'stackOnKill') for (const k of e.stats) {
+        const cur = a.stacks[k] || 0;
+        a.stacks[k] = e.max != null ? Math.min(e.max, cur + e.pct) : cur + e.pct;
+      }
 }
 
 /* ================= AI ================= */
@@ -7735,6 +7756,24 @@ const PASSIVE = new Set(['dyingStrike', 'attackShape', 'attackStatus', 'empowerN
   'durPlus', 'critTurn', 'healEveryTurn', 'focusTurn', 'matchStat', 'charm', 'rewardMul']);
 /* 戦闘開始時に一度だけ仕込む種類（2026-10-02）。下の「開戦の仕込み」で読む */
 const SETUP = new Set(['startGauge', 'critCounter', 'scaleOnHpLost', 'revive', 'cover', 'counter']);
+/* 「常時」の技のうち、毎ターン効くものとして撃つ種類（2026-10-04）。
+   「常時」は読んで字のごとく いつも効いている、という決まり。
+   数値の上げ下げ（buff／mod）・常時のしかけ（PASSIVE）・開戦の仕込み（SETUP）は
+   それぞれ別のところが受け持っているので、ここで撃つのは その残り。
+   いまは癒しだけ ── 出雲オクニパピヨンの「巫女の手」が、
+   どの筋にも乗らずに一度も出ていなかった。
+   ダメージの技をここに入れてはいけない（毎ターン無料の追加攻撃になる） */
+const EVERY_TURN = new Set(['heal', 'healPctMaxHp']);
+function everyTurnEffects(u) {
+  const out = [];
+  const trigs = (u.compiled.normalTriggers || [])
+    .concat(u.compiled.uniqueTrig ? [u.compiled.uniqueTrig] : []);
+  for (const t of trigs) {
+    if (!ALWAYS_TIMINGS.has(t.timing)) continue;
+    for (const e of t.effects) if (EVERY_TURN.has(e.kind) && e.onTurn == null) out.push(e);
+  }
+  return out;
+}
 /* 固有のうち「その場で撃つ」ぶんだけ。常時の種類と仕込みの種類は
    発動を待たずに効いているので、タイミングで撃つと二重になる。
    「通常攻撃に N% で◯◯を付与する」の一文は、読み手が status と attackStatus の
@@ -8026,8 +8065,11 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       if (!ALWAYS_TIMINGS.has(t.timing)) continue;
       for (const e of t.effects) {
         if (e.dur == null && e.kind === 'buff') u.mods.push({ stat: e.stat, pct: e.pct, left: Infinity, cond: e.cond });
+        /* flat（「射程+1」のように、割合ではなく数そのもの）を取りこぼしていた（2026-10-04）。
+           pct だけ写していたので、最上ヨシアキータの射程+1 も
+           雑賀マゴハウンドの射程+2 も、盤では一度も伸びていなかった */
         if (e.dur == null && e.kind === 'mod' && e.key !== 'gauge' && e.key !== 'hpUp')
-          u.mods.push({ key: e.key, pct: e.pct, left: Infinity, cond: e.cond });
+          u.mods.push({ key: e.key, pct: e.pct, flat: e.flat, left: Infinity, cond: e.cond });
         if (e.kind === 'mod' && e.key === 'hpUp') { u.maxHp = Math.round(u.maxHp * (1 + e.pct)); u.hp = u.maxHp; }
       }
     }
@@ -8114,6 +8156,16 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
          目減りを受けてしまい、2ターンのはずが1ターンで切れていた */
       for (const u of A.concat(B)) {
         if (!u.alive) continue;
+        /* 常時の癒し（2026-10-04）。「常時」は いつも効いている、という決まりなので
+           毎ターンここで一度ころがす。行動を使わない（手番とは別） */
+        {
+          const ev = everyTurnEffects(u);
+          if (ev.length) {
+            const mine = TEAM(effSide(u)), foes = TEAM(effSide(u) === 'A' ? 'B' : 'A');
+            const ctxT = { rules, rng, log, t, A, B, _actionId: 0 };
+            withVia(ctxT, 'skill', () => applyEffects(ev, u, mine, foes, null, ctxT));
+          }
+        }
         /* 抜刀術・一期一会・集中の呼吸・遠国の忠義・姫の魅力（2026-09-28）。
            どれも「毎ターン確率で」なので、行動順を決める前にここでまとめて判定する */
         const SECT = rules.time?.secPerTurn ?? 2;

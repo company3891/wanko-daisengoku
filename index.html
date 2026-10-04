@@ -5842,7 +5842,14 @@ function parseSentence(s, out) {
   // 一度だけ兵量1で生き残る（確率を書いていなければ100%）
   if (/一度死んでも兵量1で生き残る|一度だけ兵量1で生き残る/.test(s)) push({ kind: 'endure', chance: 1 });
   // 奥義ゲージをMAXにする
-  if (/奥義ゲージをMAXにする/.test(s)) push({ kind: 'startGauge', pct: 100, target: /全員|味方全体/.test(s) ? 'allAllies' : 'self' });
+  /* 「誰の」ゲージかは、その一文だけで決める（2026-10-04）。
+     もとは効果文ぜんぶに 全員／味方全体 があるかを見ていたので、
+     石田ミツワンの「味方全体が攻撃されたら…、戦闘開始時奥義ゲージをMAXにする」が
+     書いていない味方ぜんぶのゲージ満タンになってしまっていた */
+  if (/奥義ゲージをMAXにする/.test(s)) {
+    const cl = s.split(/[、。]/).find(x => /奥義ゲージをMAXにする/.test(x)) || s;
+    push({ kind: 'startGauge', pct: 100, target: /全員|味方全体/.test(cl) ? 'allAllies' : 'self' });
+  }
   // 敵の注意を引き付ける（挑発）
   if (/敵の注意を引き付ける|挑発する/.test(s)) push({ kind: 'taunt' });
   // 味方全体が攻撃されたら、そのダメージ分を回復する
@@ -7975,9 +7982,15 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       .map(t => t.effects).flat();
     for (const e of alwaysNormals.concat(u.compiled.unique, u.compiled.ultimate)) {
       // startGauge は「奥義ゲージ+N%」表記。上限5ゲージの世界に換算して足す
-      if (e.kind === 'startGauge')
-        u.ult = Math.min(ultCapOf(u, rules),
-          u.ult + (e.gauge != null ? e.gauge : rules.ultimate.maxGauge * (e.pct / 100)));
+      /* 「全員の奥義ゲージをMAXにする」は味方みなに配る（2026-10-04）。
+         ここは自分にしか足しておらず、濃姫の固有が本人しか満たしていなかった。
+         発動のときに通る applyEffects のほうは allAllies を見ていたので、
+         戦のはじめに一度きり効く この筋だけが取りこぼしていた */
+      if (e.kind === 'startGauge') {
+        const add = e.gauge != null ? e.gauge : rules.ultimate.maxGauge * (e.pct / 100);
+        const who = e.target === 'allAllies' ? (A.includes(u) ? A : B) : [u];
+        for (const x of who) x.ult = Math.min(ultCapOf(x, rules), x.ult + add);
+      }
       if (e.kind === 'critCounter') u.critCounterEvery = e.every;
       if (e.kind === 'scaleOnHpLost') u.scaleOnHpLost = { stat: e.stat, max: e.max };
       if (e.kind === 'revive') u.reviveAvailable = e.pct;

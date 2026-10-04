@@ -362,6 +362,25 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
   font-size:14px;font-weight:800;color:#fff;pointer-events:none;white-space:nowrap;
   text-shadow:0 1px 0 #000,0 0 6px #000,0 0 3px #000}
 .pop.heal{color:#7fe08a}
+/* 癒した量は水色で（2026-10-04）。「かばう」「耐えた」などの言葉は緑のまま、
+   数だけ水色にして、白い傷の数と並んでも一目で見分けられるようにする */
+.pop.heal.hp{color:#8fe0ff;text-shadow:0 1px 0 #04243a,0 0 7px #2a9fe0,0 1px 3px #000}
+/* 状態異常はコマ絵の頭の上（2026-10-04）。
+   .stand の中なので、盤が傾いても印だけは立っている。
+   コマの上ばしから少し浮かせて、犬の顔にかぶらないようにした */
+.pst{position:absolute;left:50%;top:-14%;transform:translateX(-50%);z-index:36;
+  display:flex;gap:1px;align-items:center;pointer-events:none}
+.pst .psb.art{width:17px;height:17px;object-fit:contain;display:block;
+  filter:drop-shadow(0 1px 2px #000) drop-shadow(0 0 3px #000)}
+.pst .psb{font-style:normal;font-size:8.5px;font-weight:700;line-height:14px;height:14px;
+  padding:0 4px;border-radius:7px;white-space:nowrap;
+  background:#a8523ce6;border:1px solid #c76a4e;color:#ffd9cc;
+  text-shadow:0 1px 2px #000}
+/* いくつも付いているときは拍で入れ替わる。入れ替わりが分かるよう軽く点す */
+.pst.multi .psb{animation:stblink .5s steps(2,end) infinite}
+/* 2頭身の絵は頭が上へはみ出しているので、その上に逃がす */
+.pawn.sprite .pst{top:-20%}
+.pawn.dead .pst{display:none}
 .pop.ko{font-size:12px;color:#ff8d7a}
 /* 会心は別物として見せる。明朝の太字、黄から赤へのグラデ、黒フチ、上に「会心」 */
 .pop.crit{font-family:var(--mincho);font-size:30px;font-weight:900;line-height:1;

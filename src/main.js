@@ -6856,6 +6856,22 @@ async function showEvent(e, my) {
       await sleep(Math.min(ms, 360)); return;
     }
 
+    /* 癒しを目に見えるようにした（2026-10-04）。
+       これまで何も出していなかったので、兵量が戻っても盤では気づけなかった。
+       水色で「＋いくつ」を浮かせる。味方みなへの癒し（e.all）は一人ずつ出す */
+    case 'heal': {
+      applyEvent(live, e); drawBattle();
+      const amt = Math.round(e.v || 0);
+      if (amt <= 0) return;
+      SFX.heal();
+      const show = id => { fxBurst(cellOf(id), 'heal', { ms: 360 }); popNumber(cellOf(id), '+' + num(amt), 'heal hp'); };
+      if (e.all) {
+        const side = String(e.src || '')[0];
+        for (const u of live.values()) if (u.alive && String(u.id).startsWith(side + '-')) show(u.id);
+      } else show(e.tgt);
+      await sleep(90); return;
+    }
+
     case 'eva': SFX.eva(); popNumber(cellOf(e.tgt), '回避', ''); await sleep(140); return;
     case 'endure': SFX.heal(); fxBurst(cellOf(e.tgt), 'guard', { ms: 420 });
       popNumber(cellOf(e.tgt), '耐えた', 'heal'); await sleep(160); return;
@@ -8466,7 +8482,13 @@ function navBar() {
     class: 'nv' + (on ? ' on' : '') + (n.home ? ' home' : '') + (art ? ' pic' : ''),
     onclick: () => {
       if (S.screen === n.key) return;
-      if (S.screen === 'battle') { fxToken++; BATTLE = null; S.res = null; S.vs = null; }   // 合戦から抜けるときは再生を止める
+      /* 戦と その結果の札は、下の帯で抜けるときに必ず片づける（2026-10-04）。
+         前は「合戦の画面にいるとき」だけ片づけていたので、
+         早送り（盤面を出さない）の勝ち負けの札は帯を押しても残り、
+         裏で画面だけ変わって「どこへも行けない」ように見えていた。
+         そのあと札を押すと next() が元の画面へ連れ戻すので、なおさら動かなく見えた。
+         褒美は札を出す前にもう配り終えているので、ここで畳んでも取りこぼしは無い */
+      if (BATTLE || S.res) { fxToken++; BATTLE = null; S.res = null; S.dmg = false; S.vs = null; }
       S.screen = n.key; S.detail = null; S.rates = false; S.shop = false; S.menu = false;
       /* 下の帯は札より前に出しているので、札を開いたままでも押せる（2026-09-30）。
          そのまま移ると札の覚えが残るので、ここで一度ぜんぶ片づける */

@@ -339,6 +339,8 @@ const CYCLE_MS = 500;
 let ST_STEP = 0;
 /* 複数あるときは並べずに、0.5秒ごとに1つずつ見せる（2026-09-20）。
    盤面の外の顔の列の状態異常（.rbad）からも呼ぶので外に出した（2026-09-23） */
+/* 状態異常の絵が無いときの一字（2026-10-04）。盤のコマの頭の上で使う */
+const ST_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '恋' };
 export function stFace(st) {
   const kids = st.children;
   if (!kids.length) return;
@@ -348,7 +350,7 @@ export function stFace(st) {
 }
 if (typeof document !== 'undefined') setInterval(() => {
   ST_STEP++;
-  for (const st of document.querySelectorAll('.rbad,.rmod')) stFace(st);
+  for (const st of document.querySelectorAll('.rbad,.rmod,.pst')) stFace(st);
 }, CYCLE_MS);
 
 /* 表情の顔（2026-09-25）。app/assets/face/<番号>_<表情>.png
@@ -699,11 +701,36 @@ export function render(board, pawnMap, snapUnits, rules) {
     if (u.alive) unflee(p);          // 生き返ったら走り去る動きを取り消す（2026-10-03）
     p.style.display = u.alive ? '' : 'none';
     p.classList.toggle('dead', !u.alive);
-    /* 盤面のコマには状態異常もステータス変化も出さない（2026-09-23）。
-       盤面の外の顔の列で見せるので、コマの上に重ねると読みづらいだけだった。
-       古い表示が残っていたら消しておく */
+    /* 状態異常は、コマ絵の頭の上に出す（2026-10-04）。
+       2026-09-23 に「盤には出さない」と決めたが、盤を見ているあいだ
+       誰が何を受けているのか分からなかった。
+       .stand の中に入れるので、盤を倒しても印だけは立ったまま出る。
+       いくつも付いているときは、顔の列と同じ拍で一つずつ入れ替える。
+       ステータスの上下（.mods）はこれまでどおり盤には出さない ──
+       コマの上に矢印まで重ねると、何の印なのか読み取れなくなるため */
     const st0 = p.querySelector('.st'); if (st0) st0.remove();
     const mb0 = p.querySelector('.mods'); if (mb0) mb0.remove();
+    const bad = (u.st || []).filter(Boolean);
+    let pst = p.querySelector('.pst');
+    if (!bad.length) { if (pst) pst.remove(); }
+    else {
+      const stand = p.querySelector('.stand') || p;
+      if (!pst) { pst = document.createElement('span'); pst.className = 'pst'; stand.append(pst); }
+      const key = bad.join(',');
+      if (pst.dataset.k !== key) {
+        pst.dataset.k = key;
+        pst.textContent = '';
+        for (const n of bad) {
+          const url = statusIconUrl(n);
+          const e2 = document.createElement(url ? 'img' : 'i');
+          e2.className = 'psb' + (url ? ' art' : '');
+          if (url) { e2.src = url; e2.alt = n; } else e2.textContent = ST_MARK[n] || n.slice(0, 1);
+          e2.title = n;
+          pst.append(e2);
+        }
+        stFace(pst);
+      }
+    }
 
     // 古い保存から来た帯が残っていたら消しておく
     const bar0 = p.querySelector('.hp');

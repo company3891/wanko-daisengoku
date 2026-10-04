@@ -377,6 +377,25 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
   font-size:14px;font-weight:800;color:#fff;pointer-events:none;white-space:nowrap;
   text-shadow:0 1px 0 #000,0 0 6px #000,0 0 3px #000}
 .pop.heal{color:#7fe08a}
+/* 癒した量は水色で（2026-10-04）。「かばう」「耐えた」などの言葉は緑のまま、
+   数だけ水色にして、白い傷の数と並んでも一目で見分けられるようにする */
+.pop.heal.hp{color:#8fe0ff;text-shadow:0 1px 0 #04243a,0 0 7px #2a9fe0,0 1px 3px #000}
+/* 状態異常はコマ絵の頭の上（2026-10-04）。
+   .stand の中なので、盤が傾いても印だけは立っている。
+   コマの上ばしから少し浮かせて、犬の顔にかぶらないようにした */
+.pst{position:absolute;left:50%;top:-14%;transform:translateX(-50%);z-index:36;
+  display:flex;gap:1px;align-items:center;pointer-events:none}
+.pst .psb.art{width:17px;height:17px;object-fit:contain;display:block;
+  filter:drop-shadow(0 1px 2px #000) drop-shadow(0 0 3px #000)}
+.pst .psb{font-style:normal;font-size:8.5px;font-weight:700;line-height:14px;height:14px;
+  padding:0 4px;border-radius:7px;white-space:nowrap;
+  background:#a8523ce6;border:1px solid #c76a4e;color:#ffd9cc;
+  text-shadow:0 1px 2px #000}
+/* いくつも付いているときは拍で入れ替わる。入れ替わりが分かるよう軽く点す */
+.pst.multi .psb{animation:stblink .5s steps(2,end) infinite}
+/* 2頭身の絵は頭が上へはみ出しているので、その上に逃がす */
+.pawn.sprite .pst{top:-20%}
+.pawn.dead .pst{display:none}
 .pop.ko{font-size:12px;color:#ff8d7a}
 /* 会心は別物として見せる。明朝の太字、黄から赤へのグラデ、黒フチ、上に「会心」 */
 .pop.crit{font-family:var(--mincho);font-size:30px;font-weight:900;line-height:1;
@@ -8639,6 +8658,8 @@ const CYCLE_MS = 500;
 let ST_STEP = 0;
 /* 複数あるときは並べずに、0.5秒ごとに1つずつ見せる（2026-09-20）。
    盤面の外の顔の列の状態異常（.rbad）からも呼ぶので外に出した（2026-09-23） */
+/* 状態異常の絵が無いときの一字（2026-10-04）。盤のコマの頭の上で使う */
+const ST_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '恋' };
 function stFace(st) {
   const kids = st.children;
   if (!kids.length) return;
@@ -8648,7 +8669,7 @@ function stFace(st) {
 }
 if (typeof document !== 'undefined') setInterval(() => {
   ST_STEP++;
-  for (const st of document.querySelectorAll('.rbad,.rmod')) stFace(st);
+  for (const st of document.querySelectorAll('.rbad,.rmod,.pst')) stFace(st);
 }, CYCLE_MS);
 
 /* 表情の顔（2026-09-25）。app/assets/face/<番号>_<表情>.png
@@ -8997,11 +9018,36 @@ function render(board, pawnMap, snapUnits, rules) {
     if (u.alive) unflee(p);          // 生き返ったら走り去る動きを取り消す（2026-10-03）
     p.style.display = u.alive ? '' : 'none';
     p.classList.toggle('dead', !u.alive);
-    /* 盤面のコマには状態異常もステータス変化も出さない（2026-09-23）。
-       盤面の外の顔の列で見せるので、コマの上に重ねると読みづらいだけだった。
-       古い表示が残っていたら消しておく */
+    /* 状態異常は、コマ絵の頭の上に出す（2026-10-04）。
+       2026-09-23 に「盤には出さない」と決めたが、盤を見ているあいだ
+       誰が何を受けているのか分からなかった。
+       .stand の中に入れるので、盤を倒しても印だけは立ったまま出る。
+       いくつも付いているときは、顔の列と同じ拍で一つずつ入れ替える。
+       ステータスの上下（.mods）はこれまでどおり盤には出さない ──
+       コマの上に矢印まで重ねると、何の印なのか読み取れなくなるため */
     const st0 = p.querySelector('.st'); if (st0) st0.remove();
     const mb0 = p.querySelector('.mods'); if (mb0) mb0.remove();
+    const bad = (u.st || []).filter(Boolean);
+    let pst = p.querySelector('.pst');
+    if (!bad.length) { if (pst) pst.remove(); }
+    else {
+      const stand = p.querySelector('.stand') || p;
+      if (!pst) { pst = document.createElement('span'); pst.className = 'pst'; stand.append(pst); }
+      const key = bad.join(',');
+      if (pst.dataset.k !== key) {
+        pst.dataset.k = key;
+        pst.textContent = '';
+        for (const n of bad) {
+          const url = statusIconUrl(n);
+          const e2 = document.createElement(url ? 'img' : 'i');
+          e2.className = 'psb' + (url ? ' art' : '');
+          if (url) { e2.src = url; e2.alt = n; } else e2.textContent = ST_MARK[n] || n.slice(0, 1);
+          e2.title = n;
+          pst.append(e2);
+        }
+        stFace(pst);
+      }
+    }
 
     // 古い保存から来た帯が残っていたら消しておく
     const bar0 = p.querySelector('.hp');
@@ -31990,6 +32036,22 @@ async function showEvent(e, my) {
       await sleep(Math.min(ms, 360)); return;
     }
 
+    /* 癒しを目に見えるようにした（2026-10-04）。
+       これまで何も出していなかったので、兵量が戻っても盤では気づけなかった。
+       水色で「＋いくつ」を浮かせる。味方みなへの癒し（e.all）は一人ずつ出す */
+    case 'heal': {
+      applyEvent(live, e); drawBattle();
+      const amt = Math.round(e.v || 0);
+      if (amt <= 0) return;
+      SFX.heal();
+      const show = id => { fxBurst(cellOf(id), 'heal', { ms: 360 }); popNumber(cellOf(id), '+' + num(amt), 'heal hp'); };
+      if (e.all) {
+        const side = String(e.src || '')[0];
+        for (const u of live.values()) if (u.alive && String(u.id).startsWith(side + '-')) show(u.id);
+      } else show(e.tgt);
+      await sleep(90); return;
+    }
+
     case 'eva': SFX.eva(); popNumber(cellOf(e.tgt), '回避', ''); await sleep(140); return;
     case 'endure': SFX.heal(); fxBurst(cellOf(e.tgt), 'guard', { ms: 420 });
       popNumber(cellOf(e.tgt), '耐えた', 'heal'); await sleep(160); return;
@@ -33600,7 +33662,13 @@ function navBar() {
     class: 'nv' + (on ? ' on' : '') + (n.home ? ' home' : '') + (art ? ' pic' : ''),
     onclick: () => {
       if (S.screen === n.key) return;
-      if (S.screen === 'battle') { fxToken++; BATTLE = null; S.res = null; S.vs = null; }   // 合戦から抜けるときは再生を止める
+      /* 戦と その結果の札は、下の帯で抜けるときに必ず片づける（2026-10-04）。
+         前は「合戦の画面にいるとき」だけ片づけていたので、
+         早送り（盤面を出さない）の勝ち負けの札は帯を押しても残り、
+         裏で画面だけ変わって「どこへも行けない」ように見えていた。
+         そのあと札を押すと next() が元の画面へ連れ戻すので、なおさら動かなく見えた。
+         褒美は札を出す前にもう配り終えているので、ここで畳んでも取りこぼしは無い */
+      if (BATTLE || S.res) { fxToken++; BATTLE = null; S.res = null; S.dmg = false; S.vs = null; }
       S.screen = n.key; S.detail = null; S.rates = false; S.shop = false; S.menu = false;
       /* 下の帯は札より前に出しているので、札を開いたままでも押せる（2026-09-30）。
          そのまま移ると札の覚えが残るので、ここで一度ぜんぶ片づける */

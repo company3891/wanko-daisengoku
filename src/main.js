@@ -6956,7 +6956,7 @@ function drawBattle() {
     const sideOf = (u) => ((u.st || []).includes('洗脳') ? (u.id[0] === 'A' ? 'B' : 'A') : u.id[0]);
     const myside = sideOf(BATTLE.live.get(a.unit) || { id: a.unit, st: [] });
     const foes = units.filter(u => u.alive && sideOf(u) !== myside
-      && !(u.st || []).includes('隠れ身')
+      && !(u.st || []).includes('伏兵')
       && !(u.st || []).includes('洗脳'));
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
     /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
@@ -8316,7 +8316,7 @@ function screenBattle() {
 /* ---- 盤面の外に並べる顔（2026-09-23）----
    敵は上、味方は下。一体ずつ、兵量の帯・状態異常・強化弱化・総大将の印を添える。
    drawBattle から毎回組み直すので、中身はいつでも今の盤面と合っている。 */
-const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 隠れ身: '👣' };
+const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function rosterRow(box, side) {
   if (!box) return;
   const units = liveUnits().filter(u => String(u.id).startsWith(side + '-'));

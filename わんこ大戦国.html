@@ -6800,8 +6800,9 @@ function sweepTargets(self, enemies, primary, n, through) {
 function resolveTargets(eff, self, allies, enemies, primary, rules) {
   // 天守は「味方」としては数えない（2026-10-02）。守り手の癒しや強化が城に吸われないように
   allies = allies.filter(a => !a.isKeep);
-  // 寝返った身内は、範囲の技でも巻き込まない（2026-10-04）
-  enemies = enemies.filter(e => !isKin(e, self));
+  // 寝返った身内と伏兵は、範囲の技でも巻き込まない（2026-10-04）
+  enemies = enemies.filter(e => !isKin(e, self) && !isHidden(e));
+  if (primary && (isKin(primary, self) || isHidden(primary))) primary = null;
   const t = eff.target;
   // --- 9×9盤面の範囲パターン ---
   /* 一直線（貫通）の読み替え（2026-10-03）。
@@ -7181,7 +7182,9 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
      前は距離を見ていなかったので、射程1の武将が三マス先の弓に斬り返していた。
      壁ごしに返せないのも通常攻撃と同じ（canReach が線の通りも見る） */
   const cReach = canReach(tgt, src, rangeOf(tgt), rules);
-  if (cRate > 0 && cRatio > 0 && src.alive && cReach && !ctx._inCounter && !already && rng.chance(cRate)) {
+  // 伏兵には斬り返しも届かない（2026-10-04）。印が立っているあいだは一切 手が出せない
+  if (cRate > 0 && cRatio > 0 && src.alive && cReach && !isHidden(src)
+      && !ctx._inCounter && !already && rng.chance(cRate)) {
     tgt._counterActionId = ctx._actionId;
     ctx._inCounter = true;
     if (log) log.push({ t: +t.toFixed(1), type: 'counter', src: tgt.id, tgt: src.id });
@@ -7382,9 +7385,11 @@ function pickTarget(u, allies, enemies, rules, rng) {
     const all = live(allies).filter(a => a !== u).concat(live(enemies));
     return all.length ? all[rng.int(all.length)] : null;
   }
-  // 「敵の攻撃対象にならない」相手と、寝返った身内は候補から外す
-  const visible = live(enemies).filter(e => !isHidden(e) && !isKin(e, u));
-  let l = visible.length ? visible : live(enemies);
+  /* 伏兵と、寝返った身内は候補から外す（2026-10-04）。
+     前は「全員が対象外なら仕方なく通常どおり選ぶ」という逃げ道を置いていたので、
+     伏兵ひとりきりになると 👣 が立っているのに斬られていた。
+     誰も狙えないときは、その手番は斬らない（間合いを詰めるだけ） */
+  let l = live(enemies).filter(e => !isHidden(e) && !isKin(e, u));
   if (!l.length) return null;
   /* 天守（2026-10-02）。射程1の者は「ほかに届く敵がいないとき」だけ城を叩く。
      射程2以上はいつでも狙える。これで
@@ -8186,7 +8191,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
           // 射程と必要ゲージも入れる。手動操作の画面が「どこまで届くか」を出すのに使う
           range: rangeOf(u), straight: straightOnly(u) || undefined,
           ultCost: u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge,
-          st: Object.keys(u.statuses || {}).concat(isHidden(u) ? ['隠れ身'] : []),
+          st: Object.keys(u.statuses || {}).concat(isHidden(u) ? ['伏兵'] : []),
           // いま掛かっている一時的な強化・弱化（2026-09-20）。
           // 常時の固有・特技は全員が持っていて印にならないので、持続時間つきのものだけ出す。
           mods: buffSigns(u),
@@ -8195,6 +8200,25 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     snapshot(0);
     for (let turn = 1; turn <= maxTurn && !winner; turn++) {
       t = turn * SEC; ctx.t = t;
+      /* 伏兵（敵に攻撃されなくなる）の出入りは、盤を写すより先に済ませる（2026-10-04）。
+         前はスナップショットのあとで数を引いていたので、
+         もう切れている者に 👣 が立ったまま、そのターンに斬られていた。
+         張るほうも一拍遅れて見えていた。鬮（くじ）を引く順はそのままなので、
+         同じ種では同じ戦になる */
+      for (const u of A.concat(B)) {
+        if (!u.alive) continue;
+        // 「N%の確率でMターン敵に攻撃されなくなる」（2026-09-20）
+        if (u._hideLeft > 0) u._hideLeft -= 1;
+        for (const e of (u.passives || [])) {
+          if (e.kind !== 'hideForTurns' || !condOk(u, e)) continue;
+          if (u._hideLeft > 0) continue;
+          if (rng.chance(e.chance)) {
+            u._hideLeft = e.turns;
+            if (log) log.push({ t: +t.toFixed(1), type: 'hide', src: u.id, turns: e.turns });
+            uniqProc(u, 'hideForTurns', ctx);
+          }
+        }
+      }
       snapshot(turn);
       // ターン開始時の更新（継続時間・状態異常・感電）
       for (const u of A.concat(B)) {
@@ -8222,17 +8246,6 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         const foes = TEAM(effSide(u) === 'A' ? 'B' : 'A');
         u._frontEnemyCount = live(foes).filter(e => Math.abs(e.x - u.x) <= 1 && Math.abs(e.y - u.y) <= 3).length;
         u._turn = turn;
-        // 「N%の確率でMターン敵に攻撃されなくなる」（2026-09-20）
-        if (u._hideLeft > 0) u._hideLeft -= 1;
-        for (const e of (u.passives || [])) {
-          if (e.kind !== 'hideForTurns' || !condOk(u, e)) continue;
-          if (u._hideLeft > 0) continue;
-          if (rng.chance(e.chance)) {
-            u._hideLeft = e.turns;
-            if (log) log.push({ t: +t.toFixed(1), type: 'hide', src: u.id, turns: e.turns });
-            uniqProc(u, 'hideForTurns', ctx);
-          }
-        }
       }
       /* ターンの頭でころがす常時効果は、状態異常の目減りが**全員ぶん終わってから**まわす
          （2026-09-28）。同じまわしの中でやると、洗脳をかけた相手がそのすぐあとに
@@ -8798,7 +8811,7 @@ let ST_STEP = 0;
 /* 複数あるときは並べずに、0.5秒ごとに1つずつ見せる（2026-09-20）。
    盤面の外の顔の列の状態異常（.rbad）からも呼ぶので外に出した（2026-09-23） */
 /* 状態異常の絵が無いときの一字（2026-10-04）。盤のコマの頭の上で使う */
-const ST_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 隠れ身: '👣' };
+const ST_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function stFace(st) {
   const kids = st.children;
   if (!kids.length) return;
@@ -32275,7 +32288,7 @@ function drawBattle() {
     const sideOf = (u) => ((u.st || []).includes('洗脳') ? (u.id[0] === 'A' ? 'B' : 'A') : u.id[0]);
     const myside = sideOf(BATTLE.live.get(a.unit) || { id: a.unit, st: [] });
     const foes = units.filter(u => u.alive && sideOf(u) !== myside
-      && !(u.st || []).includes('隠れ身')
+      && !(u.st || []).includes('伏兵')
       && !(u.st || []).includes('洗脳'));
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
     /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
@@ -33635,7 +33648,7 @@ function screenBattle() {
 /* ---- 盤面の外に並べる顔（2026-09-23）----
    敵は上、味方は下。一体ずつ、兵量の帯・状態異常・強化弱化・総大将の印を添える。
    drawBattle から毎回組み直すので、中身はいつでも今の盤面と合っている。 */
-const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 隠れ身: '👣' };
+const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function rosterRow(box, side) {
   if (!box) return;
   const units = liveUnits().filter(u => String(u.id).startsWith(side + '-'));

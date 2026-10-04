@@ -5463,6 +5463,14 @@ button.mkpv:active{transform:translateY(1px)}
 .w.food.over{box-shadow:inset 0 0 0 1px var(--gold,#d8a94a)}
 .w.food.over, .w.food.over em{color:var(--gold-l,#f5e2a8)}
 
+/* 果たし合い・相手の手番の知らせ（2026-10-04）。
+   盤は触れないので、誰が考えているのかだけを帯で見せる */
+.foeturn{display:flex;gap:8px;align-items:center;justify-content:center;
+  padding:8px 12px;border-radius:10px;background:#12100ecc;border:1px solid #5aa9e688;
+  color:#f5e2a8;font-size:13px}
+.foeturn b{color:#5aa9e6;font-weight:700}
+.foeturn span{opacity:.85}
+
 </style>
 </head>
 <body>
@@ -6643,6 +6651,12 @@ function scaleOne(e, m) {
   if (typeof e.pct === 'number') put('pct', e.pct * m);
   if (typeof e.max === 'number') put('max', e.max * m);
   if (typeof e.chance === 'number') put('chance', Math.min(1, e.chance * m));
+  /* 開幕の奥義ゲージも位で伸ばす（2026-10-04）。
+     「奥義ゲージ+1」は整数なので、位を上げても 1 のままだった。
+     ゲージは小数のまま持てるので 1.3 をそのまま足す。
+     画面の玉は切り捨てで描くから見た目は変わらないが、奥義が来るのが少し早くなる。
+     ★数字を見せずに効かせる、という見せ方の決めごとにも合う */
+  if (typeof e.gauge === 'number') put('gauge', e.gauge * m);
   if (typeof e.proc === 'number') put('proc', Math.min(1, e.proc * m));
   if (typeof e.every === 'number') put('every', Math.max(1, Math.round(e.every / m)));
   return o || e;
@@ -26583,6 +26597,178 @@ function kuTakeSheet() {
     el('button', { class: 'ghost wide', onclick: () => { S.kuTake = null; draw(); } }, 'キャンセル')));
 }
 
+/* ---------------- 果たし合い（対人戦・2026-10-04）----------------
+   engine は「種＋指図の並び」だけで同じ戦を一から再現できる。
+   だから盤は送らない。送るのは合言葉で座に入ることと、一手ごとの指図だけ。
+   サーバー（座）が指図に番号を打って二人に配るので、
+   両方の端末に まったく同じ並びが届き、まったく同じ戦が映る。
+
+   いまの割り切り（2026-10-04）
+   ・座を立てた人が A（盤の手前）、入った人が B（盤の奥）になる。
+     B の人は自分の軍が奥に見える。盤を半回転させる手はあるが、
+     盤は傾けて描いているので ただ回すと奥行きが裏返る。別途やる
+   ・場（地形・天気）は 座を立てた人のものに合わせる
+   ・勝ち負けは画面に出すだけ。褒美はまだ無い */
+let DUEL = null;
+
+const dlTeam = () => ({
+  members: S.picked.map(grownFor), generalNo: S.general,
+  formation: S.form, slots: S.slots,
+  stage: { s: S.stage, v: S.stageV, flip: S.stageFlip },
+});
+/* 自分がどちら側に座っているか。ふつうの戦では必ず A */
+const mySide = () => (BATTLE && BATTLE.duel ? BATTLE.duel.side : 'A');
+const iWon = (res) => res.winner === mySide();
+
+function dlClose() {
+  if (DUEL && DUEL.ws) { try { DUEL.ws.close(); } catch (_) {} }
+  DUEL = null; S.dl = null; S.dlMsg = ''; draw();
+}
+
+async function dlMake() {
+  if (!linked()) { S.dlMsg = 'さきにバックアップへ接続してください'; draw(); return; }
+  if (!S.picked || !S.picked.length) { S.dlMsg = 'さきに部隊を組んでください'; draw(); return; }
+  S.dlBusy = true; S.dlMsg = '座を立てています…'; draw();
+  const r = await duelOpen(dlTeam());
+  S.dlBusy = false;
+  if (!r.ok) { S.dlMsg = r.err === 'net' ? 'つながりませんでした' : (r.err || '座を立てられませんでした'); draw(); return; }
+  dlEnter(r.duel, r.seed);
+}
+
+function dlEnter(code, seed) {
+  const id = String(code || '').toUpperCase().trim();
+  if (id.length < 4) { S.dlMsg = '合言葉を入れてください'; draw(); return; }
+  if (!S.picked || !S.picked.length) { S.dlMsg = 'さきに部隊を組んでください'; draw(); return; }
+  DUEL = { id, seed: seed || 0, side: null, who: [], started: false, over: null };
+  DUEL.ws = duelJoin(id, { pid: P.link.code, name: P.name || '名無し', team: dlTeam(), seed: seed || 0 }, dlHear);
+  if (!DUEL.ws) { S.dlMsg = 'つなげませんでした'; DUEL = null; draw(); return; }
+  S.dl = 'wait'; S.dlMsg = ''; draw();
+}
+
+/* 座からの知らせ。ここが対戦のすべての入り口 */
+function dlHear(m) {
+  if (!DUEL) return;
+  switch (m.t) {
+    case 'seat': DUEL.side = m.side; break;
+    case 'who':  DUEL.who = m.seats || []; break;
+    case 'full': S.dlMsg = 'その座はもう埋まっています'; DUEL = null; S.dl = 'menu'; break;
+    case 'start': dlStart(m.seed, m.teams); return;
+    /* 指図は かならず座から降りてきたものだけを積む（2026-10-04）。
+       自分の手も例外にしない。そうしないと並びが二つの端末でずれる */
+    case 'cmd': dlTake(m.i, m.cmd); return;
+    case 'timeout': dlLate(); return;
+    case 'over': dlEnd(m.winner, m.reason); return;
+    case 'left': S.dlMsg = '相手の繋ぎが切れました'; break;
+  }
+  draw();
+}
+
+function dlStart(seed, teams) {
+  if (!teams || !teams.A || !teams.B) return;
+  DUEL.started = true;
+  const st = teams.A.stage || {};
+  const rules = stageRules(st.s || '地形なし', st.v, st.flip);
+  BATTLE = {
+    seed, rules, B: teams[DUEL.side === 'A' ? 'B' : 'A'].members || [],
+    bForm: null, first: false, commands: [],
+    modes: [{ turn: 0, manual: true }],
+    shown: 0, live: null, playing: true, sel: null, busy: false,
+    camp: null, ev: null, spar: null, bout: null, tw: null,
+    duel: { side: DUEL.side, id: DUEL.id, A: teams.A, B: teams.B },
+    weather: weatherOf(seed, st.s || '地形なし'),
+    useItems: [], prep: [],
+  };
+  resolve();
+  BATTLE.live = initLive(BATTLE.res);
+  preloadCutins([...(teams.A.members || []), ...(teams.B.members || [])].map(m => m.no));
+  S.dl = null; S.dlMsg = '';
+  S.screen = 'battle';
+  const foe = (DUEL.who.find(x => x.side !== DUEL.side) || {}).name || '相手';
+  S.vs = { ttlL: '果たし合い', ttlR: DUEL.side === 'A' ? '先手' : '後手',
+           house: null, foe, w: BATTLE.weather };
+  SFX.start(); draw();
+  setTimeout(() => { S.vs = null; draw(); play(); }, 1200);
+}
+
+/* 座が配った指図を積む。番号どおりに並べる（抜けたら積まない） */
+function dlTake(i, c) {
+  if (!BATTLE || !BATTLE.duel) return;
+  if (i !== BATTLE.commands.length) return;   // 並びが飛んだ。次の知らせを待つ
+  BATTLE.commands.push(c);
+  resolve();
+  play();
+}
+
+/* 持ち時間ぎれ。自分の手番なら「待機」を打って先へ進める */
+function dlLate() {
+  if (!BATTLE || !BATTLE.duel || !DUEL || !DUEL.ws) return;
+  const a = BATTLE.res && BATTLE.res.awaiting;
+  if (!a || !String(a.unit).startsWith(DUEL.side + '-')) return;
+  DUEL.ws.cmd({ unit: a.unit, turn: a.turn, type: 'wait' });
+}
+
+function dlEnd(winner, reason) {
+  if (!DUEL) return;
+  DUEL.over = { winner, reason };
+  if (DUEL.ws) { try { DUEL.ws.close(); } catch (_) {} }
+}
+
+/* 決着を座に告げる。engine が決めた勝ち負けをそのまま渡す */
+function dlReport(res) {
+  if (!DUEL || !DUEL.ws || DUEL.told) return;
+  DUEL.told = true;
+  DUEL.ws.over(res.winner, res.reason || '');
+}
+
+function duelSheet() {
+  const box = (...kids) => el('div', { class: 'sheet' },
+    el('div', { class: 'card2 lkbox' }, ...kids.filter(Boolean)));
+
+  if (S.dl === 'wait' && DUEL) {
+    const foe = DUEL.who.find(x => x.side !== DUEL.side);
+    return box(
+      el('b', { class: 'mittl' }, '相手を待っています'),
+      el('div', { class: 'lkcode' }, el('span', {}, DUEL.id)),
+      el('p', { class: 'ttsub' }, 'この合言葉を相手に伝えてください。相手が入ると、そのまま戦がはじまります。'),
+      el('div', { class: 'lknote' },
+        el('b', {}, 'あなた'), el('span', {}, `${P.name || '名無し'}（${DUEL.side === 'A' ? '先手' : '後手'}）`),
+        el('b', {}, '相手'), el('span', {}, foe ? foe.name : '…待っています')),
+      S.dlMsg ? el('p', { class: 'lkmsg' }, S.dlMsg) : null,
+      el('button', { class: 'ghost wide', onclick: () => {
+        const t = DUEL.id;
+        try { navigator.clipboard && navigator.clipboard.writeText(t); S.dlMsg = '合言葉をコピーしました'; }
+        catch (_) { S.dlMsg = '長押しで選んでコピーしてください'; }
+        draw();
+      } }, '合言葉をコピー'),
+      el('button', { class: 'ghost wide', onclick: dlClose }, 'やめる'));
+  }
+
+  if (S.dl === 'join') {
+    return box(
+      el('b', { class: 'mittl' }, '合言葉で入る'),
+      el('p', { class: 'ttsub' }, '相手から聞いた合言葉を入れてください。'),
+      el('div', { class: 'lkfield' },
+        el('input', { class: 'lkin', type: 'text', value: S.dlCode || '',
+          placeholder: '合言葉（6文字）', autocapitalize: 'characters', spellcheck: 'false',
+          oninput: e => { S.dlCode = e.target.value.toUpperCase(); } })),
+      S.dlMsg ? el('p', { class: 'lkmsg' }, S.dlMsg) : null,
+      el('button', { class: 'go wide', onclick: () => dlEnter(S.dlCode, 0) }, '入る'),
+      el('button', { class: 'ghost wide', onclick: () => { S.dl = 'menu'; S.dlMsg = ''; draw(); } }, '戻る'));
+  }
+
+  const n = (S.picked || []).length;
+  return box(
+    el('b', { class: 'mittl' }, '果たし合い'),
+    el('p', { class: 'ttsub' }, '合言葉をやりとりして、友と五対五で戦う。手番ごとに自分で動かす。'),
+    el('div', { class: 'lknote' },
+      el('b', {}, 'いまの部隊'), el('span', {}, n ? `${n}騎　大将 ${(charOf(S.general) || {}).name || '—'}` : '組んでいません'),
+      el('b', {}, '場'), el('span', {}, `${S.stage}　（座を立てた人の場になる）`)),
+    S.dlMsg ? el('p', { class: 'lkmsg' }, S.dlMsg) : null,
+    el('button', { class: 'go wide', ...(S.dlBusy ? { disabled: true } : {}), onclick: dlMake }, '座を立てる'),
+    el('button', { class: 'ghost wide', onclick: () => { S.dl = 'join'; S.dlCode = ''; S.dlMsg = ''; draw(); } }, '合言葉で入る'),
+    el('button', { class: 'ghost wide', onclick: dlClose }, '閉じる'));
+}
+
 function linkSheet() {
   const step = S.link;
   const box = (...kids) => el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) lkClose(); } },
@@ -26931,6 +27117,11 @@ const HOME_MENU = [
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
   { side: 'BR', name: 'イベント', mark: '祭', file: 'home_event',   go: () => { S.screen = 'event'; S.evId = null; S.evMsg = ''; } },
+  /* 果たし合い（2026-10-04）。合言葉で友と五対五。
+     サーバーに繋いでいないと座に入れないので、繋ぐまでは灰色のまま */
+  { side: 'BR', name: '果たし合い', mark: '果', file: 'home_duel',
+    lock: () => (KURA && linked()) ? null : 'バックアップ接続で解放',
+    go: () => { S.dl = 'menu'; S.dlMsg = ''; S.dlCode = ''; } },
   { side: 'BR', name: '番付',     mark: '番', file: 'home_ranking',
     go: () => { S.rk = true; S.rkSel = null; S.rkPz = false; S.rkPzT = null; S.rkMsg = ''; },
     badge: () => (rkState().last ? 1 : 0) },
@@ -30279,7 +30470,10 @@ function cardSheet(c) {
            合戦中に敵の札を開くと、明智ミツワンの特技が三つとも「空き」になっていたのはこれ */
         const moved = mine2 && patch && t.row != null && nm !== (t.baked || null);
         if (moved) out.push(...redrawSlot(k, patch, t, now, c.no));
-        if (t.slot && (moved ? now : sl[t.slot])) out.push(el('b', {
+        /* 固有（◆）に位は無い。継いだ◆を二・三の枠に入れると
+           Lv.1/3 と出てしまっていたので、固有の枠には出さない（2026-10-04） */
+        const cur = moved ? now : sl[t.slot];
+        if (t.slot && cur && !cur.uniq) out.push(el('b', {
           class: 'clv lv',
           style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};font-size:${fs(t.size)}`,
         }, `Lv.${sk[t.slot] || 1}/3`));
@@ -32448,6 +32642,17 @@ function grownFor(m) {
 }
 function resolve() {
   const b = BATTLE;
+  /* 果たし合い（2026-10-04）。両軍とも人が動かす。
+     編成は座から降りてきたものをそのまま使う（自分の手元の S.picked は見ない）。
+     ここを手元から組み立てると、二人の盤がずれる */
+  if (b.duel) {
+    const side = t => ({ members: t.members || [], generalNo: t.generalNo,
+      formation: t.formation, slots: t.slots,
+      manual: true, modeSwitches: [{ turn: 0, manual: true }] });
+    b.res = runBattle(side(b.duel.A), side(b.duel.B), b.rules, b.seed,
+      { log: true, commands: b.commands, weather: b.weather });
+    return;
+  }
   const grown = grownFor;
   /* 一騎打ちは、たがいの総大将ひとりずつだけで解く（2026-09-30）。
      並び順の指定（slots）は一体には要らないので外す */
@@ -32516,6 +32721,14 @@ function toggleAuto() {
 function command(c) {
   const a = BATTLE.res.awaiting;
   if (!a || BATTLE.busy) return;
+  /* 果たし合いでは、自分の手も いったん座へ預ける（2026-10-04）。
+     座が番号を打って二人に配り、降りてきたものだけを積む。
+     ここで先に積むと、相手と並びがずれて別の戦になる */
+  if (BATTLE.duel) {
+    if (!String(a.unit).startsWith(BATTLE.duel.side + '-')) return;   // 相手の手番
+    if (DUEL && DUEL.ws) DUEL.ws.cmd({ unit: a.unit, turn: a.turn, ...c });
+    return;
+  }
   BATTLE.commands.push({ unit: a.unit, turn: a.turn, ...c });
   resolve();
   play();                       // 選んだ行動はその場で動く（ターンの終わりを待たない）
@@ -32838,7 +33051,12 @@ function drawBattle() {
   }
 
   // 手動操作のパネル
-  const waiting = res.awaiting && BATTLE.shown >= res.log.length && !BATTLE.busy;
+  /* 果たし合いでは、自分の駒の番でないと操れない（2026-10-04） */
+  const myTurn = !BATTLE.duel
+    || String((res.awaiting || {}).unit || '').startsWith(BATTLE.duel.side + '-');
+  const waiting = res.awaiting && BATTLE.shown >= res.log.length && !BATTLE.busy && myTurn;
+  const foeTurn = !!BATTLE.duel && !!res.awaiting && BATTLE.shown >= res.log.length
+                  && !BATTLE.busy && !myTurn;
   const panel = $('#manualBox');
   panel.innerHTML = '';
   const ub = $('#ultBtn');
@@ -32940,12 +33158,23 @@ function drawBattle() {
     // 攻撃も移動も奥義もできないときは、詰まないように自動で手番を送る
     if (!moveCells && !inRange.length && !canUlt) setTimeout(() => command({ type: 'wait' }), 260);
   }
+  /* 果たし合いで相手が考えているあいだ（2026-10-04）。
+     盤は触れないので、誰の番かだけ知らせる。
+     手番の武将には輪を出して、どの駒が動くのかは見えるようにする */
+  if (foeTurn) {
+    const a2 = res.awaiting;
+    const pw = pawnCache.get(a2.unit);
+    if (pw) { pw.style.outline = '2px dashed #5aa9e6'; pw.style.outlineOffset = '2px'; }
+    panel.append(el('div', { class: 'foeturn' },
+      el('b', {}, '相手の手番'),
+      el('span', {}, (res.initial.find(u => u.id === a2.unit) || {}).name || '')));
+  }
 
   // 決着
   const done = !res.awaiting && BATTLE.shown >= res.log.length && !BATTLE.busy;
   $('#resultBox').innerHTML = '';
   if (done && res.winner) {
-    if (!BATTLE._sang) { BATTLE._sang = true; (res.winner === 'A' ? SFX.win : SFX.lose)(); }
+    if (!BATTLE._sang) { BATTLE._sang = true; (iWon(res) ? SFX.win : SFX.lose)(); }
     // 報酬は1戦につき一度だけ配る（巻き戻して見返しても増えない）
     if (!BATTLE._paid) {
       BATTLE._paid = true;
@@ -32956,7 +33185,7 @@ function drawBattle() {
          （2026-09-29）。二度目からはお祭りの褒美だけ。
          戦った数は数えたいので、褒美なしのときも giveReward(false) を通す */
       const evFirst = !!(BATTLE.ev && !evDone(BATTLE.ev.id, BATTLE.ev.rank));
-      const won0 = res.winner === 'A';
+      const won0 = iWon(res);
       /* 経験は払った兵糧のぶんだけ（2026-10-01）。
          章が進むほど兵糧は重いので、重い戦ほど伸びる */
       const paid = BATTLE.camp ? marchFood(BATTLE.camp.pref, BATTLE.camp.step)
@@ -33000,9 +33229,12 @@ function drawBattle() {
          倒した数・討たれた数・かかった手数。褒美が無いぶん、戦いぶりを残す */
       /* 初陣だけは言い方を変える（2026-10-02）。
          勝ち方が「守り切った」でも「総大将撃破」でも、はじめの一戦は「初陣を飾った」でよい */
-      S.res = { i: 0, won: res.winner === 'A',
-                reason: (BATTLE && BATTLE.first && res.winner === 'A') ? '初陣を飾った' : res.reason,
+      S.res = { i: 0, won: iWon(res),
+                reason: (BATTLE && BATTLE.first && iWon(res)) ? '初陣を飾った' : res.reason,
                 ta, tb, stat: battleStat(res) };
+      /* 果たし合いは、決着を座にも告げる（2026-10-04）。
+         座が種と指図を丸ごと記すので、あとで同じ戦をやり直せる */
+      if (BATTLE.duel) dlReport(res);
       setTimeout(draw, 40);
     }
     /* 下の帯の戦闘結果はやめた（2026-09-23）。
@@ -33044,7 +33276,7 @@ function battleStat(res) {
   const uOf = no => unit[no] || (unit[no] = { no, all: 0, normal: 0, skill: 0, unique: 0,
                                               ult: 0, kaeshi: 0, cover: 0, heal: 0 });
   for (const e of (res.log || [])) {
-    const mine = String(e.src || '').startsWith('A-');
+    const mine = String(e.src || '').startsWith(mySide() + '-');
     if (e.type === 'dmg') {
       if (mine) {
         const v = e.via || 'normal';
@@ -33064,19 +33296,21 @@ function battleStat(res) {
   }
   for (const k of Object.keys(by)) by[k] = Math.round(by[k]);
   // 出陣した味方は、傷を与えられなかった者も並べる。「何もできなかった」ことも戦いぶり
-  for (const u of us) if (u.side === 'A') uOf(u.no);
+  for (const u of us) if (u.side === mySide()) uOf(u.no);
   const units = Object.values(unit).map(u => ({
     ...u, all: Math.round(u.all), normal: Math.round(u.normal),
-    skill: Math.round(u.skill), unique: Math.round(u.unique), ult: Math.round(u.ult),
+    /* 奥義ゲージは四捨五入せず切り捨てる（2026-10-04）。
+       4.6 が 5 に見えると「押せるのに撃てない」ことが起きる */
+    skill: Math.round(u.skill), unique: Math.round(u.unique), ult: Math.floor(u.ult),
     heal: Math.round(u.heal),
-    alive: !!(us.find(x => x.side === 'A' && x.no === u.no) || {}).alive,
+    alive: !!(us.find(x => x.side === mySide() && x.no === u.no) || {}).alive,
   /* 並べ替えは 傷＋癒し（2026-10-01）。
      癒しだけの武将がいつも最後に沈んでいたので、働きの大きさで並べる */
   })).sort((a, b) => (b.all + b.heal) - (a.all + a.heal));
   return {
     ko:   us.filter(u => u.side === 'B' && !u.alive).length,
-    lost: us.filter(u => u.side === 'A' && !u.alive).length,
-    dmg:  Math.round(us.filter(u => u.side === 'A').reduce((a, u) => a + (u.dmgDealt || 0), 0)),
+    lost: us.filter(u => u.side === mySide() && !u.alive).length,
+    dmg:  Math.round(us.filter(u => u.side === mySide()).reduce((a, u) => a + (u.dmgDealt || 0), 0)),
     taken: Math.round(taken), crit, hits, by, units,
     cover, heal: Math.round(heal),
     kaeshi: Object.values(unit).reduce((a, u) => a + u.kaeshi, 0),
@@ -34925,6 +35159,7 @@ function draw() {
     S.tt ? ttSheet() : null,
     S.rk ? rkSheet() : null,
     S.link ? linkSheet() : null,
+    S.dl ? duelSheet() : null,
     S.kuWar ? kuWarSheet() : null,
     S.kuTake ? kuTakeSheet() : null,
     S.reset ? resetSheet() : null,

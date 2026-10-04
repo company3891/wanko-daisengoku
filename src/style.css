@@ -5447,3 +5447,11 @@ button.mkpv:active{transform:translateY(1px)}
    数字を金に寄せて「ふだんと違う」と分かるようにする（説明は出さない） */
 .w.food.over{box-shadow:inset 0 0 0 1px var(--gold,#d8a94a)}
 .w.food.over, .w.food.over em{color:var(--gold-l,#f5e2a8)}
+
+/* 果たし合い・相手の手番の知らせ（2026-10-04）。
+   盤は触れないので、誰が考えているのかだけを帯で見せる */
+.foeturn{display:flex;gap:8px;align-items:center;justify-content:center;
+  padding:8px 12px;border-radius:10px;background:#12100ecc;border:1px solid #5aa9e688;
+  color:#f5e2a8;font-size:13px}
+.foeturn b{color:#5aa9e6;font-weight:700}
+.foeturn span{opacity:.85}

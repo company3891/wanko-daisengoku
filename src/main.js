@@ -6677,6 +6677,12 @@ function applyEvent(live, e) {
        ひるみは1ターンでターンの頭の写しには乗らないので、ここで印だけ足す。
        次の写しで消える */
     case 'flinch': { const t = get(e.src); if (t) t.st = [...new Set([...(t.st || []), 'ひるみ'])]; break; }
+    /* 強化・弱化の矢印は、掛かったその場で出す（2026-10-04）。
+       次のターンの頭の写しで改めて作り直されるので、ここでは足すだけでよい */
+    case 'buff': { const t = get(e.tgt); if (!t) break;
+      const mods = [...(t.mods || [])];
+      if (!mods.some(m => m.stat === e.stat && !!m.up === !!e.up)) mods.push({ stat: e.stat, up: !!e.up });
+      t.mods = mods; break; }
     case 'withdraw': { const u = get(e.src); if (u) u.alive = false; break; }
     case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(t.hp, 1); } break; }
   }
@@ -6779,6 +6785,9 @@ async function showEvent(e, my) {
     }
     case 'flinch':
       applyEvent(live, e); drawBattle(); await sleep(260); return;
+
+    case 'buff':
+      applyEvent(live, e); drawBattle(); return;
 
     case 'burn':
       applyEvent(live, e); drawBattle();
@@ -7005,18 +7014,31 @@ function drawBattle() {
     for (const f of inRange) cellAt(f.x, f.y).append(el('button', {
       class: 'go-atk', title: `${res.initial.find(u => u.id === f.id)?.name || ''} を攻撃`,
       onclick: () => { SFX.pick(); command({ type: 'attack', tgt: f.id }); } }));
-    // 移動できるマス：水色。タップでそのまま移動
+    /* 移動できるマス：水色。タップでそのまま移動（2026-10-04 改）。
+       前は上下左右の一マスだけを出していたので、「移動+1」を持つ武将でも
+       手で操ると一マスしか動けなかった。歩ける数（snap.move）のぶんだけ、
+       通れて空いているマスをたどって広げる */
     let moveCells = 0;
     if (snap) {
-      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-        const nx = snap.x + dx, ny = snap.y + dy;
-        if (nx < 0 || nx >= W2 || ny < 0 || ny >= H2) continue;
-        if (units.some(u => u.alive && u.x === nx && u.y === ny)) continue;
-        if (!walkableAt(nx, ny)) continue;
-        cellAt(nx, ny).append(el('button', {
-          class: 'go-move', title: '移動',
-          onclick: () => { SFX.move(); command({ type: 'move', x: nx, y: ny }); } }));
-        moveCells++;
+      const tiles = Math.max(1, snap.move || 1);
+      const blocked = (x, y) => !walkableAt(x, y)
+        || units.some(u => u.alive && u.x === x && u.y === y);
+      const seen = new Set([snap.y * W2 + snap.x]);
+      let edge = [{ x: snap.x, y: snap.y }];
+      for (let d = 0; d < tiles && edge.length; d++) {
+        const next = [];
+        for (const c of edge) for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+          const nx = c.x + dx, ny = c.y + dy;
+          if (nx < 0 || nx >= W2 || ny < 0 || ny >= H2) continue;
+          if (seen.has(ny * W2 + nx) || blocked(nx, ny)) continue;
+          seen.add(ny * W2 + nx);
+          next.push({ x: nx, y: ny });
+          cellAt(nx, ny).append(el('button', {
+            class: 'go-move', title: '移動',
+            onclick: () => { SFX.move(); command({ type: 'move', x: nx, y: ny }); } }));
+          moveCells++;
+        }
+        edge = next;
       }
     }
     // 待機：行動中の自分のコマをタップする（2026-09-20）

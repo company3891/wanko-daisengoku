@@ -5484,7 +5484,16 @@ const N = '(\\d+(?:\\.\\d+)?)';
 const REAL_ATTRS = ['猛将', '智将', '守将', '仁将', '神速'];
 
 function normalizeStat(s) { return STAT_ALIAS[s] || s; }
-function splitSentences(text) { return String(text).split(/[。\n]/).map(s => s.trim()).filter(Boolean); }
+/* なか点でつないだ強化は、一つずつに開いてから読む（2026-10-04）。
+   「火力・賢さ+12%」は 賢さ のぶんしか拾えておらず、火力が丸ごと落ちていた。
+   読む筋を増やさずに済むよう、文のほうを「火力+12%、賢さ+12%」に開く */
+const ST5 = '火力|賢さ|知力|知略|防御|守備|回復|速さ|攻撃力|防御力|回復力';
+function openMultiStat(text) {
+  const re = new RegExp('((?:' + ST5 + ')(?:[・、/／](?:' + ST5 + '))+)([+-]\\d+(?:\\.\\d+)?%)', 'g');
+  return String(text).replace(re, (_, names, tail) =>
+    names.split(/[・、/／]/).map(n => n + tail).join('、'));
+}
+function splitSentences(text) { return openMultiStat(text).split(/[。\n]/).map(s => s.trim()).filter(Boolean); }
 // 持続時間。マスタは「Nターン」表記が正（2026-09-18〜）。
 // 旧マスタの「N秒間」も読めるよう残す。エンジン内部は秒で持つので、ターンは SEC 倍して返す。
 const SEC_PER_TURN = 2;
@@ -5555,6 +5564,17 @@ function targetOf(s, fallback) {
   if (/味方全体|味方全員/.test(s)) return 'allAllies';
   if (/自身と左右1マス以内の味方|左右1マス以内の味方|周囲の味方/.test(s)) return 'selfAndAdjacent';
   if (/兵量割合が最も低い味方|HP割合が最も低い味方|最も低い味方/.test(s)) return 'lowestAlly';
+  /* 「◯◯と△△の合計が最も高い味方1体」（2026-10-04）。
+     前は「味方1体」として拾っていたので、誰でもよい一人に掛かっていた */
+  {
+    const t2 = s.match(new RegExp('(' + ST5 + ')と(' + ST5 + ')の合計が最も高い味方'));
+    if (t2) return 'topAlly:' + normalizeStat(t2[1]) + '+' + normalizeStat(t2[2]);
+  }
+  // 「前列にいる味方最大N体」（2026-10-04）。前は味方全体に掛かっていた
+  {
+    const fa = s.match(new RegExp('前列(?:に)?(?:いる)?味方(?:最大)?' + N + '体'));
+    if (fa) return 'frontAllies:' + fa[1];
+  }
   const attr = s.match(/味方(猛将|智将|守将|仁将|神速)/);
   if (attr) return 'allyAttr:' + attr[1];
   const tag = s.match(/味方(?:の)?(姫|築城|前衛|後衛|防御|女性|騎馬|鉄砲|弓|槍|歩兵|忍び|剣士|軍師|僧)(?:属性|タグ持ち)?/);
@@ -5938,7 +5958,16 @@ function parseSentence(s, out) {
   }
 
   // 神速：狙われない／足が速い
-  if (/敵の攻撃対象にならない|攻撃対象に選ばれない/.test(s)) push({ kind: 'untargetable', cond: cond });
+  /* 伏兵（狙われない）。ターン数が書いてあれば、そのあいだだけ（2026-10-04）。
+     前はターン数を読まずに「常時のしかけ」として積んでいたので、
+     「3ターン敵の攻撃対象にならない」が一戦ずっと続いていた。
+     上杉ケンシンの毘沙ワン天を継いだ武将が、15ターン伏兵のままだった */
+  if (/敵の攻撃対象にならない|攻撃対象に選ばれない/.test(s)) {
+    const ht = s.match(new RegExp(N + 'ターン'));
+    if (ht) push({ kind: 'hide', turns: +ht[1],
+      target: /味方全員|味方全体/.test(s) ? 'allAllies' : 'self', cond: cond });
+    else push({ kind: 'untargetable', cond: cond });
+  }
   if ((m = s.match(new RegExp('1ターンに' + N + 'マス移動'))))
     push({ kind: 'moveTiles', n: parseInt(m[1], 10) });
 
@@ -6845,6 +6874,22 @@ function resolveTargets(eff, self, allies, enemies, primary, rules) {
   if (t === 'allAllies') return live(allies);
   if (t === 'selfAndAdjacent') return live(allies).filter(a => a === self || dist(a, self) <= 1);
   if (t === 'lowestAlly') { const l = live(allies); return l.length ? [l.slice().sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp || a.no - b.no)[0]] : []; }
+  /* 「◯◯と△△の合計が最も高い味方1体」（2026-10-04）。同じなら配置番号の小さいほう */
+  if (String(t).startsWith('topAlly:')) {
+    const ks = t.slice(8).split('+');
+    const l = live(allies);
+    if (!l.length) return [];
+    const sum = (a) => ks.reduce((v, k) => v + stat(a, k), 0);
+    return [l.slice().sort((a, b) => sum(b) - sum(a) || a.no - b.no)[0]];
+  }
+  /* 「前列にいる味方最大N体」（2026-10-04）。敵陣に近い者から。
+     同じ列なら兵量の割合が低い順、それも同じなら配置番号の小さい順 */
+  if (String(t).startsWith('frontAllies:')) {
+    const n = Math.max(1, parseInt(t.split(':')[1], 10) || 1);
+    const toward = self.side === 'A' ? 1 : -1;      // A軍は -y が敵陣なので、y の小さいほうが前
+    return live(allies).slice().sort((a, b) => (a.y - b.y) * toward
+      || a.hp / a.maxHp - b.hp / b.maxHp || a.no - b.no).slice(0, n);
+  }
   if (t === 'ally1') { const l = live(allies).filter(a => a !== self); return l.length ? [l[0]] : [self]; }
   if (t === 'self') return [self];
   if (String(t).startsWith('allyAttr:')) return live(allies).filter(a => a.attr === t.split(':')[1]);
@@ -6927,6 +6972,13 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
           ? self._durPlus * (ctx.rules.time?.secPerTurn ?? 2) : 0;
         for (const e of tg) e.mods.push({ stat: eff.stat, pct: eff.pct * k,
           left: eff.dur != null ? eff.dur + plus : Infinity, cond: eff.cond });
+        /* 掛かった その場で矢印を出す（2026-10-04）。
+           矢印はターンの頭の写しにしか乗っていなかったので、
+           技が光ってから次のターンまで、誰に効いたのか分からなかった。
+           持続時間のあるものだけ（常時のものは全員が持っていて印にならない） */
+        if (ctx.log && eff.dur != null)
+          for (const e of tg) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'buff',
+            tgt: e.id, stat: eff.stat, up: eff.pct > 0 });
         break;
       }
       case 'mod':
@@ -6937,6 +6989,17 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
           e.mods.push({ key: eff.key, pct: eff.pct, left: eff.dur != null ? eff.dur + plus2 : Infinity, cond: eff.cond });
         }
         break;
+      /* 伏兵（2026-10-04）。書かれたターン数のあいだだけ狙われない。
+         開戦の仕込みはターンの数えが始まる前なので、一つ多く積んでおく
+         （ターン1の頭で一つ引かれて、ちょうど書かれたぶんになる） */
+      case 'hide': {
+        const extra = (ctx.t || 0) === 0 ? 1 : 0;
+        for (const e of tg) {
+          e._hideLeft = Math.max(e._hideLeft || 0, (eff.turns || 1) + extra);
+          if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'hide', src: e.id, turns: eff.turns || 1 });
+        }
+        break;
+      }
       case 'status':
         for (const e of tg) applyStatus(self, e, eff, ctx);
         break;
@@ -7507,12 +7570,13 @@ function runCommand(u, cmd, allies, enemies, ctx) {
     // ゲージが足りなければ攻撃に落とす
   }
   if (cmd.type === 'move') {
-    const step = { x: cmd.x, y: cmd.y };
-    const legal = Math.abs(step.x - u.x) + Math.abs(step.y - u.y) === 1
-      && step.x >= 0 && step.x < rules.board.width && step.y >= 0 && step.y < rules.board.height
-      && isWalkable(step.x, step.y, rules)
-      && !allies.concat(enemies).some(o => o.alive && o !== u && o.x === step.x && o.y === step.y);
-    if (legal && (isPlainMap(rules) || canEnterCost(u, step, ctx))) {
+    /* 歩ける数のぶんだけ進めるようにした（2026-10-04）。
+       前はここが「隣り合う一マス」決め打ちだったので、
+       「移動+1」を持つ武将も、手で操るときは一マスしか動けなかった。
+       道すじは一マスずつたどるので、地形の重さも通れるかも今までどおり効く */
+    const path = walkPath(u, { x: cmd.x, y: cmd.y }, allies.concat(enemies), rules, tilesOf(u));
+    for (const step of (path || [])) {
+      if (!isPlainMap(rules) && !canEnterCost(u, step, ctx)) break;
       if (!isPlainMap(rules)) payMove(u, step, rules);
       u.x = step.x; u.y = step.y;
       gainGaugeOnMove(u, rules);
@@ -7659,8 +7723,7 @@ function act(u, allies, enemies, ctx) {
       if (e.kind === 'onAttack' && rng.chance(e.chance) && target.alive)
         target.mods.push({ stat: e.stat, pct: e.pct, left: e.dur });
   } else {
-    const tiles = Math.max(...[1].concat((u.passives || []).filter(p => p.kind === 'moveTiles' && condOk(u, p)).map(p => p.n)));
-    const steps = tiles + (rng.chance(clamp(modSum(u, 'moveSpeed'), 0, rules.moveSpeed.maxBonus)) ? 1 : 0);
+    const steps = tilesOf(u) + (rng.chance(clamp(modSum(u, 'moveSpeed'), 0, rules.moveSpeed.maxBonus)) ? 1 : 0);
     for (let i = 0; i < steps; i++) moveToward(u, target, allies.concat(enemies), ctx);
     // 移動してから攻撃できるか（2026-09-19）。
     // 排他だと1手番を移動に使うだけで損になり、後退も交代も成立しない。
@@ -7728,8 +7791,43 @@ function moveToward(u, target, all, ctx) {
 // マスに入るときその地形の move_cost を払う。全マス平地なら常に 1.0 なので従来と同じ。
 function movePoints(u, ctx) {
   const base = ctx.rules.terrain?.movePerTurn ?? 1.0;
-  const tiles = Math.max(...[1].concat((u.passives || []).filter(p => p.kind === 'moveTiles' && condOk(u, p)).map(p => p.n)));
-  return base * tiles;
+  return base * tilesOf(u);
+}
+/* 何マスまで動けるか（2026-10-04）。「移動+1」の常時効果を数える。
+   前はこの式が二か所に写してあり、手で操るときはどちらも通らなかったので
+   移動2の武将がオートのときしか二マス進めなかった */
+function tilesOf(u) {
+  return Math.max(...[1].concat((u.passives || []).filter(p => p.kind === 'moveTiles' && condOk(u, p)).map(p => p.n)));
+}
+/* 指された先までの道すじを、歩ける数のうちで探す（2026-10-04）。
+   上下左右に一マスずつ、通れて空いているマスだけをたどる。
+   届かなければ null。手で操るときの移動に使う */
+function walkPath(u, goal, all, rules, maxSteps) {
+  const W = rules.board.width, H = rules.board.height;
+  if (goal.x < 0 || goal.x >= W || goal.y < 0 || goal.y >= H) return null;
+  if (goal.x === u.x && goal.y === u.y) return null;
+  const blocked = (x, y) => !isWalkable(x, y, rules)
+    || all.some(o => o.alive && o !== u && o.x === x && o.y === y);
+  const key = (x, y) => y * W + x;
+  const prev = new Map([[key(u.x, u.y), null]]);
+  let edge = [{ x: u.x, y: u.y }];
+  for (let d = 0; d < maxSteps && edge.length; d++) {
+    const next = [];
+    for (const c of edge) for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+      const nx = c.x + dx, ny = c.y + dy;
+      if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+      if (prev.has(key(nx, ny)) || blocked(nx, ny)) continue;
+      prev.set(key(nx, ny), c);
+      if (nx === goal.x && ny === goal.y) {
+        const path = []; let cur = { x: nx, y: ny };
+        while (cur) { path.unshift(cur); cur = prev.get(key(cur.x, cur.y)); }
+        return path.slice(1);
+      }
+      next.push({ x: nx, y: ny });
+    }
+    edge = next;
+  }
+  return null;
 }
 function canEnterCost(u, target, ctx) {
   if (u._mpTurn !== u._turn) { u._mpTurn = u._turn; u._mp = (u._mp || 0) + movePoints(u, ctx); }
@@ -8189,7 +8287,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         units: A.concat(B).map(u => ({ id: u.id, x: u.x, y: u.y, hp: Math.round(u.hp),
           maxHp: u.maxHp, alive: u.alive, ult: +(u.ult || 0).toFixed(2),
           // 射程と必要ゲージも入れる。手動操作の画面が「どこまで届くか」を出すのに使う
-          range: rangeOf(u), straight: straightOnly(u) || undefined,
+          range: rangeOf(u), straight: straightOnly(u) || undefined, move: tilesOf(u),
           ultCost: u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge,
           st: Object.keys(u.statuses || {}).concat(isHidden(u) ? ['伏兵'] : []),
           // いま掛かっている一時的な強化・弱化（2026-09-20）。
@@ -32028,6 +32126,12 @@ function applyEvent(live, e) {
        ひるみは1ターンでターンの頭の写しには乗らないので、ここで印だけ足す。
        次の写しで消える */
     case 'flinch': { const t = get(e.src); if (t) t.st = [...new Set([...(t.st || []), 'ひるみ'])]; break; }
+    /* 強化・弱化の矢印は、掛かったその場で出す（2026-10-04）。
+       次のターンの頭の写しで改めて作り直されるので、ここでは足すだけでよい */
+    case 'buff': { const t = get(e.tgt); if (!t) break;
+      const mods = [...(t.mods || [])];
+      if (!mods.some(m => m.stat === e.stat && !!m.up === !!e.up)) mods.push({ stat: e.stat, up: !!e.up });
+      t.mods = mods; break; }
     case 'withdraw': { const u = get(e.src); if (u) u.alive = false; break; }
     case 'revive': { const t = get(e.tgt); if (t) { t.alive = true; t.hp = e.hp != null ? e.hp : Math.max(t.hp, 1); } break; }
   }
@@ -32130,6 +32234,9 @@ async function showEvent(e, my) {
     }
     case 'flinch':
       applyEvent(live, e); drawBattle(); await sleep(260); return;
+
+    case 'buff':
+      applyEvent(live, e); drawBattle(); return;
 
     case 'burn':
       applyEvent(live, e); drawBattle();
@@ -32356,18 +32463,31 @@ function drawBattle() {
     for (const f of inRange) cellAt(f.x, f.y).append(el('button', {
       class: 'go-atk', title: `${res.initial.find(u => u.id === f.id)?.name || ''} を攻撃`,
       onclick: () => { SFX.pick(); command({ type: 'attack', tgt: f.id }); } }));
-    // 移動できるマス：水色。タップでそのまま移動
+    /* 移動できるマス：水色。タップでそのまま移動（2026-10-04 改）。
+       前は上下左右の一マスだけを出していたので、「移動+1」を持つ武将でも
+       手で操ると一マスしか動けなかった。歩ける数（snap.move）のぶんだけ、
+       通れて空いているマスをたどって広げる */
     let moveCells = 0;
     if (snap) {
-      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-        const nx = snap.x + dx, ny = snap.y + dy;
-        if (nx < 0 || nx >= W2 || ny < 0 || ny >= H2) continue;
-        if (units.some(u => u.alive && u.x === nx && u.y === ny)) continue;
-        if (!walkableAt(nx, ny)) continue;
-        cellAt(nx, ny).append(el('button', {
-          class: 'go-move', title: '移動',
-          onclick: () => { SFX.move(); command({ type: 'move', x: nx, y: ny }); } }));
-        moveCells++;
+      const tiles = Math.max(1, snap.move || 1);
+      const blocked = (x, y) => !walkableAt(x, y)
+        || units.some(u => u.alive && u.x === x && u.y === y);
+      const seen = new Set([snap.y * W2 + snap.x]);
+      let edge = [{ x: snap.x, y: snap.y }];
+      for (let d = 0; d < tiles && edge.length; d++) {
+        const next = [];
+        for (const c of edge) for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+          const nx = c.x + dx, ny = c.y + dy;
+          if (nx < 0 || nx >= W2 || ny < 0 || ny >= H2) continue;
+          if (seen.has(ny * W2 + nx) || blocked(nx, ny)) continue;
+          seen.add(ny * W2 + nx);
+          next.push({ x: nx, y: ny });
+          cellAt(nx, ny).append(el('button', {
+            class: 'go-move', title: '移動',
+            onclick: () => { SFX.move(); command({ type: 'move', x: nx, y: ny }); } }));
+          moveCells++;
+        }
+        edge = next;
       }
     }
     // 待機：行動中の自分のコマをタップする（2026-09-20）

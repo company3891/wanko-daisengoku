@@ -25,13 +25,15 @@ import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TIC
          sellDup, skillRate, skillUp,
          INH_MAT_MAX, INH_RATE_NORMAL, INH_RATE_UNIQ, INH_CHARMS, inhOf, uniqInhCount, slotsOf,
          givableOf, canInherit, inhRate, inherit, lostUnique,
-         matLeft, cardsNeeded, canEatCard, inSquad, dismiss, cntOf, setCnt, hasCard, fireMax } from './player.js';
+         matLeft, cardsNeeded, canEatCard, inSquad, dismiss, cntOf, setCnt, hasCard, fireMax,
+         replacePlayer } from './player.js';
 import { REGIONS, REGION_ORDER, PREFS, PREF, prefsOf, INTRO, LORD_TALK, NO_LORD_NAME, STEP_NAME, FOOD_COST, chapterRank, mapX, mapY, stageOf } from './campaign.js';
 import { EVENTS, EV_RANKS, EV_FOOD, EV_POWER, EV_LV, EV_SOUL, EV_SKILL, EV_STAGE, evOf, evState, evCleared, evOpen, evDone, evWin, evRepeat,
          awakeAttrsToday, WEEKLY_PICK, evShownToday } from './event.js';
 import { MI_TABS, MI_BOX, MISSIONS, miOf, KADODE } from './mission.js';
 import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPassRank,
          lkHash, lkSalt, lkTied } from './link.js';
+import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce, revOf } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -164,6 +166,18 @@ buildStars(C);                 // 特技の★（その特技を持つ最低レ�
    1つの部隊＝「編成（武将5体まで）＋総大将＋陣形＋配置」で5つまで。
    ステージと操作方式は部隊に含めない（同じ部隊をいろいろな戦場に出せるほうが使いやすい）。 */
 loadPlayer(FORMS);
+/* 蔵に繋がっているなら、起きたときに向こうが新しくないか見にいく（2026-10-04）。
+   ほかの端末で遊んでいた場合、黙って上書きすると片方が消えるため。
+   ★ここは S がまだ出来ていない位置なので、全部読み終えてから動かす（setTimeout 0） */
+setTimeout(() => {
+  if (!linked()) return;
+  kuWatch();
+  pullSave().then(g => {
+    if (g && g.ok && g.blob && (g.rev || 0) > revOf()) {
+      S.kuWar = { rev: g.rev, blob: g.blob, at: g.at }; draw();
+    }
+  }).catch(() => { /* 繋がらなくても端末の中だけで遊べる */ });
+}, 0);
 soundEnabled(!!P.sound);   // 覚えている音の入り切りを渡す（2026-09-28）
 setMix({ bgm: sndOf('bgm'), amb: sndOf('amb'), se: sndOf('se') });
 const saveSquads = savePlayer;
@@ -662,13 +676,16 @@ function lkOpen() {
   S.lkMsg = ''; S.lkP1 = ''; S.lkP2 = ''; S.lkShow = false;
   SFX.pick(); draw();
 }
-const lkClose = () => { S.link = null; S.lkMsg = ''; S.lkP1 = ''; S.lkP2 = ''; draw(); };
+const lkClose = () => { S.link = null; S.lkMsg = ''; S.lkP1 = ''; S.lkP2 = ''; S.kuMsg = ''; S.kuCode = ''; draw(); };
 
 /* パスワードを決める（はじめて発行するときも、変えるときも同じ札） */
 function lkSavePass(first) {
   const code = first ? lkMakeCode() : P.link.code;
   const ng = lkPassNg(S.lkP1, S.lkP2, code);
   if (ng) { S.lkMsg = ng; draw(); return; }
+  /* 蔵に預けるぶんを先に取っておく（下で S.lkP1 を空にするため）。
+     平文を蔵へ送るのはここだけ。蔵では PBKDF2 で捏ねて置かれる（2026-10-04） */
+  const pw = S.lkP1;
   const salt = lkSalt();
   P.link.code = code;
   P.link.salt = salt;
@@ -680,6 +697,18 @@ function lkSavePass(first) {
   S.lkMsg = first ? '' : 'パスワードを変更しました';
   SFX.get ? SFX.get() : SFX.pick();
   draw();
+  /* 蔵へ。繋がらなくても遊びは止めないので、返事は待たない（2026-10-04） */
+  if (KURA) (async () => {
+    if (first) {
+      const h = await hello(P.link.code, P.name || '');
+      if (!h.ok) return;
+      await setPass(pw);
+      await kuPush(true);
+      kuWatch();
+    } else if (linked()) {
+      await setPass(pw);
+    }
+  })();
 }
 
 /* IDをコピーする。クリップボードが使えない環境でも落ちないようにする */
@@ -760,6 +789,125 @@ function lkSheet() {
   ];
 }
 
+/* ---------------- 蔵（サーバー）への控え（2026-10-04）----------------
+   ★ここも戦国口調を使わない（引き継ぎ画面と同じ決めごと）。
+     間違えると失うのが「気分」ではなく「データそのもの」だから。
+
+   いちばん大事な決めごと ──「蔵が無くても遊べる」。
+   繋がらないときは静かにあきらめて、これまでどおり端末の中だけで動く。
+   だから蔵の返事を待って画面を止めることはしない。
+
+   版くらべ：二台で遊ぶと、あとから送ったほうが先の記録を黙って消してしまう。
+   それを防ぐため、送るときに手元の版を添える。食い違えば蔵が 409 を返すので、
+   どちらを採るか必ず人に尋ねる（勝手に混ぜない）。 */
+let kuLast = '';        // 最後に蔵へ送った中身。同じなら送らない（むだな書き込みを減らす）
+let kuTimer = 0;
+
+const kuBlob = () => ({ ...P, own: [...P.own] });
+const kuWhen = t => { try { return new Date((t || 0) * 1000).toLocaleString('ja-JP'); } catch { return ''; } };
+const kuSum = b => `${b && b.name || '名前未設定'}　Lv.${(b && b.lv) || 1}　武将 ${((b && b.own) || []).length}体　小判 ${(b && b.koban) || 0}`;
+
+async function kuPush(force) {
+  if (!linked()) return { ok: false, err: 'off' };
+  const blob = kuBlob();
+  const text = JSON.stringify(blob);
+  if (!force && text === kuLast) return { ok: true, same: true };
+  const r = await pushSave(blob);
+  if (r.ok) kuLast = text;
+  else if (r.status === 409) { S.kuWar = { rev: r.rev, blob: r.blob, at: r.at }; draw(); }
+  return r;
+}
+
+/* 控えの送りどき。遊んでいる最中に止めたくないので、
+   ①画面を離れたとき ②2分おき の二つだけ。押しての「今すぐ保存」とは別 */
+function kuWatch() {
+  if (kuTimer || !linked()) return;
+  kuTimer = setInterval(() => { kuPush(false); }, 120000);
+  const bye = () => { if (document.visibilityState === 'hidden') kuPush(false); };
+  addEventListener('visibilitychange', bye);
+  addEventListener('pagehide', () => kuPush(false));
+}
+
+/* この端末を蔵につなぐ。パスワードは手元の覚えと照らしてから蔵に預ける
+   （平文を蔵に送るのはこの一度きり。蔵では PBKDF2 で捏ねて置かれる） */
+async function kuJoin() {
+  if (lkHash(S.lkP1, P.link.salt) !== P.link.pass) { S.kuMsg = 'パスワードが違います'; draw(); return; }
+  S.kuBusy = true; S.kuMsg = '接続しています…'; draw();
+  const h = await hello(P.link.code, P.name || '');
+  if (!h.ok) {
+    S.kuBusy = false;
+    S.kuMsg = h.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (h.err || '接続できませんでした');
+    draw(); return;
+  }
+  await setPass(S.lkP1);
+  const g = await pullSave();          // 蔵にもう記録があるなら、勝手に上書きしない
+  S.kuBusy = false; S.lkP1 = ''; S.lkP2 = '';
+  if (g.ok && g.blob) { S.kuWar = { rev: g.rev, blob: g.blob, at: g.at }; S.link = null; draw(); return; }
+  const r = await kuPush(true);
+  kuWatch();
+  S.link = 'main';
+  S.kuMsg = r.ok ? '接続しました。これから自動で控えます' : '接続しましたが、控えを送れませんでした';
+  draw();
+}
+
+/* 別の端末から引き継ぐ。IDとパスワードで入り直し、蔵の記録を持ってくる */
+async function kuClaim() {
+  const code = lkTidyCode(S.kuCode || '');
+  if (!lkCodeOk(code)) { S.kuMsg = 'IDの形が違います'; draw(); return; }
+  S.kuBusy = true; S.kuMsg = '確かめています…'; draw();
+  const c = await claim(code, S.lkP1);
+  if (!c.ok) {
+    S.kuBusy = false;
+    S.kuMsg = c.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (c.err || 'IDかパスワードが違います');
+    draw(); return;
+  }
+  const g = await pullSave();
+  S.kuBusy = false; S.lkP1 = '';
+  if (!g.ok || !g.blob) { S.kuMsg = 'そのIDには、まだ控えがありません'; draw(); return; }
+  S.kuTake = { rev: g.rev, blob: g.blob, at: g.at };
+  S.link = null; draw();
+}
+
+/* 蔵の記録をこの端末に入れる。半端に混ぜず、入れ替えてから読み直す */
+function kuTakeGo(blob) {
+  if (!replacePlayer(blob)) { S.kuMsg = 'この端末に書き込めませんでした'; draw(); return; }
+  location.reload();
+}
+
+/* 版が食い違ったとき。どちらを残すか尋ねる札。勝手に混ぜない */
+function kuWarSheet() {
+  const w = S.kuWar;
+  const close = () => { S.kuWar = null; draw(); };
+  return el('div', { class: 'sheet' }, el('div', { class: 'card2 lkbox' },
+    el('b', { class: 'mittl' }, '記録が二つあります'),
+    el('p', { class: 'ttsub' }, 'この端末と蔵で、記録が食い違っています。どちらを残すか選んでください。選ばなかったほうは消えます。'),
+    el('div', { class: 'lknote' },
+      el('b', {}, 'この端末'), el('span', {}, kuSum(kuBlob())),
+      el('b', {}, '蔵'), el('span', {}, `${kuSum(w.blob)}（${kuWhen(w.at)}）`)),
+    S.kuMsg ? el('p', { class: 'lkmsg' }, S.kuMsg) : null,
+    el('button', { class: 'go wide', onclick: async () => {
+      S.kuMsg = '送っています…'; draw();
+      const r = await pushSaveForce(kuBlob(), w.rev);
+      S.kuWar = null; S.kuMsg = r.ok ? 'この端末の記録を残しました' : '送れませんでした';
+      kuWatch(); draw();
+    } }, 'この端末を残す'),
+    el('button', { class: 'ghost wide', onclick: () => kuTakeGo(w.blob) }, '蔵を残す'),
+    el('button', { class: 'ghost wide', onclick: close }, 'あとで決める')));
+}
+
+/* 別の端末から持ってくるときの、最後の確かめ */
+function kuTakeSheet() {
+  const w = S.kuTake;
+  return el('div', { class: 'sheet' }, el('div', { class: 'card2 lkbox' },
+    el('b', { class: 'mittl' }, 'この端末のデータを入れ替えます'),
+    el('div', { class: 'lknote' },
+      el('b', {}, 'いまの記録'), el('span', {}, kuSum(kuBlob())),
+      el('b', {}, '持ってくる記録'), el('span', {}, `${kuSum(w.blob)}（${kuWhen(w.at)}）`)),
+    el('p', { class: 'lkwarn' }, 'いまの記録は消えます。元に戻せません。'),
+    el('button', { class: 'go wide danger', onclick: () => kuTakeGo(w.blob) }, '入れ替える'),
+    el('button', { class: 'ghost wide', onclick: () => { S.kuTake = null; draw(); } }, 'キャンセル')));
+}
+
 function linkSheet() {
   const step = S.link;
   const box = (...kids) => el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) lkClose(); } },
@@ -806,6 +954,39 @@ function linkSheet() {
       el('button', { class: 'ghost wide', onclick: () => { S.link = 'main'; S.lkP1 = ''; S.lkP2 = ''; S.lkMsg = ''; draw(); } }, 'キャンセル'));
   }
 
+  /* 蔵につなぐ（2026-10-04）。いま決めてあるパスワードを一度だけ確かめる */
+  if (step === 'join') {
+    return box(
+      el('b', { class: 'mittl' }, 'バックアップに接続'),
+      el('p', { class: 'ttsub' },
+        'データの控えを預けます。端末が壊れても、引き継ぎIDとパスワードがあれば取り戻せます。'),
+      el('div', { class: 'lkfield' },
+        el('input', { class: 'lkin', type: 'password', value: S.lkP1,
+          placeholder: 'いまのパスワード',
+          oninput: e => { S.lkP1 = e.target.value; } })),
+      S.kuMsg ? el('p', { class: 'lkmsg' }, S.kuMsg) : null,
+      el('button', { class: 'go wide', ...(S.kuBusy ? { disabled: true } : {}), onclick: kuJoin }, '接続する'),
+      el('button', { class: 'ghost wide', onclick: () => { S.link = 'main'; S.lkP1 = ''; S.kuMsg = ''; draw(); } }, 'キャンセル'));
+  }
+
+  /* 別の端末から引き継ぐ（2026-10-04）。IDとパスワードで蔵に入り直す */
+  if (step === 'claim') {
+    return box(
+      el('b', { class: 'mittl' }, '別の端末から引き継ぐ'),
+      el('p', { class: 'ttsub' },
+        '前の端末で発行した引き継ぎIDとパスワードを入力してください。いまのデータは入れ替わります。'),
+      el('div', { class: 'lkfield' },
+        el('input', { class: 'lkin', type: 'text', value: S.kuCode || '',
+          placeholder: 'WAN-0000-0000', autocapitalize: 'characters', spellcheck: 'false',
+          oninput: e => { S.kuCode = e.target.value; } }),
+        el('input', { class: 'lkin', type: 'password', value: S.lkP1,
+          placeholder: 'パスワード',
+          oninput: e => { S.lkP1 = e.target.value; } })),
+      S.kuMsg ? el('p', { class: 'lkmsg' }, S.kuMsg) : null,
+      el('button', { class: 'go wide', ...(S.kuBusy ? { disabled: true } : {}), onclick: kuClaim }, '引き継ぐ'),
+      el('button', { class: 'ghost wide', onclick: () => { S.link = 'main'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; draw(); } }, 'キャンセル'));
+  }
+
   /* ふだんの画面 */
   const tied = lkTied(P);
   return box(
@@ -818,6 +999,20 @@ function linkSheet() {
     el('div', { class: 'lkrow' },
       el('button', { class: 'ghost', onclick: lkCopy }, 'IDをコピー'),
       el('button', { class: 'ghost', onclick: lkCard }, '画像で保存')),
+    /* 蔵への控え（2026-10-04）。蔵が無い作りでも遊べるよう、KURA が空なら出さない */
+    KURA ? el('div', { class: 'lkpass' },
+      el('span', { class: 'l' }, 'バックアップ'),
+      el('span', { class: 'd' }, linked() ? '接続済み' : '未接続'),
+      linked()
+        ? el('button', { class: 'ghost sm', onclick: async () => {
+            S.lkMsg = '送っています…'; draw();
+            const r = await kuPush(true);
+            S.lkMsg = r.ok ? '控えました' : (r.status === 409 ? '' : '送れませんでした');
+            draw();
+          } }, '今すぐ')
+        : el('button', { class: 'ghost sm', onclick: () => {
+            S.link = 'join'; S.lkP1 = ''; S.kuMsg = ''; SFX.pick(); draw();
+          } }, '接続')) : null,
     S.lkMsg ? el('p', { class: 'lkmsg' }, S.lkMsg) : null,
     el('p', { class: 'lkwarn' }, 'IDとパスワードは他人に教えないでください。'),
     /* 連携。サーバーができるまでは灰のまま並べておく（何につながるかだけ見せる） */
@@ -827,7 +1022,11 @@ function linkSheet() {
         el('i', {}, t.name.slice(0, 1)),
         el('span', { class: 'n' }, t.name),
         el('span', { class: 'o' }, (P.link.ties || {})[t.id] ? '連携済み' : '準備中')))),
-    el('button', { class: 'ghost wide soon', disabled: true }, '別の端末から引き継ぐ（準備中）'),
+    KURA
+      ? el('button', { class: 'ghost wide', onclick: () => {
+          S.link = 'claim'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; SFX.pick(); draw();
+        } }, '別の端末から引き継ぐ')
+      : el('button', { class: 'ghost wide soon', disabled: true }, '別の端末から引き継ぐ（準備中）'),
     closeX(lkClose));
 }
 
@@ -9046,6 +9245,8 @@ function draw() {
     S.tt ? ttSheet() : null,
     S.rk ? rkSheet() : null,
     S.link ? linkSheet() : null,
+    S.kuWar ? kuWarSheet() : null,
+    S.kuTake ? kuTakeSheet() : null,
     S.reset ? resetSheet() : null,
     /* キャラカードを開いているあいだは友の札を引っ込める（2026-09-24）。
        重ねて出すとカードが友の札の裏に隠れてしまう。閉じれば友の家に戻る */

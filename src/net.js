@@ -1,0 +1,99 @@
+/* 蔵との行き来（2026-10-04）
+   ★ここの文言も戦国口調を使わない（link.js と同じ決めごと）。
+     間違えると失うのが「気分」ではなく「データそのもの」だから。
+
+   いちばん大事な決めごと ──「蔵が無くても遊べる」。
+   繋がらないときは静かにあきらめて、これまでどおり端末の中だけで動く。
+   「絵が無くても動く」と同じ考え方。
+
+   まだ画面には繋いでいない。繋ぐときは build_standalone.mjs の
+   strip() と連結の2か所に net を足すこと（新モジュールの落とし穴） */
+
+export const KURA = 'https://wanko-kura.company-yug.workers.dev';   // 例: 'https://wanko-kura.<あなた>.workers.dev'。空なら蔵を使わない
+
+const LS_DEV = 'wanko.device.v1';
+const LS_TOK = 'wanko.token.v1';
+const LS_REV = 'wanko.rev.v1';
+
+const ls = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* 入らなくても進む */ } },
+};
+
+/* 端末の印。その端末にひとつ。消すと別の端末として扱われる */
+export function deviceKey() {
+  let d = ls.get(LS_DEV);
+  if (!d) {
+    const a = new Uint8Array(16);
+    try { crypto.getRandomValues(a); } catch { for (let i = 0; i < 16; i++) a[i] = Math.random() * 256; }
+    d = [...a].map(b => b.toString(16).padStart(2, '0')).join('');
+    ls.set(LS_DEV, d);
+  }
+  return d;
+}
+
+export const token = () => ls.get(LS_TOK) || '';
+export const revOf = () => parseInt(ls.get(LS_REV) || '0', 10) || 0;
+export const linked = () => !!(KURA && token());
+
+async function call(path, { method = 'GET', body, auth = true } = {}) {
+  if (!KURA) return { ok: false, err: 'off' };
+  const h = { 'content-type': 'application/json' };
+  if (auth && token()) h.authorization = 'Bearer ' + token();
+  try {
+    const r = await fetch(KURA + path, { method, headers: h,
+      body: body === undefined ? undefined : JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    return { ...j, status: r.status, ok: r.ok && j.ok !== false };
+  } catch (e) {
+    return { ok: false, err: 'net' };     // 繋がらない。黙って端末の中だけで続ける
+  }
+}
+
+/* 蔵に名乗る。はじめてなら主を作って札をもらう。
+   code は link.js が端末で作った引き継ぎID（WAN-…）をそのまま渡す */
+export async function hello(code, name) {
+  const r = await call('/v1/hello', { method: 'POST', auth: false,
+    body: { device: deviceKey(), code, name } });
+  if (r.ok && r.token) { ls.set(LS_TOK, r.token); ls.set(LS_REV, String(r.rev || 0)); }
+  return r;
+}
+
+/* 別の端末から、引き継ぎID＋パスワードで入り直す */
+export async function claim(code, pass) {
+  const r = await call('/v1/link/claim', { method: 'POST', auth: false,
+    body: { device: deviceKey(), code, pass } });
+  if (r.ok && r.token) { ls.set(LS_TOK, r.token); ls.set(LS_REV, String(r.rev || 0)); }
+  return r;
+}
+
+export const setPass = (pass) => call('/v1/link/pass', { method: 'POST', body: { pass } });
+export const pullSave = () => call('/v1/save');
+
+/* 保存を入れる。版が食い違えば 409 と蔵の中身が返る。
+   そのときは勝手に混ぜず、どちらを採るか画面で尋ねること */
+export async function pushSave(blob) {
+  const r = await call('/v1/save', { method: 'PUT', body: { rev: revOf(), blob } });
+  if (r.ok && r.rev != null) ls.set(LS_REV, String(r.rev));
+  return r;
+}
+/* 蔵のほうを採ると決めたとき。版だけ合わせてから入れ直す */
+export async function pushSaveForce(blob, serverRev) {
+  ls.set(LS_REV, String(serverRev));
+  return pushSave(blob);
+}
+
+/* ---- 果たし合い（同期の対人戦）----
+   盤は送らない。種と指図だけをやりとりして、両方の端末で同じ戦を回す */
+export function duelJoin(duelId, { pid, name, team, seed }, on) {
+  if (!KURA) return null;
+  const ws = new WebSocket(KURA.replace(/^http/, 'ws') + `/v1/duel/${duelId}/ws`);
+  ws.addEventListener('open', () => ws.send(JSON.stringify({ t: 'join', duel: duelId, pid, name, team, seed })));
+  ws.addEventListener('message', (e) => { try { on(JSON.parse(e.data)); } catch (_) {} });
+  return {
+    cmd: (c) => { try { ws.send(JSON.stringify({ t: 'cmd', cmd: c })); } catch (_) {} },
+    over: (winner, reason) => { try { ws.send(JSON.stringify({ t: 'over', duel: duelId, winner, reason })); } catch (_) {} },
+    close: () => { try { ws.close(); } catch (_) {} },
+  };
+}
+export const duelOpen = (team) => call('/v1/duel/open', { method: 'POST', body: { team } });

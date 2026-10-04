@@ -26,6 +26,7 @@ let news = strip('app/src/news.js');     // お知らせ（2026-09-24）
 let mission = strip('app/src/mission.js'); // お役目（2026-09-24）
 let rank = strip('app/src/rank.js');       // 番付（2026-09-25）
 let link = strip('app/src/link.js');       // 引き継ぎの備え（2026-09-25）
+let net = strip('app/src/net.js');         // 蔵との遣り取り（2026-10-04）
 let gachas = strip('app/src/gachas.js'); // くじの一覧（2026-09-28）
 let tower = strip('app/src/tower.js');   // 試練の塔（2026-10-01）
 let market = strip('app/src/market.js'); // 武将取引所（2026-10-01）
@@ -60,6 +61,7 @@ const js = [
   mission,
   rank,
   link,
+  net,
   gachas,
   tower,
   market,

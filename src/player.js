@@ -757,6 +757,14 @@ export function savePlayer() {
   try { localStorage.setItem(KEY, JSON.stringify({ ...P, own: [...P.own] })); }
   catch { /* 保存が使えない環境でも遊べるようにする */ }
 }
+/* 蔵から引いた記録を丸ごと書き戻す（2026-10-04）。
+   半端に混ぜると事故るので、入れ替えたら必ず読み直す（画面側で location.reload）。
+   ここで localStorage に直に書くのは、loadPlayer の読み直しに乗せるため */
+export function replacePlayer(blob) {
+  try { localStorage.setItem(KEY, JSON.stringify(blob)); return true; }
+  catch { return false; }
+}
+
 export function loadPlayer(FORMS) {
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* 壊れていたら初期値 */ }

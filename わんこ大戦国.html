@@ -6601,7 +6601,7 @@ function scaleNormals(u, lv) {
 }
 function modSum(u, key) {
   let v = 0;
-  for (const m of u.mods) if (m.key === key && condOk(u, m)) v += (m.pct ?? m.flat ?? 0);
+  for (const m of (u.mods || [])) if (m.key === key && condOk(u, m)) v += (m.pct ?? m.flat ?? 0);
   return v;
 }
 /* 形が奥行きを持つなら、そのぶんは届く（2026-10-04）。
@@ -6610,8 +6610,15 @@ function modSum(u, key) {
    届かないのでは名が嘘になるので、形の奥行きを射程の下限として敷いた。
    「正面3マス」は左右の広がり（奥行きではない）なので足さない */
 const SHAPE_REACH = { frontRow2: 2, line: 3 };
-const rangeOf = (u) => Math.max(1, (u.range || 1) + modSum(u, 'range'),
-  SHAPE_REACH[attackShapeOf(u)] || 0);
+const baseRangeOf = (u) => Math.max(1, (u.range || 1) + modSum(u, 'range'));
+const rangeOf = (u) => Math.max(baseRangeOf(u), SHAPE_REACH[attackShapeOf(u)] || 0);
+/* 形で伸ばしたぶんの射程は「正面」だけ（2026-10-04）。
+   素の射程2は斜めにも届くが、「正面2マス」は名のとおり前と後ろ左右の筋だけ。
+   そこを同じにすると、形を継ぐだけで斜めまで取れてしまう */
+const shapeStraight = (u, shape) => baseRangeOf(u) < 2 && (SHAPE_REACH[shape] || 0) >= 2;
+const straightOnly = (u) => shapeStraight(u, attackShapeOf(u));
+/* その形がどこまで届くか。形は射程を縮めない（弓が形を継いでも射程は落ちない） */
+const shapeReachOf = (u, shape) => Math.max(baseRangeOf(u), SHAPE_REACH[shape] || 0);
 /* 奥義ゲージの上限（2026-10-03）。
    盤の上限（maxGauge=5）ではなく、その武将の必要量までしか溜まらない。
    前は 4で撃てる武将でも 5まで溜まり、画面に「5/4」と出ていた。
@@ -6729,7 +6736,7 @@ const dist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 // 射程1（接近戦）は上下左右の隣だけ。斜めの相手には素手が届かない。
 // 射程2以上（弓・槍など）は斜めにも届く＝距離2以内なら全方位。
 // 十字・周囲・一直線などに広がるのは特技と奥義の仕事（resolveTargets 側）。
-function canReach(a, b, r, rules) {
+function canReach(a, b, r, rules, straight) {
   if (dist(a, b) > r) return false;
   /* 城壁ごしには斬りかかれない（2026-09-26）。
      いままでは間に何があっても距離だけで当たっていたので、
@@ -6737,7 +6744,7 @@ function canReach(a, b, r, rules) {
      遮るのは城壁・建物・閉じた城門だけ（terrain.types.<地形>.blocksLine） */
   if (rules && !hasLine(a, b, rules)) return false;
   if (rules && rules.attackOrthogonalOnly === false) return true;
-  if (r >= 2) return true;                 // 射程2以上は斜めも射程内
+  if (r >= 2 && !(straight ?? straightOnly(a))) return true;   // 射程2以上は斜めも射程内
   return a.x === b.x || a.y === b.y;
 }
 const live = a => a.filter(x => x.alive);
@@ -6782,7 +6789,7 @@ function sweepTargets(self, enemies, primary, n, through) {
   rest.sort((a, b) => dist(self, a) - dist(self, b) || a.hp - b.hp || a.no - b.no);
   return [primary, ...rest.slice(0, Math.max(0, n - 1))];
 }
-function resolveTargets(eff, self, allies, enemies, primary) {
+function resolveTargets(eff, self, allies, enemies, primary, rules) {
   // 天守は「味方」としては数えない（2026-10-02）。守り手の癒しや強化が城に吸われないように
   allies = allies.filter(a => !a.isKeep);
   const t = eff.target;
@@ -6791,7 +6798,13 @@ function resolveTargets(eff, self, allies, enemies, primary) {
      もとは「自分と同じ列の前方」。実測で平均1.01体 ── 事実上いつも単体だった。
      効果文はどれも「最大3体・距離が近い順に選ぶ」と書いてあるので、
      狙った敵を先頭に、自分に近い者から三体まで貫く、と読み替えた */
-  if (t === 'line') return sweepTargets(self, enemies, primary, 3, true);
+  /* 形のある技は「その形の内に居る相手」にしか当たらない（2026-10-04）。
+     前は狙いが盤のどこに居ても当たっていたので、
+     宮本ムサシの燕返し（正面2マス）が盤の向こう端まで届いていた。
+     届かないときは何も返さない ── 撃ち手のほうで、空撃ちしないよう止めている */
+  const inShape = (shape) => primary && primary.alive
+    && canReach(self, primary, shapeReachOf(self, shape), rules, shapeStraight(self, shape));
+  if (t === 'line') return inShape('line') ? sweepTargets(self, enemies, primary, 3, true) : [];
   if (t === 'cross1') return live(enemies).filter(e => Math.abs(e.x - self.x) + Math.abs(e.y - self.y) === 1);
   if (t === 'around1') return live(enemies).filter(e => Math.max(Math.abs(e.x - self.x), Math.abs(e.y - self.y)) === 1);
   if (t === 'targetAround1') {
@@ -6815,8 +6828,8 @@ function resolveTargets(eff, self, allies, enemies, primary) {
      実測で 前列3マスは平均1.30体・前列2マスは1.18体 ── ほとんど単体攻撃だった。
      そこで「並び」ではなく「狙った敵に隣り合う敵（斜めも含む）」で数える。
      これで名のとおりの体数が当たる。巻き添えは自分に近い者から選ぶ。 */
-  if (t === 'frontRow3') return primary ? sweepTargets(self, enemies, primary, 3) : [];
-  if (t === 'frontRow2') return primary ? sweepTargets(self, enemies, primary, 2) : [];
+  if (t === 'frontRow3') return inShape('frontRow3') ? sweepTargets(self, enemies, primary, 3) : [];
+  if (t === 'frontRow2') return inShape('frontRow2') ? sweepTargets(self, enemies, primary, 2) : [];
   if (t === 'front1' || t === 'enemy1' || t === 'backEnemy' || t === 'target') return primary && primary.alive ? [primary] : [];
   if (t === 'allAllies') return live(allies);
   if (t === 'selfAndAdjacent') return live(allies).filter(a => a === self || dist(a, self) <= 1);
@@ -6841,7 +6854,7 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
   for (const eff of effects) {
     if (eff.cond && !condOk(self, eff)) continue;
     if (['pct', 'rate', 'chance'].some(k => eff[k] !== undefined && !Number.isFinite(eff[k]))) continue;
-    const tg = resolveTargets(eff, self, allies, enemies, primary);
+    const tg = resolveTargets(eff, self, allies, enemies, primary, ctx.rules);
     switch (eff.kind) {
       case 'damage': {
         const statName = eff.stat || self.primaryStat;
@@ -7060,9 +7073,12 @@ function aoeShare(n, rules) {
   return (1 + b * (n - 1)) / n;
 }
 
+/* 当たったら「実際に斬った相手」を返し、外れたら null を返す（2026-10-04）。
+   通常攻撃に紐づく状態異常が、回避されても付いていたため。
+   かばわれたときは身代わりの者を返す（印も身代わりに付く） */
 function dealDamage(src, tgt, statName, rate, ctx, element) {
   const { rules, rng, log, t } = ctx;
-  if (!tgt.alive) return;
+  if (!tgt.alive) return null;
   // かばう: 総大将への攻撃を、かばう持ちの味方が肩代わりする。
   // 「味方全員の攻撃をかばう」持ちは、総大将以外への攻撃も肩代わりする（守将の固有）
   {
@@ -7096,7 +7112,7 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
   if (rng.chance(evaRate(tgt, rules, src))) {
     tgt.evaded++;
     if (log) log.push({ t: +t.toFixed(1), type: 'eva', src: src.id, tgt: tgt.id });
-    return;
+    return null;
   }
   // 2) クリティカル
   let crit = false;
@@ -7137,13 +7153,13 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
   }
   tgt.ult = Math.min(ultCapOf(tgt, rules), tgt.ult + (rules.ultimate.gainPerDamageTaken || 0));
   if (log) log.push({ t: +t.toFixed(1), type: 'dmg', src: src.id, tgt: tgt.id, v: d, stat: statName, crit, via: ctx._via || 'normal' });
-  if (tgt.hp <= 0) { kill(src, tgt, ctx); return; }
+  if (tgt.hp <= 0) { kill(src, tgt, ctx); return tgt; }
   // 神速の「追い落とし」：兵量が一定以下まで削れた相手はそのまま討ち取る
   {
     const ex = activePassives(src, 'execute');
     if (ex.length && tgt.hp <= tgt.maxHp * Math.max(...ex.map(p => p.hpPct))) {
       if (log) log.push({ t: +t.toFixed(1), type: 'execute', src: src.id, tgt: tgt.id, hp: Math.round(tgt.hp) });
-      tgt.hp = 0; kill(src, tgt, ctx); return;
+      tgt.hp = 0; kill(src, tgt, ctx); return tgt;
     }
   }
   // 反撃：防御を攻撃力に変換して返す（反撃に対しては反撃しない）
@@ -7166,6 +7182,7 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
     withVia(ctx, 'counter', () => dealDamage(tgt, src, cStat, cRateMul, ctx, tgt.attr));
     ctx._inCounter = false;
   }
+  return tgt;
 }
 
 // いま有効な常時効果だけを返す（効果文のターン条件を毎回判定する）
@@ -7175,6 +7192,23 @@ function activePassives(u, kind) {
 function attackShapeOf(u) {
   const a = activePassives(u, 'attackShape');
   return a.length ? a[a.length - 1].shape : null;
+}
+/* 空撃ちはしない（2026-10-04）。
+   形のある技は、その形の内に相手が居なければ誰にも当たらない。
+   それでも撃つと奥義ゲージだけ消えて何も起きないので、
+   どの効果も当たる先が無いときは撃たずに取っておく。
+   自分に掛ける技は的が自分なので、ここには引っかからない */
+function hitsNobody(effs, self, allies, enemies, primary, ctx) {
+  if (!effs || !effs.length) return true;
+  let any = false, emptyBlow = false;
+  for (const e of effs) {
+    if (e.cond && !condOk(self, e)) continue;
+    const n = resolveTargets(e, self, allies, enemies, primary, ctx.rules).length;
+    if (n) any = true;
+    // 斬る当てが無いなら、ついでの自己強化だけのために撃たない
+    else if (e.kind === 'damage') emptyBlow = true;
+  }
+  return !any || emptyBlow;
 }
 // 賢さ：スキルのタイミングがベスト（2026-09-19）
 // 効果が無駄になる場面では撃たずに温存する。判定に失敗すれば温存せず素直に撃つ。
@@ -7417,8 +7451,8 @@ function runCommand(u, cmd, allies, enemies, ctx) {
     fireSkills(u, '攻撃開始時', allies, enemies, tg, ctx);
     let mul = rules.damage.normalAttackRate;
     if (u.empowerNext) { mul *= u.empowerNext; u.empowerNext = null; }
-    dealDamage(u, tg, u.primaryStat, mul, ctx);
-    applyAttackStatus(u, tg, ctx);
+    const _htg = dealDamage(u, tg, u.primaryStat, mul, ctx);
+    if (_htg) applyAttackStatus(u, _htg, ctx);
     fireSkills(u, '自分が通常攻撃したとき', allies, enemies, tg, ctx);
     supportFire(u, tg, allies, ctx);
     return true;
@@ -7429,8 +7463,11 @@ function runCommand(u, cmd, allies, enemies, ctx) {
   }
   if (cmd.type === 'ult') {
     const cost = u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge;
-    if (u.ult >= cost && u.compiled.ultimate.length) {
-      const tg = byId(cmd.tgt) || pickTarget(u, allies, enemies, rules, ctx.rng);
+    const tg0 = byId(cmd.tgt) || pickTarget(u, allies, enemies, rules, ctx.rng);
+    // 形の内に誰も居ないなら撃たない。ゲージは取っておいて、下の攻撃に落とす（2026-10-04）
+    if (u.ult >= cost && u.compiled.ultimate.length
+        && !hitsNobody(u.compiled.ultimate, u, allies, enemies, tg0, ctx)) {
+      const tg = tg0;
       u.ult = 0;
       if (log) log.push({ t: +t.toFixed(1), type: 'ult', src: u.id, name: u.name, manual: true });
       withVia(ctx, 'ult', () => applyEffects(u.compiled.ultimate, u, allies, enemies, tg, ctx));
@@ -7455,8 +7492,8 @@ function runCommand(u, cmd, allies, enemies, ctx) {
       if (tg && canReach(u, tg, rangeOf(u), rules)) {
         let mul = rules.damage.normalAttackRate * (rules.moveAndAttackRate ?? 1);
         if (u.empowerNext) { mul *= u.empowerNext; u.empowerNext = null; }
-        dealDamage(u, tg, u.primaryStat, mul, ctx);
-        applyAttackStatus(u, tg, ctx);
+        const _htg = dealDamage(u, tg, u.primaryStat, mul, ctx);
+        if (_htg) applyAttackStatus(u, _htg, ctx);
         supportFire(u, tg, allies, ctx);
       }
     }
@@ -7515,8 +7552,8 @@ function act(u, allies, enemies, ctx) {
       if (!rules.moveAndAttack) return true;
       const tg = pickTarget(u, allies, enemies, rules, rng);
       if (tg && canReach(u, tg, rangeOf(u), rules) && tg.alive) {
-        dealDamage(u, tg, u.primaryStat, rules.damage.normalAttackRate * (rules.moveAndAttackRate ?? 1), ctx);
-        applyAttackStatus(u, tg, ctx);
+        const _htg = dealDamage(u, tg, u.primaryStat, rules.damage.normalAttackRate * (rules.moveAndAttackRate ?? 1), ctx);
+        if (_htg) applyAttackStatus(u, _htg, ctx);
         supportFire(u, tg, allies, ctx);
       }
       return true;
@@ -7532,6 +7569,7 @@ function act(u, allies, enemies, ctx) {
   // 差し引きではなく初期化なので、必要量より多く溜めても持ち越せない＝溜めすぎは損。
   const ultCost = u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge;
   if (u.ult >= ultCost && u.compiled.ultimate.length
+      && !hitsNobody(u.compiled.ultimate, u, allies, enemies, target, ctx)
       && !shouldHoldSkill(u.compiled.ultimate, u, allies, enemies, target, ctx)) {
     u.ult = 0;
     if (log) log.push({ t: +t.toFixed(1), type: 'ult', src: u.id, name: u.name });
@@ -7550,22 +7588,22 @@ function act(u, allies, enemies, ctx) {
       u.widenNext = false;
       const hit = enemies.filter(e => e.alive && e.y === target.y && Math.abs(e.x - target.x) <= 1);
       const sh = aoeShare(hit.length, rules);
-      for (const e of hit) { dealDamage(u, e, u.primaryStat, rules.damage.normalAttackRate * sh, ctx); applyAttackStatus(u, e, ctx); }
+      for (const e of hit) { const _he = dealDamage(u, e, u.primaryStat, rules.damage.normalAttackRate * sh, ctx); if (_he) applyAttackStatus(u, _he, ctx); }
     } else if (attackShapeOf(u)) {
       // 通常攻撃の範囲が変わっている（固有の常時効果。ターン条件つきなら該当ターンのみ）
       const shape = attackShapeOf(u);
-      const hit = resolveTargets({ target: shape }, u, allies, enemies, target);
+      const hit = resolveTargets({ target: shape }, u, allies, enemies, target, rules);
       if (log) log.push({ t: +t.toFixed(1), type: 'shapeAtk', src: u.id, shape, n: hit.length, turn: u._turn });
       const list = hit.length ? hit : [target];
       // 範囲攻撃の頭割り（2026-09-19）。1体だけなら通常攻撃と同じ威力、複数なら人数で割る
       const share = aoeShare(list.length, rules);
-      for (const e of list) { dealDamage(u, e, u.primaryStat, rules.damage.normalAttackRate * share, ctx); applyAttackStatus(u, e, ctx); }
+      for (const e of list) { const _he = dealDamage(u, e, u.primaryStat, rules.damage.normalAttackRate * share, ctx); if (_he) applyAttackStatus(u, _he, ctx); }
     } else {
       let mul = rules.damage.normalAttackRate;
       if (u.empowerNext) { mul *= u.empowerNext; u.empowerNext = null;
         if (log) log.push({ t: +t.toFixed(1), type: 'empowered', src: u.id }); }
-      dealDamage(u, target, u.primaryStat, mul, ctx);
-      applyAttackStatus(u, target, ctx);
+      const _htarget = dealDamage(u, target, u.primaryStat, mul, ctx);
+      if (_htarget) applyAttackStatus(u, _htarget, ctx);
     }
     // 攻撃するたびにステータスが伸びる（2026-09-20）
     for (const e of activePassives(u, 'stackOnAttack')) {
@@ -7598,8 +7636,8 @@ function act(u, allies, enemies, ctx) {
     if (rules.moveAndAttack && canReach(u, target, rangeOf(u), rules) && target.alive) {
       let mul2 = rules.damage.normalAttackRate * (rules.moveAndAttackRate ?? 1);
       if (u.empowerNext) { mul2 *= u.empowerNext; u.empowerNext = null; }
-      dealDamage(u, target, u.primaryStat, mul2, ctx);
-      applyAttackStatus(u, target, ctx);
+      const _htarget = dealDamage(u, target, u.primaryStat, mul2, ctx);
+      if (_htarget) applyAttackStatus(u, _htarget, ctx);
       supportFire(u, target, allies, ctx);
     }
   }
@@ -7831,6 +7869,7 @@ function fireSkills(u, timing, allies, enemies, target, ctx) {
   const list = (u.compiled.normalTriggers || []).filter(t => t.timing === timing);
   for (const t of list) {
     if (!t.effects.length) continue;
+    if (hitsNobody(t.effects, u, allies, enemies, target, ctx)) continue;   // 空撃ちはしない
     if (!skillFires(u, t, ctx)) continue;
     if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'skill', src: u.id, name: t.name, timing });
     withVia(ctx, 'skill', () => applyEffects(t.effects, u, allies, enemies, target, ctx));
@@ -7844,7 +7883,7 @@ function fireSkills(u, timing, allies, enemies, target, ctx) {
   const ut = u.compiled.uniqueTrig;
   if (ut && ut.timing === timing) {
     const effs = uniqFire(ut.effects);
-    if (effs.length && skillFires(u, ut, ctx)) {
+    if (effs.length && !hitsNobody(effs, u, allies, enemies, target, ctx) && skillFires(u, ut, ctx)) {
       /* 見せ場は一戦に一度だけ（2026-10-02）。
          first が立っている回だけ、盤がカットインを出す。
          二度目からは光と音だけ ── 同じ札が何度も画面を覆うと盤が見えない */
@@ -8119,7 +8158,8 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         units: A.concat(B).map(u => ({ id: u.id, x: u.x, y: u.y, hp: Math.round(u.hp),
           maxHp: u.maxHp, alive: u.alive, ult: +(u.ult || 0).toFixed(2),
           // 射程と必要ゲージも入れる。手動操作の画面が「どこまで届くか」を出すのに使う
-          range: rangeOf(u), ultCost: u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge,
+          range: rangeOf(u), straight: straightOnly(u) || undefined,
+          ultCost: u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge,
           st: Object.keys(u.statuses || {}),
           // いま掛かっている一時的な強化・弱化（2026-09-20）。
           // 常時の固有・特技は全員が持っていて印にならないので、持続時間つきのものだけ出す。
@@ -32203,11 +32243,14 @@ function drawBattle() {
     const cellAt = (x, y) => boardCache.children[y * W2 + x];
     const foes = units.filter(u => u.alive && u.id[0] !== a.unit[0]);
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
+    /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
+       素の射程2は斜めにも届くが、「正面2マス」を継いだだけの者は筋の上しか届かない。
+       盤の記録に straight が立っていたら、斜めを外す */
     const reachable = f => {
       if (!snap) return false;
       const r = snap.range || 1;
       if (Math.abs(f.x - snap.x) + Math.abs(f.y - snap.y) > r) return false;
-      return r >= 2 || f.x === snap.x || f.y === snap.y;
+      return (r >= 2 && !snap.straight) || f.x === snap.x || f.y === snap.y;
     };
     const inRange = foes.filter(reachable);
     // ボタンでモードを切り替えず、盤面を直接タップして動かす（2026-09-20）
@@ -32230,7 +32273,7 @@ function drawBattle() {
         for (let nx = Math.max(0, snap.x - r); nx <= Math.min(W2 - 1, snap.x + r); nx++) {
           const d = Math.abs(nx - snap.x) + Math.abs(ny - snap.y);
           if (d === 0 || d > r) continue;
-          if (r < 2 && nx !== snap.x && ny !== snap.y) continue;
+          if ((r < 2 || snap.straight) && nx !== snap.x && ny !== snap.y) continue;
           cellAt(nx, ny).append(el('span', { class: 'reach' }));
         }
       }

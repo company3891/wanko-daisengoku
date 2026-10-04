@@ -6950,11 +6950,14 @@ function drawBattle() {
     const cellAt = (x, y) => boardCache.children[y * W2 + x];
     const foes = units.filter(u => u.alive && u.id[0] !== a.unit[0]);
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
+    /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
+       素の射程2は斜めにも届くが、「正面2マス」を継いだだけの者は筋の上しか届かない。
+       盤の記録に straight が立っていたら、斜めを外す */
     const reachable = f => {
       if (!snap) return false;
       const r = snap.range || 1;
       if (Math.abs(f.x - snap.x) + Math.abs(f.y - snap.y) > r) return false;
-      return r >= 2 || f.x === snap.x || f.y === snap.y;
+      return (r >= 2 && !snap.straight) || f.x === snap.x || f.y === snap.y;
     };
     const inRange = foes.filter(reachable);
     // ボタンでモードを切り替えず、盤面を直接タップして動かす（2026-09-20）
@@ -6977,7 +6980,7 @@ function drawBattle() {
         for (let nx = Math.max(0, snap.x - r); nx <= Math.min(W2 - 1, snap.x + r); nx++) {
           const d = Math.abs(nx - snap.x) + Math.abs(ny - snap.y);
           if (d === 0 || d > r) continue;
-          if (r < 2 && nx !== snap.x && ny !== snap.y) continue;
+          if ((r < 2 || snap.straight) && nx !== snap.x && ny !== snap.y) continue;
           cellAt(nx, ny).append(el('span', { class: 'reach' }));
         }
       }

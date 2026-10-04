@@ -6829,8 +6829,13 @@ function sweepTargets(self, enemies, primary, n, through) {
 function resolveTargets(eff, self, allies, enemies, primary, rules) {
   // 天守は「味方」としては数えない（2026-10-02）。守り手の癒しや強化が城に吸われないように
   allies = allies.filter(a => !a.isKeep);
-  // 寝返った身内と伏兵は、範囲の技でも巻き込まない（2026-10-04）
-  enemies = enemies.filter(e => !isKin(e, self) && !isHidden(e));
+  /* 伏兵の決めごと（2026-10-04 改）。
+     伏兵は「透明人間」── 敵からは見えないが、そこに確かに居る。
+       ・狙いを定める技は当たらない（隣り合っても斬られない）
+       ・全体や範囲の技は、そこに居るのだから巻き込まれる
+     寝返った身内（洗脳）はこれとちがい、何があっても巻き込まない */
+  enemies = enemies.filter(e => !isKin(e, self));
+  const aimed = enemies.filter(e => !isHidden(e));          // 狙いを定められる相手
   if (primary && (isKin(primary, self) || isHidden(primary))) primary = null;
   const t = eff.target;
   // --- 9×9盤面の範囲パターン ---
@@ -6858,7 +6863,8 @@ function resolveTargets(eff, self, allies, enemies, primary, rules) {
     const [kind, nn] = String(t).split(':');
     const n = Math.max(1, parseInt(nn, 10) || 1);
     const d = (e) => Math.abs(e.x - self.x) + Math.abs(e.y - self.y);
-    const sorted = live(enemies).slice().sort((a, b) =>
+    // 「遠い順にN体」は狙いを定める技なので、伏兵は選ばない
+    const sorted = live(aimed).slice().sort((a, b) =>
       (kind === 'farEnemies' ? d(b) - d(a) : d(a) - d(b)) || a.no - b.no);
     return sorted.slice(0, n);
   }

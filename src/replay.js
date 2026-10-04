@@ -694,6 +694,9 @@ export function render(board, pawnMap, snapUnits, rules) {
       const pct = Math.max(0, Math.min(100, u.maxHp ? u.hp / u.maxHp * 100 : 0));
       if (i) i.style.width = pct + '%';
       p.classList.toggle('low', pct <= 30);    // 残りわずかは朱に（2026-10-03）
+      /* 燃える天守（2026-10-04）。残り兵量が決めた線を割ると炎があがる。
+         数字を出さずに「あと少し」を伝えるため。絵は使わず、火はCSSで描く */
+      p.classList.toggle('burn', !!u.burn);
       p.style.display = u.alive ? '' : 'none';
       continue;
     }

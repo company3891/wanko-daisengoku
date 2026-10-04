@@ -6693,7 +6693,10 @@ function applyEvent(live, e) {
 }
 const liveUnits = () => [...BATTLE.live.values()];
 function troops(units, side) {
-  return units.filter(u => u.id.startsWith(side + '-')).reduce((a, u) => a + Math.max(0, u.hp), 0);
+  /* 端数は見せない（2026-10-04）。感電の目減りが割合ぶんなので、
+     足し合わせると「7,262.855」のような小数になって出ていた */
+  return Math.round(units.filter(u => u.id.startsWith(side + '-'))
+    .reduce((a, u) => a + Math.max(0, u.hp), 0));
 }
 
 let boardCache = null, pawnCache = null;

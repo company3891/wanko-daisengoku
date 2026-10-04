@@ -33,7 +33,7 @@ import { EVENTS, EV_RANKS, EV_FOOD, EV_POWER, EV_LV, EV_SOUL, EV_SKILL, EV_STAGE
 import { MI_TABS, MI_BOX, MISSIONS, miOf, KADODE } from './mission.js';
 import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPassRank,
          lkHash, lkSalt, lkTied } from './link.js';
-import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce, revOf } from './net.js';
+import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce, revOf, setRev } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -166,7 +166,7 @@ buildStars(C);                 // 特技の★（その特技を持つ最低レ�
    1つの部隊＝「編成（武将5体まで）＋総大将＋陣形＋配置」で5つまで。
    ステージと操作方式は部隊に含めない（同じ部隊をいろいろな戦場に出せるほうが使いやすい）。 */
 loadPlayer(FORMS);
-/* 蔵に繋がっているなら、起きたときに向こうが新しくないか見にいく（2026-10-04）。
+/* サーバーに繋がっているなら、起きたときに向こうが新しくないか見にいく（2026-10-04）。
    ほかの端末で遊んでいた場合、黙って上書きすると片方が消えるため。
    ★ここは S がまだ出来ていない位置なので、全部読み終えてから動かす（setTimeout 0） */
 setTimeout(() => {
@@ -683,8 +683,8 @@ function lkSavePass(first) {
   const code = first ? lkMakeCode() : P.link.code;
   const ng = lkPassNg(S.lkP1, S.lkP2, code);
   if (ng) { S.lkMsg = ng; draw(); return; }
-  /* 蔵に預けるぶんを先に取っておく（下で S.lkP1 を空にするため）。
-     平文を蔵へ送るのはここだけ。蔵では PBKDF2 で捏ねて置かれる（2026-10-04） */
+  /* サーバーに預けるぶんを先に取っておく（下で S.lkP1 を空にするため）。
+     平文を送るのはここだけ。サーバーでは PBKDF2 で捏ねて置かれる（2026-10-04） */
   const pw = S.lkP1;
   const salt = lkSalt();
   P.link.code = code;
@@ -697,7 +697,7 @@ function lkSavePass(first) {
   S.lkMsg = first ? '' : 'パスワードを変更しました';
   SFX.get ? SFX.get() : SFX.pick();
   draw();
-  /* 蔵へ。繋がらなくても遊びは止めないので、返事は待たない（2026-10-04） */
+  /* サーバーへ。繋がらなくても遊びは止めないので、返事は待たない（2026-10-04） */
   if (KURA) (async () => {
     if (first) {
       const h = await hello(P.link.code, P.name || '');
@@ -789,18 +789,19 @@ function lkSheet() {
   ];
 }
 
-/* ---------------- 蔵（サーバー）への控え（2026-10-04）----------------
+/* ---------------- サーバーへの控え（2026-10-04）----------------
+   ★ゲーム内の「蔵」（ショップの棚）とは別もの。混ぜないこと。
    ★ここも戦国口調を使わない（引き継ぎ画面と同じ決めごと）。
      間違えると失うのが「気分」ではなく「データそのもの」だから。
 
-   いちばん大事な決めごと ──「蔵が無くても遊べる」。
+   いちばん大事な決めごと ──「サーバーが無くても遊べる」。
    繋がらないときは静かにあきらめて、これまでどおり端末の中だけで動く。
-   だから蔵の返事を待って画面を止めることはしない。
+   だからサーバーの返事を待って画面を止めることはしない。
 
    版くらべ：二台で遊ぶと、あとから送ったほうが先の記録を黙って消してしまう。
-   それを防ぐため、送るときに手元の版を添える。食い違えば蔵が 409 を返すので、
+   それを防ぐため、送るときに手元の版を添える。食い違えばサーバーが 409 を返すので、
    どちらを採るか必ず人に尋ねる（勝手に混ぜない）。 */
-let kuLast = '';        // 最後に蔵へ送った中身。同じなら送らない（むだな書き込みを減らす）
+let kuLast = '';        // 最後にサーバーへ送った中身。同じなら送らない（むだな書き込みを減らす）
 let kuTimer = 0;
 
 const kuBlob = () => ({ ...P, own: [...P.own] });
@@ -828,8 +829,8 @@ function kuWatch() {
   addEventListener('pagehide', () => kuPush(false));
 }
 
-/* この端末を蔵につなぐ。パスワードは手元の覚えと照らしてから蔵に預ける
-   （平文を蔵に送るのはこの一度きり。蔵では PBKDF2 で捏ねて置かれる） */
+/* この端末をサーバーにつなぐ。パスワードは手元の覚えと照らしてから預ける
+   （平文を送るのはこの一度きり。サーバーでは PBKDF2 で捏ねて置かれる） */
 async function kuJoin() {
   if (lkHash(S.lkP1, P.link.salt) !== P.link.pass) { S.kuMsg = 'パスワードが違います'; draw(); return; }
   S.kuBusy = true; S.kuMsg = '接続しています…'; draw();
@@ -840,7 +841,7 @@ async function kuJoin() {
     draw(); return;
   }
   await setPass(S.lkP1);
-  const g = await pullSave();          // 蔵にもう記録があるなら、勝手に上書きしない
+  const g = await pullSave();          // サーバーにもう記録があるなら、勝手に上書きしない
   S.kuBusy = false; S.lkP1 = ''; S.lkP2 = '';
   if (g.ok && g.blob) { S.kuWar = { rev: g.rev, blob: g.blob, at: g.at }; S.link = null; draw(); return; }
   const r = await kuPush(true);
@@ -850,7 +851,7 @@ async function kuJoin() {
   draw();
 }
 
-/* 別の端末から引き継ぐ。IDとパスワードで入り直し、蔵の記録を持ってくる */
+/* 別の端末から引き継ぐ。IDとパスワードで入り直し、サーバーの記録を持ってくる */
 async function kuClaim() {
   const code = lkTidyCode(S.kuCode || '');
   if (!lkCodeOk(code)) { S.kuMsg = 'IDの形が違います'; draw(); return; }
@@ -863,14 +864,18 @@ async function kuClaim() {
   }
   const g = await pullSave();
   S.kuBusy = false; S.lkP1 = '';
-  if (!g.ok || !g.blob) { S.kuMsg = 'そのIDには、まだ控えがありません'; draw(); return; }
+  if (!g.ok || !g.blob) { S.kuMsg = 'そのIDには、まだバックアップがありません'; draw(); return; }
   S.kuTake = { rev: g.rev, blob: g.blob, at: g.at };
   S.link = null; draw();
 }
 
-/* 蔵の記録をこの端末に入れる。半端に混ぜず、入れ替えてから読み直す */
-function kuTakeGo(blob) {
+/* サーバーの記録をこの端末に入れる。半端に混ぜず、入れ替えてから読み直す。
+   ★版の数も必ずサーバーに合わせる（2026-10-04）。
+     ここを忘れると、開き直すたびに「向こうが新しい」と言われて
+     同じ札が出つづけ、堂々めぐりになる（実際に踏んだ） */
+function kuTakeGo(blob, rev) {
   if (!replacePlayer(blob)) { S.kuMsg = 'この端末に書き込めませんでした'; draw(); return; }
+  setRev(rev);
   location.reload();
 }
 
@@ -880,10 +885,10 @@ function kuWarSheet() {
   const close = () => { S.kuWar = null; draw(); };
   return el('div', { class: 'sheet' }, el('div', { class: 'card2 lkbox' },
     el('b', { class: 'mittl' }, '記録が二つあります'),
-    el('p', { class: 'ttsub' }, 'この端末と蔵で、記録が食い違っています。どちらを残すか選んでください。選ばなかったほうは消えます。'),
+    el('p', { class: 'ttsub' }, 'この端末とサーバーで、記録が食い違っています。どちらを残すか選んでください。選ばなかったほうは消えます。'),
     el('div', { class: 'lknote' },
       el('b', {}, 'この端末'), el('span', {}, kuSum(kuBlob())),
-      el('b', {}, '蔵'), el('span', {}, `${kuSum(w.blob)}（${kuWhen(w.at)}）`)),
+      el('b', {}, 'サーバー'), el('span', {}, `${kuSum(w.blob)}（${kuWhen(w.at)}）`)),
     S.kuMsg ? el('p', { class: 'lkmsg' }, S.kuMsg) : null,
     el('button', { class: 'go wide', onclick: async () => {
       S.kuMsg = '送っています…'; draw();
@@ -891,7 +896,7 @@ function kuWarSheet() {
       S.kuWar = null; S.kuMsg = r.ok ? 'この端末の記録を残しました' : '送れませんでした';
       kuWatch(); draw();
     } }, 'この端末を残す'),
-    el('button', { class: 'ghost wide', onclick: () => kuTakeGo(w.blob) }, '蔵を残す'),
+    el('button', { class: 'ghost wide', onclick: () => kuTakeGo(w.blob, w.rev) }, 'サーバーを残す'),
     el('button', { class: 'ghost wide', onclick: close }, 'あとで決める')));
 }
 
@@ -904,7 +909,7 @@ function kuTakeSheet() {
       el('b', {}, 'いまの記録'), el('span', {}, kuSum(kuBlob())),
       el('b', {}, '持ってくる記録'), el('span', {}, `${kuSum(w.blob)}（${kuWhen(w.at)}）`)),
     el('p', { class: 'lkwarn' }, 'いまの記録は消えます。元に戻せません。'),
-    el('button', { class: 'go wide danger', onclick: () => kuTakeGo(w.blob) }, '入れ替える'),
+    el('button', { class: 'go wide danger', onclick: () => kuTakeGo(w.blob, w.rev) }, '入れ替える'),
     el('button', { class: 'ghost wide', onclick: () => { S.kuTake = null; draw(); } }, 'キャンセル')));
 }
 

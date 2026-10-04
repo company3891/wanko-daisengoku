@@ -1,15 +1,15 @@
-/* 蔵との行き来（2026-10-04）
+/* サーバーとの行き来（2026-10-04）
    ★ここの文言も戦国口調を使わない（link.js と同じ決めごと）。
      間違えると失うのが「気分」ではなく「データそのもの」だから。
 
-   いちばん大事な決めごと ──「蔵が無くても遊べる」。
+   いちばん大事な決めごと ──「サーバーが無くても遊べる」。
    繋がらないときは静かにあきらめて、これまでどおり端末の中だけで動く。
    「絵が無くても動く」と同じ考え方。
 
    まだ画面には繋いでいない。繋ぐときは build_standalone.mjs の
    strip() と連結の2か所に net を足すこと（新モジュールの落とし穴） */
 
-export const KURA = 'https://wanko-kura.company-yug.workers.dev';   // 例: 'https://wanko-kura.<あなた>.workers.dev'。空なら蔵を使わない
+export const KURA = 'https://wanko-kura.company-yug.workers.dev';   // 例: 'https://wanko-kura.<あなた>.workers.dev'。空ならサーバーを使わない
 
 const LS_DEV = 'wanko.device.v1';
 const LS_TOK = 'wanko.token.v1';
@@ -34,6 +34,10 @@ export function deviceKey() {
 
 export const token = () => ls.get(LS_TOK) || '';
 export const revOf = () => parseInt(ls.get(LS_REV) || '0', 10) || 0;
+/* 版を合わせる（2026-10-04）。サーバーの記録をこちらに入れたときは、
+   版の数もサーバーに合わせること。忘れると開き直すたびに
+   「向こうが新しい」と言われて同じ札が出つづける（実際に踏んだ） */
+export const setRev = (n) => ls.set(LS_REV, String(n || 0));
 export const linked = () => !!(KURA && token());
 
 async function call(path, { method = 'GET', body, auth = true } = {}) {
@@ -50,7 +54,7 @@ async function call(path, { method = 'GET', body, auth = true } = {}) {
   }
 }
 
-/* 蔵に名乗る。はじめてなら主を作って札をもらう。
+/* サーバーに名乗る。はじめてなら主を作って札をもらう。
    code は link.js が端末で作った引き継ぎID（WAN-…）をそのまま渡す */
 export async function hello(code, name) {
   const r = await call('/v1/hello', { method: 'POST', auth: false,
@@ -70,14 +74,14 @@ export async function claim(code, pass) {
 export const setPass = (pass) => call('/v1/link/pass', { method: 'POST', body: { pass } });
 export const pullSave = () => call('/v1/save');
 
-/* 保存を入れる。版が食い違えば 409 と蔵の中身が返る。
+/* 保存を入れる。版が食い違えば 409 とサーバーの中身が返る。
    そのときは勝手に混ぜず、どちらを採るか画面で尋ねること */
 export async function pushSave(blob) {
   const r = await call('/v1/save', { method: 'PUT', body: { rev: revOf(), blob } });
   if (r.ok && r.rev != null) ls.set(LS_REV, String(r.rev));
   return r;
 }
-/* 蔵のほうを採ると決めたとき。版だけ合わせてから入れ直す */
+/* サーバーのほうを採ると決めたとき。版だけ合わせてから入れ直す */
 export async function pushSaveForce(blob, serverRev) {
   ls.set(LS_REV, String(serverRev));
   return pushSave(blob);

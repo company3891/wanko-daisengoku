@@ -386,8 +386,13 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
    .stand の中なので、盤が傾いても印だけは立っている */
 .pst{position:absolute;left:50%;top:2%;transform:translateX(-50%);z-index:36;
   display:flex;gap:1px;align-items:center;pointer-events:none}
-.pst .psb.art{width:17px;height:17px;object-fit:contain;display:block;
-  filter:drop-shadow(0 1px 2px #000) drop-shadow(0 0 3px #000)}
+/* 絵があるときは絵だけ。台座は敷かない（2026-10-04）。
+   下の .psb の背景・枠・内余白をここで打ち消しておかないと、
+   絵の後ろに朱の箱が残る（顔の列の .rbad .sb.art と同じ考え） */
+.pst .psb.art{width:18px;height:18px;object-fit:contain;display:block;
+  background:none;border:0;padding:0;border-radius:0;line-height:0;
+  filter:drop-shadow(0 1px 1px #000c)}
+/* 絵が無いときだけ、一字の札に落ちる */
 .pst .psb{font-style:normal;font-size:8.5px;font-weight:700;line-height:14px;height:14px;
   padding:0 4px;border-radius:7px;white-space:nowrap;
   background:#a8523ce6;border:1px solid #c76a4e;color:#ffd9cc;
@@ -2768,13 +2773,18 @@ main.hasnav{padding-bottom:124px}
 .rbad.multi .sb{animation:stblink .5s steps(2,end) infinite}
 /* 強化・弱化は色で見分けられるので、横に並べたまま出す */
 .rmod{flex-direction:row;gap:2px}
-.rbad{top:1px}
+/* 状態異常は札の上ばしの真ん中へ（2026-10-04）。
+   右上の角だと総大将の印（左上）と対になって「角の飾り」に見え、
+   盤のコマの頭に出した印とも場所が揃わなかった */
+.rbad{top:1px;left:50%;right:auto;transform:translateX(-50%);align-items:center}
 .rmod{bottom:1px}
 /* 絵があるときは絵で出す。無いときだけ文字の札に落ちる（2026-09-23）。
    絵には台座を敷かない。下の .sb の背景・枠をここで打ち消す */
+/* 影は輪郭を出すぶんだけ（2026-10-04）。
+   前は外へ広がる黒い光を重ねていたので、絵の後ろに丸い台座があるように見えていた */
 .rbad .sb.art{width:18px;height:18px;object-fit:contain;display:block;
   background:none;border:0;padding:0;border-radius:0;line-height:0;
-  filter:drop-shadow(0 1px 2px #000) drop-shadow(0 0 3px #000c)}
+  filter:drop-shadow(0 1px 1px #000c)}
 .rbad .sb,.rmod .mb{font-size:8.5px;font-weight:700;line-height:13px;height:13px;padding:0 3px;
   border-radius:4px;white-space:nowrap;text-shadow:0 1px 2px #000}
 .rbad .sb{background:#a8523cdd;border:1px solid #c76a4e;color:#ffd9cc}

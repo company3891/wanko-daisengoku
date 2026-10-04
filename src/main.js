@@ -3,7 +3,7 @@
 import { runBattle, withKeep, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
 import { boardEl, fieldEl, pawns, byTurn, render, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, gachaUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
 
-import { GACHAS, gachaOf, poolOf, urListOf, urRatesOf } from './gachas.js';
+import { GACHAS, gachaOf, homeGacha, poolOf, urListOf, urRatesOf } from './gachas.js';
 /* 束ねるときに import 行は捨てられるので、別名（as）は使えない（2026-10-01 に踏んだ）。
    tower.js のほうで twTeam / twResult という名にしてある */
 import { TOWER, TOWER_FOOD, TOWER_MAX, towerOf, towerTier, TIER_NAME, isBoss, isGate,
@@ -4521,14 +4521,17 @@ function dexDetail(c) {
 }
 
 /* いま選んでいるくじ。ガチャ一覧から選ぶまでは先頭（くじの中身は gachas.js） */
-const curGacha = () => gachaOf(S.gbanner || GACHAS[0].id);
+/* えらばれていないときは「ふだんのくじ」。並びの先頭ではない（2026-10-04）。
+   先頭は そのとき出している祭りのくじなので、えらばずに引くと
+   祭りの表から引いてしまう恐れがあった */
+const curGacha = () => gachaOf(S.gbanner || homeGacha().id);
 /* 一覧の上で喋る人（2026-09-28）。信長わん（No.1）の絵を使う。
    絵が無ければ顔、それも無ければ何も出さない */
 /* 顔の絵（256角）を先に見る。英雄の絵は横長なので、ここに出すと細い帯になってしまう */
 const talkerUrl = () => faceUrl(1, '笑顔') || faceUrl(1, '通常') || pawnUrl(1) || heroUrl(1);
 function screenGachaList() {
   const talk = talkerUrl();
-  const sel = S.gbanner ? gachaOf(S.gbanner) : GACHAS[0];
+  const sel = S.gbanner ? gachaOf(S.gbanner) : homeGacha();
   return {
     body: el('div', { class: 'glist' },
       // 上の語り。信長わんの絵と、吹き出し

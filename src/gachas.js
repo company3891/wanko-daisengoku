@@ -5,9 +5,15 @@
    ── くじの書き方 ──
    id      印。帯の絵 app/assets/banner/<印>.png と
            後ろの絵 app/assets/bg/gacha_<印>.jpg の名にもなる（置くだけで反映）
-   pick    ピックアップ。新入りなど、そのくじで特に出したいURの武将番号
+   pick    ピックアップ。そのくじで初めて出すURの武将番号。
+           **そのくじだけのもの**で、ほかのくじには出ない（2026-10-04 の決めごと）
+   home    true にすると「ふだんのくじ」。選ばれていないときの既定になる。
+           一つだけ立てること
    pickUp  ピックアップがUR枠のうち何割を占めるか。書かなければ半分（0.5）
-   urs     ピックアップ以外に、そのくじで出るURの武将番号
+   urs     ピックアップ以外に、そのくじで出るURの武将番号。
+           **書かなくてよい**（2026-10-04）。書かなければ
+           「どのくじのピックアップでもないUR」＝みなの共通ぶんが入る。
+           つまり あとから出すくじに、前のくじの顔ぶれは混ざらない
    bgUp    後ろの絵を何px上に寄せるか（2026-09-30）。書かなければ動かさない。
            絵の大きさは変えないので、下に空いたぶんは みくじの帯が隠す
    ticket  true にすると「祭の札」で引ける（2026-09-30）。
@@ -24,8 +30,8 @@ export const GACHAS = [
     words: '祭りじゃ。剣聖と茶聖が、ひときわ出やすうなっておる',
     ticket: true,                // 祭の札で引ける（2026-09-30）
     bgUp: 80,                    // 題字を残したまま、二匹を少し大きく見せる（2026-09-30）
-    pick: [103, 104],            // 宮本ムサシ土佐・千リキュパグ（新入り）
-    urs:  [2, 38, 61, 71],       // 信長わんは門出のくじだけ。ここには出さない
+    pick: [103, 104],            // 宮本ムサシ土佐・千リキュパグ（このくじだけ）
+    // urs は書かない。共通ぶん（2・38・61・71）が自ずと入り、信わんは入らない
   },
   {
     /* もとの「常世のわんこみくじ」はこれに一本化した（2026-09-28）。
@@ -33,12 +39,25 @@ export const GACHAS = [
     id: 'release', name: 'リリースキャンペーンガチャ', sub: 'UR五英雄',
     until: null,
     words: '門出の祝いじゃ。いつでも引ける。信わんがひときわ出やすうなっておる',
+    home: true,                  // ふだんのくじ（えらばれていないときの既定・2026-10-04）
     freeDay: true,               // 一日にひとたび、一度引きがただ（2026-10-02）
     pick: [1],                   // 織田信わんはここだけ
-    urs:  [2, 38, 61, 71],
+    // urs は書かない。共通ぶん（2・38・61・71）が自ずと入り、祭りの二匹は入らない
   },
 ];
-export const gachaOf = id => GACHAS.find(g => g.id === id) || GACHAS[0];
+/* ふだんのくじ（2026-10-04）。えらばれていないときは かならずここに落とす。
+   前は並びの先頭＝そのとき出している祭りのくじに落ちていたので、
+   選ばずに引くと祭りの表から引いてしまう恐れがあった */
+export const homeGacha = () => GACHAS.find(g => g.home) || GACHAS[0];
+export const gachaOf = id => GACHAS.find(g => g.id === id) || homeGacha();
+
+/* どのくじのピックアップでもないUR＝みなの共通ぶん（2026-10-04）。
+   「あとから出すくじに、前のくじの顔ぶれは混ざらない」という決めごとを、
+   手で書き写さずに守るための仕掛け。新しいくじは pick を書くだけでよい */
+function commonUrs(POOL) {
+  const taken = new Set(GACHAS.flatMap(g => g.pick || []));
+  return (POOL.UR || []).map(c => c.no).filter(n => !taken.has(n));
+}
 
 /* そのくじで出るUR（ピックアップが先、そのあと その他）。詳細の画面でも使う */
 export function urListOf(g, POOL) {
@@ -46,7 +65,7 @@ export function urListOf(g, POOL) {
   const has = n => all.some(c => c.no === n);
   const pick = (g && g.pick || []).filter(has);
   const rest = (g && g.urs) ? g.urs.filter(n => has(n) && !pick.includes(n))
-                            : all.map(c => c.no).filter(n => !pick.includes(n));
+                            : commonUrs(POOL).filter(n => !pick.includes(n));
   return { pick, rest };
 }
 /* ピックアップが UR枠のうち何割か。既定は半分 */

@@ -380,11 +380,10 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 /* 癒した量は水色で（2026-10-04）。「かばう」「耐えた」などの言葉は緑のまま、
    数だけ水色にして、白い傷の数と並んでも一目で見分けられるようにする */
 .pop.heal.hp{color:#8fe0ff;text-shadow:0 1px 0 #04243a,0 0 7px #2a9fe0,0 1px 3px #000}
-/* 状態異常はコマ絵の頭の中央に重ねる（2026-10-04）。
-   はじめ頭の「上」に浮かせたが、前後の列のコマと近くて
-   どの犬の印か迷ったので、頭そのものに重ねることにした。
+/* 状態異常はコマ絵のすぐ上、真ん中に置く（2026-10-04）。
+   頭に重ねたら顔が隠れてしまったので、絵の外へ逃がして真上に乗せる。
    .stand の中なので、盤が傾いても印だけは立っている */
-.pst{position:absolute;left:50%;top:2%;transform:translateX(-50%);z-index:36;
+.pst{position:absolute;left:50%;top:-2px;transform:translate(-50%,-100%);z-index:36;
   display:flex;gap:1px;align-items:center;pointer-events:none}
 /* 絵があるときは絵だけ。台座は敷かない（2026-10-04）。
    下の .psb の背景・枠・内余白をここで打ち消しておかないと、
@@ -404,7 +403,8 @@ button.ghost{background:none;border:1px solid var(--line);color:var(--text2);bor
 /* いくつも付いているときは拍で入れ替わる。入れ替わりが分かるよう軽く点す */
 .pst.multi .psb{animation:stblink .5s steps(2,end) infinite}
 /* 2頭身の絵は頭が上のほうにあるので、そこへ合わせる */
-.pawn.sprite .pst{top:6%}
+/* 2頭身の絵は、箱の上に少しすき間があるぶんだけ下げて頭に近づける */
+.pawn.sprite .pst{top:24%}
 .pawn.dead .pst{display:none}
 .pop.ko{font-size:12px;color:#ff8d7a}
 /* 会心は別物として見せる。明朝の太字、黄から赤へのグラデ、黒フチ、上に「会心」 */
@@ -6800,6 +6800,8 @@ function sweepTargets(self, enemies, primary, n, through) {
 function resolveTargets(eff, self, allies, enemies, primary, rules) {
   // 天守は「味方」としては数えない（2026-10-02）。守り手の癒しや強化が城に吸われないように
   allies = allies.filter(a => !a.isKeep);
+  // 寝返った身内は、範囲の技でも巻き込まない（2026-10-04）
+  enemies = enemies.filter(e => !isKin(e, self));
   const t = eff.target;
   // --- 9×9盤面の範囲パターン ---
   /* 一直線（貫通）の読み替え（2026-10-03）。
@@ -7368,13 +7370,20 @@ function isHidden(e) {
   return e._hideLeft > 0
     || (e.passives || []).some(p => p.kind === 'untargetable' && condOk(e, p));
 }
+/* 洗脳された者は、もとの仲間からは斬られない（2026-10-04）。
+   寝返っているあいだは向こう側として動くが、昨日までの身内である。
+   同じ旗の下にいた者が斬りかかるのは、見ていて腑に落ちない。
+   寝返らせた側から見れば味方なので、結局 洗脳のあいだは誰にも斬られない */
+function isKin(e, self) {
+  return !!(e && e.statuses && e.statuses['洗脳'] && self && e.side === self.side);
+}
 function pickTarget(u, allies, enemies, rules, rng) {
   if (u.statuses['混乱']) {
     const all = live(allies).filter(a => a !== u).concat(live(enemies));
     return all.length ? all[rng.int(all.length)] : null;
   }
-  // 「敵の攻撃対象にならない」相手は候補から外す。全員が対象外なら仕方なく通常どおり選ぶ
-  const visible = live(enemies).filter(e => !isHidden(e));
+  // 「敵の攻撃対象にならない」相手と、寝返った身内は候補から外す
+  const visible = live(enemies).filter(e => !isHidden(e) && !isKin(e, u));
   let l = visible.length ? visible : live(enemies);
   if (!l.length) return null;
   /* 天守（2026-10-02）。射程1の者は「ほかに届く敵がいないとき」だけ城を叩く。
@@ -7464,7 +7473,7 @@ function runCommand(u, cmd, allies, enemies, ctx) {
     /* 人が指図しても、斬れない相手は斬れない（2026-10-04）。
        洗脳で寝返っている者は いまこちら側なので斬らない。
        「敵に気づかれない」でいる相手にも手は届かない（AI と同じ決まり） */
-    if (effSide(tg) === effSide(u) || isHidden(tg)) return false;
+    if (effSide(tg) === effSide(u) || isHidden(tg) || isKin(tg, u)) return false;
     fireSkills(u, '攻撃開始時', allies, enemies, tg, ctx);
     let mul = rules.damage.normalAttackRate;
     if (u.empowerNext) { mul *= u.empowerNext; u.empowerNext = null; }
@@ -32266,7 +32275,8 @@ function drawBattle() {
     const sideOf = (u) => ((u.st || []).includes('洗脳') ? (u.id[0] === 'A' ? 'B' : 'A') : u.id[0]);
     const myside = sideOf(BATTLE.live.get(a.unit) || { id: a.unit, st: [] });
     const foes = units.filter(u => u.alive && sideOf(u) !== myside
-      && !(u.st || []).includes('隠れ身'));
+      && !(u.st || []).includes('隠れ身')
+      && !(u.st || []).includes('洗脳'));
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
     /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
        素の射程2は斜めにも届くが、「正面2マス」を継いだだけの者は筋の上しか届かない。

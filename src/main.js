@@ -6956,7 +6956,8 @@ function drawBattle() {
     const sideOf = (u) => ((u.st || []).includes('洗脳') ? (u.id[0] === 'A' ? 'B' : 'A') : u.id[0]);
     const myside = sideOf(BATTLE.live.get(a.unit) || { id: a.unit, st: [] });
     const foes = units.filter(u => u.alive && sideOf(u) !== myside
-      && !(u.st || []).includes('隠れ身'));
+      && !(u.st || []).includes('隠れ身')
+      && !(u.st || []).includes('洗脳'));
     // 射程1は上下左右だけ、射程2以上は斜めも届く（2026-09-20）
     /* 形で伸ばした射程は「正面」だけ（2026-10-04）。
        素の射程2は斜めにも届くが、「正面2マス」を継いだだけの者は筋の上しか届かない。

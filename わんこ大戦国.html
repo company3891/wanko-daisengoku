@@ -6604,7 +6604,14 @@ function modSum(u, key) {
   for (const m of u.mods) if (m.key === key && condOk(u, m)) v += (m.pct ?? m.flat ?? 0);
   return v;
 }
-const rangeOf = (u) => Math.max(1, (u.range || 1) + modSum(u, 'range'));
+/* 形が奥行きを持つなら、そのぶんは届く（2026-10-04）。
+   「正面2マス」を射程1の武将に継いだとき、隣り合う敵しか狙えず
+   二マス先の敵を選べなかった。形の名が「2マス」と言っているのに
+   届かないのでは名が嘘になるので、形の奥行きを射程の下限として敷いた。
+   「正面3マス」は左右の広がり（奥行きではない）なので足さない */
+const SHAPE_REACH = { frontRow2: 2, line: 3 };
+const rangeOf = (u) => Math.max(1, (u.range || 1) + modSum(u, 'range'),
+  SHAPE_REACH[attackShapeOf(u)] || 0);
 /* 奥義ゲージの上限（2026-10-03）。
    盤の上限（maxGauge=5）ではなく、その武将の必要量までしか溜まらない。
    前は 4で撃てる武将でも 5まで溜まり、画面に「5/4」と出ていた。
@@ -8256,10 +8263,14 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         if (!u.alive || u.statuses['ひるみ']) continue;
         if (u._skipTurn === turn) continue;   // ターン開始時の効果で行動を使い切った
         /* 洗脳（2026-09-28）。寝返っているあいだは、向こう側の一員として動く。
-           手で操る部隊にいても、洗脳された者は指図を受けつけない（勝手に動く） */
+           手で操る部隊にいても、洗脳された者は指図を受けつけない（勝手に動く）
+           混乱も同じ扱いにした（2026-10-04）。
+           我を失っているのに人が思いどおりに操れるのでは、効き目が無いのと同じ。
+           混乱のあいだは指図を受けつけず、でたらめに斬りかかる */
         const flip = !!u.statuses['洗脳'];
+        const wild = flip || !!u.statuses['混乱'];
         const keepManual = u.manualPlay;
-        if (flip) u.manualPlay = false;
+        if (wild) u.manualPlay = false;
         act(u, TEAM(effSide(u)), TEAM(effSide(u) === 'A' ? 'B' : 'A'), ctx);
         u.manualPlay = keepManual;
         if (ctx.awaiting) break;             // 手動操作の入力待ち。ここで止める

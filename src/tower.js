@@ -47,7 +47,8 @@
                         def ＝ 厚み（2026-10-03）。火力の一撃は防御で、賢さの一撃は回復で
                         受ける決まりなので、def を書くと両方に同じ厚みが入る。
                         厚み2500で、一撃の通りはおよそ半分以下になる
-   limit:N              決着のターンを N にする（攻め城は時がかかるので伸ばす）
+   limit:N              決着のターンを N にする（素は10ターン。攻め城は伸ばす）
+                        攻め城はどれも20ターン（2026-10-04 に30から縮めた）
 
    しばりは二段で見る。
    ・「編成」の段（tower.js の checkTeam）… 出陣の前に弾ける
@@ -92,7 +93,7 @@ export const TOWER = [
   { f:29, name:'山を駆ける', t:'神速だけで勝つ', cond:[{ k:'attr', v:'神速' }], stage:'山岳', hard:3, enemy:{ cost:700, lv:36, soul:120, skill:1 }, rw:{ stone:300, koban:1800, items:{ '稽古の書': 5 } } },
   /* 30階・60階・100階は「天守落とし」（2026-10-02）。盤の奥に壊せる城が立つ。
      守り兵を倒しても終わらない ＝ 何を倒すかではなく、何を壊すかで編成が変わる */
-  { f:30, name:'城落とし', t:'誰も倒されずに天守を落とす', cond:[{ k:'noDeath' }], keep:{ hp:10000, atk:600, rate:0.4 }, limit:25, stage:'城郭', hard:4, enemy:{ cost:1000, lv:30, soul:60, skill:1 }, rw:{ stone:600, koban:5400, items:{ '稽古の書': 10, '特技の伝書': 6 }, title:'地の利' } },
+  { f:30, name:'城落とし', t:'誰も倒されずに天守を落とす', cond:[{ k:'noDeath' }], keep:{ hp:10000, atk:600, rate:0.4 }, limit:20, stage:'城郭', hard:4, enemy:{ cost:1000, lv:30, soul:60, skill:1 }, rw:{ stone:600, koban:5400, items:{ '稽古の書': 10, '特技の伝書': 6 }, title:'地の利' } },
   { f:31, name:'織田の旗', t:'織田家だけで勝つ', cond:[{ k:'clan', v:'織田家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2 } } },
   { f:32, name:'武田の旗', t:'武田家だけで勝つ', cond:[{ k:'clan', v:'武田家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2 } } },
   { f:33, name:'上杉の旗', t:'上杉家だけで勝つ', cond:[{ k:'clan', v:'上杉家' }], stage:'草原', hard:3, enemy:{ cost:780, lv:45, soul:200, skill:2 }, rw:{ stone:300, koban:2600, items:{ '大稽古の書': 2 } } },
@@ -121,14 +122,14 @@ export const TOWER = [
   { f:56, name:'三人六手', t:'三人までで 6ターン以内に勝つ', cond:[{ k:'units', max:3 }, { k:'turns', max:6 }], stage:'草原', hard:4, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   /* 天守の階は、いま登っているすぐ上に置く（2026-10-03）。
      塔は一階ずつしか登れないので、遠いと誰も触れない。置き場はあとで決める */
-  { f:57, name:'疾き城落とし', t:'25ターン以内に天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:12000, atk:700 }, limit:30, stage:'城郭', hard:4, enemy:{ cost:1100, lv:60, soul:300, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
+  { f:57, name:'疾き城落とし', t:'15ターン以内に天守を落とす', cond:[{ k:'turns', max:15 }], keep:{ hp:12000, atk:700 }, limit:20, stage:'城郭', hard:4, enemy:{ cost:1100, lv:60, soul:300, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   { f:58, name:'三手', t:'3ターン以内に勝つ', cond:[{ k:'turns', max:3 }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:300, koban:5000, items:{ '大稽古の書': 4 } } },
   /* 中級の城（2026-10-03）。57階の城は奥義ひと振りで八割が飛んでいたので、
      兵量を上げるだけでなく「厚み（keep.def）」を持たせた。
      厚みは火力の一撃を防御で、賢さの一撃を回復で受ける。どちらも半分ほどに削ぐので、
      ひと振りで落とすのではなく、何度も叩いて崩す形になる。
      ※もとの「懐に入る」（射程1だけで4ターン）はここから外した */
-  { f:59, name:'厚き天守', t:'25ターン以内に、厚い天守を落とす', cond:[{ k:'turns', max:25 }], keep:{ hp:20000, def:2500, atk:1000 }, limit:30, stage:'城郭', hard:5, enemy:{ cost:1250, lv:75, soul:520, skill:3 }, rw:{ stone:400, koban:8000, items:{ '大稽古の書': 5, '特技の伝書': 3 } } },
+  { f:59, name:'厚き天守', t:'16ターン以内に、厚い天守を落とす', cond:[{ k:'turns', max:16 }], keep:{ hp:20000, def:2500, atk:1000 }, limit:20, stage:'城郭', hard:5, enemy:{ cost:1250, lv:75, soul:520, skill:3 }, rw:{ stone:400, koban:8000, items:{ '大稽古の書': 5, '特技の伝書': 3 } } },
   { f:60, name:'三手の無傷', t:'3ターン以内に、誰も倒されずに勝つ', cond:[{ k:'turns', max:3 }, { k:'noDeath' }], stage:'草原', hard:5, enemy:{ cost:920, lv:64, soul:420, skill:2 }, rw:{ stone:800, koban:15000, items:{ '大稽古の書': 8, '特技の伝書': 6 }, title:'疾風' } },
   { f:61, name:'前を張る', t:'役目に「前衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'前衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
   { f:62, name:'後ろを支える', t:'役目に「後衛」が付く武将だけで勝つ', cond:[{ k:'role', has:'後衛' }], stage:'山岳', hard:3, enemy:{ cost:1000, lv:73, soul:550, skill:3 }, rw:{ stone:300, koban:6800, items:{ '皆伝の書': 1 } } },
@@ -169,7 +170,7 @@ export const TOWER = [
   { f:97, name:'三重の枷', t:'兵量1から始まり、三人まで・奥義なしで勝つ', cond:[{ k:'units', max:3 }, { k:'noUlt' }], hp1:true, stage:'城郭', hard:5, enemy:{ cost:1060, lv:91, soul:830, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2 } } },
   { f:98, name:'無手の単騎', t:'一人で、奥義を使わずに勝つ', cond:[{ k:'units', max:1 }, { k:'noUlt' }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2 } } },
   { f:99, name:'五者五様', t:'位も属性もすべてちがう編成で勝つ', cond:[{ k:'rarity', allDiff:true }, { k:'attr', allDiff:true }], stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:300, koban:16000, items:{ '皆伝の書': 2 } } },
-  { f:100, name:'天守の主', t:'一人で、倒されずに天守を落とす', cond:[{ k:'units', max:1 }, { k:'noDeath' }], keep:{ hp:16000, atk:1200, rate:0.35 }, limit:35, stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:3000, koban:48000, items:{ '皆伝の書': 4, '特技の伝書': 6 }, title:'天守の主' } },
+  { f:100, name:'天守の主', t:'一人で、倒されずに天守を落とす', cond:[{ k:'units', max:1 }, { k:'noDeath' }], keep:{ hp:16000, atk:1200, rate:0.35 }, limit:20, stage:'城郭', hard:5, enemy:{ cost:1200, lv:99, soul:999, skill:3 }, rw:{ stone:3000, koban:48000, items:{ '皆伝の書': 4, '特技の伝書': 6 }, title:'天守の主' } },
 ];
 
 export const towerOf = f => TOWER.find(x => x.f === f) || null;

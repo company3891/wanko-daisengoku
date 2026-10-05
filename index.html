@@ -26749,10 +26749,10 @@ function dlWatch() {
 async function dlMake() {
   if (!linked()) { S.dlMsg = 'さきにバックアップへ接続してください'; draw(); return; }
   if (!S.picked || !S.picked.length) { S.dlMsg = 'さきに部隊を組んでください'; draw(); return; }
-  S.dlBusy = true; S.dlMsg = '間を立てています…'; draw();
+  S.dlBusy = true; S.dlMsg = 'ルームを作っています…'; draw();
   const r = await duelOpen(dlTeam());
   S.dlBusy = false;
-  if (!r.ok) { S.dlMsg = r.err === 'net' ? 'つながりませんでした' : (r.err || '間を立てられませんでした'); draw(); return; }
+  if (!r.ok) { S.dlMsg = r.err === 'net' ? 'つながりませんでした' : (r.err || 'ルームを作れませんでした'); draw(); return; }
   dlEnter(r.duel, r.seed);
 }
 
@@ -26782,7 +26782,7 @@ function dlHear(m) {
       DUEL.phase = m.phase; DUEL.seats = m.seats || [];
       DUEL.round = m.round || 0; DUEL.wins = m.wins || { A: 0, B: 0 };
       break;
-    case 'full': S.dlMsg = 'その間はもう埋まっています'; DUEL = null; S.dl = 'menu'; break;
+    case 'full': S.dlMsg = 'そのルームはもう埋まっています'; DUEL = null; S.dl = 'menu'; break;
     case 'start': dlStart(m.seed, m.teams, m.round); return;
     case 'resume': dlStart(m.seed, m.teams, m.round, m.cmds); return;
     /* 指図は かならず間から降りてきたものだけを積む。
@@ -26994,7 +26994,11 @@ function duelSheet() {
             if (after) DUEL.wins = DUEL.wins; // 画面は room の知らせで整う
             SFX.pick(); draw();
           } }, mineReady ? '取り消す' : after ? 'もう一番' : '戦仕度'),
-      el('button', { class: 'ghost wide', onclick: () => { S.screen = 'squad'; S.dl = null; draw(); } }, '部隊を組み直す'),
+      /* 編成の画面は 'team'（2026-10-05）。'squad' という画面は無く、
+         そこへ飛ばしていたので何も描かれず、上に黒い帯が出るだけだった */
+      el('button', { class: 'ghost wide', onclick: () => {
+        S.teamFrom = 'duel'; S.dl = null; S.screen = 'team'; SFX.pick(); draw();
+      } }, '部隊編成'),
       el('button', { class: 'ghost wide', onclick: dlClose }, after ? '解散する' : 'やめる'));
   }
 
@@ -27017,9 +27021,9 @@ function duelSheet() {
     el('p', { class: 'ttsub' }, '合言葉をやりとりして、友と五対五で戦う。手番ごとに自分で動かす。'),
     el('div', { class: 'lknote' },
       el('b', {}, 'いまの部隊'), el('span', {}, n ? `${n}騎　大将 ${(charOf(S.general) || {}).name || '—'}` : '組んでいません'),
-      el('b', {}, '場'), el('span', {}, `${S.stage}　（間を立てた人の場になる）`)),
+      el('b', {}, '場'), el('span', {}, `${S.stage}　（ルームを作った人の場になる）`)),
     S.dlMsg ? el('p', { class: 'lkmsg' }, S.dlMsg) : null,
-    el('button', { class: 'go wide', ...(S.dlBusy ? { disabled: true } : {}), onclick: dlMake }, '間を立てる'),
+    el('button', { class: 'go wide', ...(S.dlBusy ? { disabled: true } : {}), onclick: dlMake }, 'ルーム作成'),
     el('button', { class: 'ghost wide', onclick: () => { S.dl = 'join'; S.dlCode = ''; S.dlMsg = ''; draw(); } }, '合言葉で入る'),
     el('button', { class: 'ghost wide', onclick: dlClose }, '閉じる'));
 }
@@ -34060,13 +34064,17 @@ function twClear(f) {
    もとは「塔か、部隊か」の二択しかなかったので、全国の出陣から編成へ入ると
    戻りが育成の部隊一覧へ飛んでしまっていた。
    入った画面の名を S.teamFrom に覚えておき、そこへ返す */
-const TEAM_FROM_NAME = { tower: '塔', march: '全国', squads: '部隊', home: 'ホーム', event: '催し' };
+const TEAM_FROM_NAME = { tower: '塔', march: '全国', squads: '部隊', home: 'ホーム', event: '催し', duel: '果たし合い' };
 function twBackWhere() { return S.teamFrom || (S.twBack ? 'tower' : 'squads'); }
 function twBackLabel() { return TEAM_FROM_NAME[twBackWhere()] || '部隊'; }
 function twBackGo() {
   const to = twBackWhere();
   if (to === 'tower') { S.twBack = false; S.twMsg = ''; }
   S.teamFrom = null;
+  /* 果たし合いのルームから編成へ来たときは、ルームへ返す（2026-10-05）。
+     'duel' という画面は無いので、ホームの上にルームの札を乗せる。
+     ここを素通りさせると、画面の名が見つからず盤も札も出ない崩れ方をする */
+  if (to === 'duel') { S.dl = DUEL ? 'room' : 'menu'; return 'home'; }
   return to;
 }
 function twRow() { return null; }      // 一覧はやめた（名は guidePaint などが探さないよう残す）

@@ -987,10 +987,17 @@ function dlWatch() {
     const foe = (DUEL.seats || []).find(x => x.side !== DUEL.side);
     if (!foe) return;
     const silent = Date.now() - (DUEL.foeBeat || 0) > 5000;
-    if (!silent) { if (S.dlGone) { S.dlGone = 0; S.dlMsg = ''; draw(); } return; }
+    if (!silent) {
+      if (S.dlGone || DUEL.judged) { S.dlGone = 0; DUEL.judged = false; S.dlMsg = ''; draw(); }
+      return;
+    }
+    /* いちど数え切ったら、もう数え直さない（2026-10-05）。
+       前は 0 になっても相手が黙ったままなので、また10から数えて
+       いつまでも繰り返していた（ゆうごさんの実測） */
+    if (DUEL.judged) return;
     S.dlGone = S.dlGone ? S.dlGone - 1 : 10;
     draw();
-    if (S.dlGone <= 0) { S.dlGone = 0; dlJudge(DUEL.side); }
+    if (S.dlGone <= 0) { S.dlGone = 0; DUEL.judged = true; dlJudge(DUEL.side); }
   }, 1000);
 }
 
@@ -1133,6 +1140,17 @@ function dlJudge(side) {
   const a = troops(us, 'A'), b = troops(us, 'B');
   const winner = a === b ? '' : (a > b ? 'A' : 'B');
   dlSay({ t: 'over', winner, reason: '相手が戻らず・兵量で決した' });
+  /* 間に届かないことも ある（自分のほうが電波を失っている場合）。
+     五秒 待って勝敗の知らせが来なければ、こちらだけで戦を終いにして
+     待ち合いの間へ返す。盤に取り残されるのがいちばん困る（2026-10-05） */
+  setTimeout(() => {
+    if (!DUEL || !BATTLE || !BATTLE.duel || S.res) return;
+    fxToken++; BATTLE = null; S.vs = null; S.dmg = false;
+    DUEL.phase = 'after';
+    S.screen = 'home'; S.dl = 'room';
+    S.dlMsg = '相手が戻らず、戦は終いにしました';
+    draw();
+  }, 5000);
 }
 
 /* 決着。札を出して「結び」へ */
@@ -1160,6 +1178,36 @@ function dlReport(res) {
 }
 
 /* ---- 待ち合いの間の画面 ---- */
+/* ---- 電波が切れたときの札（2026-10-05）----
+   ゆうごさんの指図：電波が無いと、まだ読んでいない画面の絵や飾りが揃わない。
+   中途半端に遊ばせるより、はっきり知らせて初めの画面へ戻すほうがよい。
+   留守番（sw.js）のおかげで入れ物自体は開くので、ここで止めて案内する。 */
+function offlineSheet() {
+  return el('div', { class: 'sheet' }, el('div', { class: 'card2 lkbox' },
+    el('b', { class: 'mittl' }, 'つながりませぬ'),
+    el('p', { class: 'ttsub' },
+      '電波が届いておりませぬ。絵や飾りが揃わぬゆえ、いちど初めの画面へ戻ります。' +
+      '電波の届くところで、もう一度お試しくだされ。'),
+    el('button', { class: 'go wide', onclick: () => {
+      S.offl = false;
+      if (DUEL) dlClose();
+      fxToken++; BATTLE = null; S.res = null; S.vs = null; S.dmg = false; S.dl = null;
+      S.screen = 'title'; draw();
+    } }, '初めの画面へ')));
+}
+
+/* 電波の出入りを見張る。S がまだ出来ていない位置なので、全部読み終えてから動かす */
+setTimeout(() => {
+  const look = () => {
+    const off = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (!!S.offl === off) return;
+    S.offl = off;
+    draw();
+  };
+  try { addEventListener('offline', look); addEventListener('online', look); } catch (_) {}
+  look();
+}, 0);
+
 function duelSheet() {
   const box = (...kids) => el('div', { class: 'sheet' },
     el('div', { class: 'card2 lkbox' }, ...kids.filter(Boolean)));
@@ -9645,6 +9693,7 @@ function draw() {
     S.rk ? rkSheet() : null,
     S.link ? linkSheet() : null,
     S.dl ? duelSheet() : null,
+    S.offl ? offlineSheet() : null,
     S.kuWar ? kuWarSheet() : null,
     S.kuTake ? kuTakeSheet() : null,
     S.reset ? resetSheet() : null,

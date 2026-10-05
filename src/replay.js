@@ -448,6 +448,26 @@ export function terrainSheetUrl(code) {
   }
   return null;
 }
+/* ---- 盤の向き（2026-10-05）----
+   果たし合いでは、間を立てた人が A（engine の手前）、入った人が B（奥）になる。
+   engine を入れ替えると二人の盤がずれるので、engine はそのままにして
+   **描くときだけ盤を半回転させる**。後手の人も自分の軍が手前に見える。
+
+   やり方：マスの並びを裏返す（x → W-1-x、y → H-1-y）。
+   絵を回すのではなくマスの中身を入れ替えるので、
+   コマ絵は上下さかさまにならず、傾き（奥行き）もそのまま効く。
+   盤の座標（x,y）は engine のまま。入れ替えるのは「どのマスに描くか」だけ。 */
+let REV = false;
+export const setBoardRev = (v) => { REV = !!v; };
+export const boardRev = () => REV;
+/* 盤の座標 → 画面のマス。ここを通さずに children[y*W+x] と書くと向きが合わなくなる */
+export function boardCellOf(board, x, y, W, H) {
+  const i = REV ? (H - 1 - y) * W + (W - 1 - x) : y * W + x;
+  return board.children[i];
+}
+/* 重なりの順（手前の列が奥に重なる）も、向きに合わせる */
+export const drawRow = (y, H) => (REV ? H - 1 - y : y);
+
 export function boardEl(rules, theme, opt) {
   const W = rules.board.width, H = rules.board.height;
   const map = rules.stage && rules.stage.map;
@@ -467,10 +487,12 @@ export function boardEl(rules, theme, opt) {
   if (opt && opt.flat) box.classList.add('flat');
   const wide = widePairs(map, W, H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const code = (map && map[y] && map[y][x]) || 'PLAIN';
+    /* 盤を半回転させているときは、このマスに「裏返した先の地形」を描く（2026-10-05） */
+    const gx = REV ? W - 1 - x : x, gy = REV ? H - 1 - y : y;
+    const code = (map && map[gy] && map[gy][gx]) || 'PLAIN';
     const c = document.createElement('div');
     c.className = 'cell t-' + code;
-    c.dataset.xy = x + ',' + y;
+    c.dataset.xy = gx + ',' + gy;
     if (TER[code]) { const s = document.createElement('span'); s.className = 'ter'; s.textContent = TER[code]; c.append(s); }
     /* 地面の絵に障害物まで描いてあるときは、上にアイコンを重ねない（2026-09-21）。
        岩や川が絵に溶け込んでいるほうが綺麗なので、絵があるほうを優先する。
@@ -478,10 +500,10 @@ export function boardEl(rules, theme, opt) {
     if (gnd && !bare) { c.querySelector('.ter')?.remove(); }
     else if (code !== 'PLAIN' && !(SURFACE.has(code) && terrainSheetUrl(code))) {
       /* 位置から絵を1枚選ぶ。同じ盤面はいつ見ても同じ顔になる */
-      const w2p = wide.get(x + ',' + y);
+      const w2p = wide.get(gx + ',' + gy);
       if (w2p === 'x') { c.querySelector('.ter')?.remove(); box.append(c); continue; }
       const alts = terFiles(code);
-      const hh = ((x * 73856093) ^ (y * 19349663) ^ (code.length * 83492791)) >>> 0;
+      const hh = ((gx * 73856093) ^ (gy * 19349663) ^ (code.length * 83492791)) >>> 0;
       /* 縦2マスの絵が無いときは、横2マスの絵を90度まわして使う（2026-09-26）。
          波のように向きの無い絵なら、これで縦の並びにも架けられる */
       const turn = w2p === 'V' && !pairUrl(code, 'V2');
@@ -684,9 +706,10 @@ export function render(board, pawnMap, snapUnits, rules) {
   for (const u of snapUnits) {
     const p = pawnMap.get(u.id);
     if (!p) continue;
-    const cell = board.children[u.y * W + u.x];
+    const cell = boardCellOf(board, u.x, u.y, W, rules.board.height);
+    if (!cell) continue;
     if (p.parentElement !== cell) cell.append(p);
-    cell.style.zIndex = String(u.y + 1);      // 手前の列が奥の列に重なる
+    cell.style.zIndex = String(drawRow(u.y, rules.board.height) + 1);   // 手前の列が奥の列に重なる
     /* 天守の帯（2026-10-02）。天守は盤の外の顔の列に出ないので、
        残りの兵量は城そのものに重ねて見せる。落ちたら盤から消す（落城） */
     if (p.classList.contains('keep')) {

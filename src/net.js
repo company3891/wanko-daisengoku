@@ -92,11 +92,20 @@ export async function pushSaveForce(blob, serverRev) {
 export function duelJoin(duelId, { pid, name, team, seed }, on) {
   if (!KURA) return null;
   const ws = new WebSocket(KURA.replace(/^http/, 'ws') + `/v1/duel/${duelId}/ws`);
-  ws.addEventListener('open', () => ws.send(JSON.stringify({ t: 'join', duel: duelId, pid, name, team, seed })));
+  const send = (o) => { try { ws.send(JSON.stringify(o)); } catch (_) {} };
+  /* 間の印（duelId）は名乗りのときに預ける。間は休眠するので、
+     あとから聞き直せるように storage に置いてもらう（2026-10-04） */
+  ws.addEventListener('open', () => send({ t: 'join', duel: duelId, pid, name, team, seed }));
   ws.addEventListener('message', (e) => { try { on(JSON.parse(e.data)); } catch (_) {} });
+  /* 繋ぎが切れたことも知らせる（2026-10-05）。
+     黙って止まるのがいちばん困るので、画面に出して繋ぎ直せるようにする */
+  ws.addEventListener('close', () => { try { on({ t: 'lost' }); } catch (_) {} });
+  ws.addEventListener('error', () => { try { on({ t: 'lost' }); } catch (_) {} });
   return {
-    cmd: (c) => { try { ws.send(JSON.stringify({ t: 'cmd', cmd: c })); } catch (_) {} },
-    over: (winner, reason) => { try { ws.send(JSON.stringify({ t: 'over', duel: duelId, winner, reason })); } catch (_) {} },
+    send,
+    cmd:   (c) => send({ t: 'cmd', cmd: c }),
+    over:  (winner, reason) => send({ t: 'over', duel: duelId, winner, reason }),
+    bye:   () => send({ t: 'bye' }),
     close: () => { try { ws.close(); } catch (_) {} },
   };
 }

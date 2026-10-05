@@ -5455,3 +5455,19 @@ button.mkpv:active{transform:translateY(1px)}
   color:#f5e2a8;font-size:13px}
 .foeturn b{color:#5aa9e6;font-weight:700}
 .foeturn span{opacity:.85}
+
+/* 果たし合い・待ち合いの間（2026-10-05）。
+   二人の席を並べて、どちらが仕度できているかを見せる */
+.dlseats{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.dlseat{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;
+  background:#fffdf6;border:1px solid #d8a94a66}
+.dlseat.me{border-color:#d8a94a;background:#fff6e0}
+.dlseat.empty{opacity:.55}
+.dlseat i{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:#12100e;color:#f5e2a8;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-style:normal;font-weight:700}
+.dlseat .n{flex:1 1 auto;font-size:14px;font-weight:700;color:#12100e}
+.dlseat .o{flex:0 0 auto;font-size:12px;color:#a8802c}
+.dlrec{text-align:center;font-size:13px;color:#a8802c;margin:4px 0}
+.go.on{background:#4fa36b}
+.foeturn.gone{border-color:#e0654f;background:#2a1210cc}
+.foeturn.gone b{color:#e0654f}

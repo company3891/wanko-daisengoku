@@ -949,7 +949,8 @@ function kuTakeSheet() {
    いまの割り切り：間を立てた人が A（盤の手前）、入った人が B（盤の奥）。
    B の人は自分の軍が奥に見える。盤の向きの直しは別途。 */
 let DUEL = null;
-let dlTick = 0;          // 砂時計の針（1秒ごと）
+let dlTick = 0;          // 一秒ごとの見張り（鼓動・砂時計）
+let dlBeat = 0;          // 三秒ごとに ping を打つための数え
 
 const dlTeam = () => ({
   members: S.picked.map(grownFor), generalNo: S.general,
@@ -968,6 +969,31 @@ function dlClose() {
 }
 function dlStopTick() { if (dlTick) { clearInterval(dlTick); dlTick = 0; } S.dlGone = 0; }
 
+/* ---- 一秒ごとの見張り（2026-10-05）----
+   機内モードにしても繋ぎはすぐには切れない。間が close を受け取るのは一分ほど先で、
+   それまで砂時計が出なかった（実測：一分）。
+   そこで **端末どうしで鼓動を交わす**。三秒ごとに ping を打ち、間が相手に beat を配る。
+   五秒 聞こえなければ落ちたとみなして砂時計を回す。十数えて戻らなければ兵量で決する。
+   数えるのは残っているほうの端末。間は何もしなくてよい。 */
+function dlWatch() {
+  if (dlTick) return;
+  dlBeat = 0;
+  dlTick = setInterval(() => {
+    if (!DUEL) { dlStopTick(); return; }
+    /* 戦のあいだは三秒ごと、それ以外は十五秒ごと（2026-10-05）。
+       待っているだけのときまで三秒ごとに叩くと、間が眠れず銭がかさむ */
+    if (++dlBeat >= (DUEL.phase === 'fight' ? 3 : 15)) { dlBeat = 0; dlSay({ t: 'ping' }); }
+    if (DUEL.phase !== 'fight') { if (S.dlGone) { S.dlGone = 0; draw(); } return; }
+    const foe = (DUEL.seats || []).find(x => x.side !== DUEL.side);
+    if (!foe) return;
+    const silent = Date.now() - (DUEL.foeBeat || 0) > 5000;
+    if (!silent) { if (S.dlGone) { S.dlGone = 0; S.dlMsg = ''; draw(); } return; }
+    S.dlGone = S.dlGone ? S.dlGone - 1 : 10;
+    draw();
+    if (S.dlGone <= 0) { S.dlGone = 0; dlJudge(DUEL.side); }
+  }, 1000);
+}
+
 async function dlMake() {
   if (!linked()) { S.dlMsg = 'さきにバックアップへ接続してください'; draw(); return; }
   if (!S.picked || !S.picked.length) { S.dlMsg = 'さきに部隊を組んでください'; draw(); return; }
@@ -985,12 +1011,19 @@ function dlEnter(code, seed) {
   DUEL = { id, side: null, phase: 'wait', seats: [], round: 0, wins: { A: 0, B: 0 }, over: null };
   DUEL.ws = duelJoin(id, { pid: P.link.code, name: P.name || '名無し', team: dlTeam(), seed: seed || 0 }, dlHear);
   if (!DUEL.ws) { S.dlMsg = 'つなげませんでした'; DUEL = null; draw(); return; }
+  DUEL.foeBeat = Date.now();
+  dlWatch();
   S.dl = 'room'; S.dlMsg = ''; draw();
 }
 
 /* 間からの知らせ。対戦のすべてがここを通る */
 function dlHear(m) {
   if (!DUEL) return;
+  /* 鼓動が届いた＝相手は生きている（2026-10-05）。
+     数えるのは beat だけにする。cmd も room も自分の手で起きたものが
+     そのまま返ってくるので、それで生死を測ると相手が落ちても気づけない */
+  if (m.t === 'beat') DUEL.foeBeat = Date.now();
+  if (m.t === 'beat') { if (S.dlGone) { S.dlGone = 0; S.dlMsg = ''; draw(); } return; }
   switch (m.t) {
     case 'seat': DUEL.side = m.side; break;
     case 'room':
@@ -1033,7 +1066,9 @@ function dlLost() {
 
 function dlStart(seed, teams, round, cmds) {
   if (!teams || !teams.A || !teams.B) return;
-  dlStopTick();
+  S.dlGone = 0;
+  DUEL.foeBeat = Date.now();
+  dlWatch();
   /* 前の戦の札が残っていたら畳む（2026-10-05）。
      こちらが勝敗の札を見ているあいだに相手が「もう一番」を押すと、
      札が新しい盤の上に乗ったままになっていた */
@@ -1081,20 +1116,18 @@ function dlLate() {
 }
 
 /* 相手が落ちた。砂時計を画面に出す（1秒ごとに減る） */
+/* 間が「相手が落ちた」と気づいたとき（繋ぎがきれいに切れた場合はこちらが早い）。
+   数えるのは同じ見張りなので、残り秒を入れるだけ */
 function dlGone(secs) {
-  dlStopTick();
+  DUEL.foeBeat = 0;                 // 鼓動は絶えたものとして扱う
   S.dlGone = Math.max(1, secs || 10);
-  dlTick = setInterval(() => {
-    S.dlGone--;
-    if (S.dlGone <= 0) dlStopTick();
-    draw();
-  }, 1000);
+  dlWatch();
   draw();
 }
 
 /* 間から「兵量で決めてよし」。盤の兵量を数えて決着を告げる */
 function dlJudge(side) {
-  dlStopTick();
+  S.dlGone = 0;
   if (!BATTLE || !BATTLE.duel || side !== DUEL.side) return;
   const us = liveUnits();
   const a = troops(us, 'A'), b = troops(us, 'B');
@@ -1104,7 +1137,7 @@ function dlJudge(side) {
 
 /* 決着。札を出して「結び」へ */
 function dlResult(m) {
-  dlStopTick();
+  S.dlGone = 0;
   DUEL.phase = 'after'; DUEL.wins = m.wins || DUEL.wins; DUEL.round = m.round || DUEL.round;
   DUEL.over = { winner: m.winner, reason: m.reason };
   /* 自分の盤がまだ決着していないのに、間から勝敗が降りてきたとき

@@ -91,6 +91,16 @@ ${read('app/src/style.css').replaceAll("url('../assets/font/", "url('assets/font
 </head>
 <body>
 <div id="app"><div class="boot">読み込み中…</div></div>
+<script>
+/* 留守番（Service Worker）を立てる（2026-10-05）。
+   電波が無くてもアプリが開くようにするためのもの。中身は sw.js。
+   ファイルを直に開いた（file://）ときは立たないので、守りを入れておく。
+   立たなくても遊びには障りが無い ── 「絵が無くても動く」と同じ考え方 */
+try {
+  if ('serviceWorker' in navigator && location.protocol === 'https:')
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+} catch (e) { /* 立たなくても進む */ }
+</script>
 <script type="module">
 ${js}
 </script>

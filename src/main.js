@@ -201,6 +201,7 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   /* mkBusy＝サーバーの返事を待っているあいだ（2026-10-05）。
      待っているあいだ釦を止めて、二度押しで二枚買うのを防ぐ */
   mkBusy: false,
+  opSkip: false,   // はじまりの語りを早送りしたか（2026-10-05）
   mkRar: 'すべて', mkAtt: 'すべて', mkSort: 'price', mkAsc: null,   // detailBase＝図鑑から開いた札（素のまま見せる・2026-10-01）
   /* お役目（2026-09-24）。mi＝開いているか／miTab＝選んでいるタグ */
   mi: false, miTab: '日課', miMsg: '', tt: false, reset: 0, pwUp: 0,
@@ -1449,14 +1450,44 @@ function resetSheet() {
       el('button', { class: 'ghost wide', onclick: close }, 'キャンセル')));
 }
 
-/* ---- はじまりの名乗り（2026-09-25）----
-   選んだ一騎の横長の一枚絵を全幅で出し、その上に名乗りを重ねる。
-   絵は hero（設定画のいちばん上）を第一に、無ければ奥義のカットインで代える。
-   どちらも無ければ何も出さず、そのまま城へ入る。 */
+/* ---- はじまりの物語（2026-10-05 に作り直した）----
+   前は「選んだ一騎の横長の絵＋名乗り」の一枚だった（2026-09-25）。
+   そっけないので、**乱世の始まり**を見せる一幕にした。
+
+     ・燃える戦場を画面いっぱいに敷く（assets/bg/opening.png）
+     ・白いテロップが一行ずつ 上から降りてきて、読み終わるころに消える
+       （下敷きの帯は置かない。影だけで読ませる）
+     ・語り終わりに、選んだ一騎の顔が大きく浮かび上がって名乗る
+     ・たたくと早送り。もう一度たたくと城へ
+
+   文は**史実に合わせた**。応仁の乱（応仁元年＝1467年）から十一年。
+   将軍の威が落ち、守護が崩れ、下の者が上を討つ ── 下剋上。
+   そこから戦国の世が始まる、という筋をそのままなぞっている。
+   数は年号だけ（遊びの数値は見せない決まりは守っている）。
+
+   絵が無くても動く：背景が無ければ黒地に落ち、顔が無ければ名だけが出る。 */
 const OPENING_CRY = 'いざ尋常に参るわん';
+const OPENING_TELOP = [
+  '応仁元年、京に火が上がった。',
+  '将軍の威は地に落ち、十一年のいくさが都を焼いた。',
+  '焼け跡に立っていたのは、名も無き者たちだった。',
+  '主を討ち、国を奪い、下の者が上に立つ。',
+  '―― 下剋上。',
+  '旗は百を超え、犬たちは野に放たれた。',
+  'この世を、戦国という。',
+  'そして今、そなたの旗が揚がる。',
+];
+const OP_LINE_MS = 2300;        // 一行ぶんの間合い（絵は 2.9秒かけて降りて消える）
 function openingArt() {
   const c = charOf(P.first);
   return c ? (heroUrl(c.no) || cutinArt(c.no, '奥義')) : null;
+}
+/* 語り終わりに出す顔。大きく出すので、いちばん大きな絵から順に探す */
+function openingFace() {
+  const c = charOf(P.first);
+  if (!c) return null;
+  return faceUrl(c.no, '真剣') || faceUrl(c.no, '不敵') || faceUrl(c.no, '通常')
+      || cutinUrl(c.no) || pawnUrl(c.no);
 }
 /* 初陣の相手（2026-09-25）。
    本拠地は制覇済みで始まる決まりなので、出発の章のうち まだ取っていない
@@ -1469,29 +1500,35 @@ function firstPref() {
   return p ? { pref: p, step: prefStep(p.id) } : null;
 }
 function openingSheet() {
-  const c = charOf(P.first); const art = openingArt();
-  if (!art) return null;
-  /* 名乗りのあとは、そのまま初陣へ連れていく（2026-09-25）。
-     抜いた武将がどう動くかを、城に入る前に一度見せる。
-     出発の国の一戦目をそのまま使う。兵糧は取らない（はじめの一戦なので） */
+  const c = charOf(P.first);
+  const bg = bgUrl('opening');
+  const face = openingFace();
+  const skip = !!S.opSkip;
+  /* 語りの終わりどき。顔はその少し前から浮かび上がらせる */
+  const endMs = OPENING_TELOP.length * OP_LINE_MS;
+  /* 一度めのたたきで早送り、二度めで城へ（2026-10-05）。
+     長い語りを飛ばしたい人と、名乗りだけ見たい人の両方に行き場をつくる */
   const go = () => {
-    S.opening = false; SFX.pick();
-    /* 名乗りのあとは城へ（2026-09-30）。
-       城から、育成 → 武将強化 → 部隊 → 初陣 の順にチュートリアルが案内する。
-       前はここから勝手に戦が始まっていて、覚える間がなかった */
+    if (!skip) { S.opSkip = true; SFX.pick(); draw(); return; }
+    S.opening = false; S.opSkip = false; SFX.pick();
+    /* 語りのあとは城へ（2026-09-30）。
+       城から、育成 → 武将強化 → 部隊 → 初陣 の順に手引きが案内する */
     S.screen = 'home';
     draw();
   };
-  return el('div', { class: 'opsheet', onclick: go },
-    /* 同じ絵をぼかして画面いっぱいに敷く（2026-09-25）。
-       一枚絵が横長（2.8:1）なので、真っ黒の中に帯が浮くと寂しかった */
-    el('img', { class: 'opbg', src: art, alt: '' }),
-    el('div', { class: 'opart' },
-      el('img', { src: art, alt: '' }),
-      el('div', { class: 'optxt' },
-        el('div', { class: 'nm' }, c.name),
-        el('div', { class: 'sk', 'data-t': OPENING_CRY }, OPENING_CRY))),
-    el('div', { class: 'ophint' }, '画面をたたいて出陣'));
+  const at = (ms) => (skip ? null : `animation-delay:${(ms / 1000).toFixed(2)}s`);
+  return el('div', { class: 'opsheet' + (skip ? ' skip' : ''), onclick: go },
+    bg ? el('div', { class: 'opbg2', style: `background-image:url("${bg}")` }) : null,
+    el('div', { class: 'opveil' }),
+    /* テロップ。どの行も同じ場所に重ねて置き、間合いをずらして出す。
+       前後が 0.6秒ほど重なるので、ぷつりと切れずに移り変わる */
+    el('div', { class: 'optelop' },
+      OPENING_TELOP.map((t, i) => el('p', { style: at(i * OP_LINE_MS) }, t))),
+    el('div', { class: 'opwho', style: at(Math.max(0, endMs - 1400)) },
+      face ? el('img', { class: 'opface', src: face, alt: c ? c.name : '' }) : null,
+      el('div', { class: 'opnm' }, c ? c.name : ''),
+      el('div', { class: 'opcry', 'data-t': OPENING_CRY }, OPENING_CRY)),
+    el('div', { class: 'ophint' }, skip ? '画面をたたいて出陣' : '画面をたたくと早送り'));
 }
 
 /* ---------------- はじまりの一騎（チュートリアル・2026-09-21）----------------
@@ -1555,7 +1592,7 @@ function screenTutorial() {
                手ほどき用のもう一騎（いちばん若い番号のN）を添える */
             grantStarter(c.no, guideMate()); setCampStart(c);
             S.pick = null; S.tutI = 0; S.tutBack = false;
-            S.opening = !!openingArt(); S.screen = S.opening ? 'tutorial' : 'team';
+            S.opening = true; S.opSkip = false;   // 語りは必ず通す（2026-10-05）
             savePlayer(); draw();
           },
         }, 'この武将で出陣する')),
@@ -1594,7 +1631,9 @@ function screenTutorial() {
 function tutGoHome() {
   P.tutorial = 2; savePlayer();
   S.gacha = null; S.gopen = false; S.rvall = null; S.rv = null;
-  if (openingArt()) { S.opening = true; SFX.pick(); } else S.screen = 'home';
+  /* 語りは はじめの一騎を選んだ直後の一度きり（2026-10-05）。
+     十連のあとにもう一度流すと、同じ話を二度聞かせることになる */
+  S.screen = 'home';
   draw();
 }
 function tutorDetail(c) {

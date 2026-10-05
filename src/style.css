@@ -3319,40 +3319,69 @@ main.hasnav{padding-bottom:124px}
   -webkit-background-clip:text;background-clip:text;color:transparent;
   -webkit-text-stroke:.6px #2a1d07;paint-order:stroke fill}
 
-/* ---- はじまりの名乗り（2026-09-25）----
-   カットインと同じ金の字だが、こちらは たたくまで消えない一枚。
-   金は「背景を字の形に切り抜いたもの」なので、黒い下敷きを先に描いて
-   金をあとから ::after で重ねる（カットインで踏んだのと同じ理屈） */
-.opsheet{position:fixed;inset:0;z-index:140;background:#12100e;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  animation:opin .5s ease-out}
+/* ---- はじまりの物語（2026-10-05 に作り直した）----
+   燃える戦場を敷き、白いテロップが一行ずつ 上から降りてくる。
+   **下敷きの帯は置かない。**影と、上下の落としだけで読ませる。
+   語り終わりに、選んだ一騎の顔が大きく浮かび上がって名乗る。
+
+   金の名乗りは「背景を字の形に切り抜いたもの」なので、
+   黒い下敷きを先に描いて金をあとから ::after で重ねる
+   （カットインで踏んだのと同じ理屈） */
+.opsheet{position:fixed;inset:0;z-index:140;overflow:hidden;background:#0b0a09;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  cursor:pointer;animation:opin .6s ease-out}
 @keyframes opin{from{opacity:0}to{opacity:1}}
-.opbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  filter:blur(34px) brightness(.38) saturate(1.15);transform:scale(1.15)}
-.opart{position:relative;width:100%;line-height:0;
-  box-shadow:0 0 0 1px #00000055,0 18px 60px #000a}
-.opart img{display:block;width:100%;height:auto;animation:opzoom 3.2s ease-out both}
-@keyframes opzoom{from{transform:scale(1.06)}to{transform:none}}
-.opart::after{content:"";position:absolute;left:0;right:0;bottom:0;height:64%;
-  background:linear-gradient(180deg,#12100e00,#12100ecc 44%,#12100ef7 76%,#12100e);
-  pointer-events:none}
-.optxt{position:absolute;left:0;right:0;bottom:12px;z-index:2;
-  text-align:center;padding:0 14px;box-sizing:border-box;line-height:1.1;
-  animation:opup .7s .25s ease-out both}
-@keyframes opup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.optxt .nm{font-family:var(--mincho);font-size:13px;color:var(--text2);letter-spacing:.14em;
-  margin-bottom:3px;text-shadow:0 1px 3px #000,0 2px 8px #000,0 0 16px #000}
-.optxt .sk{position:relative;font-family:var(--mincho);font-size:29px;font-weight:900;
-  letter-spacing:.06em;color:#12100e;-webkit-text-stroke:6px #12100e;paint-order:stroke fill;
+/* 背景はゆっくり寄りから引きへ。四辺を少しはみ出させて、動いても端が見えないように */
+.opbg2{position:absolute;inset:-5%;background-size:cover;background-position:center;
+  animation:opdrift 26s ease-out both}
+@keyframes opdrift{from{transform:scale(1.14)}to{transform:scale(1)}}
+/* 上と下を落とす。字と名乗りを浮かせるため。真ん中は絵を見せたいので薄く */
+.opveil{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,#0b0a09d9,#0b0a0966 24%,#0b0a0933 44%,
+                                     #0b0a09aa 70%,#0b0a09f2)}
+/* テロップ。どの行も同じ場所に重ねて置き、間合いをずらして出す */
+.optelop{position:absolute;left:0;right:0;top:10%;z-index:2;pointer-events:none}
+.optelop p{position:absolute;left:24px;right:24px;top:0;margin:0;opacity:0;
+  font-family:var(--mincho);font-size:17px;line-height:1.9;letter-spacing:.07em;
+  color:#fff;text-align:center;
+  text-shadow:0 2px 6px #000,0 0 16px #000,0 0 34px #000a;
+  animation:optelop 2.9s ease-out both}
+@keyframes optelop{
+  0%  {opacity:0;transform:translateY(-30px)}
+  15% {opacity:1;transform:translateY(0)}
+  72% {opacity:1;transform:translateY(14px)}
+  100%{opacity:0;transform:translateY(32px)}
+}
+/* 選んだ一騎。語り終わりに浮かび上がる */
+.opwho{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;
+  gap:7px;margin-bottom:calc(16vh + var(--safeb,0px));opacity:0;
+  animation:opwho 1.7s ease-out both}
+@keyframes opwho{from{opacity:0;transform:translateY(26px) scale(.93)}to{opacity:1;transform:none}}
+.opface{width:min(50vw,206px);height:min(50vw,206px);object-fit:cover;border-radius:50%;
+  border:2px solid var(--gold);background:#12100e;
+  box-shadow:0 0 0 7px #12100e99,0 12px 36px #000c,0 0 46px #d8a94a4d}
+.opnm{font-family:var(--mincho);font-size:14px;color:var(--text2);letter-spacing:.16em;
+  text-shadow:0 1px 3px #000,0 2px 8px #000,0 0 16px #000}
+.opcry{position:relative;font-family:var(--mincho);font-size:29px;font-weight:900;
+  letter-spacing:.06em;line-height:1.15;white-space:nowrap;
+  color:#12100e;-webkit-text-stroke:6px #12100e;paint-order:stroke fill;
   filter:drop-shadow(0 2px 5px #000b) drop-shadow(0 0 16px #000a)}
-.optxt .sk::after{content:attr(data-t);position:absolute;left:0;right:0;top:0;
+.opcry::after{content:attr(data-t);position:absolute;left:0;right:0;top:0;
   background:linear-gradient(180deg,#fff4cf 0%,#e8c05a 46%,#b8862c 54%,#f4dc9a 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   -webkit-text-stroke:.6px #2a1d07;paint-order:stroke fill}
-.ophint{position:absolute;bottom:26px;font-size:11px;color:var(--text3);letter-spacing:.2em;
-  animation:ophint 1.8s 1s ease-in-out infinite}
+/* 早送りしたあとは、語りを畳んで名乗りだけ出す */
+.opsheet.skip .optelop{display:none}
+.opsheet.skip .opbg2,
+.opsheet.skip .opwho{animation:none;opacity:1;transform:none}
+.ophint{position:absolute;bottom:26px;z-index:4;font-size:11px;color:var(--text3);
+  letter-spacing:.2em;animation:ophint 1.8s 1s ease-in-out infinite}
 @keyframes ophint{0%,100%{opacity:.35}50%{opacity:.9}}
-@media (max-width:380px){ .optxt .sk{font-size:25px} }
+@media (max-width:380px){
+  .optelop p{font-size:15.5px}
+  .opcry{font-size:25px}
+  .opface{width:min(48vw,180px);height:min(48vw,180px)}
+}
 
 /* 顔のアイコンを押せるようにした（2026-09-25）。
    button になるので、初期の枠・余白・書体を打ち消しておく */

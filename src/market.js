@@ -60,9 +60,11 @@ export function mkState() {
                      ふった魂 1点 +0.05%／技の位 1段 +15%
      UR を Lv99・覚醒5・魂1000まで育てると およそ 3500 × 4.2 ＝ 1万5千ほど
 
-   ・底値（MK_FLOOR）… これより安くは出せない。
-     SSR 1000／UR 3000 と重くしてあるのは、位の高い札が
-     二束三文で流れると くじを引く値打ちまで下がるため
+   ・底値（MK_FLOOR）… **NPC が並べる品の値を決めるときだけ**に使う（2026-10-05 に役目を変えた）。
+     SSR 1000／UR 3000 と重くしてあるのは、棚に並ぶ位の高い札が
+     二束三文だと くじを引く値打ちまで下がるため。
+     遊ぶ人が付けられる下限は、位にかかわらず 100（MK_PRICE_MIN）。
+     「UR は 3,000 からしか出せない」では、手放したいだけの人の行き場が無かった
 
    遊ぶ人には この式は見せない。「目安」とだけ出す */
 export const MK_BASE  = { N: 100, R: 220, SR: 500, SSR: 1200, UR: 3500 };
@@ -128,7 +130,14 @@ export function mkFee(price) {
 /* 売れたときに手元に入る額 */
 export const mkNet = (price) => Math.max(0, Math.round(price || 0) - mkFee(price));
 
-export const mkLo = (w, c) => Math.max(mkFloor(c), Math.round(w * 0.5));
+/* 付けられる値の下限（2026-10-05）。
+   前は「目安の半値」と「位ごとの底値」の高いほうだったので、
+   育てた UR は 9,800 より安く出せないなど、縛りがきつすぎた。
+   **位にかかわらず 100 から**にして、遊ぶ人に決めさせる。
+   安く出せば早く売れるだけのことなので、売れ方の式（mkSettle）は触らない。
+   NPC が並べる品の値は これまでどおり MK_FLOOR を踏む（棚の見栄えを保つため） */
+export const MK_PRICE_MIN = 100;
+export const mkLo = (w, c) => MK_PRICE_MIN;
 export const MK_PRICE_MAX = 99999;
 export const mkHi = w => MK_PRICE_MAX;
 

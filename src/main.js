@@ -6646,6 +6646,12 @@ function cardArt(c) {
    自分が育てたぶんを混ぜると、素の強さが どこにも見られなくなる */
 function openCard(c, ro, base) {
   if (!c) return;
+  /* 取引所の覚えを消してから開く（2026-10-05）。
+     取引所で品の札を開くと S.detailBuy（買える品）と S.detailSt（売り主の育ち）が立つ。
+     閉じ方によっては残ったままになり、そのあと図鑑で札を開いたときに
+     「◯◯ の品／召し抱える」の帯が出てしまっていた（実測で踏んだ）。
+     開くたびに消せば、どこから開いても取り違えない */
+  S.detailSt = null; S.detailBuy = null;
   S.detail = c.no; S.side = null; S.detailRO = !!ro; S.detailBase = !!base; draw();
 }
 /* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか。
@@ -9273,6 +9279,7 @@ function navBar() {
          褒美は札を出す前にもう配り終えているので、ここで畳んでも取りこぼしは無い */
       if (BATTLE || S.res) { fxToken++; BATTLE = null; S.res = null; S.dmg = false; S.vs = null; }
       S.screen = n.key; S.detail = null; S.rates = false; S.shop = false; S.menu = false;
+      S.detailSt = null; S.detailBuy = null;   // 取引所の覚えを持ち越さない（2026-10-05）
       /* 下の帯は札より前に出しているので、札を開いたままでも押せる（2026-09-30）。
          そのまま移ると札の覚えが残るので、ここで一度ぜんぶ片づける */
       S.pw = null; S.gpop = false; S.cp = false; S.sqp = null; S.mi = false;

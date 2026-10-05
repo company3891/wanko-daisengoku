@@ -5471,3 +5471,11 @@ button.mkpv:active{transform:translateY(1px)}
 .go.on{background:#4fa36b}
 .foeturn.gone{border-color:#e0654f;background:#2a1210cc}
 .foeturn.gone b{color:#e0654f}
+
+/* 口銭の一行（2026-10-05）。出す札で「手元に入る額」を目立たせる。
+   買い手の払う額（札の値）とまちがえないよう、金の字にして一段ぶん浮かせた */
+.note.mknet{display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+  margin-top:6px;padding:7px 10px;border-radius:9px;
+  background:#12100e0a;border:1px solid #d8a94a4d;color:#6b5a33}
+.note.mknet b{color:#a8802c;font-size:15px;font-weight:800}
+.note.mknet img,.note.mknet i{flex:0 0 auto}

@@ -10,7 +10,8 @@ import { TOWER, TOWER_FOOD, TOWER_MAX, towerOf, towerTier, TIER_NAME, isBoss, is
          isGreat, twTeam, twResult } from './tower.js';
 import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, mkLo, mkHi,
          mkStock, mkBought, mkBuy, mkCanList, mkList, mkPull, mkSettle, mkUnread, mkRead,
-         mkNext, mkRefresh, mkCollect, mkMyList, mkMyCount, mkKuraOn } from './market.js';
+         mkNext, mkRefresh, mkCollect, mkMyList, mkMyCount, mkKuraOn,
+         mkFee, mkNet } from './market.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
@@ -8582,6 +8583,11 @@ function mkPutSheet() {
               curIcon('soul'), el('b', {}, num(price))),
         el('button', { class: 'mkpm', onclick: bump(Math.max(5, Math.round(w * 0.05))) }, '＋')),
       el('p', { class: 'note' }, `目安は ${num(w)}　／　${num(lo)} 〜 ${num(hi)} のあいだで決められる`),
+      /* 口銭（2026-10-05）。率は出さず、手元に入る額と引かれる額だけ見せる。
+         買い手は札の値をそのまま払うので、ここは売り手の話だと分かるように書く */
+      el('p', { class: 'note mknet' }, '売れたら手元に入る ', curIcon('soul'),
+        el('b', {}, ` ${num(mkNet(price))}`),
+        `　（口銭 ${num(mkFee(price))} を引く）`),
       el('p', { class: 'note' }, '安く出すほど早く売れる。二日たっても売れなければ戻ってくる'),
       el('p', { class: 'note warn' }, '出すと、手持ちの枚数も育ちも まるごと預かる'),
       el('div', { class: 'acts2' },
@@ -8639,7 +8645,8 @@ function screenMarket() {
   const got = m.log.filter(x => !x.read);
   const sold = got.filter(x => !x.back), back = got.filter(x => x.back);
   if (got.length) S.mkMsg = [
-    sold.length ? `${sold.length}件 売れた（魂 +${num(sold.reduce((a, x) => a + x.price, 0))}）` : null,
+    sold.length ? `${sold.length}件 売れた（魂 +${num(sold.reduce((a, x) =>
+      a + (typeof x.net === 'number' ? x.net : x.price), 0))}）` : null,
     back.length ? `${back.length}件 売れずに戻った` : null,
   ].filter(Boolean).join('　／　');
   const tno = talkerNo('market');
@@ -8717,7 +8724,10 @@ function screenMarket() {
                 return el('div', { class: 'mklr' + (r.back ? ' back' : '') },
                   el('span', { class: 'mkln' }, c ? c.name : `No.${r.no}`),
                   r.back ? el('em', {}, '売れずに戻った')
-                         : el('em', {}, curIcon('soul'), ` +${num(r.price)}`));
+                         /* 入ったのは口銭を引いたあとの額（2026-10-05）。
+                            古い覚えには net が無いので price に落ちる */
+                         : el('em', {}, curIcon('soul'),
+                             ` +${num(typeof r.net === 'number' ? r.net : r.price)}`));
               }))
             : el('p', { class: 'note' }, 'まだ売り買いの覚えが無い')),
       S.mkPut ? mkPutSheet() : null),

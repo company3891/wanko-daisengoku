@@ -5487,6 +5487,14 @@ button.mkpv:active{transform:translateY(1px)}
 .foeturn.gone{border-color:#e0654f;background:#2a1210cc}
 .foeturn.gone b{color:#e0654f}
 
+/* 口銭の一行（2026-10-05）。出す札で「手元に入る額」を目立たせる。
+   買い手の払う額（札の値）とまちがえないよう、金の字にして一段ぶん浮かせた */
+.note.mknet{display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+  margin-top:6px;padding:7px 10px;border-radius:9px;
+  background:#12100e0a;border:1px solid #d8a94a4d;color:#6b5a33}
+.note.mknet b{color:#a8802c;font-size:15px;font-weight:800}
+.note.mknet img,.note.mknet i{flex:0 0 auto}
+
 </style>
 </head>
 <body>
@@ -13077,6 +13085,41 @@ function mkPower(c, st) {
    上は一律 99999（2026-10-01）。目安の三倍で頭打ちにすると、
    育てきった子に高値を付けたい人の行き場が無くなるため。
    売れにくさは mkSettle の式が見るので、天井を上げても壊れない */
+/* ---- 口銭（こうせん・2026-10-05）----
+   売り手から取る手間賃。**引かれるのは売れた人だけ。**
+   買い手は札に出ている値をそのまま払う（1000の品は1000払う）。
+
+   段をつけて、安い品は売りやすく、高く売るほど重くした。
+   これは魂の総量が膨らみすぎないための重し ──
+   高額の取引だけで魂を回して、くじを引く値打ちを下げられると困る。
+
+   段ごとに刻む（＝そこを越えたぶんだけ率が上がる）。
+   まとめて一率にすると、1,000を1だけ越えた品の手取りが
+   1,000の品より少なくなる段差ができてしまう。
+
+     はじめの   1,000 まで … 5分（5%）
+     次の       9,000 まで … 1割
+     それより上          … 1割5分
+
+     1,000  → 口銭 50（5.0%）／手取り 950
+     10,000 → 口銭 950（9.5%）／手取り 9,050
+     50,000 → 口銭 6,950（13.9%）／手取り 43,050
+
+   ★サーバー側（server/src/market.js）に同じ段を置いてある。食い違わせないこと。
+   遊ぶ人には率を出さない。「手元に入る◯◯／口銭◯◯」と額だけ見せる */
+const MK_FEE_STEPS = [[1000, 0.05], [10000, 0.10], [Infinity, 0.15]];
+function mkFee(price) {
+  let left = Math.max(0, Math.round(price || 0)), from = 0, fee = 0;
+  for (const [upto, pct] of MK_FEE_STEPS) {
+    const part = Math.min(left, upto - from);
+    if (part <= 0) break;
+    fee += part * pct; left -= part; from = upto;
+  }
+  return Math.floor(fee);
+}
+/* 売れたときに手元に入る額 */
+const mkNet = (price) => Math.max(0, Math.round(price || 0) - mkFee(price));
+
 const mkLo = (w, c) => Math.max(mkFloor(c), Math.round(w * 0.5));
 const MK_PRICE_MAX = 99999;
 const mkHi = w => MK_PRICE_MAX;
@@ -13182,7 +13225,10 @@ async function mkCollect() {
   const m = mkState();
   const got = [];
   for (const x of (r.sold || [])) {
-    const rec = { no: x.no, price: x.price, at: x.at || Date.now(), who: x.who || '', read: false };
+    /* 口銭はサーバーが引いて net で返す。古いサーバーなら price のまま（2026-10-05） */
+    const net = (typeof x.net === 'number') ? x.net : mkNet(x.price);
+    const rec = { no: x.no, price: x.price, fee: x.price - net, net,
+                  at: x.at || Date.now(), who: x.who || '', read: false };
     m.log.unshift(rec); got.push(rec);
   }
   /* 寿命が尽きて戻ってきた品は、枚数と育ちをそのまま手元へ返す */
@@ -13352,8 +13398,11 @@ function mkSettle(C) {
       const rng = mkRng((it.id.length * 2654435761 + Math.floor(when / 1000)) >>> 0);
       if (rng() >= p) continue;
       m.listed.splice(m.listed.indexOf(it), 1);
-      P.soul = (P.soul || 0) + it.price;
-      const rec = { no: it.no, price: it.price, at: when, who: rkName(rng), read: false };
+      /* 口銭を引いた額が手元に入る（2026-10-05）。札の値はそのまま帳面に残す */
+      const fee = mkFee(it.price), net = it.price - fee;
+      P.soul = (P.soul || 0) + net;
+      const rec = { no: it.no, price: it.price, fee, net,
+                    at: when, who: rkName(rng), read: false };
       m.log.unshift(rec);
       got.push(rec);
     }
@@ -34497,6 +34546,11 @@ function mkPutSheet() {
               curIcon('soul'), el('b', {}, num(price))),
         el('button', { class: 'mkpm', onclick: bump(Math.max(5, Math.round(w * 0.05))) }, '＋')),
       el('p', { class: 'note' }, `目安は ${num(w)}　／　${num(lo)} 〜 ${num(hi)} のあいだで決められる`),
+      /* 口銭（2026-10-05）。率は出さず、手元に入る額と引かれる額だけ見せる。
+         買い手は札の値をそのまま払うので、ここは売り手の話だと分かるように書く */
+      el('p', { class: 'note mknet' }, '売れたら手元に入る ', curIcon('soul'),
+        el('b', {}, ` ${num(mkNet(price))}`),
+        `　（口銭 ${num(mkFee(price))} を引く）`),
       el('p', { class: 'note' }, '安く出すほど早く売れる。二日たっても売れなければ戻ってくる'),
       el('p', { class: 'note warn' }, '出すと、手持ちの枚数も育ちも まるごと預かる'),
       el('div', { class: 'acts2' },
@@ -34554,7 +34608,8 @@ function screenMarket() {
   const got = m.log.filter(x => !x.read);
   const sold = got.filter(x => !x.back), back = got.filter(x => x.back);
   if (got.length) S.mkMsg = [
-    sold.length ? `${sold.length}件 売れた（魂 +${num(sold.reduce((a, x) => a + x.price, 0))}）` : null,
+    sold.length ? `${sold.length}件 売れた（魂 +${num(sold.reduce((a, x) =>
+      a + (typeof x.net === 'number' ? x.net : x.price), 0))}）` : null,
     back.length ? `${back.length}件 売れずに戻った` : null,
   ].filter(Boolean).join('　／　');
   const tno = talkerNo('market');
@@ -34632,7 +34687,10 @@ function screenMarket() {
                 return el('div', { class: 'mklr' + (r.back ? ' back' : '') },
                   el('span', { class: 'mkln' }, c ? c.name : `No.${r.no}`),
                   r.back ? el('em', {}, '売れずに戻った')
-                         : el('em', {}, curIcon('soul'), ` +${num(r.price)}`));
+                         /* 入ったのは口銭を引いたあとの額（2026-10-05）。
+                            古い覚えには net が無いので price に落ちる */
+                         : el('em', {}, curIcon('soul'),
+                             ` +${num(typeof r.net === 'number' ? r.net : r.price)}`));
               }))
             : el('p', { class: 'note' }, 'まだ売り買いの覚えが無い')),
       S.mkPut ? mkPutSheet() : null),

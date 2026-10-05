@@ -93,6 +93,41 @@ export function mkPower(c, st) {
    上は一律 99999（2026-10-01）。目安の三倍で頭打ちにすると、
    育てきった子に高値を付けたい人の行き場が無くなるため。
    売れにくさは mkSettle の式が見るので、天井を上げても壊れない */
+/* ---- 口銭（こうせん・2026-10-05）----
+   売り手から取る手間賃。**引かれるのは売れた人だけ。**
+   買い手は札に出ている値をそのまま払う（1000の品は1000払う）。
+
+   段をつけて、安い品は売りやすく、高く売るほど重くした。
+   これは魂の総量が膨らみすぎないための重し ──
+   高額の取引だけで魂を回して、くじを引く値打ちを下げられると困る。
+
+   段ごとに刻む（＝そこを越えたぶんだけ率が上がる）。
+   まとめて一率にすると、1,000を1だけ越えた品の手取りが
+   1,000の品より少なくなる段差ができてしまう。
+
+     はじめの   1,000 まで … 5分（5%）
+     次の       9,000 まで … 1割
+     それより上          … 1割5分
+
+     1,000  → 口銭 50（5.0%）／手取り 950
+     10,000 → 口銭 950（9.5%）／手取り 9,050
+     50,000 → 口銭 6,950（13.9%）／手取り 43,050
+
+   ★サーバー側（server/src/market.js）に同じ段を置いてある。食い違わせないこと。
+   遊ぶ人には率を出さない。「手元に入る◯◯／口銭◯◯」と額だけ見せる */
+export const MK_FEE_STEPS = [[1000, 0.05], [10000, 0.10], [Infinity, 0.15]];
+export function mkFee(price) {
+  let left = Math.max(0, Math.round(price || 0)), from = 0, fee = 0;
+  for (const [upto, pct] of MK_FEE_STEPS) {
+    const part = Math.min(left, upto - from);
+    if (part <= 0) break;
+    fee += part * pct; left -= part; from = upto;
+  }
+  return Math.floor(fee);
+}
+/* 売れたときに手元に入る額 */
+export const mkNet = (price) => Math.max(0, Math.round(price || 0) - mkFee(price));
+
 export const mkLo = (w, c) => Math.max(mkFloor(c), Math.round(w * 0.5));
 export const MK_PRICE_MAX = 99999;
 export const mkHi = w => MK_PRICE_MAX;
@@ -198,7 +233,10 @@ export async function mkCollect() {
   const m = mkState();
   const got = [];
   for (const x of (r.sold || [])) {
-    const rec = { no: x.no, price: x.price, at: x.at || Date.now(), who: x.who || '', read: false };
+    /* 口銭はサーバーが引いて net で返す。古いサーバーなら price のまま（2026-10-05） */
+    const net = (typeof x.net === 'number') ? x.net : mkNet(x.price);
+    const rec = { no: x.no, price: x.price, fee: x.price - net, net,
+                  at: x.at || Date.now(), who: x.who || '', read: false };
     m.log.unshift(rec); got.push(rec);
   }
   /* 寿命が尽きて戻ってきた品は、枚数と育ちをそのまま手元へ返す */
@@ -368,8 +406,11 @@ export function mkSettle(C) {
       const rng = mkRng((it.id.length * 2654435761 + Math.floor(when / 1000)) >>> 0);
       if (rng() >= p) continue;
       m.listed.splice(m.listed.indexOf(it), 1);
-      P.soul = (P.soul || 0) + it.price;
-      const rec = { no: it.no, price: it.price, at: when, who: rkName(rng), read: false };
+      /* 口銭を引いた額が手元に入る（2026-10-05）。札の値はそのまま帳面に残す */
+      const fee = mkFee(it.price), net = it.price - fee;
+      P.soul = (P.soul || 0) + net;
+      const rec = { no: it.no, price: it.price, fee, net,
+                    at: when, who: rkName(rng), read: false };
       m.log.unshift(rec);
       got.push(rec);
     }

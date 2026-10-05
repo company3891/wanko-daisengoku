@@ -8531,6 +8531,7 @@ function mkRows() {
        札の数が増えるので、目当てがあるときは字で手繰れるほうが早い */
     el('div', { class: 'mkq' },
       el('input', {
+        id: 'mkqin',   // 描き直しのあと、ここへ指を戻すための名札（2026-10-05）
         class: 'mkqin', type: 'search', placeholder: '武将名・特技名でさがす',
         value: S.mkQ || '',
         oninput: e => { S.mkQ = e.target.value; clearTimeout(MKQ_T);
@@ -8544,12 +8545,14 @@ let MKQ_T = null;
 /* 並ぶ札ひとつ。図鑑と同じ見た目に、下へ 魂の粒と値段を添える */
 function mkCard(it, c, onTap) {
   const st = it.st || {};
-  /* 位は札の上に一段おく（2026-10-01）。
-     札の内に重ねると絵と喧嘩して読みにくかった */
+  /* 位は札の下ぎわに帯で重ねる（2026-10-05・悠さんの指図）。
+     前は札の上に一段おいていた（2026-10-01）。絵と喧嘩しないのは良かったが、
+     札から浮いて見えて、四列が間延びしていた。
+     下ぎわは札の絵でも暗いところなので、黒を薄く敷けば読める */
   return el('button', { class: 'mkc' + (cardArt(c) ? ' art' : ''), onclick: onTap },
-    el('span', { class: 'mkclvt' }, `Lv.${num(st.lv || 1)}`),
-    el('span', { class: 'mkcf' }, cardArt(c) ? cardImg(c)
-      : el('i', { style: chipStyle(c) }, c.name.slice(0, 4))),
+    el('span', { class: 'mkcf' },
+      cardArt(c) ? cardImg(c) : el('i', { style: chipStyle(c) }, c.name.slice(0, 4)),
+      el('span', { class: 'mkclvt' }, `Lv.${num(st.lv || 1)}`)),
     el('span', { class: 'mkcp' }, curIcon('soul'), el('b', {}, num(it.price))));
 }
 /* 品を札で開く（2026-10-01）。
@@ -9801,6 +9804,13 @@ let LAST_GROW = null;
 function draw() {
   IMG_USED = new Set();          // 絵の使い回しは1回の描画につき1か所まで
   saveSquads();                                   // 画面が変わるたびに保存する
+  /* 字を打っている途中で描き直すと、入れ物ごと作り直されて指が離れる（2026-10-05）。
+     取引所の「さがす」で一字打つたびに引き戻されていた（悠さんの実測）。
+     名札（id）の付いた一行にいるときだけ、どこまで打っていたかも含めて戻す */
+  const ae = document.activeElement;
+  const keepIn = (ae && ae.id && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) ? ae.id : '';
+  let keepS = 0, keepE = 0;
+  if (keepIn) { try { keepS = ae.selectionStart; keepE = ae.selectionEnd; } catch (_) {} }
   /* 巻いている場所は #app（2026-09-30）。ページ自体は動かさなくなった */
   const keepY = (LAST_SCREEN === S.screen) ? ($('#app') ? $('#app').scrollTop : 0) : 0;
   const growKey = `${S.screen}:${S.ihc ?? ''}:${S.skc ?? ''}:${S.grow ?? ''}:${S.pw ?? ''}`;
@@ -9923,6 +9933,15 @@ function draw() {
   document.documentElement.style.setProperty('--scrbg', sbg ? `url("${sbg}")` : 'none');
   if (keepY) app.scrollTop = keepY;
   if (keepG) { const g2 = app.querySelector('.growbox'); if (g2) g2.scrollTop = keepG; }
+  /* 打っていた一行へ指を戻す（2026-10-05）。
+     preventScroll を付けないと、画面が入れ物のところまで跳ぶ */
+  if (keepIn) {
+    const n2 = document.getElementById(keepIn);
+    if (n2 && n2 !== document.activeElement) {
+      try { n2.focus({ preventScroll: true }); } catch (_) { n2.focus(); }
+      try { n2.setSelectionRange(keepS, keepE); } catch (_) { /* 使えない入れ物もある */ }
+    }
+  }
   LAST_SCREEN = S.screen;
   LAST_GROW = growKey;
   updateAudio();

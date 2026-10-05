@@ -5335,9 +5335,13 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
 .mkcf img{display:block;width:100%;height:auto}
 .mkcf i{display:grid;place-items:center;width:100%;aspect-ratio:.675;
   font-style:normal;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000}
-/* 位は札の上に一段（2026-10-01）。絵と重ねず、ひと目で育ちが分かる */
-.mkclvt{display:block;font-size:9.5px;font-weight:800;line-height:1.5;
-  color:#bfe6ff;text-align:center;text-shadow:0 1px 2px #000}
+/* 位は札の下ぎわに帯で重ねる（2026-10-05）。
+   .mkcf は position:relative／overflow:hidden／角丸なので、帯は札の形に切り取られる。
+   黒を下にいくほど濃くして、絵が明るい札でも字が読めるようにした */
+.mkclvt{position:absolute;left:0;right:0;bottom:0;z-index:2;pointer-events:none;
+  display:block;font-size:10px;font-weight:800;line-height:1.75;letter-spacing:.02em;
+  color:#bfe6ff;text-align:center;text-shadow:0 1px 2px #000,0 0 6px #000;
+  background:linear-gradient(180deg,#12100e00,#12100ebb 40%,#12100eee)}
 /* 出す武将をえらぶ升では、いままでどおり札の左下に重ねる */
 .mkclv{position:absolute;left:3px;bottom:3px;font-size:9px;font-weight:800;
   color:#bfe6ff;background:#000000cc;border:1px solid #5fb6ff66;border-radius:6px;

@@ -110,3 +110,16 @@ export function duelJoin(duelId, { pid, name, team, seed }, on) {
   };
 }
 export const duelOpen = (team) => call('/v1/duel/open', { method: 'POST', body: { team } });
+
+/* ---------------- 取引所（2026-10-05）----------------
+   サーバーが受け持つのは「品の取り合い」と「売り上げを二度渡さないこと」。
+   魂の残高は端末が持ったままなので、買うときは
+     ① サーバーに押さえてもらう（mkTake）→ ② 返ってきたら端末の魂を減らす
+   の順にする。逆にすると、押さえに負けたときに魂だけ消える。 */
+export const mkShelf = () => call('/v1/market');
+export const mkMine  = () => call('/v1/market/mine');
+export const mkPut   = (no, cnt, st, price) =>
+  call('/v1/market/list', { method: 'POST', body: { no, cnt, st, price } });
+export const mkBack  = (id) => call('/v1/market/pull', { method: 'POST', body: { id } });
+export const mkTake  = (id) => call('/v1/market/buy',  { method: 'POST', body: { id } });
+export const mkPay   = () => call('/v1/market/claim',  { method: 'POST' });

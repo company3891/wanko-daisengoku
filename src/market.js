@@ -9,15 +9,25 @@
    ・買うほうは すぐ手に入る。育った中身（位・覚醒・魂ふり・継いだ技）もそのまま移る
    ・売れたかどうかは その場では分からない。**六時間ごとに帳面を検めて**、魂が入る
 
+   ── サーバーに繋がっているとき（2026-10-05）──
+   棚（並ぶ品）は サーバーから取り寄せる。足りないぶんは これまでの NPC で埋める。
+   出す・取り下げる・買う は サーバーに通してから手元を動かす。
+   **買うときの取り合いはサーバーが決める**ので、二人が同時に押しても売れるのは一人。
+
+   魂の残高は まだ端末が持っている（保存が丸ごと一つの包みで、サーバーからは中が見えない）。
+   そのかわり「売り上げを渡した印」をサーバーに置いたので、二度入ることはない。
+   残高そのもののごまかしは まだ防げない ── そこは engine をサーバーで回す段と一緒に片づける。
+
    ── サーバーが無いあいだ ──
-   他の主は、番付と同じく NPC で埋めてある。
+   これまでどおり。他の主は 番付と同じく NPC で埋める。
    日付の半日と枠の番号を種にしているので、同じ半日なら いつ開いても同じ品が並ぶ。
-   サーバーができたら mkStock()（並べる）と mkSettle()（売れたか検める）の
-   中身を 取りにいく／送る に差し替えるだけでよい。画面は触らずに済む。 */
+   出した品は 六時間ごとの帳面で売れる（mkSettle）。
+   「サーバーが無くても遊べる」は崩さない。 */
 
 import { P, savePlayer, SP_STATS, charState, cntOf, setCnt,
          inSquad, hasCard } from './player.js';
 import { rkName } from './rank.js';
+import { linked, mkShelf, mkMine, mkPut, mkBack, mkTake, mkPay } from './net.js';
 
 export const MK_MAX = 3;                       // 一度に出せる枚数
 export const MK_SLOTS = 36;                    // 他の主が並べる品の数
@@ -32,6 +42,10 @@ export function mkState() {
   if (!Array.isArray(m.listed)) m.listed = [];   // 自分が出している品
   if (!Array.isArray(m.log)) m.log = [];         // 売れた帳面
   if (!Array.isArray(m.sold)) m.sold = [];       // 他の主の品のうち、もう買ったもの（印）
+  /* サーバーに出している品の控え（2026-10-05）。サーバーが正で、これは写し。
+     端末だけで出した品（listed）とは別に持つ。混ぜると、繋がった拍子に
+     端末ぶんが消えて「手元から出したのに どこにも無い」ことになる */
+  if (!Array.isArray(m.kura)) m.kura = [];
   if (typeof m.at !== 'number') m.at = Date.now();   // 最後に帳面を検めた時刻
   return m;
 }
@@ -99,11 +113,11 @@ const halfDay = () => Math.floor(Date.now() / MK_HALF_MS);
    C は武将の正典（画面側から渡す）。ここでは絵も名も引かない。
    位の出かたは 下の位ほど多い。高い札ばかり並んでも手が出ないので */
 const MK_RAR = ['N', 'N', 'N', 'R', 'R', 'R', 'SR', 'SR', 'SSR', 'UR'];
-export function mkStock(C) {
+function mkNpc(C, want) {
   const day = halfDay();
   const m = mkState();
   const out = [];
-  for (let i = 0; i < MK_SLOTS; i++) {
+  for (let i = 0; i < MK_SLOTS && out.length < want; i++) {
     const rng = mkRng((day * 7919 + i * 104729) ^ 0x5bf03635);
     const rar = MK_RAR[Math.floor(rng() * MK_RAR.length)];
     const pool = C.filter(c => c.rarity === rar);
@@ -116,32 +130,139 @@ export function mkStock(C) {
     const st = { lv, awake, sp: {}, sk: [1, 1, 1] };
     const w = mkWorth(c, st);
     const price = Math.max(mkFloor(c), Math.round(w * (0.7 + rng() * 0.9)));
-    out.push({ id: `n${day}-${i}`, no: c.no, st, price, who: rkName(rng), npc: true });
+    const id = `n${day}-${i}`;
+    if (m.sold.includes(id)) continue;
+    out.push({ id, no: c.no, st, price, who: rkName(rng), npc: true });
   }
-  return out.filter(x => !m.sold.includes(x.id));
+  return out;
 }
+
+/* ---- 棚（2026-10-05）----
+   サーバーから取り寄せた品を先に並べ、足りないぶんを NPC で埋める。
+   取り寄せは mkRefresh()（非同期）が行い、ここは控えを見るだけ。
+   画面を組むのは同期なので、取りにいくのを待たせない。 */
+let SHELF = null;        // サーバーの棚の控え（null＝まだ取り寄せていない）
+let SHELF_AT = 0;        // いつ取り寄せたか
+let SHELF_BUSY = false;
+export const mkKuraOn = () => linked();
+export const mkShelfGot = () => !!SHELF;
+export function mkStock(C) {
+  const m = mkState();
+  const kura = (SHELF || []).filter(x => !m.sold.includes(x.id));
+  return [...kura, ...mkNpc(C, Math.max(0, MK_SLOTS - kura.length))];
+}
+
+/* 棚と、自分の出品をサーバーから取り寄せる。
+   繋がらなければ何もしない（控えもそのまま＝前に見た棚が残る）。
+   true を返したら 中身が変わったので描き直す */
+export async function mkRefresh(force) {
+  if (!linked() || SHELF_BUSY) return false;
+  if (!force && SHELF && Date.now() - SHELF_AT < 60000) return false;   // 一分は使い回す
+  SHELF_BUSY = true;
+  try {
+    const [sh, mi] = await Promise.all([mkShelf(), mkMine()]);
+    let moved = false;
+    if (sh && sh.ok && Array.isArray(sh.items)) {
+      SHELF = sh.items.map(x => ({ id: x.id, no: x.no, price: x.price,
+                                   st: x.st || {}, who: x.who || '名無し', kura: true }));
+      SHELF_AT = Date.now();
+      moved = true;
+    }
+    /* 自分の出品は サーバーが正。写しを入れ替える。
+       取り寄せに失敗したときは触らない（見えなくなると、手元に無い札が行方知れずになる） */
+    if (mi && mi.ok && Array.isArray(mi.listed)) {
+      const m = mkState();
+      m.kura = mi.listed.map(x => ({ id: x.id, no: x.no, cnt: x.cnt || 1,
+                                     st: x.st || {}, price: x.price, at: x.at || Date.now(),
+                                     kura: true }));
+      savePlayer();
+      moved = true;
+    }
+    return moved;
+  } catch (_) {
+    return false;
+  } finally {
+    SHELF_BUSY = false;
+  }
+}
+
+/* ---- 売り上げと戻り品を受け取る（2026-10-05）----
+   サーバーは「渡した印」を立ててから返すので、二度入ることはない。
+   返事が届かなかったときは取りこぼす ── 二重取りより取りこぼしを選んだ。
+   受け取った中身は 端末の帳面（log）に積むので、画面はこれまでどおり log を見ればよい */
+export async function mkCollect() {
+  if (!linked()) return null;
+  let r = null;
+  try { r = await mkPay(); } catch (_) { return null; }
+  if (!r || !r.ok) return null;
+  const m = mkState();
+  const got = [];
+  for (const x of (r.sold || [])) {
+    const rec = { no: x.no, price: x.price, at: x.at || Date.now(), who: x.who || '', read: false };
+    m.log.unshift(rec); got.push(rec);
+  }
+  /* 寿命が尽きて戻ってきた品は、枚数と育ちをそのまま手元へ返す */
+  for (const x of (r.back || [])) {
+    if (!P.own.includes(x.no)) P.own.push(x.no);
+    setCnt(x.no, cntOf(x.no) + (x.cnt || 1));
+    if (x.st && typeof x.st === 'object') P.chars[String(x.no)] = JSON.parse(JSON.stringify(x.st));
+    const rec = { no: x.no, price: x.price, at: x.at || Date.now(), back: true, read: false };
+    m.log.unshift(rec); got.push(rec);
+  }
+  if (r.soul) P.soul = (P.soul || 0) + r.soul;
+  if (got.length) {
+    const ids = new Set([...(r.sold || []), ...(r.back || [])].map(x => x.id).filter(Boolean));
+    m.kura = m.kura.filter(x => !ids.has(x.id));
+    if (m.log.length > 40) m.log.length = 40;
+    savePlayer();
+    SHELF_AT = 0;                      // 棚も取り寄せ直す
+  }
+  return got.length ? got : null;
+}
+
+/* 画面に見せる「出している品」。サーバーぶんが先、端末だけのぶんが後（2026-10-05） */
+export const mkMyList = () => { const m = mkState(); return [...m.kura, ...m.listed]; };
+export const mkMyCount = () => mkMyList().length;
+
 export const mkBought = id => mkState().sold.includes(id);
 
 /* ---- 買う ----
    魂を払って、その場で手に入れる。育った中身もそのまま移る。
    すでに持っている武将なら「重ね」が一枚増え、育ちは良いほうを残す
    （買ったせいで せっかく育てた子が下がるのは理不尽なので） */
-export function mkBuy(it) {
+export async function mkBuy(it) {
   if (!it || mkBought(it.id)) return null;
   if ((P.soul || 0) < it.price) return null;
+  let s = it.st || {};
+  /* サーバーの品は、先に押さえてもらう（2026-10-05）。
+     押さえられてから魂を払う。逆にすると、取り合いに負けたときに魂だけ消える */
+  if (it.kura) {
+    let r = null;
+    try { r = await mkTake(it.id); } catch (_) { r = null; }
+    if (!r || !r.ok) {
+      if (SHELF) SHELF = SHELF.filter(x => x.id !== it.id);
+      SHELF_AT = 0;
+      return { gone: true, no: it.no };     // もう売れていた。魂は減らさない
+    }
+    s = r.st || s;
+    if (SHELF) SHELF = SHELF.filter(x => x.id !== it.id);
+  }
   P.soul -= it.price;
   const had = P.own.includes(it.no);
   if (!had) P.own.push(it.no);
   setCnt(it.no, cntOf(it.no) + 1);
   const cur = charState(it.no);
-  const s = it.st || {};
   /* 位と覚醒は高いほうを採る。ふった魂と技の位も、多いほうを残す */
   cur.lv = Math.max(cur.lv || 1, s.lv || 1);
   cur.awake = Math.max(cur.awake || 0, s.awake || 0);
   for (const k of SP_STATS) cur.sp[k] = Math.max(cur.sp[k] || 0, (s.sp || {})[k] || 0);
   if (Array.isArray(s.sk)) for (let i = 0; i < 3; i++)
     cur.sk[i] = Math.max(cur.sk[i] || 1, s.sk[i] || 1);
-  mkState().sold.push(it.id);
+  const m = mkState();
+  m.sold.push(it.id);
+  /* 買った印は増えつづけるので、古いものから落とす（2026-10-05）。
+     NPC の印は半日で入れ替わるため、長く残しておく値打ちが無い */
+  if (m.sold.length > 400) m.sold.splice(0, m.sold.length - 400);
   savePlayer();
   return { no: it.no, price: it.price, dup: had };
 }
@@ -150,21 +271,60 @@ export function mkBuy(it) {
    手持ちの枚数と育ちを まるごと預かる。部隊に入っている武将は出せない
    （出陣の途中で消えると、何が起きたか分からなくなる） */
 export const mkCanList = no => hasCard(no) && !inSquad(no)
-  && mkState().listed.length < MK_MAX
-  && !mkState().listed.some(x => x.no === no);
-export function mkList(no, price) {
+  && mkMyCount() < MK_MAX
+  && !mkMyList().some(x => x.no === no);
+export async function mkList(no, price) {
   const m = mkState();
   if (!mkCanList(no)) return null;
   const n = cntOf(no);
   const st = JSON.parse(JSON.stringify(charState(no)));   // 育ちをそのまま預かる
+  const p = Math.max(1, Math.round(price));
+  /* サーバーに繋がっていれば、通ってから手元を空ける（2026-10-05）。
+     先に空けると、送れなかったときに札が消える */
+  if (linked()) {
+    let r = null;
+    try { r = await mkPut(no, n, st, p); } catch (_) { r = null; }
+    if (r && r.ok && r.id) {
+      m.kura.push({ id: r.id, no, cnt: n, st, price: p, at: r.at || Date.now(), kura: true });
+      setCnt(no, 0);
+      savePlayer();
+      SHELF_AT = 0;
+      return { no, price: p, cnt: n, kura: true };
+    }
+    if (r && r.status === 409) return { full: true };     // サーバーの数え方では もう三枚
+    // 繋がらなかった。端末だけで出す（下へ落ちる）
+  }
   m.listed.push({ id: `m${Date.now()}-${no}`, no, cnt: n, st,
-                  price: Math.max(1, Math.round(price)), at: Date.now() });
+                  price: p, at: Date.now() });
   setCnt(no, 0);                                          // 手元からは消える
   savePlayer();
-  return { no, price, cnt: n };
+  return { no, price: p, cnt: n };
 }
 /* ---- 取り下げる。枚数も育ちも そのまま戻る ---- */
-export function mkPull(id) {
+export async function mkPull(id) {
+  const m = mkState();
+  /* サーバーに出している品。売れたあとに押しても取り下がらない（サーバーが見張る） */
+  const k = m.kura.findIndex(x => x.id === id);
+  if (k >= 0) {
+    if (!linked()) return { offline: true };
+    let r = null;
+    try { r = await mkBack(id); } catch (_) { r = null; }
+    if (!r || !r.ok) { await mkRefresh(true); return { gone: true }; }
+    const it = m.kura[k];
+    m.kura.splice(k, 1);
+    if (!P.own.includes(it.no)) P.own.push(it.no);
+    setCnt(it.no, cntOf(it.no) + (r.cnt || it.cnt || 1));
+    const st = (r.st && typeof r.st === 'object' && Object.keys(r.st).length) ? r.st : it.st;
+    if (st) P.chars[String(it.no)] = JSON.parse(JSON.stringify(st));
+    savePlayer();
+    SHELF_AT = 0;
+    return { no: it.no };
+  }
+  return mkPullLocal(id);
+}
+/* 端末だけで出している品を戻す（同期）。mkSettle の寿命ぶんからも呼ぶので、
+   await の要らない形で切り出してある（2026-10-05） */
+function mkPullLocal(id) {
   const m = mkState();
   const i = m.listed.findIndex(x => x.id === id);
   if (i < 0) return null;
@@ -181,9 +341,12 @@ export function mkPull(id) {
    安く出した品ほど売れる。目安ちょうどで六割、半値なら八割強、三倍だとほぼ売れない。
    開くたびに呼んでよい（前に検めてから六時間たっていなければ何もしない）。
    売れた品は帳面（log）に積む。魂はその場で入る＝「六時間ごとに反映」 */
+/* サーバーに繋がっているときは、売れるのは「本物の主が買ったとき」だけ。
+   六時間ごとの帳面は、端末だけで出している品（listed）のためのもの（2026-10-05） */
 export function mkSettle(C) {
   const m = mkState();
   const now = Date.now();
+  if (!m.listed.length) { m.at = now; return null; }
   const from = m.at || now;
   const turns = Math.floor((now - from) / MK_EVERY_MS);
   if (turns < 1) return null;
@@ -215,7 +378,7 @@ export function mkSettle(C) {
   for (const it of [...m.listed]) {
     if (now - (it.at || now) < MK_LIFE_MS) continue;
     const price = it.price, no = it.no;
-    mkPull(it.id);
+    mkPullLocal(it.id);
     const rec = { no, price, at: now, back: true, read: false };
     m.log.unshift(rec);
     got.push(rec);
@@ -234,4 +397,5 @@ export function mkRead() {
   return n;
 }
 /* 次の検めまで何ミリ秒か（画面に「あと◯時間」を出すのに使う） */
-export const mkNext = () => Math.max(0, (mkState().at || Date.now()) + MK_EVERY_MS - Date.now());
+export const mkNext = () => (mkState().listed.length
+  ? Math.max(0, (mkState().at || Date.now()) + MK_EVERY_MS - Date.now()) : 0);

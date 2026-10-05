@@ -10,7 +10,7 @@ import { TOWER, TOWER_FOOD, TOWER_MAX, towerOf, towerTier, TIER_NAME, isBoss, is
          isGreat, twTeam, twResult } from './tower.js';
 import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, mkLo, mkHi,
          mkStock, mkBought, mkBuy, mkCanList, mkList, mkPull, mkSettle, mkUnread, mkRead,
-         mkNext } from './market.js';
+         mkNext, mkRefresh, mkCollect, mkMyList, mkMyCount, mkKuraOn } from './market.js';
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
@@ -197,6 +197,9 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
      mkPut＝出す札で選んでいる武将、mkPrice＝付けている値、mkQ＝フリーワード。
      見ている品は S.detailBuy（札そのものを出すので mkSel はやめた・2026-10-01） */
   mkTab: 'buy', mkPut: null, mkPrice: 0, mkQ: '', mkMsg: '',
+  /* mkBusy＝サーバーの返事を待っているあいだ（2026-10-05）。
+     待っているあいだ釦を止めて、二度押しで二枚買うのを防ぐ */
+  mkBusy: false,
   mkRar: 'すべて', mkAtt: 'すべて', mkSort: 'price', mkAsc: null,   // detailBase＝図鑑から開いた札（素のまま見せる・2026-10-01）
   /* お役目（2026-09-24）。mi＝開いているか／miTab＝選んでいるタグ */
   mi: false, miTab: '日課', miMsg: '', tt: false, reset: 0, pwUp: 0,
@@ -1702,6 +1705,9 @@ function screenHome() {
      座の赤丸は「売れた覚えのうち、まだ見ていない数」なので、
      取引所を開くまで検めないと、売れたことに気づけない */
   mkSettle(C);
+  /* サーバーに出した品の売り上げも、城にいるあいだに受け取る（2026-10-05）。
+     非同期なので入ってきたら描き直す。繋がらなければ何も起きない */
+  mkTick();
   const q = P.squads[P.active];
   const gen = charOf(q.general) || squadChars(q)[0] || null;
   const bg = bgUrl('home');
@@ -8492,17 +8498,28 @@ function mkBuyBar(c, it) {
     it.who ? el('span', { class: 'mkwho' }, `${it.who} の品`) : null,
     hasCard(c.no) ? el('span', { class: 'mkdup' }, 'すでに召し抱えている。買えば重ねが増える') : null,
     el('button', {
-      class: 'go sm', disabled: can ? null : true,
+      class: 'go sm', ...(can && !S.mkBusy ? {} : { disabled: true }),
       onclick: e => {
         e.stopPropagation();
-        const r = mkBuy(it);
-        if (!r) { S.mkMsg = '買えなかった'; SFX.pick(); draw(); return; }
-        miBump('mkBuy');   // お役目の数（2026-10-02）
-        closeDetail();
-        S.mkMsg = `${c.name} を召し抱えた`;
-        SFX.win(); draw();
+        /* サーバーの品は押さえてもらうのを待つ（2026-10-05）。
+           待っているあいだ二度押しできないよう、釦を止めておく */
+        if (S.mkBusy) return;
+        S.mkBusy = true; draw();
+        Promise.resolve(mkBuy(it)).then(r => {
+          S.mkBusy = false;
+          if (r && r.gone) {
+            closeDetail();
+            S.mkMsg = 'ひと足おそかった。その品はもう売れている';
+            SFX.pick(); draw(); return;
+          }
+          if (!r) { S.mkMsg = '買えなかった'; SFX.pick(); draw(); return; }
+          miBump('mkBuy');   // お役目の数（2026-10-02）
+          closeDetail();
+          S.mkMsg = `${c.name} を召し抱えた`;
+          SFX.win(); draw();
+        });
       },
-    }, can ? el('span', {}, '召し抱える　', curIcon('soul'), ` ${num(it.price)}`)
+    }, S.mkBusy ? '…' : can ? el('span', {}, '召し抱える　', curIcon('soul'), ` ${num(it.price)}`)
            : '武士の魂が足りぬ'));
 }
 /* 出す札。どの武将を・いくらで */
@@ -8572,22 +8589,50 @@ function mkPutSheet() {
         el('button', {
           class: 'go sm', disabled: mkCanList(c.no) ? null : true,
           onclick: () => {
-            const r = mkList(c.no, price);
-            if (r) miBump('mkList');   // お役目の数（2026-10-02）
-            S.mkPut = null; S.mkPrice = 0; S.mkPEdit = false;
-            S.mkMsg = r ? `${c.name} を取引に出した` : '出せなかった';
-            if (r) SFX.win(); else SFX.pick();
-            draw();
+            if (S.mkBusy) return;
+            S.mkBusy = true; draw();
+            Promise.resolve(mkList(c.no, price)).then(r => {
+              S.mkBusy = false;
+              const ok = !!(r && r.no);
+              if (ok) miBump('mkList');   // お役目の数（2026-10-02）
+              S.mkPut = null; S.mkPrice = 0; S.mkPEdit = false;
+              S.mkMsg = ok ? `${c.name} を取引に出した`
+                     : (r && r.full) ? `${MK_MAX}枚までしか出せぬ` : '出せなかった';
+              if (ok) SFX.win(); else SFX.pick();
+              draw();
+            });
           },
         }, '取引に出す')),
       closeX(close)));
 }
+/* ---- サーバーの取引所に声を掛ける（2026-10-05）----
+   ① 売り上げと戻り品を受け取る（mkCollect）
+   ② 棚を取り寄せる（mkRefresh・一分は使い回す）
+   どちらも非同期。中身が変わったときだけ描き直す。
+   繋がらなければ静かに何もしない（「サーバーが無くても遊べる」） */
+let mkTicking = false;
+function mkTick(force) {
+  if (!mkKuraOn() || mkTicking) return;
+  mkTicking = true;
+  (async () => {
+    let moved = false;
+    try {
+      if (await mkCollect()) moved = true;
+      if (await mkRefresh(force)) moved = true;
+    } catch (_) { /* 繋がらない。端末の中だけで続ける */ }
+    mkTicking = false;
+    if (moved && (S.screen === 'market' || S.screen === 'home')) draw();
+  })();
+}
+
 function screenMarket() {
   const m = mkState();
   /* 開いたときに帳面を検める（2026-10-01）。
      前に検めてから六時間たっていなければ何もしない。
      ここは画面を組む前なので、検めた中身をそのまま下の知らせに使える */
   mkSettle(C);
+  /* サーバーの棚と売り上げも見にいく（2026-10-05・非同期） */
+  mkTick();
   /* 知らせは「まだ見ていない帳面」から組む（2026-10-01）。
      検めるのは城でも走るので、売れた中身を その場の返り値だけに頼ると
      先に城で検めたときに知らせが出ないままになる */
@@ -8602,6 +8647,7 @@ function screenMarket() {
   const tart = faceUrl(tno, '笑顔') || faceUrl(tno, '通常');
   const buy = (S.mkTab || 'buy') === 'buy';
   const list = buy ? mkFilter(mkStock(C)) : [];
+  const put = buy ? [] : mkMyList();
   const nextH = Math.ceil(mkNext() / 3600000);
   /* 市の景色（2026-10-02）。bg/market.png。無ければ城の景色に落ちる。
      巻いても背景は動かない（.bgfull は position:fixed） */
@@ -8637,21 +8683,33 @@ function screenMarket() {
           : el('p', { class: 'note' }, 'この絞り込みに当てはまる品が無い'))
         : el('div', {},
           el('div', { class: 'mkhead' },
-            el('b', {}, `出している品　${m.listed.length} / ${MK_MAX}`),
-            el('span', {}, `次の帳面まで およそ ${nextH} 時間`)),
-          m.listed.length
-            ? el('div', { class: 'mkgrid' }, m.listed.map(it => {
+            el('b', {}, `出している品　${mkMyCount()} / ${MK_MAX}`),
+            /* 「次の帳面まで」は、端末だけで出している品があるときだけ出す（2026-10-05）。
+               サーバーに出した品は、本物の主が買った時点で売れるので、
+               六時間を待つ話にはならない */
+            nextH ? el('span', {}, `次の帳面まで およそ ${nextH} 時間`) : null),
+          put.length
+            ? el('div', { class: 'mkgrid' }, put.map(it => {
                 const c = charOf(it.no); if (!c) return null;
                 return mkCard(it, c, () => {
-                  if (mkPull(it.id)) { S.mkMsg = `${c.name} を取り下げた`; SFX.pick(); draw(); }
+                  if (S.mkBusy) return;
+                  S.mkBusy = true; draw();
+                  Promise.resolve(mkPull(it.id)).then(r => {
+                    S.mkBusy = false;
+                    S.mkMsg = (r && r.no) ? `${c.name} を取り下げた`
+                            : (r && r.gone) ? 'ひと足おそかった。その品はもう売れている'
+                            : (r && r.offline) ? 'いまは取り下げられぬ（サーバーに繋がっていない）'
+                            : '取り下げられなかった';
+                    SFX.pick(); draw();
+                  });
                 });
               }))
             : el('p', { class: 'note' }, 'まだ何も出していない'),
-          m.listed.length ? el('p', { class: 'note' }, '札を押すと取り下げる') : null,
+          put.length ? el('p', { class: 'note' }, '札を押すと取り下げる') : null,
           el('button', {
-            class: 'go wide', disabled: m.listed.length < MK_MAX ? null : true,
+            class: 'go wide', ...(mkMyCount() < MK_MAX ? {} : { disabled: true }),
             onclick: () => { S.mkPut = true; S.mkPrice = 0; S.mkPEdit = false; SFX.pick(); draw(); },
-          }, m.listed.length < MK_MAX ? '武将を出す' : `${MK_MAX}枚まで`),
+          }, mkMyCount() < MK_MAX ? '武将を出す' : `${MK_MAX}枚まで`),
           el('b', { class: 'mkhead2' }, '帳面'),
           m.log.length
             ? el('div', { class: 'mklog' }, m.log.slice(0, 12).map(r => {

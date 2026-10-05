@@ -26361,6 +26361,12 @@ async function bootLoad() {
 }
 function screenTitle() {
   const go = () => {
+    /* 電波が無いなら、ここで止める（2026-10-05 ゆうごさんの指図）。
+       入ってしまうと、まだ読んでいない画面の絵や飾りが揃わず崩れる。
+       開く前に知らせて、初めの画面に留まってもらう */
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      S.offl = true; SFX.pick(); draw(); return;
+    }
     askPersist();
     /* 先にロード画面をはさむ（2026-09-30）。
        読み終わったら bootLoad が チュートリアル／城 へ送り出す */
@@ -26931,7 +26937,7 @@ function offlineSheet() {
       S.offl = false;
       if (DUEL) dlClose();
       fxToken++; BATTLE = null; S.res = null; S.vs = null; S.dmg = false; S.dl = null;
-      S.screen = 'title'; draw();
+      S.screen = 'title'; SFX.pick(); draw();
     } }, '初めの画面へ')));
 }
 
@@ -26939,12 +26945,16 @@ function offlineSheet() {
 setTimeout(() => {
   const look = () => {
     const off = typeof navigator !== 'undefined' && navigator.onLine === false;
+    /* 初めの画面にいるあいだは黙っている。押したときに知らせるので足りる */
+    if (off && (S.screen === 'title' || S.screen === 'loading')) return;
     if (!!S.offl === off) return;
     S.offl = off;
     draw();
   };
+  /* 立ち上げたときには出さない（2026-10-05）。
+     初めの画面は留守番が覚えているので、そのまま見せてよい。
+     知らせるのは「開始を押したとき」と「遊んでいる最中に切れたとき」だけ */
   try { addEventListener('offline', look); addEventListener('online', look); } catch (_) {}
-  look();
 }, 0);
 
 function duelSheet() {

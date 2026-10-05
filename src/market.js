@@ -7,7 +7,7 @@
    ・出した武将は その場で手元から消える（手持ちの枚数も育ちも、まるごと預ける）。
      取り下げれば そのまま戻る
    ・買うほうは すぐ手に入る。育った中身（位・覚醒・魂ふり・継いだ技）もそのまま移る
-   ・売れたかどうかは その場では分からない。**六時間ごとに帳面を検めて**、魂が入る
+   ・売れたかどうかは その場では分からない。**六時間ごとに取引履歴を確かめて**、魂が入る
 
    ── サーバーに繋がっているとき（2026-10-05）──
    棚（並ぶ品）は サーバーから取り寄せる。足りないぶんは これまでの NPC で埋める。
@@ -21,7 +21,7 @@
    ── サーバーが無いあいだ ──
    これまでどおり。他の主は 番付と同じく NPC で埋める。
    日付の半日と枠の番号を種にしているので、同じ半日なら いつ開いても同じ品が並ぶ。
-   出した品は 六時間ごとの帳面で売れる（mkSettle）。
+   出した品は 六時間ごとの確かめで売れる（mkSettle）。
    「サーバーが無くても遊べる」は崩さない。 */
 
 import { P, savePlayer, SP_STATS, charState, cntOf, setCnt,
@@ -31,7 +31,7 @@ import { linked, mkShelf, mkMine, mkPut, mkBack, mkTake, mkPay } from './net.js'
 
 export const MK_MAX = 3;                       // 一度に出せる枚数
 export const MK_SLOTS = 36;                    // 他の主が並べる品の数
-export const MK_EVERY_MS = 6 * 3600 * 1000;    // 帳面を検める間（六時間）
+export const MK_EVERY_MS = 6 * 3600 * 1000;    // 取引履歴を確かめる間（六時間）
 const MK_HALF_MS = 12 * 3600 * 1000;           // 他の主の顔ぶれが入れ替わる間（半日）
 export const MK_LIFE_MS = 48 * 3600 * 1000;    // 出していられる長さ（二日）。過ぎたら戻る
 
@@ -40,13 +40,13 @@ export function mkState() {
   if (!P.market || typeof P.market !== 'object') P.market = {};
   const m = P.market;
   if (!Array.isArray(m.listed)) m.listed = [];   // 自分が出している品
-  if (!Array.isArray(m.log)) m.log = [];         // 売れた帳面
+  if (!Array.isArray(m.log)) m.log = [];         // 売れた取引履歴
   if (!Array.isArray(m.sold)) m.sold = [];       // 他の主の品のうち、もう買ったもの（印）
   /* サーバーに出している品の控え（2026-10-05）。サーバーが正で、これは写し。
      端末だけで出した品（listed）とは別に持つ。混ぜると、繋がった拍子に
      端末ぶんが消えて「手元から出したのに どこにも無い」ことになる */
   if (!Array.isArray(m.kura)) m.kura = [];
-  if (typeof m.at !== 'number') m.at = Date.now();   // 最後に帳面を検めた時刻
+  if (typeof m.at !== 'number') m.at = Date.now();   // 最後に取引履歴を確かめた時刻
   return m;
 }
 
@@ -93,7 +93,7 @@ export function mkPower(c, st) {
    上は一律 99999（2026-10-01）。目安の三倍で頭打ちにすると、
    育てきった子に高値を付けたい人の行き場が無くなるため。
    売れにくさは mkSettle の式が見るので、天井を上げても壊れない */
-/* ---- 口銭（こうせん・2026-10-05）----
+/* ---- 手数料（2026-10-05）----
    売り手から取る手間賃。**引かれるのは売れた人だけ。**
    買い手は札に出ている値をそのまま払う（1000の品は1000払う）。
 
@@ -109,12 +109,12 @@ export function mkPower(c, st) {
      次の       9,000 まで … 1割
      それより上          … 1割5分
 
-     1,000  → 口銭 50（5.0%）／手取り 950
-     10,000 → 口銭 950（9.5%）／手取り 9,050
-     50,000 → 口銭 6,950（13.9%）／手取り 43,050
+     1,000  → 手数料 50（5.0%）／手取り 950
+     10,000 → 手数料 950（9.5%）／手取り 9,050
+     50,000 → 手数料 6,950（13.9%）／手取り 43,050
 
    ★サーバー側（server/src/market.js）に同じ段を置いてある。食い違わせないこと。
-   遊ぶ人には率を出さない。「手元に入る◯◯／口銭◯◯」と額だけ見せる */
+   遊ぶ人には率を出さない。「手元に入る◯◯／手数料◯◯」と額だけ見せる */
 export const MK_FEE_STEPS = [[1000, 0.05], [10000, 0.10], [Infinity, 0.15]];
 export function mkFee(price) {
   let left = Math.max(0, Math.round(price || 0)), from = 0, fee = 0;
@@ -224,7 +224,7 @@ export async function mkRefresh(force) {
 /* ---- 売り上げと戻り品を受け取る（2026-10-05）----
    サーバーは「渡した印」を立ててから返すので、二度入ることはない。
    返事が届かなかったときは取りこぼす ── 二重取りより取りこぼしを選んだ。
-   受け取った中身は 端末の帳面（log）に積むので、画面はこれまでどおり log を見ればよい */
+   受け取った中身は 端末の取引履歴（log）に積むので、画面はこれまでどおり log を見ればよい */
 export async function mkCollect() {
   if (!linked()) return null;
   let r = null;
@@ -233,7 +233,7 @@ export async function mkCollect() {
   const m = mkState();
   const got = [];
   for (const x of (r.sold || [])) {
-    /* 口銭はサーバーが引いて net で返す。古いサーバーなら price のまま（2026-10-05） */
+    /* 手数料はサーバーが引いて net で返す。古いサーバーなら price のまま（2026-10-05） */
     const net = (typeof x.net === 'number') ? x.net : mkNet(x.price);
     const rec = { no: x.no, price: x.price, fee: x.price - net, net,
                   at: x.at || Date.now(), who: x.who || '', read: false };
@@ -378,9 +378,9 @@ function mkPullLocal(id) {
 /* ---- 六時間ごとの検め ----
    安く出した品ほど売れる。目安ちょうどで六割、半値なら八割強、三倍だとほぼ売れない。
    開くたびに呼んでよい（前に検めてから六時間たっていなければ何もしない）。
-   売れた品は帳面（log）に積む。魂はその場で入る＝「六時間ごとに反映」 */
+   売れた品は取引履歴（log）に積む。魂はその場で入る＝「六時間ごとに反映」 */
 /* サーバーに繋がっているときは、売れるのは「本物の主が買ったとき」だけ。
-   六時間ごとの帳面は、端末だけで出している品（listed）のためのもの（2026-10-05） */
+   六時間ごとの確かめは、端末だけで出している品（listed）のためのもの（2026-10-05） */
 export function mkSettle(C) {
   const m = mkState();
   const now = Date.now();
@@ -406,7 +406,7 @@ export function mkSettle(C) {
       const rng = mkRng((it.id.length * 2654435761 + Math.floor(when / 1000)) >>> 0);
       if (rng() >= p) continue;
       m.listed.splice(m.listed.indexOf(it), 1);
-      /* 口銭を引いた額が手元に入る（2026-10-05）。札の値はそのまま帳面に残す */
+      /* 手数料を引いた額が手元に入る（2026-10-05）。札の値はそのまま取引履歴に残す */
       const fee = mkFee(it.price), net = it.price - fee;
       P.soul = (P.soul || 0) + net;
       const rec = { no: it.no, price: it.price, fee, net,
@@ -424,7 +424,7 @@ export function mkSettle(C) {
     m.log.unshift(rec);
     got.push(rec);
   }
-  if (m.log.length > 40) m.log.length = 40;   // 帳面は四十件まで
+  if (m.log.length > 40) m.log.length = 40;   // 取引履歴は四十件まで
   savePlayer();
   return got.length ? got : null;
 }

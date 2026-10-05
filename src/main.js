@@ -1702,7 +1702,7 @@ const homeMenu = side => {
 };
 
 function screenHome() {
-  /* 取引所の帳面は、城にいるあいだも検める（2026-10-01）。
+  /* 取引所の取引履歴は、城にいるあいだも確かめる（2026-10-01）。
      座の赤丸は「売れた覚えのうち、まだ見ていない数」なので、
      取引所を開くまで検めないと、売れたことに気づけない */
   mkSettle(C);
@@ -8583,11 +8583,11 @@ function mkPutSheet() {
               curIcon('soul'), el('b', {}, num(price))),
         el('button', { class: 'mkpm', onclick: bump(Math.max(5, Math.round(w * 0.05))) }, '＋')),
       el('p', { class: 'note' }, `目安は ${num(w)}　／　${num(lo)} 〜 ${num(hi)} のあいだで決められる`),
-      /* 口銭（2026-10-05）。率は出さず、手元に入る額と引かれる額だけ見せる。
+      /* 手数料（2026-10-05）。率は出さず、手元に入る額と引かれる額だけ見せる。
          買い手は札の値をそのまま払うので、ここは売り手の話だと分かるように書く */
       el('p', { class: 'note mknet' }, '売れたら手元に入る ', curIcon('soul'),
         el('b', {}, ` ${num(mkNet(price))}`),
-        `　（口銭 ${num(mkFee(price))} を引く）`),
+        `　（手数料 ${num(mkFee(price))} を引く）`),
       el('p', { class: 'note' }, '安く出すほど早く売れる。二日たっても売れなければ戻ってくる'),
       el('p', { class: 'note warn' }, '出すと、手持ちの枚数も育ちも まるごと預かる'),
       el('div', { class: 'acts2' },
@@ -8633,13 +8633,13 @@ function mkTick(force) {
 
 function screenMarket() {
   const m = mkState();
-  /* 開いたときに帳面を検める（2026-10-01）。
+  /* 開いたときに取引履歴を確かめる（2026-10-01）。
      前に検めてから六時間たっていなければ何もしない。
      ここは画面を組む前なので、検めた中身をそのまま下の知らせに使える */
   mkSettle(C);
   /* サーバーの棚と売り上げも見にいく（2026-10-05・非同期） */
   mkTick();
-  /* 知らせは「まだ見ていない帳面」から組む（2026-10-01）。
+  /* 知らせは「まだ見ていない取引履歴」から組む（2026-10-01）。
      検めるのは城でも走るので、売れた中身を その場の返り値だけに頼ると
      先に城で検めたときに知らせが出ないままになる */
   const got = m.log.filter(x => !x.read);
@@ -8691,10 +8691,10 @@ function screenMarket() {
         : el('div', {},
           el('div', { class: 'mkhead' },
             el('b', {}, `出している品　${mkMyCount()} / ${MK_MAX}`),
-            /* 「次の帳面まで」は、端末だけで出している品があるときだけ出す（2026-10-05）。
+            /* 「次の更新まで」は、端末だけで出している品があるときだけ出す（2026-10-05）。
                サーバーに出した品は、本物の主が買った時点で売れるので、
                六時間を待つ話にはならない */
-            nextH ? el('span', {}, `次の帳面まで およそ ${nextH} 時間`) : null),
+            nextH ? el('span', {}, `次の更新まで およそ ${nextH} 時間`) : null),
           put.length
             ? el('div', { class: 'mkgrid' }, put.map(it => {
                 const c = charOf(it.no); if (!c) return null;
@@ -8717,14 +8717,14 @@ function screenMarket() {
             class: 'go wide', ...(mkMyCount() < MK_MAX ? {} : { disabled: true }),
             onclick: () => { S.mkPut = true; S.mkPrice = 0; S.mkPEdit = false; SFX.pick(); draw(); },
           }, mkMyCount() < MK_MAX ? '武将を出す' : `${MK_MAX}枚まで`),
-          el('b', { class: 'mkhead2' }, '帳面'),
+          el('b', { class: 'mkhead2' }, '取引履歴'),
           m.log.length
             ? el('div', { class: 'mklog' }, m.log.slice(0, 12).map(r => {
                 const c = charOf(r.no);
                 return el('div', { class: 'mklr' + (r.back ? ' back' : '') },
                   el('span', { class: 'mkln' }, c ? c.name : `No.${r.no}`),
                   r.back ? el('em', {}, '売れずに戻った')
-                         /* 入ったのは口銭を引いたあとの額（2026-10-05）。
+                         /* 入ったのは手数料を引いたあとの額（2026-10-05）。
                             古い覚えには net が無いので price に落ちる */
                          : el('em', {}, curIcon('soul'),
                              ` +${num(typeof r.net === 'number' ? r.net : r.price)}`));

@@ -123,3 +123,18 @@ export const mkPut   = (no, cnt, st, price) =>
 export const mkBack  = (id) => call('/v1/market/pull', { method: 'POST', body: { id } });
 export const mkTake  = (id) => call('/v1/market/buy',  { method: 'POST', body: { id } });
 export const mkPay   = () => call('/v1/market/claim',  { method: 'POST' });
+
+/* ---------------- 友（2026-10-06）----------------
+   ★引き継ぎID（WAN-…）は乗っ取りの鍵なので、友達さがしには出さない。
+     人に見せてよい **主番号（tag）** をサーバーが別に配る。
+   友は双方が頷いたときだけ結ぶ。願う → 相手が受ける → 両方の一覧に出る。 */
+export const palMe   = (name, lv, face) =>
+  call('/v1/pal/me', { method: 'POST', body: { name, lv, face } });
+export const palList = () => call('/v1/pal');
+export const palFind = (q) => call('/v1/pal/find?q=' + encodeURIComponent(q || ''));
+export const palAsk  = (who) => call('/v1/pal/ask', { method: 'POST', body: who });
+export const palOk   = (who) => call('/v1/pal/ok',  { method: 'POST', body: who });
+export const palNo   = (who) => call('/v1/pal/no',  { method: 'POST', body: who });
+export const palBye  = (who) => call('/v1/pal/bye', { method: 'POST', body: who });
+export const palDuel = (who, code) =>
+  call('/v1/pal/duel', { method: 'POST', body: { ...who, code } });

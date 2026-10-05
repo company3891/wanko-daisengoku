@@ -35,7 +35,8 @@ import { MI_TABS, MI_BOX, MISSIONS, miOf, KADODE } from './mission.js';
 import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPassRank,
          lkHash, lkSalt, lkTied } from './link.js';
 import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce, revOf, setRev,
-         duelOpen, duelJoin } from './net.js';
+         duelOpen, duelJoin,
+         palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -189,6 +190,9 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   news: false, newsTab: '更新', newsId: null,
   /* 友（2026-09-24）。fr＝一覧を開いているか／frId＝訪ねている友／frMsg＝その場の一言 */
   fr: false, frId: null, frMsg: '',
+  /* 友の札（2026-10-06）。frTab＝'find'（友を探す）／'my'（マイフレンド）、
+     frQ＝さがす字、frBusy＝サーバーの返事待ち */
+  frTab: 'my', frQ: '', frBusy: false,
   detailRO: false, detailBase: false, nmMsg: '', rwi: null,
   /* 取引所の品を札で見るとき（2026-10-01）。
      detailSt＝その品の育ち（売り主が育てた値）／detailBuy＝買える品そのもの */
@@ -1676,8 +1680,10 @@ const HOME_MENU = [
     badge: () => newsUnread() },
   { side: 'TL', name: '道具',     mark: '袋', file: 'home_items',   go: () => { S.bag = true; S.bagTab = '稽古'; S.bagSel = null; S.bagMsg = ''; } },
   { side: 'TL', name: '仲間',     mark: '友', file: 'home_friend',
-    go: () => { S.fr = true; S.frId = null; S.frMsg = ''; },
-    badge: () => frBack() },
+    go: () => { S.fr = true; S.frId = null; S.frMsg = ''; S.frTab = 'my'; S.frQ = ''; palTick(true); },
+    /* 赤丸は 返礼＋友の願い＋果たし合いの誘い（2026-10-06）。
+       誘いは押し掛ける仕掛けが無いので、ここで気づけるようにしておく */
+    badge: () => frBack() + PAL.asks.length + PAL.invites.length },
   /* 店は育成の中からホームへ移した（2026-09-26）。
      買い物は育てることとは別の用事なので、城の画面から直に入れるほうが早い。
      絵は ui/home_shop.png（無ければ menu_店.png、それも無ければ「店」の一字） */
@@ -1762,6 +1768,8 @@ function screenHome() {
      開戦の札（1.2秒）だけでは電波が細いときに間に合わず、帯に落ちていた。
      部隊の顔ぶれが変わったときだけ走らせる（毎回の描き直しで何度も読まない） */
   warmSquadArt();
+  /* 友の願いと果たし合いの誘いも、城にいるあいだに見にいく（2026-10-06） */
+  palTick();
   const q = P.squads[P.active];
   const gen = charOf(q.general) || squadChars(q)[0] || null;
   const bg = bgUrl('home');
@@ -2920,31 +2928,244 @@ function sparAskSheet() {
       closeX(close, 'やめる')));
 }
 
+/* ================= 友（2026-10-06 に作り直した）=================
+
+   前は「平定した国の主」だけが並ぶ一覧だった。
+   本物のプレイヤーと友になれるようにして、札を二つに分けた。
+
+     友を探す    … まだ友でない相手。本物の主を毎回30人、まぜこぜに。
+                   足りないぶんは国の主（NPC）で埋める。**平定していなくても出る**
+     マイフレンド … 結んだ相手ぜんぶ（100人まで）。主番号か名でさがせる
+
+   本物の友は **双方が頷いたときだけ** 結ぶ（願う → 受ける）。
+   国の主はその場で結ぶ（こちらが用意した相手なので断る理由が無い）。
+
+   ★引き継ぎID（WAN-…）は乗っ取りの鍵なので、人には見せない。
+     人に見せてよい **主番号** をサーバーが別に配る（例 W7K2M9Q4）。
+
+   果たし合いの誘いは置き手紙。誘うほうが座を立てて合言葉を置き、
+   相手は10秒ごとに机を見て気づく。**押し掛ける仕掛けは無い**ので、
+   相手がゲームを開いていないと届かない。 */
+
+let PAL = { pals: [], asks: [], sent: [], invites: [] };   // サーバーから来た友の控え
+let PAL_FIND = [];                                          // 「友を探す」の控え
+let PAL_AT = 0, PAL_BUSY = false;
+const palOn = () => linked();
+/* 国の主のうち、友になった人（平定とは切り離した・2026-10-06） */
+const npcPals = () => {
+  const set = new Set([...(P.palNpc || []),
+    ...PREFS.filter(x => prefTaken(x.id)).map(x => x.id)]);
+  set.delete(P.camp.start || 'aichi');     // 本拠地の主は自分なので外す
+  return PREFS.filter(x => set.has(x.id));
+};
+const npcPalIds = () => new Set(npcPals().map(x => x.id));
+
+/* サーバーに声を掛ける。名乗り（見せる札）→ 友の一覧 → 探す一覧 の順 */
+function palTick(force) {
+  if (!palOn() || PAL_BUSY) return;
+  if (!force && Date.now() - PAL_AT < 9000) return;
+  PAL_BUSY = true;
+  (async () => {
+    try {
+      const q = P.squads[P.active];
+      const r0 = await palMe(P.name || '名無し', P.lv || 1, (q && q.general) ?? null);
+      if (r0 && r0.ok && r0.tag && r0.tag !== P.palTag) { P.palTag = r0.tag; savePlayer(); }
+      const r1 = await palList();
+      if (r1 && r1.ok) PAL = { pals: r1.pals || [], asks: r1.asks || [],
+                               sent: r1.sent || [], invites: r1.invites || [] };
+      if (S.fr && S.frTab === 'find') {
+        const r2 = await palFind(S.frQ || '');
+        if (r2 && r2.ok) PAL_FIND = r2.items || [];
+      }
+      PAL_AT = Date.now();
+    } catch (_) { /* 繋がらない。国の主だけで続ける */ }
+    PAL_BUSY = false;
+    if (S.fr || S.screen === 'home') draw();
+  })();
+}
+
+/* 本物の相手を押したときの作り。待っているあいだ釦を止める */
+function palDo(fn, done) {
+  if (S.frBusy) return;
+  S.frBusy = true; draw();
+  Promise.resolve(fn()).then(r => {
+    S.frBusy = false;
+    done(r || {});
+    PAL_AT = 0; palTick(true);
+    draw();
+  }).catch(() => { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); });
+}
+
+/* 本物の主ひとりの行 */
+function palRow(c, kind) {
+  const btn = (cls, label, on) => el('button', {
+    class: 'frbtn ' + cls, ...(S.frBusy ? { disabled: true } : {}),
+    onclick: e => { e.stopPropagation(); on(); } }, label);
+  const acts = [];
+  if (kind === 'find') acts.push(btn('go', '友になる', () =>
+    palDo(() => palAsk({ id: c.id }), r => {
+      S.frMsg = r.tied ? `${c.name} と友になった`
+              : r.already ? 'もう友である'
+              : r.asked || r.waiting ? `${c.name} に願いを出した。相手の返事を待つ`
+              : '願いを出せなかった';
+      if (r.tied) SFX.win(); else SFX.pick();
+    })));
+  if (kind === 'ask') {
+    acts.push(btn('go', '受ける', () => palDo(() => palOk({ id: c.id }), r => {
+      S.frMsg = r.ok ? `${c.name} と友になった` : 'もう願いが無い'; SFX.win(); })));
+    acts.push(btn('ghost', '断る', () => palDo(() => palNo({ id: c.id }), () => {
+      S.frMsg = '断った'; SFX.pick(); })));
+  }
+  if (kind === 'sent') acts.push(el('span', { class: 'frwait' }, '返事待ち'));
+  if (kind === 'pal') {
+    acts.push(btn('go', '果たし合い', () => palInvite(c)));
+    acts.push(btn('ghost sm', '外す', () => palDo(() => palBye({ id: c.id }), () => {
+      S.frMsg = `${c.name} を外した`; SFX.pick(); })));
+  }
+  return el('div', { class: 'frrow real' },
+    frFace(c.face),
+    el('span', { class: 'frn' },
+      el('b', {}, c.name),
+      el('i', {}, `位 ${num(c.lv || 1)}　${c.tag || ''}`)),
+    el('span', { class: 'frr' }, ...acts));
+}
+
+/* 果たし合いに誘う。先に座を立て、その合言葉を相手の机に置く */
+function palInvite(c) {
+  if (S.frBusy) return;
+  S.frBusy = true; S.frMsg = `${c.name} を誘っています…`; draw();
+  (async () => {
+    try {
+      const r = await duelOpen(dlTeam());
+      if (!r || !r.ok || !r.duel) { S.frBusy = false; S.frMsg = '座を立てられなかった'; draw(); return; }
+      const r2 = await palDuel({ id: c.id }, r.duel);
+      S.frBusy = false;
+      if (!r2 || !r2.ok) { S.frMsg = '誘いを出せなかった'; draw(); return; }
+      /* 自分はその座で待つ。相手が気づいて入ってくるのを待ち合いの間で待つ */
+      S.fr = false; S.frId = null; S.screen = 'home';
+      dlEnter(r.duel, r.seed);
+      S.frMsg = '';
+      SFX.win(); draw();
+    } catch (_) { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); }
+  })();
+}
+
 function frSheet() {
   const close = () => { S.fr = false; S.frMsg = ''; draw(); };
-  const list = frList();
+  palTick();
+  const my = S.frTab !== 'find';
   const t = frTotal();
+  const npc = npcPals();
+  const npcIds = npcPalIds();
+  /* 「友を探す」は 本物を先に、足りないぶんを国の主で埋める（まだ友でない人だけ） */
+  const findNpc = PREFS.filter(x => !npcIds.has(x.id) && x.id !== (P.camp.start || 'aichi'));
+  const q = (S.frQ || '').trim();
+  const hit = (name) => !q || String(name).includes(q);
+  const askN = PAL.asks.length;
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 frbox' },
-      /* 札の題は帯にする（2026-09-25）。ホームの釦は「友」のままだが、
-         札を開いたら「友人」と言い切ったほうが読みやすい */
-      el('b', { class: 'mittl frttl' }, '友人'),
-      el('p', { class: 'frnote' }, list.length
-        ? `通算 ${t.win} 勝 ${t.lose} 敗`
-        : 'まだ友はおらぬわん。国を下せば、その主が友になるわん'),
-      list.length ? el('div', { class: 'frlist' }, list.map(p => {
-        const f = frState(p.id);
-        const fr = frOf(p.id);
-        return el('button', { class: 'frrow', onclick: () => { S.frId = p.id; S.frMsg = ''; SFX.pick(); draw(); } },
-          frFace(fr && fr.general),
-          el('span', { class: 'frn' },
-            el('b', {}, lordName(p)),
-            el('i', {}, fr ? fr.rank : '')),
-          el('span', { class: 'frr' },
-            el('em', {}, `${f.win}勝 ${f.lose}敗`),
-            frBackReady(f) ? el('span', { class: 'frdot' }) : el('span', { class: 'frok' }, '訪問')));
-      })) : null,
+      el('b', { class: 'mittl frttl' }, '友'),
+      /* 二つのタブ */
+      el('div', { class: 'frtabs' },
+        el('button', { class: 'frtab' + (my ? ' on' : ''),
+          onclick: () => { S.frTab = 'my'; S.frQ = ''; S.frMsg = ''; SFX.pick(); draw(); } },
+          'マイフレンド', askN ? el('em', { class: 'frbadge' }, num(askN)) : null),
+        el('button', { class: 'frtab' + (my ? '' : ' on'),
+          onclick: () => { S.frTab = 'find'; S.frQ = ''; S.frMsg = ''; SFX.pick(); palTick(true); draw(); } },
+          '友を探す')),
+      /* 自分の主番号。人に見せてよい番号はこれ。引き継ぎIDは出さない */
+      P.palTag ? el('p', { class: 'frtag' },
+        'わたしの主番号　', el('b', {}, P.palTag),
+        el('span', {}, '　この番号を伝えると探してもらえる')) : null,
+      S.frMsg ? el('p', { class: 'frmsg' }, S.frMsg) : null,
+      /* さがす一行 */
+      el('div', { class: 'mkq frq' },
+        el('input', {
+          id: 'frqin', class: 'mkqin', type: 'search',
+          placeholder: my ? '主番号・名でさがす' : '主番号・名でさがす',
+          value: S.frQ || '',
+          oninput: e => { S.frQ = e.target.value; clearTimeout(FRQ_T);
+                          FRQ_T = setTimeout(() => { if (!my) palTick(true); draw(); }, 260); },
+        }),
+        S.frQ ? el('button', { class: 'mkqx', title: 'けす',
+          onclick: () => { S.frQ = ''; if (!my) palTick(true); SFX.pick(); draw(); } }, '×') : null),
+
+      my ? el('div', {},
+        /* 届いている果たし合いの誘い。合言葉は置き手紙で届く */
+        PAL.invites.length ? el('div', {},
+          el('b', { class: 'frhd' }, '果たし合いの誘い'),
+          el('div', { class: 'frlist' }, PAL.invites.map(iv =>
+            el('div', { class: 'frrow real inv' },
+              el('span', { class: 'frn' },
+                el('b', {}, `${iv.name} が誘っている`),
+                el('i', {}, `合言葉 ${iv.code}`)),
+              el('span', { class: 'frr' },
+                el('button', { class: 'frbtn go', ...(S.frBusy ? { disabled: true } : {}),
+                  onclick: () => { S.fr = false; S.frId = null; S.screen = 'home';
+                                   dlEnter(iv.code, 0); SFX.win(); } }, '受けて立つ')))))) : null,
+        /* 届いている願い */
+        askN ? el('div', {},
+          el('b', { class: 'frhd' }, `友の願いが ${num(askN)} 件`),
+          el('div', { class: 'frlist' }, PAL.asks.map(c => palRow(c, 'ask')))) : null,
+        PAL.sent.length ? el('div', {},
+          el('b', { class: 'frhd' }, '出した願い'),
+          el('div', { class: 'frlist' }, PAL.sent.map(c => palRow(c, 'sent')))) : null,
+        el('b', { class: 'frhd' },
+          `マイフレンド　${num(PAL.pals.length + npc.length)} / ${num(PAL_MAX_UI)}`),
+        el('p', { class: 'frnote' }, `通算 ${t.win} 勝 ${t.lose} 敗`),
+        el('div', { class: 'frlist' },
+          ...PAL.pals.filter(c => hit(c.name) || (c.tag || '').includes(q.toUpperCase()))
+                     .map(c => palRow(c, 'pal')),
+          ...npc.filter(p => hit(lordName(p))).map(p => npcRow(p))),
+        (PAL.pals.length + npc.length) ? null
+          : el('p', { class: 'frnote' }, 'まだ友はおらぬわん。「友を探す」から願いを出すわん'))
+
+        : el('div', {},
+          el('b', { class: 'frhd' }, '友を探す'),
+          el('p', { class: 'frnote' }, palOn()
+            ? 'ほかの主を毎回ちがう顔ぶれで出す。主番号か名でも探せる'
+            : 'サーバーに繋いでいないので、国の主だけを出す'),
+          el('div', { class: 'frlist' },
+            /* 手元でも絞る（2026-10-06）。サーバーの返事を待つあいだ、
+               さっきの顔ぶれが残って見えるのを防ぐ */
+            ...PAL_FIND.filter(c => !q || String(c.name).includes(q)
+                                 || (c.tag || '').includes(q.toUpperCase()))
+                       .map(c => palRow(c, 'find')),
+            ...findNpc.filter(p => hit(lordName(p))).slice(0, 30).map(p => npcFindRow(p)))),
       closeX(close)));
+}
+let FRQ_T = null;
+const PAL_MAX_UI = 100;
+
+/* 国の主の行（マイフレンド側）。押すと家へ。稽古と陣中見舞はこれまでどおり */
+function npcRow(p) {
+  const f = frState(p.id);
+  const fr = frOf(p.id);
+  return el('button', { class: 'frrow', onclick: () => { S.frId = p.id; S.frMsg = ''; SFX.pick(); draw(); } },
+    frFace(fr && fr.general),
+    el('span', { class: 'frn' },
+      el('b', {}, lordName(p)),
+      el('i', {}, fr ? fr.rank : '')),
+    el('span', { class: 'frr' },
+      el('em', {}, `${f.win}勝 ${f.lose}敗`),
+      frBackReady(f) ? el('span', { class: 'frdot' }) : el('span', { class: 'frok' }, '訪問')));
+}
+/* 国の主の行（友を探す側）。こちらが用意した相手なので、その場で友になる */
+function npcFindRow(p) {
+  const fr = frOf(p.id);
+  return el('div', { class: 'frrow real' },
+    frFace(fr && fr.general),
+    el('span', { class: 'frn' },
+      el('b', {}, lordName(p)),
+      el('i', {}, fr ? fr.rank : '')),
+    el('span', { class: 'frr' },
+      el('button', { class: 'frbtn go', onclick: e => {
+        e.stopPropagation();
+        if (!Array.isArray(P.palNpc)) P.palNpc = [];
+        if (!P.palNpc.includes(p.id)) P.palNpc.push(p.id);
+        savePlayer();
+        S.frMsg = `${lordName(p)} と友になった`; SFX.win(); draw();
+      } }, '友になる')));
 }
 
 /* 友の家。訪ねた瞬間に返礼を受け取る */

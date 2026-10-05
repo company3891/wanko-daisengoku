@@ -1466,7 +1466,7 @@ function resetSheet() {
    数は年号だけ（遊びの数値は見せない決まりは守っている）。
 
    絵が無くても動く：背景が無ければ黒地に落ち、顔が無ければ名だけが出る。 */
-const OPENING_CRY = 'いざ尋常に参るわん';
+const OPENING_CRY = '総大将を討ち取るワン';
 const OPENING_TELOP = [
   '応仁元年、京に火が上がった。',
   '将軍の威は地に落ち、十一年のいくさが都を焼いた。',
@@ -1524,10 +1524,13 @@ function openingSheet() {
        前後が 0.6秒ほど重なるので、ぷつりと切れずに移り変わる */
     el('div', { class: 'optelop' },
       OPENING_TELOP.map((t, i) => el('p', { style: at(i * OP_LINE_MS) }, t))),
+    /* 名と名乗りは顔に**重ねて**、いちばん手前に置く（2026-10-05・悠さんの指図）。
+       顔を1.5倍に大きくしたので、下に並べると画面に収まらない */
     el('div', { class: 'opwho', style: at(Math.max(0, endMs - 1400)) },
       face ? el('img', { class: 'opface', src: face, alt: c ? c.name : '' }) : null,
-      el('div', { class: 'opnm' }, c ? c.name : ''),
-      el('div', { class: 'opcry', 'data-t': OPENING_CRY }, OPENING_CRY)),
+      el('div', { class: 'opcap' },
+        el('div', { class: 'opnm' }, c ? c.name : ''),
+        el('div', { class: 'opcry', 'data-t': OPENING_CRY }, OPENING_CRY))),
     el('div', { class: 'ophint' }, skip ? '画面をたたいて出陣' : '画面をたたくと早送り'));
 }
 

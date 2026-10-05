@@ -3367,16 +3367,21 @@ main.hasnav{padding-bottom:124px}
   72% {opacity:1;transform:translateY(14px)}
   100%{opacity:0;transform:translateY(32px)}
 }
-/* 選んだ一騎。語り終わりに浮かび上がる */
+/* 選んだ一騎。語り終わりに浮かび上がる。
+   顔は1.5倍に大きくし（206→310px）、名と名乗りは**顔に重ねて**いちばん手前に置く
+   （2026-10-05）。下に並べると、大きくしたぶん画面に収まらなくなる */
 .opwho{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;
-  gap:7px;margin-bottom:calc(16vh + var(--safeb,0px));opacity:0;
+  margin-bottom:calc(11vh + var(--safeb,0px));opacity:0;
   animation:opwho 1.7s ease-out both}
 @keyframes opwho{from{opacity:0;transform:translateY(26px) scale(.93)}to{opacity:1;transform:none}}
-.opface{width:min(50vw,206px);height:min(50vw,206px);object-fit:cover;border-radius:50%;
+.opface{width:min(75vw,310px);height:min(75vw,310px);object-fit:cover;border-radius:50%;
   border:2px solid var(--gold);background:#12100e;
-  box-shadow:0 0 0 7px #12100e99,0 12px 36px #000c,0 0 46px #d8a94a4d}
-.opnm{font-family:var(--mincho);font-size:14px;color:var(--text2);letter-spacing:.16em;
-  text-shadow:0 1px 3px #000,0 2px 8px #000,0 0 16px #000}
+  box-shadow:0 0 0 8px #12100e99,0 14px 44px #000c,0 0 56px #d8a94a4d}
+/* 顔の下ぎわに重ねる帯。幅は顔より広く取って、長い名乗りでも折れないように */
+.opcap{position:absolute;left:50%;bottom:2%;z-index:6;width:100vw;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none}
+.opnm{font-family:var(--mincho);font-size:14px;color:#f5e2a8;letter-spacing:.16em;
+  text-shadow:0 1px 3px #000,0 2px 8px #000,0 0 16px #000,0 0 28px #000}
 .opcry{position:relative;font-family:var(--mincho);font-size:29px;font-weight:900;
   letter-spacing:.06em;line-height:1.15;white-space:nowrap;
   color:#12100e;-webkit-text-stroke:6px #12100e;paint-order:stroke fill;
@@ -3395,7 +3400,7 @@ main.hasnav{padding-bottom:124px}
 @media (max-width:380px){
   .optelop p{font-size:15.5px}
   .opcry{font-size:25px}
-  .opface{width:min(48vw,180px);height:min(48vw,180px)}
+  .opface{width:min(74vw,270px);height:min(74vw,270px)}
 }
 
 /* 顔のアイコンを押せるようにした（2026-09-25）。
@@ -27523,7 +27528,7 @@ function resetSheet() {
    数は年号だけ（遊びの数値は見せない決まりは守っている）。
 
    絵が無くても動く：背景が無ければ黒地に落ち、顔が無ければ名だけが出る。 */
-const OPENING_CRY = 'いざ尋常に参るわん';
+const OPENING_CRY = '総大将を討ち取るワン';
 const OPENING_TELOP = [
   '応仁元年、京に火が上がった。',
   '将軍の威は地に落ち、十一年のいくさが都を焼いた。',
@@ -27581,10 +27586,13 @@ function openingSheet() {
        前後が 0.6秒ほど重なるので、ぷつりと切れずに移り変わる */
     el('div', { class: 'optelop' },
       OPENING_TELOP.map((t, i) => el('p', { style: at(i * OP_LINE_MS) }, t))),
+    /* 名と名乗りは顔に**重ねて**、いちばん手前に置く（2026-10-05・悠さんの指図）。
+       顔を1.5倍に大きくしたので、下に並べると画面に収まらない */
     el('div', { class: 'opwho', style: at(Math.max(0, endMs - 1400)) },
       face ? el('img', { class: 'opface', src: face, alt: c ? c.name : '' }) : null,
-      el('div', { class: 'opnm' }, c ? c.name : ''),
-      el('div', { class: 'opcry', 'data-t': OPENING_CRY }, OPENING_CRY)),
+      el('div', { class: 'opcap' },
+        el('div', { class: 'opnm' }, c ? c.name : ''),
+        el('div', { class: 'opcry', 'data-t': OPENING_CRY }, OPENING_CRY))),
     el('div', { class: 'ophint' }, skip ? '画面をたたいて出陣' : '画面をたたくと早送り'));
 }
 

@@ -1482,12 +1482,19 @@ function openingArt() {
   const c = charOf(P.first);
   return c ? (heroUrl(c.no) || cutinArt(c.no, '奥義')) : null;
 }
-/* 語り終わりに出す顔。大きく出すので、いちばん大きな絵から順に探す */
-function openingFace() {
+/* 語り終わりに立たせる姿（2026-10-05・悠さんの指図でコマ絵に変えた）。
+   コマ絵（assets/pawn/<番号>.png・512四方の透かし絵）は全身が入っていて、
+   背景が抜けているので、戦場の上にそのまま立たせられる。
+   丸く切る必要も、金の輪も要らない。
+   コマ絵が無い武将は顔に落とし、そのときだけ丸く切って輪を付ける */
+function openingFigure() {
   const c = charOf(P.first);
   if (!c) return null;
-  return faceUrl(c.no, '真剣') || faceUrl(c.no, '不敵') || faceUrl(c.no, '通常')
-      || cutinUrl(c.no) || pawnUrl(c.no);
+  const pw = pawnUrl(c.no);
+  if (pw) return { url: pw, pawn: true };
+  const fc = faceUrl(c.no, '真剣') || faceUrl(c.no, '不敵') || faceUrl(c.no, '通常')
+          || cutinUrl(c.no);
+  return fc ? { url: fc, pawn: false } : null;
 }
 /* 初陣の相手（2026-09-25）。
    本拠地は制覇済みで始まる決まりなので、出発の章のうち まだ取っていない
@@ -1502,7 +1509,7 @@ function firstPref() {
 function openingSheet() {
   const c = charOf(P.first);
   const bg = bgUrl('opening');
-  const face = openingFace();
+  const fig = openingFigure();
   const skip = !!S.opSkip;
   /* 語りの終わりどき。顔はその少し前から浮かび上がらせる */
   const endMs = OPENING_TELOP.length * OP_LINE_MS;
@@ -1526,8 +1533,8 @@ function openingSheet() {
       OPENING_TELOP.map((t, i) => el('p', { style: at(i * OP_LINE_MS) }, t))),
     /* 名と名乗りは顔に**重ねて**、いちばん手前に置く（2026-10-05・悠さんの指図）。
        顔を1.5倍に大きくしたので、下に並べると画面に収まらない */
-    el('div', { class: 'opwho', style: at(Math.max(0, endMs - 1400)) },
-      face ? el('img', { class: 'opface', src: face, alt: c ? c.name : '' }) : null,
+    el('div', { class: 'opwho' + (fig && fig.pawn ? ' pawn' : ''), style: at(Math.max(0, endMs - 1400)) },
+      fig ? el('img', { class: fig.pawn ? 'oppawn' : 'opface', src: fig.url, alt: c ? c.name : '' }) : null,
       el('div', { class: 'opcap' },
         el('div', { class: 'opnm' }, c ? c.name : ''),
         el('div', { class: 'opcry', 'data-t': OPENING_CRY }, OPENING_CRY))),

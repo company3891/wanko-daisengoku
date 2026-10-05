@@ -3356,14 +3356,24 @@ main.hasnav{padding-bottom:124px}
    顔は1.5倍に大きくし（206→310px）、名と名乗りは**顔に重ねて**いちばん手前に置く
    （2026-10-05）。下に並べると、大きくしたぶん画面に収まらなくなる */
 .opwho{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;
-  margin-bottom:calc(11vh + var(--safeb,0px));opacity:0;
+  /* 名乗りが下の案内（画面をたたく…）に重ならないよう、下を少し空ける（2026-10-05） */
+  margin-bottom:calc(15vh + var(--safeb,0px));opacity:0;
   animation:opwho 1.7s ease-out both}
 @keyframes opwho{from{opacity:0;transform:translateY(26px) scale(.93)}to{opacity:1;transform:none}}
+/* コマ絵（2026-10-05）。背景が抜けているので、丸く切らずそのまま立たせる。
+   地面に影を落とし、うしろから金の光をあてて 戦場から浮かせる */
+.oppawn{width:min(84vw,340px);height:auto;object-fit:contain;
+  filter:drop-shadow(0 14px 22px #000d) drop-shadow(0 0 28px #d8a94a55)}
+.opwho.pawn::before{content:"";position:absolute;left:50%;bottom:6%;z-index:-1;
+  width:min(70vw,290px);height:min(70vw,290px);transform:translateX(-50%);
+  border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#d8a94a33,#d8a94a12 46%,#d8a94a00 70%)}
+/* コマ絵が無い武将は顔に落とす。そのときだけ丸く切って輪を付ける */
 .opface{width:min(75vw,310px);height:min(75vw,310px);object-fit:cover;border-radius:50%;
   border:2px solid var(--gold);background:#12100e;
   box-shadow:0 0 0 8px #12100e99,0 14px 44px #000c,0 0 56px #d8a94a4d}
 /* 顔の下ぎわに重ねる帯。幅は顔より広く取って、長い名乗りでも折れないように */
-.opcap{position:absolute;left:50%;bottom:2%;z-index:6;width:100vw;transform:translateX(-50%);
+.opcap{position:absolute;left:50%;bottom:4%;z-index:6;width:100vw;transform:translateX(-50%);
   display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none}
 .opnm{font-family:var(--mincho);font-size:14px;color:#f5e2a8;letter-spacing:.16em;
   text-shadow:0 1px 3px #000,0 2px 8px #000,0 0 16px #000,0 0 28px #000}
@@ -3385,6 +3395,7 @@ main.hasnav{padding-bottom:124px}
 @media (max-width:380px){
   .optelop p{font-size:15.5px}
   .opcry{font-size:25px}
+  .oppawn{width:min(84vw,300px)}
   .opface{width:min(74vw,270px);height:min(74vw,270px)}
 }
 

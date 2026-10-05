@@ -1330,6 +1330,55 @@ SFX.ougi = (attr) => {
 };
 
 /* ===== 奥義カットイン ===== */
+/* ---- 一枚絵の先読み置き場（2026-10-05）----
+   前は preloadCutins が `new Image()` を作って捨てていた。
+   作った絵を手元に持っていないと、カットインのときに**別の Image を作り直す**ことになり、
+   その新しい絵は（たとえ中身が端末に残っていても）その場では complete にならない。
+   だから「絵はあるのに帯が出る」が起きていた（千リキュパグの奥義・悠さんの実測）。
+
+   ここで作った絵を持っておき、カットインは**この絵の仕上がり**を見て決める。 */
+const ARTS = new Map();
+const ARTS_MAX = 24;          // 持ちすぎると端末の覚えを食う（1枚 1080px・110KB）
+export function artHold(url) {
+  if (!url) return null;
+  let im = ARTS.get(url);
+  if (!im) {
+    im = new Image(); im.decoding = 'async'; im.src = url;
+    ARTS.set(url, im);
+    /* 古いものから手放す（2026-10-05）。
+       ぜんぶ持ち続けると、iPhone では覚えが足りなくなって
+       かえって絵が捨てられる（それが「絵はあるのに帯」の元） */
+    while (ARTS.size > ARTS_MAX) ARTS.delete(ARTS.keys().next().value);
+  }
+  return im;
+}
+/* 絵を**覚えに入れるだけ**（2026-10-05）。Image と違って、ひらいた絵（ビットマップ）を
+   抱え込まないので、110枚ぜんぶ入れても端末の覚えを食わない。
+   留守番（Service Worker）が受け取って棚にしまう */
+export function artFetch(url) {
+  if (!url) return Promise.resolve(false);
+  return fetch(url, { cache: 'force-cache' }).then(r => !!r && r.ok).catch(() => false);
+}
+export const artDone = (url) => {
+  const im = ARTS.get(url);
+  return !!(im && im.complete && im.naturalWidth > 0);
+};
+/* 絵が仕上がるのを ms だけ待つ（2026-10-05）。
+   間に合わなければ false を返し、呼んだ側はこれまでどおり帯に落とす。
+   奥義は一戦の見せ場なので、ここだけは ひと呼吸 待つ値打ちがある */
+export function artWait(url, ms = 450) {
+  return new Promise((res) => {
+    if (!url) return res(false);
+    const im = artHold(url);
+    if (im.complete && im.naturalWidth > 0) return res(true);
+    let t = 0;
+    const done = () => { clearTimeout(t); res(!!(im.complete && im.naturalWidth > 0)); };
+    im.addEventListener('load', done, { once: true });
+    im.addEventListener('error', done, { once: true });
+    t = setTimeout(done, ms);
+  });
+}
+
 export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   // kind で大きさと長さを変える。奥義は全画面、固有は中、特技は小さな帯で盤面を止めない
   /* 固有も通常特技と同じ大きさにした（2026-09-30）。
@@ -1348,9 +1397,12 @@ export function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      絵は startBattle が開戦の札のあいだに裏で読んでいる */
   let bg = null, useArt = false;
   if (art) {
+    /* 仕上がりを見るのは **先読みで持っている絵**（2026-10-05）。
+       ここで作った新しい絵は、中身が端末に残っていても その場では complete にならない */
+    const pre = artHold(art);
     bg = document.createElement('img');
     bg.className = 'cart'; bg.alt = ''; bg.src = art;
-    useArt = bg.complete && bg.naturalWidth > 0;
+    useArt = (pre.complete && pre.naturalWidth > 0) || (bg.complete && bg.naturalWidth > 0);
   }
   const box = document.createElement('div');
   box.className = 'cutin ' + cf.cls + (useArt ? ' art' : '');

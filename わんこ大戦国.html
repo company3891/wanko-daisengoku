@@ -10014,6 +10014,55 @@ SFX.ougi = (attr) => {
 };
 
 /* ===== 奥義カットイン ===== */
+/* ---- 一枚絵の先読み置き場（2026-10-05）----
+   前は preloadCutins が `new Image()` を作って捨てていた。
+   作った絵を手元に持っていないと、カットインのときに**別の Image を作り直す**ことになり、
+   その新しい絵は（たとえ中身が端末に残っていても）その場では complete にならない。
+   だから「絵はあるのに帯が出る」が起きていた（千リキュパグの奥義・悠さんの実測）。
+
+   ここで作った絵を持っておき、カットインは**この絵の仕上がり**を見て決める。 */
+const ARTS = new Map();
+const ARTS_MAX = 24;          // 持ちすぎると端末の覚えを食う（1枚 1080px・110KB）
+function artHold(url) {
+  if (!url) return null;
+  let im = ARTS.get(url);
+  if (!im) {
+    im = new Image(); im.decoding = 'async'; im.src = url;
+    ARTS.set(url, im);
+    /* 古いものから手放す（2026-10-05）。
+       ぜんぶ持ち続けると、iPhone では覚えが足りなくなって
+       かえって絵が捨てられる（それが「絵はあるのに帯」の元） */
+    while (ARTS.size > ARTS_MAX) ARTS.delete(ARTS.keys().next().value);
+  }
+  return im;
+}
+/* 絵を**覚えに入れるだけ**（2026-10-05）。Image と違って、ひらいた絵（ビットマップ）を
+   抱え込まないので、110枚ぜんぶ入れても端末の覚えを食わない。
+   留守番（Service Worker）が受け取って棚にしまう */
+function artFetch(url) {
+  if (!url) return Promise.resolve(false);
+  return fetch(url, { cache: 'force-cache' }).then(r => !!r && r.ok).catch(() => false);
+}
+const artDone = (url) => {
+  const im = ARTS.get(url);
+  return !!(im && im.complete && im.naturalWidth > 0);
+};
+/* 絵が仕上がるのを ms だけ待つ（2026-10-05）。
+   間に合わなければ false を返し、呼んだ側はこれまでどおり帯に落とす。
+   奥義は一戦の見せ場なので、ここだけは ひと呼吸 待つ値打ちがある */
+function artWait(url, ms = 450) {
+  return new Promise((res) => {
+    if (!url) return res(false);
+    const im = artHold(url);
+    if (im.complete && im.naturalWidth > 0) return res(true);
+    let t = 0;
+    const done = () => { clearTimeout(t); res(!!(im.complete && im.naturalWidth > 0)); };
+    im.addEventListener('load', done, { once: true });
+    im.addEventListener('error', done, { once: true });
+    t = setTimeout(done, ms);
+  });
+}
+
 function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
   // kind で大きさと長さを変える。奥義は全画面、固有は中、特技は小さな帯で盤面を止めない
   /* 固有も通常特技と同じ大きさにした（2026-09-30）。
@@ -10032,9 +10081,12 @@ function cutIn(host, { name, skill, img, art, kind = 'ult' }) {
      絵は startBattle が開戦の札のあいだに裏で読んでいる */
   let bg = null, useArt = false;
   if (art) {
+    /* 仕上がりを見るのは **先読みで持っている絵**（2026-10-05）。
+       ここで作った新しい絵は、中身が端末に残っていても その場では complete にならない */
+    const pre = artHold(art);
     bg = document.createElement('img');
     bg.className = 'cart'; bg.alt = ''; bg.src = art;
-    useArt = bg.complete && bg.naturalWidth > 0;
+    useArt = (pre.complete && pre.naturalWidth > 0) || (bg.complete && bg.naturalWidth > 0);
   }
   const box = document.createElement('div');
   box.className = 'cutin ' + cf.cls + (useArt ? ' art' : '');
@@ -27681,6 +27733,10 @@ function screenHome() {
   /* サーバーに出した品の売り上げも、城にいるあいだに受け取る（2026-10-05）。
      非同期なので入ってきたら描き直す。繋がらなければ何も起きない */
   mkTick();
+  /* いまの部隊の奥義の一枚絵を、城にいるあいだに読んでおく（2026-10-05）。
+     開戦の札（1.2秒）だけでは電波が細いときに間に合わず、帯に落ちていた。
+     部隊の顔ぶれが変わったときだけ走らせる（毎回の描き直しで何度も読まない） */
+  warmSquadArt();
   const q = P.squads[P.active];
   const gen = charOf(q.general) || squadChars(q)[0] || null;
   const bg = bgUrl('home');
@@ -32972,13 +33028,65 @@ function evEnemy(rank, rng) {
    稽古と同じで必ずオート。対戦札は挑む側で1枚減らしてある */
 /* その戦に出る顔ぶれの、カットインに使う絵を先に読む（2026-10-01）。
    読めても読めなくても戦は進む（絵が無くても動く決まりは崩さない） */
+/* 部隊の奥義の一枚絵を、城にいるあいだに読んでおく（2026-10-05）。
+   顔ぶれが変わったときだけ。留守番（Service Worker）が覚えるので二度目からは即座に出る */
+let warmKey = '';
+function warmSquadArt() {
+  const q = P.squads[P.active];
+  const nos = ((q && q.nos) || []).filter(Boolean);
+  const key = nos.join(',');
+  if (!key || key === warmKey) return;
+  warmKey = key;
+  for (const no of nos) { const a = cutinArt(no, '奥義'); if (a) artHold(a); }
+  warmAllUltArt();
+}
+
+/* ---- 奥義の一枚絵を、遊んでいるあいだに静かに集めておく（2026-10-05）----
+
+   なぜ要るか。一枚絵は 110枚・12MB（一枚 110KB ほど）ある。
+   開戦の札は1.2秒しかないので、細い電波では間に合わず帯に落ちていた。
+   「出る戦では何度も出て、出ない戦は全部ちゃんと入る」のは、
+   その戦の顔ぶれの絵が覚えにあるかどうかで決まっていたため（悠さんの実測）。
+
+   やり方は fetch（覚えに入れるだけ）。Image と違って ひらいた絵を抱え込まないので、
+   110枚ぜんぶ入れても端末の覚えを食わない。留守番が棚にしまうので、
+   一度集めれば次からは待たない（電波が無くても出る）。
+
+   遠慮すること ──
+   ・データ節約の設定が入っていたら集めない
+   ・2g のときは集めない
+   ・立ち上がりから5秒おいて、一枚ずつ間を空けて集める（遊びの邪魔をしない）
+   ・自分の持っている武将から先に */
+let artWarming = false;
+function warmAllUltArt() {
+  if (artWarming) return;
+  artWarming = true;
+  const cx = navigator.connection || {};
+  if (cx.saveData || /(^|-)2g$/.test(cx.effectiveType || '')) return;
+  const mine = [], rest = [];
+  for (const c of C) (P.own.includes(c.no) ? mine : rest).push(c.no);
+  const nos = [...mine, ...rest];
+  let i = 0;
+  const step = () => {
+    if (i >= nos.length) return;
+    if (navigator.onLine === false) { setTimeout(step, 10000); return; }
+    const u = cutinArt(nos[i++], '奥義');
+    if (!u) return step();
+    artFetch(u).then(() => setTimeout(step, 200));
+  };
+  setTimeout(step, 5000);
+}
 function preloadCutins(nos) {
   const urls = [];
+  /* 奥義の一枚絵を先に（2026-10-05）。顔より重く、いちばん見せたい絵なので */
+  for (const no of new Set(nos)) { const a = cutinArt(no, '奥義'); if (a) urls.push(a); }
   for (const no of new Set(nos)) {
-    for (const u of [cutinArt(no, '奥義'), cutinUrl(no),
-                     faceUrl(no, '不敵'), faceUrl(no, '真剣'), faceUrl(no, '通常')]) if (u) urls.push(u);
+    for (const u of [cutinUrl(no), faceUrl(no, '不敵'), faceUrl(no, '真剣'), faceUrl(no, '通常')])
+      if (u) urls.push(u);
   }
-  for (const u of new Set(urls)) { const im = new Image(); im.src = u; }
+  /* artHold が絵を手元に持っておく（2026-10-05）。
+     作って捨てると、カットインのときに作り直しになって間に合わない */
+  for (const u of new Set(urls)) artHold(u);
 }
 function startBattle(camp, evb, spar, bout, tw) {
   /* 開いている札はここで全部閉じる（2026-09-24）。
@@ -33447,8 +33555,14 @@ async function showEvent(e, my) {
       // 奥義は「その属性の音＋奥義の芯」を重ねる（2026-09-28）
       SFX.ougi((charOf(no) || {}).attr); ultFlare(src);
       fxBurst(cellOf(e.src), 'ult_burst', { scale: 1.6, ms: 760, spin: true });
+      /* 奥義の一枚絵だけは、仕上がるのを ひと呼吸（最大450ms）待つ（2026-10-05）。
+         開戦の札（1.2秒）の裏で読んでいるが、電波が細いと間に合わず
+         帯に落ちていた（千リキュパグの奥義・悠さんの実測）。
+         間に合わなければ これまでどおり帯。戦は止まらない */
+      const uart = cutinArt(no, '奥義');
+      if (uart) await artWait(uart, 600);
       const ms = cutIn(document.body, { name: e.name, skill: ultNameOf(no),
-                                        art: cutinArt(no, '奥義'), img: faceUrl(no, '不敵') || cutinUrl(no), kind: 'ult' });
+                                        art: uart, img: faceUrl(no, '不敵') || cutinUrl(no), kind: 'ult' });
       await sleep(Math.min(ms, 820)); return;
     }
     case 'unique': {

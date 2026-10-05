@@ -1,7 +1,7 @@
 // わんこ大戦国 プロトタイプ（2026-09-20）
 // 編成 → 陣形 → 戦闘 → 勝敗。戦闘ルールは sim/src/engine.mjs をそのまま呼ぶ。
 import { runBattle, withKeep, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
-import { boardEl, fieldEl, pawns, byTurn, render, setBoardRev, boardCellOf, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, gachaUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
+import { boardEl, fieldEl, pawns, byTurn, render, setBoardRev, boardCellOf, artHold, artWait, artFetch, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, gachaUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
 
 import { GACHAS, gachaOf, homeGacha, poolOf, urListOf, urRatesOf } from './gachas.js';
 /* 束ねるときに import 行は捨てられるので、別名（as）は使えない（2026-10-01 に踏んだ）。
@@ -1709,6 +1709,10 @@ function screenHome() {
   /* サーバーに出した品の売り上げも、城にいるあいだに受け取る（2026-10-05）。
      非同期なので入ってきたら描き直す。繋がらなければ何も起きない */
   mkTick();
+  /* いまの部隊の奥義の一枚絵を、城にいるあいだに読んでおく（2026-10-05）。
+     開戦の札（1.2秒）だけでは電波が細いときに間に合わず、帯に落ちていた。
+     部隊の顔ぶれが変わったときだけ走らせる（毎回の描き直しで何度も読まない） */
+  warmSquadArt();
   const q = P.squads[P.active];
   const gen = charOf(q.general) || squadChars(q)[0] || null;
   const bg = bgUrl('home');
@@ -7000,13 +7004,65 @@ function evEnemy(rank, rng) {
    稽古と同じで必ずオート。対戦札は挑む側で1枚減らしてある */
 /* その戦に出る顔ぶれの、カットインに使う絵を先に読む（2026-10-01）。
    読めても読めなくても戦は進む（絵が無くても動く決まりは崩さない） */
+/* 部隊の奥義の一枚絵を、城にいるあいだに読んでおく（2026-10-05）。
+   顔ぶれが変わったときだけ。留守番（Service Worker）が覚えるので二度目からは即座に出る */
+let warmKey = '';
+function warmSquadArt() {
+  const q = P.squads[P.active];
+  const nos = ((q && q.nos) || []).filter(Boolean);
+  const key = nos.join(',');
+  if (!key || key === warmKey) return;
+  warmKey = key;
+  for (const no of nos) { const a = cutinArt(no, '奥義'); if (a) artHold(a); }
+  warmAllUltArt();
+}
+
+/* ---- 奥義の一枚絵を、遊んでいるあいだに静かに集めておく（2026-10-05）----
+
+   なぜ要るか。一枚絵は 110枚・12MB（一枚 110KB ほど）ある。
+   開戦の札は1.2秒しかないので、細い電波では間に合わず帯に落ちていた。
+   「出る戦では何度も出て、出ない戦は全部ちゃんと入る」のは、
+   その戦の顔ぶれの絵が覚えにあるかどうかで決まっていたため（悠さんの実測）。
+
+   やり方は fetch（覚えに入れるだけ）。Image と違って ひらいた絵を抱え込まないので、
+   110枚ぜんぶ入れても端末の覚えを食わない。留守番が棚にしまうので、
+   一度集めれば次からは待たない（電波が無くても出る）。
+
+   遠慮すること ──
+   ・データ節約の設定が入っていたら集めない
+   ・2g のときは集めない
+   ・立ち上がりから5秒おいて、一枚ずつ間を空けて集める（遊びの邪魔をしない）
+   ・自分の持っている武将から先に */
+let artWarming = false;
+function warmAllUltArt() {
+  if (artWarming) return;
+  artWarming = true;
+  const cx = navigator.connection || {};
+  if (cx.saveData || /(^|-)2g$/.test(cx.effectiveType || '')) return;
+  const mine = [], rest = [];
+  for (const c of C) (P.own.includes(c.no) ? mine : rest).push(c.no);
+  const nos = [...mine, ...rest];
+  let i = 0;
+  const step = () => {
+    if (i >= nos.length) return;
+    if (navigator.onLine === false) { setTimeout(step, 10000); return; }
+    const u = cutinArt(nos[i++], '奥義');
+    if (!u) return step();
+    artFetch(u).then(() => setTimeout(step, 200));
+  };
+  setTimeout(step, 5000);
+}
 function preloadCutins(nos) {
   const urls = [];
+  /* 奥義の一枚絵を先に（2026-10-05）。顔より重く、いちばん見せたい絵なので */
+  for (const no of new Set(nos)) { const a = cutinArt(no, '奥義'); if (a) urls.push(a); }
   for (const no of new Set(nos)) {
-    for (const u of [cutinArt(no, '奥義'), cutinUrl(no),
-                     faceUrl(no, '不敵'), faceUrl(no, '真剣'), faceUrl(no, '通常')]) if (u) urls.push(u);
+    for (const u of [cutinUrl(no), faceUrl(no, '不敵'), faceUrl(no, '真剣'), faceUrl(no, '通常')])
+      if (u) urls.push(u);
   }
-  for (const u of new Set(urls)) { const im = new Image(); im.src = u; }
+  /* artHold が絵を手元に持っておく（2026-10-05）。
+     作って捨てると、カットインのときに作り直しになって間に合わない */
+  for (const u of new Set(urls)) artHold(u);
 }
 function startBattle(camp, evb, spar, bout, tw) {
   /* 開いている札はここで全部閉じる（2026-09-24）。
@@ -7475,8 +7531,14 @@ async function showEvent(e, my) {
       // 奥義は「その属性の音＋奥義の芯」を重ねる（2026-09-28）
       SFX.ougi((charOf(no) || {}).attr); ultFlare(src);
       fxBurst(cellOf(e.src), 'ult_burst', { scale: 1.6, ms: 760, spin: true });
+      /* 奥義の一枚絵だけは、仕上がるのを ひと呼吸（最大450ms）待つ（2026-10-05）。
+         開戦の札（1.2秒）の裏で読んでいるが、電波が細いと間に合わず
+         帯に落ちていた（千リキュパグの奥義・悠さんの実測）。
+         間に合わなければ これまでどおり帯。戦は止まらない */
+      const uart = cutinArt(no, '奥義');
+      if (uart) await artWait(uart, 600);
       const ms = cutIn(document.body, { name: e.name, skill: ultNameOf(no),
-                                        art: cutinArt(no, '奥義'), img: faceUrl(no, '不敵') || cutinUrl(no), kind: 'ult' });
+                                        art: uart, img: faceUrl(no, '不敵') || cutinUrl(no), kind: 'ult' });
       await sleep(Math.min(ms, 820)); return;
     }
     case 'unique': {

@@ -138,3 +138,5 @@ export const palNo   = (who) => call('/v1/pal/no',  { method: 'POST', body: who 
 export const palBye  = (who) => call('/v1/pal/bye', { method: 'POST', body: who });
 export const palDuel = (who, code) =>
   call('/v1/pal/duel', { method: 'POST', body: { ...who, code } });
+export const palGift     = (who) => call('/v1/pal/gift', { method: 'POST', body: who });
+export const palGiftTake = () => call('/v1/pal/gift/take', { method: 'POST' });

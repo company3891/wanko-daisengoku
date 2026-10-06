@@ -36,7 +36,8 @@ import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPas
          lkHash, lkSalt, lkTied } from './link.js';
 import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce, revOf, setRev,
          duelOpen, duelJoin,
-         palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel } from './net.js';
+         palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel,
+         palGift, palGiftTake } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -2947,18 +2948,87 @@ function sparAskSheet() {
    相手は10秒ごとに机を見て気づく。**押し掛ける仕掛けは無い**ので、
    相手がゲームを開いていないと届かない。 */
 
-let PAL = { pals: [], asks: [], sent: [], invites: [] };   // サーバーから来た友の控え
+let PAL = { pals: [], asks: [], sent: [], invites: [], gifts: [] };   // サーバーから来た友の控え
 let PAL_FIND = [];                                          // 「友を探す」の控え
 let PAL_AT = 0, PAL_BUSY = false;
 const palOn = () => linked();
-/* 国の主のうち、友になった人（平定とは切り離した・2026-10-06） */
+/* ---- 国の主を「人」として扱う（2026-10-06・悠さんの指図）----
+   NPC と分かるとつまらないので、**本物の主とまったく同じ見た目・同じ動き**にする。
+     ・位と主番号を持つ（国の印から決め打ちで作るので、いつ見ても同じ）
+     ・友になるときは本物と同じく「願い → 相手が受ける」を通る
+       （NPC は少し間をおいて必ず受ける。待つ気持ちまで同じにしたい）
+     ・果たし合い・陣中見舞も同じ釦から
+
+   マイフレンドに出るのは **双方が頷いた相手だけ**。
+   平定しただけでは出ない（前は出ていた）。
+   ただし、これまで平定ぶんが並んでいた人の一覧がいきなり空になると驚くので、
+   新しい作りに移るときに一度だけ そのまま引き継ぐ（palMoved の印）。 */
+function npcMigrate() {
+  if (P.palMoved) return;
+  P.palMoved = 1;
+  if (!Array.isArray(P.palNpc)) P.palNpc = [];
+  for (const x of PREFS) {
+    if (!prefTaken(x.id)) continue;
+    if (x.id === (P.camp.start || 'aichi')) continue;
+    if (!P.palNpc.includes(x.id)) P.palNpc.push(x.id);
+  }
+  savePlayer();
+}
+/* 国の主の主番号。国の印から決め打ちで作るので、いつ見ても同じ番号になる */
+const NPC_ALPHA = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+function npcTag(id) {
+  let h = 2166136261 >>> 0;
+  for (const ch of String(id) + 'wanko') { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  let out = '';
+  for (let i = 0; i < 8; i++) { out += NPC_ALPHA[h % 32]; h = Math.imul(h ^ (h >>> 13), 2654435761) >>> 0; }
+  return out;
+}
+/* 国の主を、本物の主とそろえた形にする */
+function npcCard(p) {
+  const fr = frOf(p.id);
+  const team = (fr && fr.team) || [];
+  const lv = Math.max(1, Math.round(team.reduce((a, c) => a + ((c.stats && c.stats.lv) || 0), 0) / Math.max(1, team.length))
+                       || Math.min(200, 8 + team.length * 9 + (p.battles || 1) * 7));
+  return { id: p.id, npc: true, tag: npcTag(p.id), name: lordName(p), lv,
+           face: fr && fr.general, gen: fr && fr.general };
+}
 const npcPals = () => {
-  const set = new Set([...(P.palNpc || []),
-    ...PREFS.filter(x => prefTaken(x.id)).map(x => x.id)]);
-  set.delete(P.camp.start || 'aichi');     // 本拠地の主は自分なので外す
+  npcMigrate();
+  const set = new Set(P.palNpc || []);
+  set.delete(P.camp.start || 'aichi');
   return PREFS.filter(x => set.has(x.id));
 };
 const npcPalIds = () => new Set(npcPals().map(x => x.id));
+/* 願いを出して、返事を待っている国の主（2026-10-06）。
+   本物と同じく少し待たせる。15〜45秒ほどで必ず受ける */
+const npcAsks = () => Object.keys(P.palNpcAsk || {});
+function npcAskTick() {
+  const m = P.palNpcAsk || {};
+  const now = Date.now();
+  let moved = false;
+  for (const id of Object.keys(m)) {
+    if (now < m[id]) continue;
+    delete m[id];
+    if (!Array.isArray(P.palNpc)) P.palNpc = [];
+    if (!P.palNpc.includes(id)) P.palNpc.push(id);
+    moved = true;
+  }
+  if (moved) { P.palNpcAsk = m; savePlayer(); }
+  return moved;
+}
+/* 国の主からの返礼を受け取る（2026-10-06）。
+   前は家を訪ねたときに渡していたが、家へ行く道をやめたので、
+   城を開いたときと札を開いたときにまとめて受け取る。
+   受け取らないままだと、城の赤丸が消えずに残りつづける */
+function npcBackTick() {
+  let n = 0, who = [];
+  for (const p of npcPals()) {
+    if (!frBackReady(frState(p.id))) continue;
+    if (frTakeBack(p.id)) { n++; if (who.length < 2) who.push(lordName(p)); }
+  }
+  if (n) S.frMsg = `${who.join('・')} から返礼が届いた`;
+  return n;
+}
 
 /* サーバーに声を掛ける。名乗り（見せる札）→ 友の一覧 → 探す一覧 の順 */
 function palTick(force) {
@@ -2972,7 +3042,22 @@ function palTick(force) {
       if (r0 && r0.ok && r0.tag && r0.tag !== P.palTag) { P.palTag = r0.tag; savePlayer(); }
       const r1 = await palList();
       if (r1 && r1.ok) PAL = { pals: r1.pals || [], asks: r1.asks || [],
-                               sent: r1.sent || [], invites: r1.invites || [] };
+                               sent: r1.sent || [], invites: r1.invites || [],
+                               gifts: r1.gifts || [] };
+      /* 届いている陣中見舞をまとめて受け取る（2026-10-06）。
+         渡した印はサーバーが立てるので、二度入ることはない */
+      if (PAL.gifts && PAL.gifts.length) {
+        const rg = await palGiftTake();
+        if (rg && rg.ok && rg.n) {
+          for (let k = 0; k < rg.n; k++) {
+            if (GIFT_BACK.koban) P.koban += GIFT_BACK.koban;
+            if (GIFT_BACK.stamina) P.stamina = Math.min(P.staminaMax, P.stamina + GIFT_BACK.stamina);
+          }
+          savePlayer();
+          S.frMsg = `${(rg.from || []).slice(0, 2).join('・')} から陣中見舞が届いた`;
+        }
+        PAL.gifts = [];
+      }
       if (S.fr && S.frTab === 'find') {
         const r2 = await palFind(S.frQ || '');
         if (r2 && r2.ok) PAL_FIND = r2.items || [];
@@ -2996,20 +3081,30 @@ function palDo(fn, done) {
   }).catch(() => { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); });
 }
 
-/* 本物の主ひとりの行 */
+/* 友ひとりの行。**本物も国の主も同じ形**（2026-10-06）。
+   kind … 'find'（まだ友でない）／'ask'（届いた願い）／'sent'（返事待ち）／'pal'（友） */
 function palRow(c, kind) {
   const btn = (cls, label, on) => el('button', {
     class: 'frbtn ' + cls, ...(S.frBusy ? { disabled: true } : {}),
     onclick: e => { e.stopPropagation(); on(); } }, label);
   const acts = [];
-  if (kind === 'find') acts.push(btn('go', '友になる', () =>
+  if (kind === 'find') acts.push(btn('go', '友になる', () => {
+    if (c.npc) {
+      /* 国の主も、本物と同じく いったん「返事待ち」にする（2026-10-06）。
+         すぐ友になると、そこだけ手ざわりが違って人でないと分かってしまう */
+      const m = P.palNpcAsk || (P.palNpcAsk = {});
+      m[c.id] = Date.now() + 15000 + Math.floor(Math.random() * 30000);
+      savePlayer();
+      S.frMsg = `${c.name} に願いを出した。相手の返事を待つ`; SFX.pick(); draw(); return;
+    }
     palDo(() => palAsk({ id: c.id }), r => {
       S.frMsg = r.tied ? `${c.name} と友になった`
               : r.already ? 'もう友である'
               : r.asked || r.waiting ? `${c.name} に願いを出した。相手の返事を待つ`
               : '願いを出せなかった';
       if (r.tied) SFX.win(); else SFX.pick();
-    })));
+    });
+  }));
   if (kind === 'ask') {
     acts.push(btn('go', '受ける', () => palDo(() => palOk({ id: c.id }), r => {
       S.frMsg = r.ok ? `${c.name} と友になった` : 'もう願いが無い'; SFX.win(); })));
@@ -3021,12 +3116,39 @@ function palRow(c, kind) {
     /* その人から もう誘いが来ていたら「受けて立つ」に変える（2026-10-06）。
        二人とも「果たし合い」を押すと、座が二つ立って永遠に出会えなかった（悠さんの実測）。
        来ている誘いがあるなら、新しく立てずに**その座へ入る**のが正しい */
-    const iv = palInviteFrom(c.id);
+    const iv = c.npc ? null : palInviteFrom(c.id);
     acts.push(iv
       ? btn('go take', '受けて立つ', () => palTakeInvite(iv))
-      : btn('go sm', '果たし合い', () => palInvite(c)));
-    acts.push(btn('ghost sm', '外す', () => palDo(() => palBye({ id: c.id }), () => {
-      S.frMsg = `${c.name} を外した`; SFX.pick(); })));
+      : btn('go sm', '果たし合い', () => {
+          /* 国の主はその場で始まる（これまでの「稽古」をここに吞ませた・2026-10-06）。
+             本物は座を立てて誘う。遊ぶ人から見ると同じ釦 */
+          if (c.npc) {
+            if (!canSpar(c.id)) { S.frMsg = '今日はもう手合わせした'; SFX.pick(); draw(); return; }
+            S.fr = false; sparStart(c.id); return;
+          }
+          palInvite(c);
+        }));
+    /* 陣中見舞。国の主にも本物の友にも置ける（2026-10-06）。
+       どちらかにしか置けないと、そこで人かどうかが分かってしまう */
+    acts.push(btn('ghost sm', '見舞', () => {
+      if (c.npc) {
+        if (frGift(c.id)) { S.frMsg = `${c.name} の陣に見舞を置いた。返礼は後日であろう`; SFX.pick(); }
+        else S.frMsg = '今日はもう置いた';
+        draw(); return;
+      }
+      palDo(() => palGift({ id: c.id }), r => {
+        S.frMsg = r.ok ? `${c.name} の陣に見舞を置いた。返礼は後日であろう`
+                       : (r.status === 409 ? '今日はもう置いた' : '置けなかった');
+        SFX.pick();
+      });
+    }));
+    acts.push(btn('ghost sm', '外す', () => {
+      if (c.npc) {
+        P.palNpc = (P.palNpc || []).filter(x => x !== c.id);
+        savePlayer(); S.frMsg = `${c.name} を外した`; SFX.pick(); draw(); return;
+      }
+      palDo(() => palBye({ id: c.id }), () => { S.frMsg = `${c.name} を外した`; SFX.pick(); });
+    }));
   }
   return el('div', { class: 'frrow real' },
     frFace(c.face),
@@ -3076,19 +3198,28 @@ function palInvite(c) {
 function frSheet() {
   const close = () => { S.fr = false; S.frMsg = ''; draw(); };
   palTick();
+  npcAskTick();
+  npcBackTick();
   const my = S.frTab !== 'find';
   const t = frTotal();
-  const npc = npcPals();
   const npcIds = npcPalIds();
-  /* 「友を探す」は 本物を先に、足りないぶんを国の主で埋める（まだ友でない人だけ） */
-  const findNpc = PREFS.filter(x => !npcIds.has(x.id) && x.id !== (P.camp.start || 'aichi'));
+  const askIds = new Set(npcAsks());
+  /* 国の主も本物と同じ形にそろえる（2026-10-06） */
+  const npcMine = npcPals().map(npcCard);
+  const npcSent = PREFS.filter(x => askIds.has(x.id)).map(npcCard);
+  const npcFind = PREFS.filter(x => !npcIds.has(x.id) && !askIds.has(x.id)
+                                 && x.id !== (P.camp.start || 'aichi')).map(npcCard);
   const q = (S.frQ || '').trim();
-  const hit = (name) => !q || String(name).includes(q);
-  const askN = PAL.asks.length;
+  const QU = q.toUpperCase();
+  const hit = (c) => !q || String(c.name).includes(q) || (c.tag || '').includes(QU);
+  const asks = PAL.asks;
+  const askN = asks.length;
+  const mine = [...PAL.pals, ...npcMine];
+  const sent = [...PAL.sent, ...npcSent];
+  const find = [...PAL_FIND, ...npcFind];
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 frbox' },
       el('b', { class: 'mittl frttl' }, '友'),
-      /* 二つのタブ */
       el('div', { class: 'frtabs' },
         el('button', { class: 'frtab' + (my ? ' on' : ''),
           onclick: () => { S.frTab = 'my'; S.frQ = ''; S.frMsg = ''; SFX.pick(); draw(); } },
@@ -3099,13 +3230,11 @@ function frSheet() {
       /* 自分の主番号。人に見せてよい番号はこれ。引き継ぎIDは出さない */
       P.palTag ? el('p', { class: 'frtag' },
         'わたしの主番号　', el('b', {}, P.palTag),
-        el('span', {}, '　この番号を伝えると探してもらえる')) : null,
+        el('span', {}, 'この番号を伝えると探してもらえる')) : null,
       S.frMsg ? el('p', { class: 'frmsg' }, S.frMsg) : null,
-      /* さがす一行 */
       el('div', { class: 'mkq frq' },
         el('input', {
-          id: 'frqin', class: 'mkqin', type: 'search',
-          placeholder: my ? '主番号・名でさがす' : '主番号・名でさがす',
+          id: 'frqin', class: 'mkqin', type: 'search', placeholder: '主番号・名でさがす',
           value: S.frQ || '',
           oninput: e => { S.frQ = e.target.value; clearTimeout(FRQ_T);
                           FRQ_T = setTimeout(() => { if (!my) palTick(true); draw(); }, 260); },
@@ -3114,7 +3243,7 @@ function frSheet() {
           onclick: () => { S.frQ = ''; if (!my) palTick(true); SFX.pick(); draw(); } }, '×') : null),
 
       my ? el('div', {},
-        /* 届いている果たし合いの誘い。合言葉は置き手紙で届く */
+        /* 届いている果たし合いの誘い */
         palInvites().length ? el('div', {},
           el('b', { class: 'frhd' }, '果たし合いの誘い'),
           el('div', { class: 'frlist' }, palInvites().map(iv =>
@@ -3125,70 +3254,27 @@ function frSheet() {
               el('span', { class: 'frr' },
                 el('button', { class: 'frbtn go take', ...(S.frBusy ? { disabled: true } : {}),
                   onclick: () => palTakeInvite(iv) }, '受けて立つ')))))) : null,
-        /* 届いている願い */
         askN ? el('div', {},
           el('b', { class: 'frhd' }, `友の願いが ${num(askN)} 件`),
-          el('div', { class: 'frlist' }, PAL.asks.map(c => palRow(c, 'ask')))) : null,
-        PAL.sent.length ? el('div', {},
+          el('div', { class: 'frlist' }, asks.map(c => palRow(c, 'ask')))) : null,
+        sent.length ? el('div', {},
           el('b', { class: 'frhd' }, '出した願い'),
-          el('div', { class: 'frlist' }, PAL.sent.map(c => palRow(c, 'sent')))) : null,
-        el('b', { class: 'frhd' },
-          `マイフレンド　${num(PAL.pals.length + npc.length)} / ${num(PAL_MAX_UI)}`),
+          el('div', { class: 'frlist' }, sent.map(c => palRow(c, 'sent')))) : null,
+        el('b', { class: 'frhd' }, `マイフレンド　${num(mine.length)} / ${num(PAL_MAX_UI)}`),
         el('p', { class: 'frnote' }, `通算 ${t.win} 勝 ${t.lose} 敗`),
-        el('div', { class: 'frlist' },
-          ...PAL.pals.filter(c => hit(c.name) || (c.tag || '').includes(q.toUpperCase()))
-                     .map(c => palRow(c, 'pal')),
-          ...npc.filter(p => hit(lordName(p))).map(p => npcRow(p))),
-        (PAL.pals.length + npc.length) ? null
+        mine.length
+          ? el('div', { class: 'frlist' }, mine.filter(hit).map(c => palRow(c, 'pal')))
           : el('p', { class: 'frnote' }, 'まだ友はおらぬわん。「友を探す」から願いを出すわん'))
 
         : el('div', {},
           el('b', { class: 'frhd' }, '友を探す'),
-          el('p', { class: 'frnote' }, palOn()
-            ? 'ほかの主を毎回ちがう顔ぶれで出す。主番号か名でも探せる'
-            : 'サーバーに繋いでいないので、国の主だけを出す'),
-          el('div', { class: 'frlist' },
-            /* 手元でも絞る（2026-10-06）。サーバーの返事を待つあいだ、
-               さっきの顔ぶれが残って見えるのを防ぐ */
-            ...PAL_FIND.filter(c => !q || String(c.name).includes(q)
-                                 || (c.tag || '').includes(q.toUpperCase()))
-                       .map(c => palRow(c, 'find')),
-            ...findNpc.filter(p => hit(lordName(p))).slice(0, 30).map(p => npcFindRow(p)))),
+          el('p', { class: 'frnote' }, 'まだ結んでいない主たち。主番号か名でも探せる'),
+          el('div', { class: 'frlist' }, find.filter(hit).slice(0, 60).map(c => palRow(c, 'find')))),
       closeX(close)));
 }
 let FRQ_T = null;
 const PAL_MAX_UI = 100;
 
-/* 国の主の行（マイフレンド側）。押すと家へ。稽古と陣中見舞はこれまでどおり */
-function npcRow(p) {
-  const f = frState(p.id);
-  const fr = frOf(p.id);
-  return el('button', { class: 'frrow', onclick: () => { S.frId = p.id; S.frMsg = ''; SFX.pick(); draw(); } },
-    frFace(fr && fr.general),
-    el('span', { class: 'frn' },
-      el('b', {}, lordName(p)),
-      el('i', {}, fr ? fr.rank : '')),
-    el('span', { class: 'frr' },
-      el('em', {}, `${f.win}勝 ${f.lose}敗`),
-      frBackReady(f) ? el('span', { class: 'frdot' }) : el('span', { class: 'frok' }, '訪問')));
-}
-/* 国の主の行（友を探す側）。こちらが用意した相手なので、その場で友になる */
-function npcFindRow(p) {
-  const fr = frOf(p.id);
-  return el('div', { class: 'frrow real' },
-    frFace(fr && fr.general),
-    el('span', { class: 'frn' },
-      el('b', {}, lordName(p)),
-      el('i', {}, fr ? fr.rank : '')),
-    el('span', { class: 'frr' },
-      el('button', { class: 'frbtn go', onclick: e => {
-        e.stopPropagation();
-        if (!Array.isArray(P.palNpc)) P.palNpc = [];
-        if (!P.palNpc.includes(p.id)) P.palNpc.push(p.id);
-        savePlayer();
-        S.frMsg = `${lordName(p)} と友になった`; SFX.win(); draw();
-      } }, '友になる')));
-}
 
 /* 友の家。訪ねた瞬間に返礼を受け取る */
 function frHomeSheet() {

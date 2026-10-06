@@ -3544,6 +3544,37 @@ function screenMap() {
 }
 
 /* 出陣のページ（2026-09-21）。国を選んだあと、ここで部隊を決めて出す。 */
+/* ---- 全国の早送り（2026-10-07・悠さんの指図）----
+   一度 制覇した国は、盤面を出さずに決着だけ見られる。
+   お祭りの早送り（evSkip）と同じ作りだが、種は campSeed のまま使う。
+   同じ国・同じ段・同じ部隊なら いつも同じ結末になるので、
+   「見ないだけで中身は同じ」が保てる。
+   兵糧はふつうの出陣と同じだけ払う。石は湧かない（制覇ずみなので noStone） */
+function marchSkip(p, step) {
+  const seed = campSeed(p.id, step);
+  let s2 = seed >>> 0;
+  const rng = () => { s2 = (s2 + 0x6D2B79F5) >>> 0; let x = Math.imul(s2 ^ (s2 >>> 15), 1 | s2); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  S.stage = stageOf(p, step);
+  S.stageV = (seed >>> 0) % stageVarCount(S.stage);
+  S.stageFlip = false;
+  const rules = stageRules(S.stage, S.stageV, S.stageFlip);
+  const B = campEnemy(p, step, rng);
+  const bForm = FORMS[Math.floor(rng() * FORMS.length)];
+  const res = runBattle(
+    { members: S.picked.map(grownFor), generalNo: S.general, formation: S.form, slots: S.slots },
+    { members: B, generalNo: B[0].no, formation: bForm },
+    rules, seed, { log: true });
+  const won = res.winner === 'A';
+  miBump('battle'); miBump('camp'); miBump('skip');   // お役目の数
+  BATTLE = { camp: { pref: p, step }, ev: null,
+             reward: giveReward(won, rewardMulOf(S.picked), marchFood(p, step), true),
+             march: null, skipped: true };
+  if (won) BATTLE.march = advancePref(p.id);
+  miAfterWin(won);
+  S.res = { i: 0, won, reason: res.reason || '早送り', ta: 0, tb: 0, skip: true, stat: battleStat(res) };
+  SFX.pick(); draw();
+}
+
 function screenMarch() {
   const p = PREF[S.pref] || PREF[P.camp.start || 'aichi'];
   const q = P.squads[P.active];
@@ -3640,11 +3671,22 @@ function screenMarch() {
           onclick: () => { S.prepBox = true; SFX.pick(); draw(); },
         }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'),
            el('em', {}, `${prepN}/${PREP_MAX}`));
+        /* 早送りの釦（2026-10-07・悠さんの指図）。
+           制覇した国にだけ出す。お祭りの早送りと同じ言い回しにそろえた。
+           兵糧はふつうの出陣と同じだけ要る（払わずに回せる道を作らないため） */
+        const skipGo = () => {
+          const run = () => { if (!spendFood(p, step)) return; marchSkip(p, step); };
+          if (!canMarch(p, step)) { S.foodAfter = run; S.foodNeed = food; S.food = true; SFX.pick(); draw(); return; }
+          run();
+        };
+        const skipBtn = taken ? el('button', {
+          class: 'ghost wide mchskip', disabled: can ? null : true, onclick: skipGo,
+        }, '早送りで決着　兵糧 ' + food) : null;
         if (!art) {
           return el('div', { class: 'marchgo' },
             el('div', { class: 'mgrow' },
               el('button', { class: 'go big out', disabled: can ? null : true, onclick: go }, word), pbtn),
-            prepTags());
+            skipBtn, prepTags());
         }
         return el('div', { class: 'marchgo' },
           el('div', { class: 'mgrow' },
@@ -3655,7 +3697,7 @@ function screenMarch() {
           el('p', { class: 'marchsub' },
             canMarch(p, step) ? (taken ? `もう一度戦う　兵糧 ${food}` : `兵糧 ${food}`)
                        : `兵糧をもどして出陣（要 ${food}）`),
-          prepTags());
+          skipBtn, prepTags());
       })(),
       S.prepBox ? prepSheet() : null),
     nav: true,
@@ -8415,6 +8457,11 @@ function drawBattle() {
          戦った数は数えたいので、褒美なしのときも giveReward(false) を通す */
       const evFirst = !!(BATTLE.ev && !evDone(BATTLE.ev.id, BATTLE.ev.rank));
       const won0 = iWon(res);
+      /* 石は「初めて取ったとき」だけ（2026-10-07・悠さんの指図）。
+         全国は、その段をまだ抜けていなければ初めて。制覇した国をもう一度攻めても湧かない。
+         お祭りは evFirst がもともと褒美ぜんぶを止めているので、ここは念のため */
+      const campFirst = !!(BATTLE.camp && BATTLE.camp.step >= prefStep(BATTLE.camp.pref.id));
+      const noStone = BATTLE.camp ? !campFirst : BATTLE.ev ? !evFirst : false;
       /* 経験は払った兵糧のぶんだけ（2026-10-01）。
          章が進むほど兵糧は重いので、重い戦ほど伸びる */
       const paid = BATTLE.camp ? marchFood(BATTLE.camp.pref, BATTLE.camp.step)
@@ -8425,8 +8472,8 @@ function drawBattle() {
                     : BATTLE.tw ? null
                     : BATTLE.away ? sparReward(won0)
                     : BATTLE.spar ? sparReward(won0)
-                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid)
-                    : giveReward(won0, rewardMulOf(S.picked), paid);
+                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone)
+                    : giveReward(won0, rewardMulOf(S.picked), paid, noStone);
       /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
          戦いぶりのしばりをここで確かめ、そろって初めて一階のぼる。
          ふつうの褒美（小判など）は付けない。石だけを配る決まりにした */
@@ -9592,7 +9639,9 @@ function evSkip(id, rank) {
   // 盤面は出さないが、褒美の配りかたは同じ道を通す
   // お祭りの勝ちの褒美は初めて取ったときだけ（2026-09-29）。盤面を見る戦と同じ決まりにそろえた
   const evFirst2 = !evDone(id, rank);
-  BATTLE = { ev: { id, rank }, camp: null, reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank]), march: null, skipped: true };
+  BATTLE = { ev: { id, rank }, camp: null,
+             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirst2),
+             march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）
   miAfterWin(won);                           // お役目の数（2026-10-02）

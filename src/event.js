@@ -5,7 +5,7 @@
    ・兵糧は級で決まる。10 / 30 / 50 / 100
    報酬はこのファイルだけで決まるので、調整はここを触ればよい。 */
 
-import { P, savePlayer, ITEMS, addItem, badgeMat, freeMat, ATTRS, today } from './player.js';
+import { P, savePlayer, ITEMS, addItem, badgeMat, freeMat, ATTRS, today, dayNow } from './player.js';
 
 export const EV_RANKS = ['初級', '中級', '上級', '超級'];
 export const EV_FOOD  = [10, 30, 50, 100];
@@ -28,7 +28,7 @@ export const EV_SKILL = [1, 1, 2, 3];
    下の「全部」の枝は使われない（曜日の仕組みを変えたときの受け皿として残す）。
    ATTRS は ['猛将','智将','守将','仁将','神速'] */
 export const AWAKE_DAY = [null, 0, 1, 2, 3, 4, null];   // 日,月,火,水,木,金,土
-export const weekday = () => new Date().getDay();
+export const weekday = () => dayNow().getDay();        // 4時の変わり目で数える（2026-10-07）
 export function awakeAttrsToday() {
   const i = AWAKE_DAY[weekday()];
   return i == null ? ATTRS.slice() : [ATTRS[i]];
@@ -139,7 +139,7 @@ export function evState() {
 }
 /* 週の区切りは月曜はじまり。ISO 風に「年-W週」で持つ */
 export function weekKey() {
-  const n = new Date();
+  const n = dayNow();                                   // 4時の変わり目で数える（2026-10-07）
   const d = new Date(n.getFullYear(), n.getMonth(), n.getDate());
   const wd = (d.getDay() + 6) % 7;              // 月=0
   d.setDate(d.getDate() - wd);                   // その週の月曜

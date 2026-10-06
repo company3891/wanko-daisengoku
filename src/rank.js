@@ -1,5 +1,5 @@
 // わんこ大戦国 番付（2026-09-25）
-import { P } from './player.js';
+import { P, dayNow } from './player.js';
 // プレイヤー同士の腕くらべ。いまはサーバーが無いので、表の空きは NPC で埋める。
 // サーバーができたら rkRoom() が返す顔ぶれを本物に差し替えるだけでよい。
 // ここには画面の都合と戦闘そのものは持ち込まない（数と決めごとだけ）。
@@ -143,10 +143,11 @@ export function rkNpcPt(npc, dayOfMonth, tier) {
 }
 
 /* ---- 日と月 ---- */
-export const rkMonth = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-export const rkDayOfMonth = (d = new Date()) => d.getDate();
+/* 月の変わり目も 4時（2026-10-07）。dayNow() は4時間ぶん戻した時計 */
+export const rkMonth = (d = dayNow()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+export const rkDayOfMonth = (d = dayNow()) => d.getDate();
 /* その月が何日あるか。月末の集計に使う */
-export const rkDaysInMonth = (d = new Date()) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+export const rkDaysInMonth = (d = dayNow()) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
 
 /* 昇格・降格。順位（1から数える）と段から、次の段を返す */
 export function rkNextTier(tier, rank) {

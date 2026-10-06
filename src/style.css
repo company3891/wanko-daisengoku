@@ -3843,6 +3843,10 @@ button.go.big.out.pic:not(:disabled){animation:marchbeat 2.2s ease-in-out infini
 button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none}
 @keyframes marchbeat{0%,100%{transform:none}50%{transform:scale(1.015)}}
 .marchsub{margin:7px 0 0;font-size:11px;color:var(--text3);letter-spacing:.06em}
+/* 早送りの釦（2026-10-07）。制覇した国にだけ出る。
+   出陣より先に目に入らないよう、下に小さく薄く置く */
+.mchskip{margin-top:10px;font-size:12px;letter-spacing:.06em;opacity:.82}
+.mchskip:disabled{opacity:.35}
 
 /* ---- 稽古の書を絵で並べる（2026-09-26）----
    覚醒の品と同じ姿にそろえた。持っている数は絵の右下に小さく載せる。

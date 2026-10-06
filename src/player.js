@@ -634,8 +634,18 @@ export function inherit(target, slot, g, mats, charm) {
 /* 武士の魂は道具ではなく、その場で魂そのものが増える */
 export const SOUL_PACK = { n: 100, price: 2500 };
 
+/* ---- 日の変わり目（2026-10-07・悠さんの指図）----
+   夜中の0時ではなく **翌朝4時** で入れ替える。
+   夜ふかしの一戦が「日が変わったから」で途切れないようにするため。
+   仕掛けは単純で、4時間ぶん戻した時計で日付を数えるだけ。
+   日課も週課も月の番付も、祭も、ぜんぶこの dayNow() を通す。
+   （端末の時計を見ているので、時計をいじれば戻せてしまう。
+     サーバーの刻を見るようにするのは、蔵ができてからの宿題） */
+export const DAY_RESET_H = 4;
+export const dayNow = (t = Date.now()) => new Date(t - DAY_RESET_H * 3600 * 1000);
+
 export const today = () => {
-  const d = new Date();
+  const d = dayNow();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 function seedOf(str) {
@@ -1075,11 +1085,15 @@ export function rewardMulOf(chars) {
   }
   return mul;
 }
-export function giveReward(won, mul = 1, food = 0) {
+/* noStone … 石だけ配らない（2026-10-07・悠さんの指図）。
+   一度取った国や級をもう一度攻めても石は湧かない。
+   小判・魂・経験・稽古の書は、いつ戦っても付く。
+   石は くじを引く元手なので、早送りで回し続けられると値打ちが消える */
+export function giveReward(won, mul = 1, food = 0, noStone = false) {
   P.battles++;
   if (!won) { savePlayer(); return { lost: true }; }
   const r = {
-    stone: Math.round(REWARD.winStone * mul),
+    stone: noStone ? 0 : Math.round(REWARD.winStone * mul),
     koban: Math.round(REWARD.winKoban * mul),
     soul: Math.round(REWARD.winSoul * mul),
     exp: expForFood(food),
@@ -1121,7 +1135,7 @@ export function sparReward(won) {
 
 /* 何週目か。日をまたいだかどうかを見るのと同じ理屈で、週も文字列で比べる */
 export function thisWeek() {
-  const d = new Date();
+  const d = dayNow();                                   // 4時の変わり目をまたいで数える（2026-10-07）
   const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   t.setDate(t.getDate() - ((t.getDay() + 6) % 7));       // その週の月曜へ寄せる
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;

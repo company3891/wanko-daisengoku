@@ -3013,10 +3013,10 @@ main.hasnav{padding-bottom:124px}
   white-space:nowrap;line-height:1}
 .fcard.on .ftg{color:#fff}
 /* この陣形で上がるもの（2026-10-06・悠さんの指図）。
-   一段目＝前・中・後が何枠か。二段目＝いまの部隊で得意・苦手が何騎か。
-   札は三つ並ぶので字は小さく、印は色で見分ける（属性の色とはぶつけない） */
-.fcard .fbd{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
-.fcard .bd{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:0;
+   札に出すのは「いまの部隊で得意・苦手が何騎か」だけ。
+   前・中・後の枠数の帯は、数だけでは伝わらないので同日に外した。
+   前・中・後の印は下の説明文一行にだけ残る（印は色で見分ける。属性の色とはぶつけない） */
+.fleg .bd{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:0;
   padding:1px 5px;border-radius:4px;line-height:1.5;white-space:nowrap}
 .bd.b1{background:#5aa9e626;color:#8fd0ff;border:1px solid #5aa9e644}  /* 前列＝盾 */
 .bd.b2{background:#e0654f26;color:#f0a090;border:1px solid #e0654f44}  /* 中列＝主力 */

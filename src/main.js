@@ -7355,13 +7355,9 @@ const formNote = f => (RULES.formations?.[f]?.note) || '';
       得意な陣形で出ると その武将だけ全部の数値が上がり、苦手だと下がる。
       **いま組んでいる部隊で何騎あたるか**を出す。部隊を替えれば変わる。
 
-   どちらも割合は出さない。何が上がるかだけ見せて、どれほどかは出陣して確かめてもらう */
-function formBands(f) {
-  const cells = RULES.formations?.[f]?.cells || [];
-  const n = { 前: 0, 中: 0, 後: 0 };
-  for (const [, fy] of cells) n[fy === 0 ? '前' : fy >= 2 ? '後' : '中']++;
-  return n;
-}
+   ①の枠数（前2・中2・後1 など）は 2026-10-06 に札から外した。
+   数の帯だけでは何のことか伝わらず、並びは絵の形で見えているため。
+   列の意味は下の説明文一行だけに置く。②の割合はそこで出す（悠さんの指図） */
 /* いまの部隊で、その陣形が得意な武将・苦手な武将（2026-10-06）。
    数だけでなく **誰か** も返す。選んでいる陣形については名前まで出す */
 function formFit(f) {
@@ -7415,20 +7411,16 @@ function screenForm() {
       el('h2', {}, '陣形'),
       /* 形の下に「この陣形で上がるもの」を出す（2026-10-06・悠さんの指図）。
          はじめは動きの説明を出したが、知りたいのは上がるほうだった。
-           一段目 … 前・中・後が何枠か（列ごとの効き目がそのまま持ち味になる）
-           二段目 … いまの部隊で その陣形が得意な武将・苦手な武将の数
-         割合は出さない。どれほどかは出陣して確かめてもらう */
+         2026-10-06：札に「前2 中2 後1」と出していたが、
+         数の帯だけでは何のことか伝わらないと分かったので外した。
+         並びは絵の形で見えているので、意味は下の説明文一行で足りる */
       el('div', { class: 'grid formgrid', style: 'grid-template-columns:repeat(auto-fill,minmax(104px,1fr))' },
         FORMS.map(f => {
-          const b = formBands(f), fit = formFit(f);
+          const fit = formFit(f);
           return el('button', {
             class: 'fcard fpick' + (S.form === f ? ' on' : ''),
             onclick: () => { S.form = f; S.slots = []; SFX.pick(); draw(); },
           }, formPreview(f), el('span', { class: 'ftg' }, formTag(f)),
-            el('span', { class: 'fbd' },
-              b.前 ? el('em', { class: 'bd b1' }, `前${b.前}`) : null,
-              b.中 ? el('em', { class: 'bd b2' }, `中${b.中}`) : null,
-              b.後 ? el('em', { class: 'bd b3' }, `後${b.後}`) : null),
             (fit.good.length || fit.bad.length) ? el('span', { class: 'ffit' },
               fit.good.length ? el('i', { class: 'fg' }, `得意 ${fit.good.length}`) : null,
               fit.bad.length ? el('i', { class: 'fb' }, `苦手 ${fit.bad.length}`) : null) : null);

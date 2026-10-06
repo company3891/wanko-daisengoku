@@ -5569,7 +5569,11 @@ button.mkpv:active{transform:translateY(1px)}
   font-family:inherit;font-size:11.5px;font-weight:800;letter-spacing:.04em}
 .frbtn.go{background:linear-gradient(180deg,#e8c05a,#c79a34);color:#2a1d07}
 .frbtn.ghost{background:#12100e0d;border:1px solid #d8a94a55;color:#6b5a33}
-.frbtn.sm{padding:6px 8px;font-size:11px}
+.frbtn.sm{padding:6px 9px;font-size:11px}
+/* 「果たし合い」は長いので ひと回り小さく（2026-10-06）。
+   「受けて立つ」は押してほしい釦なので、こちらは大きいまま */
+.frbtn.go.sm{padding:6px 10px;font-size:11px;letter-spacing:0}
+.frbtn.go.take{background:linear-gradient(180deg,#8fd0ff,#4b92d6);color:#07243d}
 .frbtn:disabled{opacity:.45;cursor:default}
 .frwait{font-size:11px;color:#8f8368;letter-spacing:.06em}
 /* 位と主番号は一行に収める（2026-10-06）。釦が二つ並ぶと折れていた */
@@ -27804,7 +27808,7 @@ const HOME_MENU = [
     go: () => { S.fr = true; S.frId = null; S.frMsg = ''; S.frTab = 'my'; S.frQ = ''; palTick(true); },
     /* 赤丸は 返礼＋友の願い＋果たし合いの誘い（2026-10-06）。
        誘いは押し掛ける仕掛けが無いので、ここで気づけるようにしておく */
-    badge: () => frBack() + PAL.asks.length + PAL.invites.length },
+    badge: () => frBack() + PAL.asks.length + palInvites().length },
   /* 店は育成の中からホームへ移した（2026-09-26）。
      買い物は育てることとは別の用事なので、城の画面から直に入れるほうが早い。
      絵は ui/home_shop.png（無ければ menu_店.png、それも無ければ「店」の一字） */
@@ -29139,7 +29143,13 @@ function palRow(c, kind) {
   }
   if (kind === 'sent') acts.push(el('span', { class: 'frwait' }, '返事待ち'));
   if (kind === 'pal') {
-    acts.push(btn('go', '果たし合い', () => palInvite(c)));
+    /* その人から もう誘いが来ていたら「受けて立つ」に変える（2026-10-06）。
+       二人とも「果たし合い」を押すと、座が二つ立って永遠に出会えなかった（悠さんの実測）。
+       来ている誘いがあるなら、新しく立てずに**その座へ入る**のが正しい */
+    const iv = palInviteFrom(c.id);
+    acts.push(iv
+      ? btn('go take', '受けて立つ', () => palTakeInvite(iv))
+      : btn('go sm', '果たし合い', () => palInvite(c)));
     acts.push(btn('ghost sm', '外す', () => palDo(() => palBye({ id: c.id }), () => {
       S.frMsg = `${c.name} を外した`; SFX.pick(); })));
   }
@@ -29151,9 +29161,26 @@ function palRow(c, kind) {
     el('span', { class: 'frr' }, ...acts));
 }
 
+/* 受けた誘いの印（2026-10-06）。
+   サーバーの誘いは10分 残るので、受けたあとも「誘っている」と出つづけてしまう。
+   受けた印を手元に持って、その行を畳む */
+const PAL_TOOK = new Set();
+const palTakeInvite = (iv) => {
+  if (iv && iv.id) PAL_TOOK.add(iv.id);
+  S.fr = false; S.frId = null; S.screen = 'home';
+  dlEnter(iv.code, 0); SFX.win();
+};
+const palInvites = () => PAL.invites.filter(x => !PAL_TOOK.has(x.id));
+/* その人から届いている誘い。あれば新しく座は立てない */
+const palInviteFrom = (id) => palInvites().find(x => x.from && x.from === id) || null;
+
 /* 果たし合いに誘う。先に座を立て、その合言葉を相手の机に置く */
 function palInvite(c) {
   if (S.frBusy) return;
+  /* 押す直前に相手の誘いが届いていたら、そちらへ入る（2026-10-06）。
+     画面を描き直す間に行き違うことがあるので、ここでももう一度見る */
+  const iv0 = palInviteFrom(c.id);
+  if (iv0) { palTakeInvite(iv0); return; }
   S.frBusy = true; S.frMsg = `${c.name} を誘っています…`; draw();
   (async () => {
     try {
@@ -29213,17 +29240,16 @@ function frSheet() {
 
       my ? el('div', {},
         /* 届いている果たし合いの誘い。合言葉は置き手紙で届く */
-        PAL.invites.length ? el('div', {},
+        palInvites().length ? el('div', {},
           el('b', { class: 'frhd' }, '果たし合いの誘い'),
-          el('div', { class: 'frlist' }, PAL.invites.map(iv =>
+          el('div', { class: 'frlist' }, palInvites().map(iv =>
             el('div', { class: 'frrow real inv' },
               el('span', { class: 'frn' },
                 el('b', {}, `${iv.name} が誘っている`),
                 el('i', {}, `合言葉 ${iv.code}`)),
               el('span', { class: 'frr' },
-                el('button', { class: 'frbtn go', ...(S.frBusy ? { disabled: true } : {}),
-                  onclick: () => { S.fr = false; S.frId = null; S.screen = 'home';
-                                   dlEnter(iv.code, 0); SFX.win(); } }, '受けて立つ')))))) : null,
+                el('button', { class: 'frbtn go take', ...(S.frBusy ? { disabled: true } : {}),
+                  onclick: () => palTakeInvite(iv) }, '受けて立つ')))))) : null,
         /* 届いている願い */
         askN ? el('div', {},
           el('b', { class: 'frhd' }, `友の願いが ${num(askN)} 件`),

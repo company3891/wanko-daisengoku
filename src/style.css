@@ -5362,11 +5362,16 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
   background:var(--red,#e0654f);color:#fff;box-shadow:0 1px 3px #0008}
 /* フリーワードの一行 */
 .mkq{position:relative;margin:7px 0 2px}
-.mkqin{width:100%;box-sizing:border-box;padding:9px 32px 9px 12px;border-radius:10px;
-  font-family:inherit;font-size:12.5px;color:var(--text);
+/* ★字は 16px から下げない（2026-10-06・悠さんの実測）★
+   iPhone は 16px 未満の入れ物に触れると、画面を勝手に拡大する決まり。
+   12.5px だったので、さがす一行に触れた瞬間に画面がずれて見えていた。
+   見た目を小さくしたいときは font-size ではなく padding で詰めること */
+.mkqin{width:100%;box-sizing:border-box;padding:8px 32px 8px 12px;border-radius:10px;
+  font-family:inherit;font-size:16px;color:var(--text);
   background:#ffffff0d;border:1px solid var(--line)}
 .mkqin::placeholder{color:var(--text3)}
 .mkqin:focus{outline:none;border-color:var(--gold)}
+.mkqx.off{display:none}
 .mkqx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:22px;height:22px;
   padding:0;border-radius:50%;border:0;background:#ffffff1a;color:var(--text2);
   font-size:13px;line-height:1;cursor:pointer}
@@ -5583,3 +5588,26 @@ button.mkpv:active{transform:translateY(1px)}
 .frawy{font-style:normal;font-weight:700;font-size:10px;color:#6f675a;
   background:rgba(255,255,255,.07);border:1px solid rgba(216,169,74,.28);
   border-radius:3px;padding:0 4px;margin-left:6px;letter-spacing:.08em;flex:0 0 auto}
+
+/* ================= 友の行を左へなぞって削除（2026-10-06・悠さんの指図）=================
+   釦が四つ並ぶと名が潰れるうえ、いちばん押してほしくない「外す」が
+   いちばん押しやすい所にあった。ふだんは隠し、なぞったときだけ出す。
+   言い方も「外す」ではなく「削除」にそろえた。
+
+   行そのものは枠と背景だけ持ち、中身は .frslide が持って横へ滑る。
+   削除は行の外（右）に置いてあり、滑ったぶんだけ姿を見せる */
+.frrow.swipe{position:relative;overflow:hidden;padding:0}
+.frrow.swipe .frslide{display:flex;align-items:center;gap:7px;width:100%;
+  padding:8px;box-sizing:border-box;background:inherit;
+  transition:transform .18s ease;will-change:transform}
+.frrow.swipe.open .frslide{transform:translateX(-84px)}
+.frdel{position:absolute;right:0;top:0;bottom:0;width:80px;border:0;padding:0;
+  background:linear-gradient(180deg,#e0654f,#b84433);color:#fff;
+  font-family:inherit;font-size:13px;font-weight:800;letter-spacing:.08em;
+  cursor:pointer;opacity:0;transition:opacity .18s ease;
+  /* 隠れているあいだは触れない（2026-10-06）。
+     透かしただけだと指は通る。実測で、行の右の端を押すと
+     「見舞」のつもりが友を削除していた（確かめの最中に踏んだ） */
+  pointer-events:none}
+.frrow.swipe.open .frdel{opacity:1;pointer-events:auto}
+.frdel:active{filter:brightness(.92)}

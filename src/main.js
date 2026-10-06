@@ -3110,7 +3110,8 @@ function palTick(force) {
       PAL_AT = Date.now();
     } catch (_) { /* 繋がらない。国の主だけで続ける */ }
     PAL_BUSY = false;
-    if (S.fr || S.screen === 'home') draw();
+    // 打っている最中は並びだけ入れ替える（2026-10-06）
+    if (S.fr || S.screen === 'home') redraw();
   })();
 }
 
@@ -3196,23 +3197,62 @@ function palRow(c, kind) {
         SFX.pick();
       });
     }));
-    acts.push(btn('ghost sm', '外す', () => {
-      if (c.npc) {
-        P.palNpc = (P.palNpc || []).filter(x => x !== c.id);
-        savePlayer(); S.frMsg = `${c.name} を外した`; SFX.pick(); draw(); return;
-      }
-      palDo(() => palBye({ id: c.id }), () => { S.frMsg = `${c.name} を外した`; SFX.pick(); });
-    }));
+    /* 「外す」の釦はここに置かない（2026-10-06・悠さんの指図）。
+       釦が四つ並ぶと名が潰れるうえ、いちばん押してほしくないものが
+       いちばん押しやすい所にあった。
+       左へなぞったときだけ「削除」が出る形に変えた（下の frDelEl） */
   }
-  return el('div', { class: 'frrow real' },
-    frFace(c.face),
-    el('span', { class: 'frn' },
-      /* 留守の印は 名の右（2026-10-06）。
-         位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */
-      el('b', {}, el('span', { class: 'frnm' }, c.name),
-        kind === 'pal' && c.away ? el('em', { class: 'frawy' }, '留守') : null),
-      el('i', {}, `位 ${num(c.lv || 1)}　${c.tag || ''}`)),
-    el('span', { class: 'frr' }, ...acts));
+  const row = el('div', { class: 'frrow real' + (kind === 'pal' ? ' swipe' : '') },
+    el('div', { class: 'frslide' },
+      frFace(c.face),
+      el('span', { class: 'frn' },
+        /* 留守の印は 名の右（2026-10-06）。
+           位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */
+        el('b', {}, el('span', { class: 'frnm' }, c.name),
+          kind === 'pal' && c.away ? el('em', { class: 'frawy' }, '留守') : null),
+        el('i', {}, `位 ${num(c.lv || 1)}　${c.tag || ''}`)),
+      el('span', { class: 'frr' }, ...acts)),
+    kind === 'pal' ? frDelEl() : null);
+  if (kind === 'pal') frSwipe(row, c);
+  return row;
+}
+
+/* 左へなぞると出てくる「削除」（2026-10-06・悠さんの指図）。
+   ふだんは行の外（右側）に隠れていて、なぞったぶんだけ姿を見せる。
+   言い方も「外す」ではなく「削除」にそろえた */
+function frDelEl() {
+  return el('button', { class: 'frdel' }, '削除');
+}
+/* 行をなぞる手当て。開くのは一つだけ（別の行をなぞると前のは閉じる） */
+function frCloseRows(except) {
+  for (const n of document.querySelectorAll('.frrow.swipe.open')) if (n !== except) n.classList.remove('open');
+}
+function frSwipe(row, c) {
+  let x0 = 0, y0 = 0, moved = false;
+  const open = () => { frCloseRows(row); row.classList.add('open'); };
+  const shut = () => row.classList.remove('open');
+  const start = (x, y) => { x0 = x; y0 = y; moved = false; };
+  const move = (x, y) => {
+    const dx = x - x0, dy = y - y0;
+    if (Math.abs(dy) > Math.abs(dx)) return;        // 縦に巻いているときは何もしない
+    if (dx < -26) { open(); moved = true; }
+    else if (dx > 26) { shut(); moved = true; }
+  };
+  row.addEventListener('touchstart', e => start(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+  row.addEventListener('touchmove', e => move(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+  /* 指のない端末（確かめ用）でも動くように、押しながらの動きも見る */
+  row.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') start(e.clientX, e.clientY); });
+  row.addEventListener('pointermove', e => { if (e.pointerType !== 'touch' && e.buttons) move(e.clientX, e.clientY); });
+  /* 削除を押したとき。国の主は手元から、本物はサーバーから外す */
+  const del = row.querySelector('.frdel');
+  if (del) del.addEventListener('click', e => {
+    e.stopPropagation();
+    if (c.npc) {
+      P.palNpc = (P.palNpc || []).filter(x => x !== c.id);
+      savePlayer(); S.frMsg = `${c.name} を削除した`; SFX.pick(); draw(); return;
+    }
+    palDo(() => palBye({ id: c.id }), () => { S.frMsg = `${c.name} を削除した`; SFX.pick(); });
+  });
 }
 
 /* 受けた誘いの印（2026-10-06）。
@@ -3294,6 +3334,23 @@ function awayGo(c) {
   })();
 }
 
+/* 「友を探す」に並ぶぶんだけを組む（2026-10-06）。
+   さがす一行から、ここだけを入れ替える。入れ物ごと作り直さないので、
+   かな漢字の変換が途中で消えない */
+function frFindEl() {
+  const npcIds = npcPalIds();
+  const askIds = new Set(npcAsks());
+  const npcFind = PREFS.filter(x => !npcIds.has(x.id) && !askIds.has(x.id)
+                                 && x.id !== (P.camp.start || 'aichi')).map(npcCard);
+  const q = (S.frQ || '').trim();
+  const QU = q.toUpperCase();
+  const hit = (c) => !q || String(c.name).includes(q) || (c.tag || '').includes(QU);
+  /* 本物のプレイヤーを先に出す（2026-10-06）。探すときも人が先 */
+  const find = [...PAL_FIND, ...npcFind].filter(hit).slice(0, 60);
+  return find.length ? find.map(c => palRow(c, 'find'))
+                     : [el('p', { class: 'frnote' }, 'その字で見つかる主はおらぬわん')];
+}
+
 function frSheet() {
   const close = () => { S.fr = false; S.frMsg = ''; draw(); };
   palTick();
@@ -3301,21 +3358,20 @@ function frSheet() {
   npcBackTick();
   const my = S.frTab !== 'find';
   const t = frTotal();
-  const npcIds = npcPalIds();
   const askIds = new Set(npcAsks());
   /* 国の主も本物と同じ形にそろえる（2026-10-06） */
   const npcMine = npcPals().map(npcCard);
   const npcSent = PREFS.filter(x => askIds.has(x.id)).map(npcCard);
-  const npcFind = PREFS.filter(x => !npcIds.has(x.id) && !askIds.has(x.id)
-                                 && x.id !== (P.camp.start || 'aichi')).map(npcCard);
-  const q = (S.frQ || '').trim();
-  const QU = q.toUpperCase();
-  const hit = (c) => !q || String(c.name).includes(q) || (c.tag || '').includes(QU);
+  /* 「友を探す」の並びは frFindEl が組む（2026-10-06）。ここでは作らない */
   const asks = PAL.asks;
   const askN = asks.length;
-  const mine = [...PAL.pals, ...npcMine];
+  /* マイフレンドの並び（2026-10-06・悠さんの指図）。
+     本物のプレイヤーが先、そのあと国の主。
+     本物どうしは「最後にゲームを開いた刻」の新しい順 ── いま遊んでいる人が上に来る。
+     果たし合いを申し込むなら、さっきまで居た人のほうが受けてもらえる */
+  const mine = [...[...PAL.pals].sort((x, y) => (y.seen || 0) - (x.seen || 0)), ...npcMine];
   const sent = [...PAL.sent, ...npcSent];
-  const find = [...PAL_FIND, ...npcFind];
+  if (!my) softSet('frbody', frFindEl);   // さがす一行から入れ替える場所（2026-10-06）
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 frbox' },
       el('b', { class: 'mittl frttl' }, '友'),
@@ -3326,20 +3382,17 @@ function frSheet() {
         el('button', { class: 'frtab' + (my ? '' : ' on'),
           onclick: () => { S.frTab = 'find'; S.frQ = ''; S.frMsg = ''; SFX.pick(); palTick(true); draw(); } },
           '友を探す')),
-      /* 自分の主番号。人に見せてよい番号はこれ。引き継ぎIDは出さない */
-      P.palTag ? el('p', { class: 'frtag' },
+      /* 自分の主番号とさがす一行は「友を探す」の側だけに置く（2026-10-06・悠さんの指図）。
+         マイフレンドは自分の友を見る場で、番号を見せる相手も探す相手も居ない。
+         札の上が空くぶん、友の顔が先に目に入る */
+      !my && P.palTag ? el('p', { class: 'frtag' },
         'わたしの主番号　', el('b', {}, P.palTag),
         el('span', {}, 'この番号を伝えると探してもらえる')) : null,
       S.frMsg ? el('p', { class: 'frmsg' }, S.frMsg) : null,
-      el('div', { class: 'mkq frq' },
-        el('input', {
-          id: 'frqin', class: 'mkqin', type: 'search', placeholder: '主番号・名でさがす',
-          value: S.frQ || '',
-          oninput: e => { S.frQ = e.target.value; clearTimeout(FRQ_T);
-                          FRQ_T = setTimeout(() => { if (!my) palTick(true); draw(); }, 260); },
-        }),
-        S.frQ ? el('button', { class: 'mkqx', title: 'けす',
-          onclick: () => { S.frQ = ''; if (!my) palTick(true); SFX.pick(); draw(); } }, '×') : null),
+      !my ? searchRow('frqin', S.frQ, (v) => {
+        S.frQ = v; clearTimeout(FRQ_T);
+        FRQ_T = setTimeout(() => { palTick(true); redraw(); }, 260);
+      }, '主番号・名でさがす', 'frq') : null,
 
       my ? el('div', {},
         /* 届いている果たし合いの誘い */
@@ -3362,13 +3415,13 @@ function frSheet() {
         el('b', { class: 'frhd' }, `マイフレンド　${num(mine.length)} / ${num(PAL_MAX_UI)}`),
         el('p', { class: 'frnote' }, `通算 ${t.win} 勝 ${t.lose} 敗`),
         mine.length
-          ? el('div', { class: 'frlist' }, mine.filter(hit).map(c => palRow(c, 'pal')))
+          ? el('div', { class: 'frlist' }, mine.map(c => palRow(c, 'pal')))
           : el('p', { class: 'frnote' }, 'まだ友はおらぬわん。「友を探す」から願いを出すわん'))
 
         : el('div', {},
           el('b', { class: 'frhd' }, '友を探す'),
           el('p', { class: 'frnote' }, 'まだ結んでいない主たち。主番号か名でも探せる'),
-          el('div', { class: 'frlist' }, find.filter(hit).slice(0, 60).map(c => palRow(c, 'find')))),
+          el('div', { class: 'frlist', id: 'frbody' }, ...frFindEl())),
       closeX(close)));
 }
 let FRQ_T = null;
@@ -9053,21 +9106,26 @@ function mkRows() {
         SFX.pick(); draw();
       },
     }, x.name, so.k === x.k ? el('i', { class: 'sar' }, up ? '▲' : '▼') : null))),
-    /* 名でも技でも探せる一行（2026-10-01）。
-       札の数が増えるので、目当てがあるときは字で手繰れるほうが早い */
-    el('div', { class: 'mkq' },
-      el('input', {
-        id: 'mkqin',   // 描き直しのあと、ここへ指を戻すための名札（2026-10-05）
-        class: 'mkqin', type: 'search', placeholder: '武将名・特技名でさがす',
-        value: S.mkQ || '',
-        oninput: e => { S.mkQ = e.target.value; clearTimeout(MKQ_T);
-                        MKQ_T = setTimeout(draw, 220); },
-      }),
-      S.mkQ ? el('button', { class: 'mkqx', title: 'けす',
-        onclick: () => { S.mkQ = ''; SFX.pick(); draw(); } }, '×') : null),
+    /* 名でも技でも探せる一行（2026-10-01／2026-10-06 に作り直し）。
+       打っている最中は画面を作り直さず、並んでいる札だけを入れ替える（#mkbody）。
+       作り直すと変換の途中が消えて、日本語が打てなかった */
+    searchRow('mkqin', S.mkQ, (v) => {
+      S.mkQ = v; clearTimeout(MKQ_T); MKQ_T = setTimeout(redraw, 200);
+    }, '武将名・特技名でさがす'),
   ];
 }
 let MKQ_T = null;
+/* 並んでいる札だけを組む（2026-10-06）。さがす一行から、ここだけを入れ替える */
+function mkBodyEl() {
+  const list = mkFilter(mkStock(C));
+  return [
+    el('p', { class: 'mkcount' }, `${num(list.length)} 件`),
+    list.length
+      ? el('div', { class: 'mkgrid' }, list.map(({ it, c }) =>
+          mkCard(it, c, () => { S.mkMsg = ''; mkOpen(it, c); })))
+      : el('p', { class: 'note' }, 'この絞り込みに当てはまる品が無い'),
+  ];
+}
 /* 並ぶ札ひとつ。図鑑と同じ見た目に、下へ 魂の粒と値段を添える */
 function mkCard(it, c, onTap) {
   const st = it.st || {};
@@ -9224,7 +9282,8 @@ function mkTick(force) {
       if (await mkRefresh(force)) moved = true;
     } catch (_) { /* 繋がらない。端末の中だけで続ける */ }
     mkTicking = false;
-    if (moved && (S.screen === 'market' || S.screen === 'home')) draw();
+    // 打っている最中は札の並びだけ入れ替える（2026-10-06）
+    if (moved && (S.screen === 'market' || S.screen === 'home')) redraw();
   })();
 }
 
@@ -9250,7 +9309,7 @@ function screenMarket() {
   const tc = charOf(tno);
   const tart = faceUrl(tno, '笑顔') || faceUrl(tno, '通常');
   const buy = (S.mkTab || 'buy') === 'buy';
-  const list = buy ? mkFilter(mkStock(C)) : [];
+  if (buy) softSet('mkbody', mkBodyEl);     // さがす一行から入れ替える場所（2026-10-06）
   const put = buy ? [] : mkMyList();
   const nextH = Math.ceil(mkNext() / 3600000);
   /* 市の景色（2026-10-02）。bg/market.png。無ければ城の景色に落ちる。
@@ -9280,11 +9339,9 @@ function screenMarket() {
       S.mkMsg ? el('div', { class: 'shopmsg' }, S.mkMsg) : null,
       buy ? el('div', {},
         ...mkRows(),
-        el('p', { class: 'mkcount' }, `${num(list.length)} 件`),
-        list.length
-          ? el('div', { class: 'mkgrid' }, list.map(({ it, c }) =>
-              mkCard(it, c, () => { S.mkMsg = ''; mkOpen(it, c); })))
-          : el('p', { class: 'note' }, 'この絞り込みに当てはまる品が無い'))
+        /* 札の並びは入れ替えてよい入れ物にまとめる（2026-10-06）。
+           さがす一行は この外にあるので、打っている最中も作り直されない */
+        el('div', { id: 'mkbody' }, ...mkBodyEl()))
         : el('div', {},
           el('div', { class: 'mkhead' },
             el('b', {}, `出している品　${mkMyCount()} / ${MK_MAX}`),
@@ -10327,6 +10384,57 @@ let LAST_SCREEN = null;
    #app の位置だけ戻しても、何か押すたびに札の頭へ戻っていた。
    同じ画面・同じ武将のあいだだけ覚えておく（別の武将を開いたら頭から） */
 let LAST_GROW = null;
+
+/* ================= 字を打っている最中の描き直し（2026-10-06）=================
+   悠さんの実測：「さがす一行に入れると、さがせないし画面もずれる」。
+   原因は三つ重なっていた。
+
+   ① 一字ごとに draw() が走り、#app をまるごと作り直す。
+      作り直すと入れ物そのものが別の物に変わるので、
+      **かな漢字の変換の途中が丸ごと消える**。日本語がそもそも打てない。
+   ② 一行の字が 12.5px だった。iPhone は 16px 未満の入れ物に触れると
+      勝手に拡大する決まりなので、触れた瞬間に画面がずれて見える。→ style.css で16pxにした
+   ③ 変換の途中（composition）でも数えにいっていた。
+
+   直し方：**打っているあいだは画面を作り直さない。** 並んでいる中身だけ入れ替える。
+   どこを入れ替えてよいかは、画面を組むときに softSet() で預けておく。 */
+let SOFT = null;        // { id, make } … 入れ替えてよい入れ物の名札と、中身の作り方
+let IME = false;        // かな漢字の変換の途中か
+const softSet = (id, make) => { SOFT = { id, make }; };
+const typingNow = () => {
+  const a = document.activeElement;
+  return !!(a && a.classList && a.classList.contains('mkqin'));
+};
+/* 打っている最中なら中身だけ、そうでなければふつうに描き直す */
+function redraw() {
+  if (typingNow() && SOFT) {
+    const n = document.getElementById(SOFT.id);
+    if (n) {
+      n.innerHTML = '';
+      for (const x of [].concat(SOFT.make())) if (x != null) n.append(x.nodeType ? x : document.createTextNode(x));
+      return;
+    }
+  }
+  draw();
+}
+/* さがす一行をひとつ作る。名札・いまの字・字が変わったときの手当て を渡す。
+   変換の途中は数えない（確定してから一度だけ）。 */
+function searchRow(id, val, onQ, place, extra) {
+  const fire = (v) => { onQ(v); };
+  return el('div', { class: 'mkq' + (extra ? ' ' + extra : '') },
+    el('input', {
+      id, class: 'mkqin', type: 'search', placeholder: place,
+      value: val || '',
+      /* 変換の途中は触らない。終わったときに一度だけ数える（2026-10-06） */
+      oncompositionstart: () => { IME = true; },
+      oncompositionend: e => { IME = false; fire(e.target.value); },
+      oninput: e => { if (!IME) fire(e.target.value); },
+    }),
+    el('button', { class: 'mkqx' + (val ? '' : ' off'), title: 'けす',
+      onclick: () => { onQ(''); const n = document.getElementById(id); if (n) n.value = '';
+                       SFX.pick(); draw(); } }, '×'));
+}
+
 function draw() {
   IMG_USED = new Set();          // 絵の使い回しは1回の描画につき1か所まで
   saveSquads();                                   // 画面が変わるたびに保存する

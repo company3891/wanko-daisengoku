@@ -5563,3 +5563,23 @@ button.mkpv:active{transform:translateY(1px)}
 .frwait{font-size:11px;color:#8f8368;letter-spacing:.06em}
 /* 位と主番号は一行に収める（2026-10-06）。釦が二つ並ぶと折れていた */
 .frrow.real .frn i{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 留守の印（2026-10-06）。位と主番号の右に小さく添える。
+   釦が「果たし合い」から「留守の陣」に変わる理由を、ここで示している。
+   色は朱ではなく灰にした。悪いことではなく、ただ居ないだけなので */
+/* 主番号の八字が入りきるまで、行の隙間を詰める（2026-10-06）。
+   釦を小さくしても「ABCD2…」と切れていた（実測） */
+.frrow.real{gap:7px;padding:8px}
+.frrow.real .frr{gap:4px}
+.frrow.real .frbtn.sm{padding:6px 7px}
+/* 釦が大きすぎた（2026-10-06・悠さんの実測）。
+   汎用の .go が flex:1 と min-width:120px を持っていたので、
+   「果たし合い」の釦だけで行の三分の一を占め、名が「留…」に潰れていた。
+   友の行の中だけ、その二つを打ち消して字のぶんだけの幅にする */
+.frrow .frbtn{flex:0 0 auto;min-width:0}
+
+.frn b{display:flex;align-items:center;min-width:0}
+.frnm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.frawy{font-style:normal;font-weight:700;font-size:10px;color:#6f675a;
+  background:rgba(255,255,255,.07);border:1px solid rgba(216,169,74,.28);
+  border-radius:3px;padding:0 4px;margin-left:6px;letter-spacing:.08em;flex:0 0 auto}

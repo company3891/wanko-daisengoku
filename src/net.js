@@ -128,8 +128,11 @@ export const mkPay   = () => call('/v1/market/claim',  { method: 'POST' });
    ★引き継ぎID（WAN-…）は乗っ取りの鍵なので、友達さがしには出さない。
      人に見せてよい **主番号（tag）** をサーバーが別に配る。
    友は双方が頷いたときだけ結ぶ。願う → 相手が受ける → 両方の一覧に出る。 */
-export const palMe   = (name, lv, face) =>
-  call('/v1/pal/me', { method: 'POST', body: { name, lv, face } });
+/* 名乗りのついでに **置き部隊** も預ける（2026-10-06）。
+   部隊編成でいま選んでいる部隊をそのまま渡す。
+   自分が留守のあいだ、この部隊が陣を守る */
+export const palMe   = (name, lv, face, team) =>
+  call('/v1/pal/me', { method: 'POST', body: { name, lv, face, team } });
 export const palList = () => call('/v1/pal');
 export const palFind = (q) => call('/v1/pal/find?q=' + encodeURIComponent(q || ''));
 export const palAsk  = (who) => call('/v1/pal/ask', { method: 'POST', body: who });
@@ -140,3 +143,9 @@ export const palDuel = (who, code) =>
   call('/v1/pal/duel', { method: 'POST', body: { ...who, code } });
 export const palGift     = (who) => call('/v1/pal/gift', { method: 'POST', body: who });
 export const palGiftTake = () => call('/v1/pal/gift/take', { method: 'POST' });
+/* 留守の陣（2026-10-06）。友が居ないときは、預けてある置き部隊と戦う。
+   一覧には「置き部隊があるか」だけが乗ってくるので、戦う一人ぶんをここで借りる */
+export const palTeam     = (id) => call('/v1/pal/team?id=' + encodeURIComponent(id || ''));
+export const palRaid     = (id, broke) =>
+  call('/v1/pal/raid', { method: 'POST', body: { id, broke: !!broke } });
+export const palRaidTake = () => call('/v1/pal/raid/take', { method: 'POST' });

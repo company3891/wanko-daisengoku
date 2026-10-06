@@ -37,7 +37,7 @@ import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPas
 import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce, revOf, setRev,
          duelOpen, duelJoin,
          palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel,
-         palGift, palGiftTake } from './net.js';
+         palGift, palGiftTake, palTeam, palRaid, palRaidTake } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -2948,7 +2948,7 @@ function sparAskSheet() {
    相手は10秒ごとに机を見て気づく。**押し掛ける仕掛けは無い**ので、
    相手がゲームを開いていないと届かない。 */
 
-let PAL = { pals: [], asks: [], sent: [], invites: [], gifts: [] };   // サーバーから来た友の控え
+let PAL = { pals: [], asks: [], sent: [], invites: [], gifts: [], raids: [] };   // サーバーから来た友の控え
 let PAL_FIND = [];                                          // 「友を探す」の控え
 let PAL_AT = 0, PAL_BUSY = false;
 const palOn = () => linked();
@@ -2983,6 +2983,13 @@ function npcTag(id) {
   for (let i = 0; i < 8; i++) { out += NPC_ALPHA[h % 32]; h = Math.imul(h ^ (h >>> 13), 2654435761) >>> 0; }
   return out;
 }
+/* その日、その国の主が留守かどうか（2026-10-06）。
+   三人に一人ほど。国の印と日付から決め打ちなので、その日は何度開いても同じ顔ぶれが留守 */
+function npcAway(id) {
+  let h = 2166136261 >>> 0;
+  for (const ch of String(id) + today()) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return (h >>> 7) % 3 === 0 ? 1 : 0;
+}
 /* 国の主を、本物の主とそろえた形にする */
 function npcCard(p) {
   const fr = frOf(p.id);
@@ -2990,7 +2997,11 @@ function npcCard(p) {
   const lv = Math.max(1, Math.round(team.reduce((a, c) => a + ((c.stats && c.stats.lv) || 0), 0) / Math.max(1, team.length))
                        || Math.min(200, 8 + team.length * 9 + (p.battles || 1) * 7));
   return { id: p.id, npc: true, tag: npcTag(p.id), name: lordName(p), lv,
-           face: fr && fr.general, gen: fr && fr.general };
+           face: fr && fr.general, gen: fr && fr.general,
+           /* 国の主にも 在／留守 がある（2026-10-06）。
+              いつ訪ねても必ず居るのは、それだけで人でないと分かってしまう。
+              国の印と日付から決め打ちで決まるので、その日は何度見ても同じ */
+           away: npcAway(p.id), team: 1 };
 }
 const npcPals = () => {
   npcMigrate();
@@ -3030,6 +3041,21 @@ function npcBackTick() {
   return n;
 }
 
+/* 置き部隊を預けるのは **変わったときだけ**（2026-10-06）。
+   名乗りは九秒ごとに飛ぶので、毎回 五千字の包みを積むと
+   蔵の書き込みが一時間に四百回になる。無駄だし銭もかかる。
+   前に送った包みと見くらべて、同じなら送らない（サーバーは前のぶんを残す）。
+   半時ごとに一度は送り直す ── 蔵の側で何かあって落ちていても、そのうち戻る */
+let PAL_TEAM_SIG = '', PAL_TEAM_AT = 0;
+function palTeamNow() {
+  if (!S.picked || !S.picked.length) return null;
+  let t = null, sig = '';
+  try { t = dlTeam(); sig = JSON.stringify(t); } catch (_) { return null; }
+  if (sig === PAL_TEAM_SIG && Date.now() - PAL_TEAM_AT < 1800000) return null;
+  PAL_TEAM_SIG = sig; PAL_TEAM_AT = Date.now();
+  return t;
+}
+
 /* サーバーに声を掛ける。名乗り（見せる札）→ 友の一覧 → 探す一覧 の順 */
 function palTick(force) {
   if (!palOn() || PAL_BUSY) return;
@@ -3038,12 +3064,15 @@ function palTick(force) {
   (async () => {
     try {
       const q = P.squads[P.active];
-      const r0 = await palMe(P.name || '名無し', P.lv || 1, (q && q.general) ?? null);
+      /* 名乗りのついでに **置き部隊** を預ける（2026-10-06・悠さんの指図）。
+         置き部隊は「部隊編成でいま選んでいる部隊」そのまま。
+         別に組ませると、組み替えるのを忘れた弱い陣がいつまでも守ることになる */
+      const r0 = await palMe(P.name || '名無し', P.lv || 1, (q && q.general) ?? null, palTeamNow());
       if (r0 && r0.ok && r0.tag && r0.tag !== P.palTag) { P.palTag = r0.tag; savePlayer(); }
       const r1 = await palList();
       if (r1 && r1.ok) PAL = { pals: r1.pals || [], asks: r1.asks || [],
                                sent: r1.sent || [], invites: r1.invites || [],
-                               gifts: r1.gifts || [] };
+                               gifts: r1.gifts || [], raids: r1.raids || [] };
       /* 届いている陣中見舞をまとめて受け取る（2026-10-06）。
          渡した印はサーバーが立てるので、二度入ることはない */
       if (PAL.gifts && PAL.gifts.length) {
@@ -3057,6 +3086,22 @@ function palTick(force) {
           S.frMsg = `${(rg.from || []).slice(0, 2).join('・')} から陣中見舞が届いた`;
         }
         PAL.gifts = [];
+      }
+      /* 留守のあいだに襲われていたら、ここで知る（2026-10-06）。
+         置き部隊の値打ちは「留守に何があったか」が分かることにある。
+         褒美は付けない。守り切ったかどうかが分かればそれでよい */
+      if (PAL.raids && PAL.raids.length) {
+        const rr = await palRaidTake();
+        if (rr && rr.ok && rr.n) {
+          const held = (rr.items || []).filter(x => !x.broke).length;
+          const who = (rr.items || []).slice(0, 2).map(x => x.name).join('・');
+          S.frMsg = held === rr.n ? `留守に ${who} が攻めてきたが、陣は守り切った`
+                  : held ? `留守に ${who} が攻めてきた。${held} 度は守り切った`
+                         : `留守に ${who} に陣を破られた`;
+          P.awayLog = (rr.items || []).slice(0, 5).concat(P.awayLog || []).slice(0, 20);
+          savePlayer();
+        }
+        PAL.raids = [];
       }
       if (S.fr && S.frTab === 'find') {
         const r2 = await palFind(S.frQ || '');
@@ -3117,8 +3162,17 @@ function palRow(c, kind) {
        二人とも「果たし合い」を押すと、座が二つ立って永遠に出会えなかった（悠さんの実測）。
        来ている誘いがあるなら、新しく立てずに**その座へ入る**のが正しい */
     const iv = c.npc ? null : palInviteFrom(c.id);
+    /* 留守なら **置き部隊** と戦う（2026-10-06・悠さんの指図）。
+       釦はひとつのまま、三つの面を持たせた。
+         誘いが来ている → 受けて立つ
+         在            → 果たし合い（座を立てて誘い、相手が入るのを待つ）
+         留守          → 留守の陣（預けてある置き部隊と戦う。待たなくてよい）
+       国の主にも同じ三面を持たせてあるので、どちらが人かは見分けられない */
+    const away = !iv && c.away && c.team;
     acts.push(iv
       ? btn('go take', '受けて立つ', () => palTakeInvite(iv))
+      : away
+      ? btn('go sm', '留守の陣', () => awayGo(c))
       : btn('go sm', '果たし合い', () => {
           /* 国の主はその場で始まる（これまでの「稽古」をここに吞ませた・2026-10-06）。
              本物は座を立てて誘う。遊ぶ人から見ると同じ釦 */
@@ -3153,7 +3207,10 @@ function palRow(c, kind) {
   return el('div', { class: 'frrow real' },
     frFace(c.face),
     el('span', { class: 'frn' },
-      el('b', {}, c.name),
+      /* 留守の印は 名の右（2026-10-06）。
+         位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */
+      el('b', {}, el('span', { class: 'frnm' }, c.name),
+        kind === 'pal' && c.away ? el('em', { class: 'frawy' }, '留守') : null),
       el('i', {}, `位 ${num(c.lv || 1)}　${c.tag || ''}`)),
     el('span', { class: 'frr' }, ...acts));
 }
@@ -3191,6 +3248,48 @@ function palInvite(c) {
       dlEnter(r.duel, r.seed);
       S.frMsg = '';
       SFX.win(); draw();
+    } catch (_) { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); }
+  })();
+}
+
+/* ---- 留守の陣（2026-10-06・悠さんの指図）----
+   友が居ないときは、預けてある **置き部隊** と戦う。
+   置き部隊は「部隊編成でいま選んでいる部隊」そのまま。
+   相手が受けるのを待たなくてよいので、一人で遊んでいる時間が死なない。
+
+   盤・陣立て・並びは ぜんぶ相手のものを借りる。こちらの都合で変えない。
+   同じ陣には一日一度しか入れない（稽古と同じ勘定）。
+   戦ったあと、相手の机に置き手紙を残す ── 相手は次に城を開いたとき、
+   誰に攻められ、陣が守り切ったかを知る。そこが置き部隊の値打ち。 */
+function awayGo(c) {
+  if (!canSpar(c.id)) { S.frMsg = '今日はもうその陣に入った'; SFX.pick(); draw(); return; }
+  if (c.npc) {
+    /* 国の主の留守。盤はこれまでの稽古とおなじものを使う（国主戦の顔ぶれ）。
+       留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る */
+    const fr = frOf(c.id);
+    if (!fr) return;
+    S.fr = false; S.frId = null; S.frMsg = '';
+    startBattle(null, null, { id: c.id, pref: fr.pref, duel: false, away: true });
+    return;
+  }
+  if (S.frBusy) return;
+  S.frBusy = true; S.frMsg = `${c.name} の陣をうかがっています…`; draw();
+  (async () => {
+    try {
+      const r = await palTeam(c.id);
+      S.frBusy = false;
+      if (!r || !r.ok || !r.team || !(r.team.members || []).length) {
+        S.frMsg = (r && r.status === 404) ? 'まだ陣が組まれていない' : '陣をうかがえなかった';
+        draw(); return;
+      }
+      /* うかがっているあいだに戻っていたら、攻めずに引く（2026-10-06）。
+         居る相手の置き部隊を叩けるようにすると、生身の読み合いを誰もしなくなる */
+      if (!r.away) {
+        S.frMsg = `${c.name} は陣に戻っておる。果たし合いを申し込める`;
+        PAL_AT = 0; palTick(true); draw(); return;
+      }
+      S.fr = false; S.frId = null; S.frMsg = '';
+      startBattle(null, null, null, null, null, { id: c.id, name: c.name, team: r.team });
     } catch (_) { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); }
   })();
 }
@@ -5807,7 +5906,7 @@ function menuSheet() {
            稽古と番付は必ずオートなので、そのときは触らせない */
         (() => {
           const inWar = !!(BATTLE && BATTLE.res);
-          const spar = inWar && (BATTLE.spar || BATTLE.bout);
+          const spar = inWar && (BATTLE.spar || BATTLE.bout || BATTLE.away);
           const now = inWar && !spar ? manualNow() : !!P.manual;
           if (spar) return row('戦のやり方', 'オート（稽古）');
           return row('戦のやり方', now ? '手動' : 'オート', () => {
@@ -7442,7 +7541,10 @@ function preloadCutins(nos) {
      作って捨てると、カットインのときに作り直しになって間に合わない */
   for (const u of new Set(urls)) artHold(u);
 }
-function startBattle(camp, evb, spar, bout, tw) {
+/* away … 留守の陣（2026-10-06）。友が居ないとき、預けてある置き部隊と戦う。
+     { id, name, team } の team は相手の端末が作った包みをそのまま使う
+     （members は育てたあとの姿。こちらで育て直してはいけない） */
+function startBattle(camp, evb, spar, bout, tw, away) {
   /* 開いている札はここで全部閉じる（2026-09-24）。
      キャラカードを開いたまま出陣すると、盤面の上に札が残り続けていた */
   S.detail = null; S.fr = false; S.frId = null; S.frMsg = '';
@@ -7453,12 +7555,13 @@ function startBattle(camp, evb, spar, bout, tw) {
   miBump('battle');
   if (camp) miBump('camp');
   if (evb) miBump('ev');
-  if (spar) miBump('spar');
+  if (spar || away) miBump('spar');
   /* 塔に挑んだ数は twGo2 で数えている（2026-10-02）。
      ここで battle をもう一度足していたので、塔の一戦が二度に数えられていた */
   const seed = camp ? campSeed(camp.pref.id, camp.step)
              : spar ? campSeed(spar.id + ':' + today(), spar.pref.battles - 1)
              : bout ? rkSeed(bout.npc.id + ':' + today())
+             : away ? campSeed(away.id + ':' + today(), 0)
              : (Math.random() * 1e9) | 0;
   let s = seed >>> 0;
   const rng = () => { s = (s + 0x6D2B79F5) >>> 0; let x = Math.imul(s ^ (s >>> 15), 1 | s); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
@@ -7473,13 +7576,18 @@ function startBattle(camp, evb, spar, bout, tw) {
   /* 塔は階ごとに場所が決まっている（2026-10-01）。
      同じ階なら いつも同じ景色。何度でも挑めるので、条件がぶれては読みにならない */
   if (tw) S.stage = (towerOf(tw.f) || {}).stage || '草原';
+  /* 留守の陣は **相手が預けた盤** で戦う（2026-10-06）。
+     置き部隊はその盤に合わせて組んであるので、こちらの都合で盤を変えると
+     守り手がいきなり不利になる。地形も変わりようも向きも、そのまま借りる */
+  if (away) S.stage = ((away.team || {}).stage || {}).s || '草原';
   // 障害の置き方は種で決まる（2026-09-26）。同じ国の同じ段なら、いつも同じ盤面
   // お祭りだけは級の番号で固定し、同じ級はいつも同じ景色にする（2026-09-28）
   S.stageV = evb ? (evb.rank % stageVarCount(S.stage))
                  : tw ? (tw.f % stageVarCount(S.stage))
+                 : away ? (((away.team || {}).stage || {}).v || 0) % stageVarCount(S.stage)
                  : ((seed >>> 0) % stageVarCount(S.stage));
   // 人が絡む戦だけ、相手ごと・日ごとに攻守を入れ替える（2026-09-26）
-  S.stageFlip = stageFlipFor(spar, bout);
+  S.stageFlip = away ? !!(((away.team || {}).stage || {}).flip) : stageFlipFor(spar, bout);
   let rules = stageRules(S.stage, S.stageV, S.stageFlip);
   /* 塔だけの決まりを、その階のぶんだけ上から重ねる（2026-10-01）。
      籠城＝決着のターンをそこまでに縮め、守り切った側を勝ちにする。
@@ -7502,7 +7610,9 @@ function startBattle(camp, evb, spar, bout, tw) {
             : spar ? campEnemy(spar.pref, spar.pref.battles - 1, rng)
             : bout ? rkTeamOf(bout.npc)
             : evb ? evEnemy(evb.rank, rng)
-            : tw ? twEnemy(tw.f, rng) : enemyTeam(rng);
+            : tw ? twEnemy(tw.f, rng)
+            : away ? ((away.team || {}).members || [])
+            : enemyTeam(rng);
   /* 初陣だけは一対一（2026-09-30）。
      こちらは一騎しかいないのに相手が五騎では、手ざわりを覚える前に押し切られる。
      手引きの「初陣」の歩にいるあいだだけ、相手も総大将ひとりにする */
@@ -7523,7 +7633,10 @@ function startBattle(camp, evb, spar, bout, tw) {
     const raw = C.find(c => c.no === (B[0] || {}).no);
     if (raw) B = [raw];
   }
-  const bForm = FORMS[Math.floor(rng() * FORMS.length)];
+  /* 留守の陣は相手の陣立てをそのまま使う（2026-10-06）。
+     ここで引き直すと、せっかく組んだ陣が無かったことになる */
+  const bForm = away ? (((away.team || {}).formation) || FORMS[0])
+                     : FORMS[Math.floor(rng() * FORMS.length)];
   // 手動⇄オートは戦闘中に切り替えるので、編成側は常に manual 扱いで回し、
   // 実際にどちらで動くかは modes（そのターン以降この方式）で決める
   // 戦仕度で選んだ道具を、ここで使い切って開戦から効かせる（2026-09-21）
@@ -7542,10 +7655,11 @@ function startBattle(camp, evb, spar, bout, tw) {
      手で動かせるようにはしない。切り替えの札も盤面に出さない */
   /* 初陣は手で動かすところから覚えてもらう（2026-09-30）。そのあともしばらく手動のまま */
   if (first) P.manual = true;
-  BATTLE = { seed, rules, B, bForm, first, commands: [], modes: [{ turn: 0, manual: (spar || bout) ? false : !!P.manual }],
+  BATTLE = { seed, rules, B, bForm, first, commands: [], modes: [{ turn: 0, manual: (spar || bout || away) ? false : !!P.manual }],
              shown: 0, live: null, playing: true, sel: null, busy: false, camp: camp || null,
              ev: evb || null,
              spar: spar || null,
+             away: away || null,
              bout: bout || null,
              tw: tw || null,
              weather: wSet || weatherOf(seed, S.stage),
@@ -7560,10 +7674,12 @@ function startBattle(camp, evb, spar, bout, tw) {
   /* 開戦の札（2026-09-23）。どこの戦か・相手・空を一枚見せてから動きだす */
   S.vs = {
     // 題は「滋賀」と「決戦」に割る。あいだに家紋を挟むため（2026-09-24）
-    ttlL: tw ? `${tw.f}階` : camp ? camp.pref.name : spar ? spar.pref.name : S.stage,
+    ttlL: tw ? `${tw.f}階` : camp ? camp.pref.name : spar ? spar.pref.name
+        : away ? `${away.name || '友'} の陣` : S.stage,
     ttlR: tw ? ((towerOf(tw.f) || {}).name || '試練')
         : camp ? (camp.pref.battles > 1 ? STEP_NAME[Math.min(camp.step, 2)] : '決戦')
-        : spar ? (spar.duel ? '一騎打ち' : '稽古') : 'の戦',
+        : spar ? (spar.away ? '留守の陣' : spar.duel ? '一騎打ち' : '稽古')
+        : away ? '留守の陣' : 'の戦',
     house: camp ? camp.pref.house : spar ? spar.pref.house : null,
     foe: (camp ? `${camp.pref.house}　` : spar ? `${spar.pref.house}　` : '') + (B[0] ? B[0].name : ''),
     w: BATTLE.weather,
@@ -7626,6 +7742,21 @@ function resolve() {
       { log: true, commands: b.commands, weather: b.weather });
     return;
   }
+  /* 留守の陣（2026-10-06）。相手は居ないので、動かすのはこちらだけ。
+     相手の総大将と並びは、預かった置き部隊のものをそのまま立てる。
+     ここを素の決め打ち（先頭＝総大将・コスト順）に落とすと、
+     せっかく組んだ陣と違う並びで守ることになる */
+  if (b.away) {
+    const fo = b.B || [];
+    const t = b.away.team || {};
+    const gen = fo.some(m => m.no === t.generalNo) ? t.generalNo : (fo[0] || {}).no;
+    b.res = runBattle(
+      { members: S.picked.map(grownFor), generalNo: S.general, formation: S.form,
+        manual: true, modeSwitches: b.modes, slots: S.slots },
+      { members: fo, generalNo: gen, formation: b.bForm, slots: t.slots || null },
+      b.rules, b.seed, { log: true, commands: b.commands, weather: b.weather, useItems: b.useItems });
+    return;
+  }
   const grown = grownFor;
   /* 一騎打ちは、たがいの総大将ひとりずつだけで解く（2026-09-30）。
      並び順の指定（slots）は一体には要らないので外す */
@@ -7663,7 +7794,7 @@ function pendingSwitch() {
    ・手動→オート：そのターンにまだ指示を出していなければ即座、出していれば次のターンから
    ・オート→手動：必ず次のターンから（途中まで見せたターンをやり直さないため） */
 function toggleAuto() {
-  if (BATTLE && (BATTLE.spar || BATTLE.bout)) return;   // 稽古と番付は必ずオート
+  if (BATTLE && (BATTLE.spar || BATTLE.bout || BATTLE.away)) return;   // 稽古と番付は必ずオート
   const b = BATTLE;
   if (!b || !b.res) return;
   const t = curTurn(), wasManual = manualNow();
@@ -8024,7 +8155,7 @@ function drawBattle() {
 
   // 盤面の右上：いまどちらで動いているか。予約中なら「次ターンから」を添える
   const ab = $('#autoBtn');
-  if (ab && (BATTLE.spar || BATTLE.bout)) ab.style.display = 'none';   // 稽古と番付は切り替えさせない
+  if (ab && (BATTLE.spar || BATTLE.bout || BATTLE.away)) ab.style.display = 'none';   // 稽古と番付は切り替えさせない
   if (ab && !BATTLE.spar && !BATTLE.bout) {
     const man = manualNow(), pend = pendingSwitch();
     ab.className = 'autobtn' + (man ? ' man' : '');
@@ -8182,6 +8313,7 @@ function drawBattle() {
       BATTLE.reward = BATTLE.duel ? null       // 果たし合いに褒美は無い（2026-10-05）
                     : BATTLE.bout ? null
                     : BATTLE.tw ? null
+                    : BATTLE.away ? sparReward(won0)
                     : BATTLE.spar ? sparReward(won0)
                     : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid)
                     : giveReward(won0, rewardMulOf(S.picked), paid);
@@ -8204,6 +8336,18 @@ function drawBattle() {
         if (res.winner === 'A') f.win++; else f.lose++;
         f.spar = today();
         savePlayer();
+      }
+      /* 留守の陣（2026-10-06）。勝敗は稽古とおなじく友ごとに積む。
+         そのうえで、留守だった相手の机に置き手紙を残す。
+         ここが置き部隊の肝 ── 相手は次に城を開いたとき「守り切ったか」を知る。
+         勝ち負けを決めるのは端末（盤は端末にしか無い）。
+         つまり嘘の戦果も置ける。いまは友どうしなので、そこは直していない */
+      if (BATTLE.away) {
+        const f = frState(BATTLE.away.id);
+        if (res.winner === 'A') f.win++; else f.lose++;
+        f.spar = today();
+        savePlayer();
+        try { palRaid(BATTLE.away.id, won0); } catch (_) {}
       }
       // 番付の点はその場で動く（2026-09-25）。挑まれたぶんは日が変わってからまとめて
       if (BATTLE.bout) BATTLE.boutPt = rkFinish(BATTLE.bout, res.winner === 'A');
@@ -8506,6 +8650,9 @@ function resSheet() {
        天下統一の道の一戦は、終わった盤面に戻っても何もできないので、そのまま全国へ返す。
        戦場を選んで戦う一戦（camp なし）は、もう一戦できるので盤面に残す */
     const toMap = !!BATTLE.camp, toEv = !!BATTLE.ev, toFr = BATTLE.spar && BATTLE.spar.id;
+    /* 留守の陣のあとは 友の一覧へ返す（2026-10-06）。
+       本物の友には「家」が無いので、家ではなく一覧をそのまま開く */
+    const toAway = !!(BATTLE.away && BATTLE.away.id);
     const toRk = !!BATTLE.bout, rkD = BATTLE.boutPt;
     /* 塔は必ず塔へ返す（2026-10-01）。抜けたなら褒美を、届かなかったなら
        何が足りなかったかを、そのまま塔の画面に出す */
@@ -8533,8 +8680,9 @@ function resSheet() {
       S.twMsg = twW ? '' : `届かなんだ　― ${(twN || []).join('／')}`;
       SFX.pick(); draw(); return;
     }
-    if (toMap || toEv || toFr || toRk) { fxToken++; const id = BATTLE.ev && BATTLE.ev.id; BATTLE = null;
-      S.screen = (toEv ? 'event' : (toFr || toRk || toFirst) ? 'home' : 'map');
+    if (toMap || toEv || toFr || toRk || toAway) { fxToken++; const id = BATTLE.ev && BATTLE.ev.id; BATTLE = null;
+      S.screen = (toEv ? 'event' : (toFr || toRk || toFirst || toAway) ? 'home' : 'map');
+      if (toAway) { S.fr = true; S.frId = null; S.frTab = 'my'; S.frMsg = ''; }
       if (toEv) { S.evId = id; S.evMsg = ''; }
       // 稽古のあとは、その友の家へ返す（ホームの上に札が乗る）
       if (toFr) { S.fr = true; S.frId = toFr; S.frMsg = ''; }

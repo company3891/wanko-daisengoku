@@ -3918,11 +3918,12 @@ function screenPower() {
     el('div', { class: 'expbar' },
       el('i', { style: `width:${Math.min(100, st.exp / need * 100)}%` }),
       el('span', {}, st.lv >= cap ? '限界' : `次まで ${num(need - st.exp)}`)),
+    /* 育成の画面は「元の数 ＋ 魂」の形で見せる（2026-10-06・悠さんの指図）。
+       足したあとの合計は札のほうに出るので、こちらは内訳に徹する。
+       左の数は grownStats から魂を引いた、位だけで伸びたぶん */
     el('div', { class: 'sts' + (up ? ' flash' : '') }, SP_STATS.map(k =>
-      el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-        /* 「+939」だと まだ足していない分に見えて、札の数と食い違っていると思われた
-           （2026-10-06・悠さんの指摘）。左の数にはもう入っているので「うち魂」と書く */
-        el('em', { class: 'up' }, st.sp[k] ? `うち魂 ${num(st.sp[k])}` : ''))), totRow(g)),
+      el('div', {}, statLabel(k), el('b', {}, num(g[k] - (st.sp[k] || 0))),
+        el('em', { class: 'up' }, st.sp[k] ? `+${num(st.sp[k])}` : ''))), totRow(g)),
     el('div', { class: 'feedmats' }, BOOKS.map(k => {
       const have = item(k);
       const off = have < 1 || st.lv >= cap;
@@ -3980,11 +3981,10 @@ function screenPower() {
         el('div', { class: 'sts' }, SP_STATS.map(k =>
           /* ＋の欄は振っていなくても空で置く（2026-09-25）。
              無いと その行だけ数が右へずれて、縦の線がそろわなかった。
-             2026-10-06：「+939」だと まだ足していない分に見えて、
-             札の数と食い違っていると思われた（悠さんの指摘）。
-             左の数にはもう入っているので「うち魂」と書き替えた */
-          el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-            el('em', { class: 'up' }, st.sp[k] ? `うち魂 ${num(st.sp[k])}` : ''))), totRow(g)),
+             2026-10-06：左の数から魂を抜き「元の数 ＋ 魂」の形にした（悠さんの指図）。
+             足したあとの合計は札のほうに出る。総合力の行だけは合計のまま */
+          el('div', {}, statLabel(k), el('b', {}, num(g[k] - (st.sp[k] || 0))),
+            el('em', { class: 'up' }, st.sp[k] ? `+${num(st.sp[k])}` : ''))), totRow(g)),
         /* 三つの育てかたを、ステータスの下に横並びの釦でまとめた（2026-09-26）。
            一枚の画面に稽古・覚醒・魂を縦に積むと、どこからどこまでが
            どの話なのか分からなくなっていた。押すとそれぞれの札が開く。

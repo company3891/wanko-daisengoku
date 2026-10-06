@@ -1888,10 +1888,9 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
   margin-bottom:5px;border-bottom:1.5px dotted #ffffff2e}
 .growbox .sts b{order:2;font-size:17px;color:var(--gold);
   font-variant-numeric:tabular-nums;letter-spacing:.02em;flex:none}
-/* 「うち魂 939」と書くようになったので幅を取り直した（2026-10-06）。
-   3.2em のままだと折り返して行の高さがそろわなかった */
-.growbox .sts em.up{order:3;font-size:10.5px;color:#8fd08f;font-style:normal;
-  flex:none;width:5.8em;text-align:right;white-space:nowrap}
+/* 魂のぶんは「+939」。左の数は魂を抜いた元の数で、足すと札の数になる（2026-10-06） */
+.growbox .sts em.up{order:3;font-size:11px;color:#8fd08f;font-style:normal;
+  flex:none;width:3.6em;text-align:right;white-space:nowrap}
 .acts2{display:flex;flex-wrap:wrap;gap:6px}
 .go.sm{padding:8px 12px;font-size:11.5px;flex:1 1 auto;min-width:120px}
 /* 魂を振る（下書き式・2026-09-21）
@@ -3947,8 +3946,8 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
   margin-bottom:5px;border-bottom:1.5px dotted #00000026}
 .pwbox .sts b{order:2;font-size:17px;color:var(--gold);
   font-variant-numeric:tabular-nums;letter-spacing:.02em;flex:none}
-.pwbox .sts em.up{order:3;font-size:10.5px;color:#3f8f4a;font-style:normal;
-  flex:none;width:5.8em;text-align:right;white-space:nowrap}
+.pwbox .sts em.up{order:3;font-size:11px;color:#3f8f4a;font-style:normal;
+  flex:none;width:3.6em;text-align:right;white-space:nowrap}
 
 /* 稽古の書 */
 .pwbox .fdm .itic{border-color:#a8802c59;background:#00000008}
@@ -30172,11 +30171,12 @@ function screenPower() {
     el('div', { class: 'expbar' },
       el('i', { style: `width:${Math.min(100, st.exp / need * 100)}%` }),
       el('span', {}, st.lv >= cap ? '限界' : `次まで ${num(need - st.exp)}`)),
+    /* 育成の画面は「元の数 ＋ 魂」の形で見せる（2026-10-06・悠さんの指図）。
+       足したあとの合計は札のほうに出るので、こちらは内訳に徹する。
+       左の数は grownStats から魂を引いた、位だけで伸びたぶん */
     el('div', { class: 'sts' + (up ? ' flash' : '') }, SP_STATS.map(k =>
-      el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-        /* 「+939」だと まだ足していない分に見えて、札の数と食い違っていると思われた
-           （2026-10-06・悠さんの指摘）。左の数にはもう入っているので「うち魂」と書く */
-        el('em', { class: 'up' }, st.sp[k] ? `うち魂 ${num(st.sp[k])}` : ''))), totRow(g)),
+      el('div', {}, statLabel(k), el('b', {}, num(g[k] - (st.sp[k] || 0))),
+        el('em', { class: 'up' }, st.sp[k] ? `+${num(st.sp[k])}` : ''))), totRow(g)),
     el('div', { class: 'feedmats' }, BOOKS.map(k => {
       const have = item(k);
       const off = have < 1 || st.lv >= cap;
@@ -30234,11 +30234,10 @@ function screenPower() {
         el('div', { class: 'sts' }, SP_STATS.map(k =>
           /* ＋の欄は振っていなくても空で置く（2026-09-25）。
              無いと その行だけ数が右へずれて、縦の線がそろわなかった。
-             2026-10-06：「+939」だと まだ足していない分に見えて、
-             札の数と食い違っていると思われた（悠さんの指摘）。
-             左の数にはもう入っているので「うち魂」と書き替えた */
-          el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-            el('em', { class: 'up' }, st.sp[k] ? `うち魂 ${num(st.sp[k])}` : ''))), totRow(g)),
+             2026-10-06：左の数から魂を抜き「元の数 ＋ 魂」の形にした（悠さんの指図）。
+             足したあとの合計は札のほうに出る。総合力の行だけは合計のまま */
+          el('div', {}, statLabel(k), el('b', {}, num(g[k] - (st.sp[k] || 0))),
+            el('em', { class: 'up' }, st.sp[k] ? `+${num(st.sp[k])}` : ''))), totRow(g)),
         /* 三つの育てかたを、ステータスの下に横並びの釦でまとめた（2026-09-26）。
            一枚の画面に稽古・覚醒・魂を縦に積むと、どこからどこまでが
            どの話なのか分からなくなっていた。押すとそれぞれの札が開く。

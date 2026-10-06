@@ -8135,7 +8135,13 @@ const ALWAYS_TIMINGS = new Set(['常時', '条件成立中ずっと', '常時（
   '常時（味方単体へ）', '常時（味方全体へ）']);
 /* 発動を待たずに効く種類（2026-09-18）。効果文のターン条件は毎ターン判定する。
    runBattle の中にあったが、固有の発動タイミングでも使うので外へ出した（2026-10-02） */
-const PASSIVE = new Set(['dyingStrike', 'attackShape', 'attackStatus', 'empowerNext', 'shareStat', 'supportFire', 'slayer', 'execute', 'openingBurst', 'taunt', 'damageToHeal', 'stackOnAttack', 'hideForTurns',
+/* damageToHeal を ここから外した（2026-10-06）。
+   「味方全体が攻撃されたらそのダメージを回復するバフを2ターン付与する」は
+   常時の仕掛けではなく、戦闘開始時に味方へ **掛ける** 技。
+   常時の側に入れていたせいで uniqFire が落としてしまい、
+   掛ける者がどこにも居なかった（石田ミツワン 61 の三成の采配が一度も効かず・悠さんの見立て）。
+   常時の読み出し（activePassives）も damageToHeal は一度も見ていない */
+const PASSIVE = new Set(['dyingStrike', 'attackShape', 'attackStatus', 'empowerNext', 'shareStat', 'supportFire', 'slayer', 'execute', 'openingBurst', 'taunt', 'stackOnAttack', 'hideForTurns',
   'endure', 'healShape', 'mirrorHeal', 'healBlock', 'cleanse', 'untargetable', 'moveTiles',
   'durPlus', 'critTurn', 'healEveryTurn', 'focusTurn', 'matchStat', 'charm', 'rewardMul']);
 /* 戦闘開始時に一度だけ仕込む種類（2026-10-02）。下の「開戦の仕込み」で読む */
@@ -8193,15 +8199,35 @@ function skillFires(u, trig, ctx) {
   return ctx.rng.chance(clamp(r + bonus, 0, 1));
 }
 
+/* 開戦に掛けるぶんは、書いてあるターン数より一つ長く持たせる（2026-10-06・悠さんの指図）。
+   開戦は t=0 に撃つ。持続はターンの頭でいちど減るので、1ターン目の頭でもう一本削られ、
+   「2ターン」が 1ターン目にしか効いていなかった（実測：20戦すべて 1T のみ）。
+   戦の途中で掛けるぶんは書いたとおり効いているので、**開戦のときだけ** 一ターン足す。
+   これで「2ターン」が 1・2ターン目に効く。ききめ自体は何も変えていない */
+function stretchAtStart(effs, ctx) {
+  const sec = ctx.rules.time?.secPerTurn ?? 2;
+  return (effs || []).map(e => {
+    const dOk = typeof e.dur === 'number' && Number.isFinite(e.dur);
+    const tOk = typeof e.turns === 'number' && Number.isFinite(e.turns);
+    if (!dOk && !tOk) return e;
+    const o = { ...e };
+    if (dOk) o.dur = e.dur + sec;
+    if (tOk) o.turns = e.turns + 1;
+    return o;
+  });
+}
+
 // 指定したタイミングの特技を発動させる
 function fireSkills(u, timing, allies, enemies, target, ctx) {
+  const atStart = timing === '戦闘開始時';
   const list = (u.compiled.normalTriggers || []).filter(t => t.timing === timing);
   for (const t of list) {
     if (!t.effects.length) continue;
     if (hitsNobody(t.effects, u, allies, enemies, target, ctx)) continue;   // 空撃ちはしない
     if (!skillFires(u, t, ctx)) continue;
     if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'skill', src: u.id, name: t.name, timing });
-    withVia(ctx, 'skill', () => applyEffects(t.effects, u, allies, enemies, target, ctx));
+    const es = atStart ? stretchAtStart(t.effects, ctx) : t.effects;
+    withVia(ctx, 'skill', () => applyEffects(es, u, allies, enemies, target, ctx));
   }
   /* 固有も、書かれた発動タイミングで撃つ（2026-10-02）。
      前は「自分の手番に必ず・8秒おき」という固有だけの別の道があった。
@@ -8219,7 +8245,8 @@ function fireSkills(u, timing, allies, enemies, target, ctx) {
       const shown = !u._uniqShown; u._uniqShown = true;
       if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'unique', src: u.id, name: u.name,
                                   skills: u.uniqNames || [], timing, first: shown });
-      withVia(ctx, 'unique', () => applyEffects(effs, u, allies, enemies, target, ctx));
+      const es2 = atStart ? stretchAtStart(effs, ctx) : effs;
+      withVia(ctx, 'unique', () => applyEffects(es2, u, allies, enemies, target, ctx));
     }
   }
 }
@@ -8517,6 +8544,13 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         u.mods = u.mods.filter(m => m.left > 0);
         for (const k of Object.keys(u.statuses)) { u.statuses[k] -= SEC; if (u.statuses[k] <= 0) delete u.statuses[k]; }
         if (u.cover) { u.cover.left -= SEC; if (u.cover.left <= 0) u.cover = null; }
+        /* 「攻撃されたらそのダメージを回復する」も時が来れば切れる（2026-10-06）。
+           前は減らす手がどこにも無く、いちど掛かれば戦の終わりまで残る作りだった。
+           書いてあるのは2ターンなので、そのとおり切る */
+        if (Number.isFinite(u.damageToHeal) && u.damageToHeal > 0) {
+          u.damageToHeal -= SEC;
+          if (u.damageToHeal <= 0) u.damageToHeal = 0;
+        }
         u._turn = turn;
         // 「N%の確率でMターン敵に攻撃されなくなる」（2026-09-20）
         if (u._hideLeft > 0) u._hideLeft -= 1;
@@ -8714,6 +8748,10 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       u.uniqueCd = Math.max(0, u.uniqueCd - dt);
       for (const m of u.mods) m.left -= dt;
       u.mods = u.mods.filter(m => m.left > 0);
+      if (Number.isFinite(u.damageToHeal) && u.damageToHeal > 0) {   // 2026-10-06
+        u.damageToHeal -= dt;
+        if (u.damageToHeal <= 0) u.damageToHeal = 0;
+      }
       for (const k of Object.keys(u.statuses)) {
         u.statuses[k] -= dt;
         if (u.statuses[k] <= 0) delete u.statuses[k];

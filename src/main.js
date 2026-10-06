@@ -9653,6 +9653,23 @@ function evSkip(id, rank) {
   SFX.pick(); draw();
 }
 
+/* 祭りの並び順（2026-10-07・悠さんの指図）。小さいほど上。
+   土日限定は週末にしか来ないので、開いている日は一番上に立てる。
+   いつでも開いている「大判小判」「武将強化の日」が、ふだんの1番2番 */
+const EV_PIN = ['daily_koban', 'daily_book'];
+function evSort(x) {
+  if (!x.on) return 9;
+  if (x.ev.days === 'weekend') return 0;
+  if (EV_PIN.includes(x.ev.id)) return 1;
+  return 2;
+}
+/* いつ開く祭りか（2026-10-07）。灰色の帯に出す言葉 */
+function evDaysText(ev) {
+  return ev.days === 'weekend' ? '土日のみ 開催'
+       : ev.days === 'weekday' ? '月〜金 開催'
+       : '毎日 開催';
+}
+
 function screenEvent() {
   evState();                                  // 日付・週の切り替わりをここで通す
   /* 日が変わって出なくなったお祭りを開いたままにしない（2026-09-29） */
@@ -9664,12 +9681,24 @@ function screenEvent() {
       body: el('div', {},
         /* 上の語りが同じことを言っているので、ここのひとことは消した（2026-09-29） */
         S.evMsg ? el('div', { class: 'shopmsg' }, S.evMsg) : null,
-        /* その日に出るお祭りだけ並べる（2026-09-29）。
-           武将覚醒は月〜金、特技強化は土日 */
+        /* 今日やっていない祭りも灰色で並べる（2026-10-07・悠さんの指図）。
+           前はその日に出るものだけを並べていたので、
+           「ほかにどんな祭りがあるのか」が遊ぶ人に分からなかった。
+           灰色の上に「土日のみ 開催」と貼って、いつ来ればよいかを見せる。
+
+           並びは四段（evSort）：
+             ① 開いている土日限定（特技強化・武士の魂）… 週末だけの顔なので一番上へ
+             ② 大判小判・武将強化の日 … いつでも開いている二枚。ふだんはここが1番2番
+             ③ そのほかの開いている祭り（武将覚醒・武将獲得）
+             ④ 今日は出ない祭り（灰色）
+           同じ段のなかは EVENTS に書いた順のまま（並びが日によって踊らないように） */
         /* 一度きりの祭り（武将獲得）は、ぜんぶ取ったら並べない（2026-10-02）。
            級ごとに決まった武将をひとり配る祭りなので、取り切ったら渡すものが無い */
-        el('div', { class: 'evlist' }, EVENTS.filter(evShownToday).filter(ev =>
-          !(ev.once && EV_RANKS.every((_, r) => evCleared(ev.id, r)))).map(ev => {
+        el('div', { class: 'evlist' }, EVENTS.filter(ev =>
+          !(ev.once && EV_RANKS.every((_, r) => evCleared(ev.id, r))))
+          .map((ev, i) => ({ ev, i, on: evShownToday(ev) }))
+          .sort((a, b) => (evSort(a) - evSort(b)) || (a.i - b.i))
+          .map(({ ev, on }) => {
           const done = EV_RANKS.filter((_, r) => evCleared(ev.id, r)).length;
           const left = EV_RANKS.filter((_, r) => evOpen(ev.id, r) && !evDone(ev.id, r)).length;
           const art = uiUrl(ev.icon);
@@ -9684,13 +9713,20 @@ function screenEvent() {
           const again = !left && evRepeat(ev.id);
           return el('button', {
             class: 'evrow' + (bn ? ' bn' : '') + (bn && ev.id === 'awake' ? ' hasatt' : '')
+                 + (on ? '' : ' off')
                  + (left ? '' : (again ? ' again' : ' allDone')),
-            onclick: () => { S.evId = ev.id; S.evMsg = ''; SFX.pick(); draw(); },
+            disabled: on ? null : true,
+            onclick: on ? () => { S.evId = ev.id; S.evMsg = ''; SFX.pick(); draw(); } : null,
           },
+            /* 今日は出ない祭りの帯（2026-10-07）。灰色の上に貼って、いつ来ればよいかを言う。
+               親に filter を掛けると子にも効くので、灰色にするのは この帯以外だけ（CSS側） */
+            on ? null : el('span', { class: 'evoff' }, evDaysText(ev)),
             bn ? keepImg({ class: 'evbnimg', src: bn, alt: ev.name }) : null,
             /* 今日の軍配の属性は幟の上に出す（2026-09-29）。
                日ごとに替わるので、開かないと分からないのは不親切 */
-            bn && ev.id === 'awake'
+            /* 今日やっていない祭りには、今日の属性を出さない（2026-10-07）。
+               土日の武将覚醒は開いていないので、属性を出すと嘘になる */
+            bn && ev.id === 'awake' && on
               ? el('span', { class: 'evatt attr a-' + awakeAttrsToday()[0] }, awakeAttrsToday()[0])
               : null,
             bn ? null : el('span', { class: 'evic' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, ev.mark)),

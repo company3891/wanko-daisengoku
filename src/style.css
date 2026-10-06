@@ -2879,6 +2879,17 @@ main.hasnav{padding-bottom:124px}
 /* 褒美は取り切ったが、まだ挑める祭り（2026-10-01）。
    暗くはせず、赤い数のかわりに小さく「何度でも」を貼る */
 .evrow.again{opacity:.92}
+/* 今日は出ない祭り（2026-10-07・悠さんの指図）。
+   消さずに灰色で並べて、「ほかにどんな祭りがあるか」を見せる。
+   **親に filter を掛けると子にも効く**ので、灰色にするのは帯以外の子だけ。
+   帯まで灰色になると、いつ来ればよいかの字が読めなくなる */
+.evrow.off{pointer-events:none}
+.evrow.off > *:not(.evoff){filter:grayscale(1);opacity:.42}
+.evoff{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;
+  padding:5px 14px;border-radius:999px;white-space:nowrap;
+  font-size:12px;font-weight:800;letter-spacing:.1em;color:#f5e2a8;
+  background:#12100ecc;border:1px solid #d8a94a66;
+  box-shadow:0 2px 10px #0008}
 .evagain{position:absolute;left:-2px;top:-5px;padding:2px 9px;border-radius:999px;
   font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.04em;white-space:nowrap;
   color:#f5e2a8;background:#12100ee0;border:1px solid #d8a94a8c;

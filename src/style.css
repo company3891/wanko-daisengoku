@@ -3006,12 +3006,18 @@ main.hasnav{padding-bottom:124px}
 .gd.bad em{color:#efa887;border-color:#d8886a44}
 /* 陣形の札（2026-09-24）— 形の絵と、その下に性格を白字で。名前は出さない */
 .fcard{position:relative;border:1px solid #ffffff14;border-radius:12px;background:#ffffff06;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
-  padding:13px 8px 11px;cursor:pointer}
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;
+  padding:11px 7px 10px;cursor:pointer}
 .fcard.on{border-color:#5aa9e6;background:#5aa9e618;box-shadow:0 0 0 1px #5aa9e655 inset}
 .fcard .ftg{font-size:11px;font-weight:700;color:var(--text);letter-spacing:.04em;
   white-space:nowrap;line-height:1}
 .fcard.on .ftg{color:#fff}
+/* 何が起きるかの一行（2026-10-06・悠さんの指図）。
+   形の絵だけでは、どう動くのかが読めなかった。
+   札は三つ並ぶので字は小さく、行は詰めて、中央そろえで読ませる */
+.fcard .fnt{font-size:9.5px;line-height:1.45;color:var(--text3);text-align:center;
+  letter-spacing:0;white-space:normal;word-break:auto-phrase}
+.fcard.on .fnt{color:#cfe6ff}
 /* 遊び方（合戦の手引き・2026-09-24） */
 .helpbox{max-width:460px}
 /* 手引きの目次（2026-10-03）。章が増えたので、横に流れる札で頭出しする。

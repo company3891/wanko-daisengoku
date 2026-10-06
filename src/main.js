@@ -3920,7 +3920,9 @@ function screenPower() {
       el('span', {}, st.lv >= cap ? '限界' : `次まで ${num(need - st.exp)}`)),
     el('div', { class: 'sts' + (up ? ' flash' : '') }, SP_STATS.map(k =>
       el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-        el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : ''))), totRow(g)),
+        /* 「+939」だと まだ足していない分に見えて、札の数と食い違っていると思われた
+           （2026-10-06・悠さんの指摘）。左の数にはもう入っているので「うち魂」と書く */
+        el('em', { class: 'up' }, st.sp[k] ? `うち魂 ${num(st.sp[k])}` : ''))), totRow(g)),
     el('div', { class: 'feedmats' }, BOOKS.map(k => {
       const have = item(k);
       const off = have < 1 || st.lv >= cap;
@@ -3977,9 +3979,12 @@ function screenPower() {
         /* 絵も並べる（2026-09-25）。ここだけ字だけで、ほかの画面と揃っていなかった */
         el('div', { class: 'sts' }, SP_STATS.map(k =>
           /* ＋の欄は振っていなくても空で置く（2026-09-25）。
-             無いと その行だけ数が右へずれて、縦の線がそろわなかった */
+             無いと その行だけ数が右へずれて、縦の線がそろわなかった。
+             2026-10-06：「+939」だと まだ足していない分に見えて、
+             札の数と食い違っていると思われた（悠さんの指摘）。
+             左の数にはもう入っているので「うち魂」と書き替えた */
           el('div', {}, statLabel(k), el('b', {}, num(g[k])),
-            el('em', { class: 'up' }, st.sp[k] ? `+${st.sp[k]}` : ''))), totRow(g)),
+            el('em', { class: 'up' }, st.sp[k] ? `うち魂 ${num(st.sp[k])}` : ''))), totRow(g)),
         /* 三つの育てかたを、ステータスの下に横並びの釦でまとめた（2026-09-26）。
            一枚の画面に稽古・覚醒・魂を縦に積むと、どこからどこまでが
            どの話なのか分からなくなっていた。押すとそれぞれの札が開く。

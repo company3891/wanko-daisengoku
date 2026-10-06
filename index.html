@@ -3144,7 +3144,14 @@ main.hasnav{padding-bottom:124px}
 .frttl{font-size:15px;letter-spacing:.1em;text-align:center}
 .frnote{margin:0;text-align:center;font-size:12px;color:#8f8368;line-height:1.7}
 .frlist{display:flex;flex-direction:column;gap:6px;max-height:56dvh;overflow-y:auto}
-.frrow{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;
+/* ★行は縮ませない（2026-10-06・悠さんの実測で潰れた）★
+   .frlist は縦に並べる flex で、高さに上限（56dvh）がある。
+   flex の子は既定で縮むが、ふつうは「中身より小さくはならない」決まりが働く。
+   ところが overflow:hidden を付けると **その決まりが外れて 0 まで縮める** ようになる。
+   なぞって削除を入れたとき .frrow.swipe に overflow:hidden を足したので、
+   友が46人並んだ画面で 全部の行が細い線に潰れた（3人では出ない）。
+   flex-shrink:0 で、いくら並んでも中身の高さを保つ */
+.frrow{flex:0 0 auto;display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;
   background:var(--pop);border:1px solid var(--edge);text-align:left;cursor:pointer}
 .frrow:active{transform:scale(.995)}
 .kam.frk{width:34px;height:34px;flex:none}

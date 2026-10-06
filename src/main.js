@@ -7344,31 +7344,15 @@ const formNote = f => (RULES.formations?.[f]?.note) || '';
 /* ---- 陣形で上がるもの（2026-10-06・悠さんの指図）----
    陣形そのものに数値の上げ下げは無い。上がるのは **枠の列** と **武将の得意** の二つ。
 
-   ① 列の効き目（rules.json の slotBonus）
-        前列 … 受ける傷が減る（盾）
-        中列 … 与える傷が増える（主力）
-        後列 … 遠くまで届くが、受ける傷が増える
-      engine は fy===0 を前列、fy>=2 を後列、あいだを中列として数える（engine.mjs の band）。
-      だから陣形ごとに「前が何枠・中が何枠・後が何枠」が決まり、それがその陣形の持ち味になる。
+   ① 列の効き目（rules.json の slotBonus）… 前列は受ける傷が減り、中列は与える傷が増え、
+      後列は遠くまで届くが受ける傷が増える。engine は fy===0 を前列、fy>=2 を後列、
+      あいだを中列として数える（engine.mjs の band）。
+   ② 武将ごとの得意・苦手（ground.goodForm / badForm）… 得意な陣形で出ると
+      その武将だけ全部の数値が上がり、苦手だと下がる。
 
-   ② 武将ごとの得意・苦手（ground.goodForm / badForm）
-      得意な陣形で出ると その武将だけ全部の数値が上がり、苦手だと下がる。
-      **いま組んでいる部隊で何騎あたるか**を出す。部隊を替えれば変わる。
-
-   ①の枠数（前2・中2・後1 など）は 2026-10-06 に札から外した。
-   数の帯だけでは何のことか伝わらず、並びは絵の形で見えているため。
-   列の意味は下の説明文一行だけに置く。②の割合はそこで出す（悠さんの指図） */
-/* いまの部隊で、その陣形が得意な武将・苦手な武将（2026-10-06）。
-   数だけでなく **誰か** も返す。選んでいる陣形については名前まで出す */
-function formFit(f) {
-  const good = [], bad = [];
-  for (const c of (S.picked || [])) {
-    const g = groundOf(c); if (!g) continue;
-    if (g.goodForm === f) good.push(c);
-    if (g.badForm === f) bad.push(c);
-  }
-  return { good, bad };
-}
+   画面に出すのは **②の割合一行だけ**（2026-10-06）。
+   ①の枠数、札ごとの得意・苦手の数、誰が得意かの名、はどれも
+   「分かりにくい」と言われて落とした。①は札の絵の形で見えている */
 /* 陣形の得意／苦手の効き目を、数で出す（2026-10-06・悠さんの指図）。
    ふだんは遊ぶ人に割合を見せない決まりだが、陣形だけは
    「上がる／鈍る」では弱すぎて選ぶ手がかりにならないので、ここだけ例外で出す。
@@ -7409,46 +7393,21 @@ function screenForm() {
   return {
     body: el('div', {},
       el('h2', {}, '陣形'),
-      /* 形の下に「この陣形で上がるもの」を出す（2026-10-06・悠さんの指図）。
-         はじめは動きの説明を出したが、知りたいのは上がるほうだった。
-         2026-10-06：札に「前2 中2 後1」と出していたが、
-         数の帯だけでは何のことか伝わらないと分かったので外した。
-         並びは絵の形で見えているので、意味は下の説明文一行で足りる */
+      /* 陣形の下の添え書きは、この一行だけ（2026-10-06・悠さんの指図）。
+         はじめは前中後の枠数、札ごとの得意・苦手の数、誰が得意かの名、と
+         足していったが、どれも「分かりにくい」と言われて全部落とした。
+         残すのは効き目の割合ひとつ。ふだん遊ぶ人に割合は見せない決まりだが、
+         陣形だけは言葉では選ぶ手がかりにならないので、ここだけ例外で出す */
       el('div', { class: 'grid formgrid', style: 'grid-template-columns:repeat(auto-fill,minmax(104px,1fr))' },
-        FORMS.map(f => {
-          const fit = formFit(f);
-          return el('button', {
-            class: 'fcard fpick' + (S.form === f ? ' on' : ''),
-            onclick: () => { S.form = f; S.slots = []; SFX.pick(); draw(); },
-          }, formPreview(f), el('span', { class: 'ftg' }, formTag(f)),
-            (fit.good.length || fit.bad.length) ? el('span', { class: 'ffit' },
-              fit.good.length ? el('i', { class: 'fg' }, `得意 ${fit.good.length}`) : null,
-              fit.bad.length ? el('i', { class: 'fb' }, `苦手 ${fit.bad.length}`) : null) : null);
-        })),
-      /* 列の意味は一度だけ下に置く（札ごとに繰り返すと字だらけになる） */
-      el('p', { class: 'fleg' },
-        el('em', { class: 'bd b1' }, '前'), 'は傷を受けにくい　',
-        el('em', { class: 'bd b2' }, '中'), 'は傷を多く与える　',
-        el('em', { class: 'bd b3' }, '後'), 'は遠くまで届くが脆い'),
-      /* 得意・苦手の効き目（2026-10-06・悠さんの指図でここだけ数を出す）。
-         「上がる／鈍る」だけでは、陣形を選ぶ手がかりにならなかった */
+        FORMS.map(f => el('button', {
+          class: 'fcard fpick' + (S.form === f ? ' on' : ''),
+          onclick: () => { S.form = f; S.slots = []; SFX.pick(); draw(); },
+        }, formPreview(f), el('span', { class: 'ftg' }, formTag(f))))),
       el('p', { class: 'fleg' },
         el('em', { class: 'fg' }, '得意'), 'な陣形の武将は すべての数値 ',
         el('b', { class: 'fg' }, formPctText('goodFormPct')), '　',
         el('em', { class: 'fb' }, '苦手'), 'だと ',
         el('b', { class: 'fb' }, formPctText('badFormPct'))),
-      /* いま選んでいる陣形については、**誰が** 得意／苦手かを名で出す（2026-10-06）。
-         数だけでは、部隊を組み替える手がかりにならない */
-      (() => {
-        const fit = formFit(S.form);
-        if (!fit.good.length && !fit.bad.length) return null;
-        const names = (list) => list.map(c => c.name).join('・');
-        return el('p', { class: 'ffitnow' },
-          fit.good.length ? el('span', { class: 'fg' },
-            el('em', {}, '得意'), names(fit.good)) : null,
-          fit.bad.length ? el('span', { class: 'fb' },
-            el('em', {}, '苦手'), names(fit.bad)) : null);
-      })(),
 
       el('h2', {}, '配置'),
       el('p', { style: 'font-size:11px;color:var(--text3);margin:-4px 0 6px' },

@@ -3012,19 +3012,9 @@ main.hasnav{padding-bottom:124px}
 .fcard .ftg{font-size:11px;font-weight:700;color:var(--text);letter-spacing:.04em;
   white-space:nowrap;line-height:1}
 .fcard.on .ftg{color:#fff}
-/* この陣形で上がるもの（2026-10-06・悠さんの指図）。
-   札に出すのは「いまの部隊で得意・苦手が何騎か」だけ。
-   前・中・後の枠数の帯は、数だけでは伝わらないので同日に外した。
-   前・中・後の印は下の説明文一行にだけ残る（印は色で見分ける。属性の色とはぶつけない） */
-.fleg .bd{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:0;
-  padding:1px 5px;border-radius:4px;line-height:1.5;white-space:nowrap}
-.bd.b1{background:#5aa9e626;color:#8fd0ff;border:1px solid #5aa9e644}  /* 前列＝盾 */
-.bd.b2{background:#e0654f26;color:#f0a090;border:1px solid #e0654f44}  /* 中列＝主力 */
-.bd.b3{background:#d8a94a26;color:#f5e2a8;border:1px solid #d8a94a44}  /* 後列＝遠く */
-.fcard .ffit{display:flex;gap:5px;justify-content:center;font-size:9.5px;line-height:1.4}
-.fcard .ffit i{font-style:normal;font-weight:700}
-.fcard .ffit .fg{color:#8fe0b0}
-.fcard .ffit .fb{color:#e09a8a}
+/* 陣形の札に添え書きは出さない（2026-10-06・悠さんの指図）。
+   前中後の枠数の帯も、得意・苦手が何騎かの数も、どれも分かりにくいと言われて落とした。
+   残るのは札の下の説明文一行だけ（.fleg） */
 /* 列の意味は札の下に一度だけ */
 .fleg{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;
   font-size:10px;color:var(--text3);margin:8px 0 0;line-height:1.6}
@@ -5645,13 +5635,3 @@ button.mkpv:active{transform:translateY(1px)}
 .fleg b{font-weight:800;font-size:12px;letter-spacing:.02em}
 .fleg b.fg{color:#8fe0b0}
 .fleg b.fb{color:#e09a8a}
-/* いま選んでいる陣形の、得意・苦手な武将の名 */
-.ffitnow{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;
-  font-size:10.5px;line-height:1.6;margin:4px 0 0}
-.ffitnow span{display:inline-flex;align-items:center;gap:5px}
-.ffitnow .fg{color:#8fe0b0}
-.ffitnow .fb{color:#e09a8a}
-.ffitnow em{font-style:normal;font-weight:800;font-size:9.5px;letter-spacing:.06em;
-  padding:1px 5px;border-radius:4px;line-height:1.5}
-.ffitnow .fg em{background:#4fa36b26;border:1px solid #4fa36b55}
-.ffitnow .fb em{background:#e0654f26;border:1px solid #e0654f55}

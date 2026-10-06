@@ -3027,12 +3027,22 @@ main.hasnav{padding-bottom:124px}
 .fcard .ftg{font-size:11px;font-weight:700;color:var(--text);letter-spacing:.04em;
   white-space:nowrap;line-height:1}
 .fcard.on .ftg{color:#fff}
-/* 何が起きるかの一行（2026-10-06・悠さんの指図）。
-   形の絵だけでは、どう動くのかが読めなかった。
-   札は三つ並ぶので字は小さく、行は詰めて、中央そろえで読ませる */
-.fcard .fnt{font-size:9.5px;line-height:1.45;color:var(--text3);text-align:center;
-  letter-spacing:0;white-space:normal;word-break:auto-phrase}
-.fcard.on .fnt{color:#cfe6ff}
+/* この陣形で上がるもの（2026-10-06・悠さんの指図）。
+   一段目＝前・中・後が何枠か。二段目＝いまの部隊で得意・苦手が何騎か。
+   札は三つ並ぶので字は小さく、印は色で見分ける（属性の色とはぶつけない） */
+.fcard .fbd{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+.fcard .bd{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:0;
+  padding:1px 5px;border-radius:4px;line-height:1.5;white-space:nowrap}
+.bd.b1{background:#5aa9e626;color:#8fd0ff;border:1px solid #5aa9e644}  /* 前列＝盾 */
+.bd.b2{background:#e0654f26;color:#f0a090;border:1px solid #e0654f44}  /* 中列＝主力 */
+.bd.b3{background:#d8a94a26;color:#f5e2a8;border:1px solid #d8a94a44}  /* 後列＝遠く */
+.fcard .ffit{display:flex;gap:5px;justify-content:center;font-size:9.5px;line-height:1.4}
+.fcard .ffit i{font-style:normal;font-weight:700}
+.fcard .ffit .fg{color:#8fe0b0}
+.fcard .ffit .fb{color:#e09a8a}
+/* 列の意味は札の下に一度だけ */
+.fleg{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;
+  font-size:10px;color:var(--text3);margin:8px 0 0;line-height:1.6}
 /* 遊び方（合戦の手引き・2026-09-24） */
 .helpbox{max-width:460px}
 /* 手引きの目次（2026-10-03）。章が増えたので、横に流れる札で頭出しする。
@@ -5639,6 +5649,27 @@ button.mkpv:active{transform:translateY(1px)}
   pointer-events:none}
 .frrow.swipe.open .frdel{opacity:1;pointer-events:auto}
 .frdel:active{filter:brightness(.92)}
+
+/* 得意・苦手が何をするのか（2026-10-06・悠さんの指図）。
+   数だけ出しても、それが良いことなのか分からなかった。
+   凡例の「得意／苦手」は札の中と同じ色にして、目で結べるようにする */
+.fleg .fg{font-style:normal;font-weight:800;color:#8fe0b0}
+.fleg .fb{font-style:normal;font-weight:800;color:#e09a8a}
+/* 効き目の数（2026-10-06）。陣形だけは割合を出す決まりになったので、
+   字より一段大きく太く置いて、凡例の中で数が先に目に入るようにする */
+.fleg b{font-weight:800;font-size:12px;letter-spacing:.02em}
+.fleg b.fg{color:#8fe0b0}
+.fleg b.fb{color:#e09a8a}
+/* いま選んでいる陣形の、得意・苦手な武将の名 */
+.ffitnow{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;
+  font-size:10.5px;line-height:1.6;margin:4px 0 0}
+.ffitnow span{display:inline-flex;align-items:center;gap:5px}
+.ffitnow .fg{color:#8fe0b0}
+.ffitnow .fb{color:#e09a8a}
+.ffitnow em{font-style:normal;font-weight:800;font-size:9.5px;letter-spacing:.06em;
+  padding:1px 5px;border-radius:4px;line-height:1.5}
+.ffitnow .fg em{background:#4fa36b26;border:1px solid #4fa36b55}
+.ffitnow .fb em{background:#e0654f26;border:1px solid #e0654f55}
 
 </style>
 </head>
@@ -27507,9 +27538,13 @@ function duelSheet() {
             SFX.pick(); draw();
           } }, mineReady ? '取り消す' : after ? 'もう一番' : '戦仕度'),
       /* 編成の画面は 'team'（2026-10-05）。'squad' という画面は無く、
-         そこへ飛ばしていたので何も描かれず、上に黒い帯が出るだけだった */
+         そこへ飛ばしていたので何も描かれず、上に黒い帯が出るだけだった。
+         2026-10-06：いきなり編成の画面に落ちていたのを、
+         ほかの出陣と同じく 一度「出す部隊をえらぶ」の札を挟むようにした */
       el('button', { class: 'ghost wide', onclick: () => {
-        S.teamFrom = 'duel'; S.dl = null; S.screen = 'team'; SFX.pick(); draw();
+        sqAsk('出す部隊をえらぶ', '果たし合いに出す部隊', () => {
+          S.teamFrom = 'duel'; S.dl = null; S.screen = 'team'; draw();
+        }, false, true);
       } }, '部隊編成'),
       el('button', { class: 'ghost wide', onclick: dlClose }, after ? '解散する' : 'やめる'));
   }
@@ -28066,10 +28101,13 @@ function screenHome() {
    どの戦でも、始める前にここを一枚挟む。
    札を押すと P.active が変わる（全国の出陣画面と同じ仕掛け）ので、
    選んでから「この部隊で挑む」でそのまま戦に入る */
-function sqAsk(title, note, go, solo) {
+function sqAsk(title, note, go, solo, edit) {
   /* solo は一騎打ち（2026-09-30）。出るのは総大将ひとりなので、
      コストの上限も同じ元武将の重なりも見ない。部隊は「誰を出すか」を決めるためだけに通す */
-  S.sqp = { title, note, go, solo: !!solo }; SFX.pick(); draw();
+  /* edit は「戦に入らず 編成へ行くだけ」の札（2026-10-06）。
+     果たし合いのルームの『部隊編成』がここを通る。
+     これから組むところなので、空でもコストが超えていても止めない */
+  S.sqp = { title, note, go, solo: !!solo, edit: !!edit }; SFX.pick(); draw();
 }
 function sqSheet() {
   const a = S.sqp; if (!a) return null;
@@ -28077,13 +28115,14 @@ function sqSheet() {
   const q = P.squads[P.active] || { nos: [] };
   const over = squadCost(q) > costMax();
   const dups = dupOrigins(q.nos);
-  const ok = q.nos.length && (a.solo || (!over && !dups.length));
+  const ok = a.edit || (q.nos.length && (a.solo || (!over && !dups.length)));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 sqbox' },
       el('b', { class: 'sqttl' }, a.title),
       a.note ? el('p', { class: 'note' }, a.note) : null,
       el('div', { class: 'sqlist' }, P.squads.map((sq2, i) => squadCard(sq2, i))),
-      !q.nos.length ? el('p', { class: 'note warn' }, '部隊を編成してから挑める')
+      a.edit ? null
+        : !q.nos.length ? el('p', { class: 'note warn' }, '部隊を編成してから挑める')
         : a.solo ? null
         : over ? el('p', { class: 'note warn' }, `コストが上限を超えている（${squadCost(q)} / ${costMax()}）`)
         : dups.length ? el('p', { class: 'note warn' }, '同じ武将が重なっておる。編成で片方を外すわん')
@@ -28095,16 +28134,21 @@ function sqSheet() {
       (() => {
         const prepN = prepList().length;
         const part = uiUrl('btn_道具');
+        /* 編成へ行くだけの札では、道具は持ち込まない（2026-10-06） */
+        if (a.edit) return el('div', { class: 'mgrow sqgo' },
+          el('button', { class: 'go',
+            onclick: () => { const g = a.go; S.sqp = null; g(); } }, 'この部隊を編む'));
         return el('div', { class: 'mgrow sqgo' },
           el('button', { class: 'go', disabled: ok ? null : true,
-            onclick: () => { const g = a.go; S.sqp = null; g(); } }, 'この部隊で挑む'),
+            onclick: () => { const g = a.go; S.sqp = null; g(); } },
+            a.edit ? 'この部隊を編む' : 'この部隊で挑む'),
           el('button', {
             class: 'prepcir' + (prepN ? ' on' : '') + (part ? ' art' : ''), title: '道具を使う',
             onclick: () => { S.prepBox = true; SFX.pick(); draw(); },
           }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'),
              el('em', {}, `${prepN}/${PREP_MAX}`)));
       })(),
-      prepTags(),
+      a.edit ? null : prepTags(),
       el('button', { class: 'ghost wide', onclick: close }, 'やめる')),
     S.prepBox ? prepSheet() : null);
 }
@@ -33569,6 +33613,49 @@ const formTag = f => (RULES.formations?.[f]?.tag) || '';
 /* その陣形で何が起きるか（2026-10-06）。rules.json の note をそのまま出す。
    枠ごとの狙いだけを書いた文で、数字は入っていない */
 const formNote = f => (RULES.formations?.[f]?.note) || '';
+/* ---- 陣形で上がるもの（2026-10-06・悠さんの指図）----
+   陣形そのものに数値の上げ下げは無い。上がるのは **枠の列** と **武将の得意** の二つ。
+
+   ① 列の効き目（rules.json の slotBonus）
+        前列 … 受ける傷が減る（盾）
+        中列 … 与える傷が増える（主力）
+        後列 … 遠くまで届くが、受ける傷が増える
+      engine は fy===0 を前列、fy>=2 を後列、あいだを中列として数える（engine.mjs の band）。
+      だから陣形ごとに「前が何枠・中が何枠・後が何枠」が決まり、それがその陣形の持ち味になる。
+
+   ② 武将ごとの得意・苦手（ground.goodForm / badForm）
+      得意な陣形で出ると その武将だけ全部の数値が上がり、苦手だと下がる。
+      **いま組んでいる部隊で何騎あたるか**を出す。部隊を替えれば変わる。
+
+   どちらも割合は出さない。何が上がるかだけ見せて、どれほどかは出陣して確かめてもらう */
+function formBands(f) {
+  const cells = RULES.formations?.[f]?.cells || [];
+  const n = { 前: 0, 中: 0, 後: 0 };
+  for (const [, fy] of cells) n[fy === 0 ? '前' : fy >= 2 ? '後' : '中']++;
+  return n;
+}
+/* いまの部隊で、その陣形が得意な武将・苦手な武将（2026-10-06）。
+   数だけでなく **誰か** も返す。選んでいる陣形については名前まで出す */
+function formFit(f) {
+  const good = [], bad = [];
+  for (const c of (S.picked || [])) {
+    const g = groundOf(c); if (!g) continue;
+    if (g.goodForm === f) good.push(c);
+    if (g.badForm === f) bad.push(c);
+  }
+  return { good, bad };
+}
+/* 陣形の得意／苦手の効き目を、数で出す（2026-10-06・悠さんの指図）。
+   ふだんは遊ぶ人に割合を見せない決まりだが、陣形だけは
+   「上がる／鈍る」では弱すぎて選ぶ手がかりにならないので、ここだけ例外で出す。
+   数は sim/rules.json の ground.goodFormPct / badFormPct から引く（書き写さない）。
+   ほかの画面（地形・天候）へは広げないこと */
+function formPctText(key) {
+  const v = RULES.ground?.[key];
+  if (typeof v !== 'number' || !v) return '';
+  const n = Math.round(Math.abs(v) * 1000) / 10;   /* 0.05 → 5 */
+  return (v > 0 ? '+' : '−') + n + '%';
+}
 /* カードや帯に出す短い呼び名（「重視」を落としたもの）。V字→守備、凹→奇襲 */
 const formShort = f => (RULES.formations?.[f]?.tagShort) || formTag(f).replace('重視', '') || f || '';
 const formName = f => (f && formTag(f)) ? `${f}　${formTag(f)}` : (f || '');
@@ -33598,16 +33685,50 @@ function screenForm() {
   return {
     body: el('div', {},
       el('h2', {}, '陣形'),
-      /* 形の下に「何が起きるか」を一行そえる（2026-10-06・悠さんの指図）。
-         形の絵だけでは、どう動くのかが読めなかった。
-         数字は出さない ── 枠ごとに誰を狙うかだけを書く（rules.json の note）。
-         どれだけ強いかは、出陣して確かめてもらう */
+      /* 形の下に「この陣形で上がるもの」を出す（2026-10-06・悠さんの指図）。
+         はじめは動きの説明を出したが、知りたいのは上がるほうだった。
+           一段目 … 前・中・後が何枠か（列ごとの効き目がそのまま持ち味になる）
+           二段目 … いまの部隊で その陣形が得意な武将・苦手な武将の数
+         割合は出さない。どれほどかは出陣して確かめてもらう */
       el('div', { class: 'grid formgrid', style: 'grid-template-columns:repeat(auto-fill,minmax(104px,1fr))' },
-        FORMS.map(f => el('button', {
-          class: 'fcard fpick' + (S.form === f ? ' on' : ''),
-          onclick: () => { S.form = f; S.slots = []; SFX.pick(); draw(); },
-        }, formPreview(f), el('span', { class: 'ftg' }, formTag(f)),
-          formNote(f) ? el('span', { class: 'fnt' }, formNote(f)) : null))),
+        FORMS.map(f => {
+          const b = formBands(f), fit = formFit(f);
+          return el('button', {
+            class: 'fcard fpick' + (S.form === f ? ' on' : ''),
+            onclick: () => { S.form = f; S.slots = []; SFX.pick(); draw(); },
+          }, formPreview(f), el('span', { class: 'ftg' }, formTag(f)),
+            el('span', { class: 'fbd' },
+              b.前 ? el('em', { class: 'bd b1' }, `前${b.前}`) : null,
+              b.中 ? el('em', { class: 'bd b2' }, `中${b.中}`) : null,
+              b.後 ? el('em', { class: 'bd b3' }, `後${b.後}`) : null),
+            (fit.good.length || fit.bad.length) ? el('span', { class: 'ffit' },
+              fit.good.length ? el('i', { class: 'fg' }, `得意 ${fit.good.length}`) : null,
+              fit.bad.length ? el('i', { class: 'fb' }, `苦手 ${fit.bad.length}`) : null) : null);
+        })),
+      /* 列の意味は一度だけ下に置く（札ごとに繰り返すと字だらけになる） */
+      el('p', { class: 'fleg' },
+        el('em', { class: 'bd b1' }, '前'), 'は傷を受けにくい　',
+        el('em', { class: 'bd b2' }, '中'), 'は傷を多く与える　',
+        el('em', { class: 'bd b3' }, '後'), 'は遠くまで届くが脆い'),
+      /* 得意・苦手の効き目（2026-10-06・悠さんの指図でここだけ数を出す）。
+         「上がる／鈍る」だけでは、陣形を選ぶ手がかりにならなかった */
+      el('p', { class: 'fleg' },
+        el('em', { class: 'fg' }, '得意'), 'な陣形の武将は すべての数値 ',
+        el('b', { class: 'fg' }, formPctText('goodFormPct')), '　',
+        el('em', { class: 'fb' }, '苦手'), 'だと ',
+        el('b', { class: 'fb' }, formPctText('badFormPct'))),
+      /* いま選んでいる陣形については、**誰が** 得意／苦手かを名で出す（2026-10-06）。
+         数だけでは、部隊を組み替える手がかりにならない */
+      (() => {
+        const fit = formFit(S.form);
+        if (!fit.good.length && !fit.bad.length) return null;
+        const names = (list) => list.map(c => c.name).join('・');
+        return el('p', { class: 'ffitnow' },
+          fit.good.length ? el('span', { class: 'fg' },
+            el('em', {}, '得意'), names(fit.good)) : null,
+          fit.bad.length ? el('span', { class: 'fb' },
+            el('em', {}, '苦手'), names(fit.bad)) : null);
+      })(),
 
       el('h2', {}, '配置'),
       el('p', { style: 'font-size:11px;color:var(--text3);margin:-4px 0 6px' },

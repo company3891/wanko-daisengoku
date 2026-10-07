@@ -408,13 +408,14 @@ function playerBar() {
           onclick: () => { S.tt = true; SFX.pick(); draw(); } },
           f ? null : el('i', {}, '将'),
           fr ? el('img', { class: 'pf', src: fr, alt: '' }) : null); })(),
+      /* 名乗りは上、帯、位は帯の下（2026-10-07・悠さんの指図）。
+         前は名乗りと位を一行に並べていたので、名が長いと位が押し出され、
+         右の通貨の玉にまで食い込んでいた（実測：Lv.194 が石の ＋ を隠した）。
+         縦に積めば、名が何文字でも位の場所は動かない */
       el('div', { class: 'lvb' },
-        /* 名乗りとレベルを一行に（2026-09-24）。
-           「次まで◯◯」はゲージが見えていれば要らないので落とした */
-        el('span', { class: 'l' },
-          el('b', { class: 'nm' }, P.name || '無名の将'),
-          `Lv.${P.lv}`),
-        el('span', { class: 'g' }, el('i', { style: `width:${pct}%` })))),
+        el('span', { class: 'l' }, el('b', { class: 'nm' }, P.name || '無名の将')),
+        el('span', { class: 'g' }, el('i', { style: `width:${pct}%` })),
+        el('span', { class: 'lvn' }, `Lv.${P.lv}`))),
     el('div', { class: 'cur' },
       // 兵糧は出陣のたびに減るので、いつでも見えるようにした（2026-09-21）
       /* 兵糧は時間で戻る（2026-09-26）。
@@ -436,9 +437,11 @@ function playerBar() {
           class: 'plus', title: '兵糧をもどす',
           onclick: e => { e.stopPropagation(); S.food = true; SFX.pick(); draw(); },
         }, '＋')); })(),
-      coin('soul', '魂', '武士の魂', P.soul),
       /* 小判はヘッダーから外した（2026-09-22）。買い物のときだけ要る数字で、
-         iPhone16 の幅では通貨4つが入らなかった。ショップの上に大きく出している */
+         iPhone16 の幅では通貨4つが入らなかった。ショップの上に大きく出している。
+         2026-10-07：**武士の魂もヘッダーから外した**（悠さんの指図）。
+         名が長い人だと三つ並んで石の ＋ が隠れていた（実測：4,336 の「6」に ＋ が重なる）。
+         魂を使うのは取引所だけなので、数は取引所の上に大きく出す */
       /* ストーンの玉には ＋ を添える（2026-10-07・悠さんの指図）。
          押すとストーン販売所へ。兵糧の ＋ と同じ姿にそろえてある */
       coin('stone', '勾', 'ガチャ石（有償＋無償）', stones(), false, null,
@@ -9592,6 +9595,12 @@ function screenMarket() {
           onclick: () => { S.mkTab = 'sell'; S.mkMsg = ''; mkRead(); SFX.pick(); draw(); } },
           el('i', {}, '商'), '取引に出す',
           mkUnread() ? el('em', { class: 'mktb' }, num(mkUnread())) : null)),
+      /* 手持ちの武士の魂（2026-10-07・悠さんの指図）。
+         ヘッダーから魂の玉を外したので、使う場であるここに大きく出す。
+         払うのも受け取るのも魂だけの場なので、いちばん上に置く */
+      el('div', { class: 'card2 mksoul' },
+        el('span', { class: 'mks' }, curIcon('soul'), el('b', {}, num(P.soul)), el('em', {}, '武士の魂')),
+        el('span', { class: 'mksb' }, '雇うのも 出した品が売れるのも この魂')),
       S.mkMsg ? el('div', { class: 'shopmsg' }, S.mkMsg) : null,
       buy ? el('div', {},
         ...mkRows(),

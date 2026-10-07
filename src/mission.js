@@ -54,39 +54,40 @@ export const MISSIONS = [
      どれも「一日のうちに ひとまわり触れる」ところを一つずつ。
      出陣・買い物・育てる・引く・競う が端から端まで並ぶように選んである。
 
-     2026-10-07（悠さんの指図）：石が少なすぎたので **十こで合わせて 300** に振り直した。
-     重いお役目ほど多く、軽いものは少なく。小判や品はそのまま据え置き。
-     合わせて 300 ＝ 20+30+20+30+30+40+30+20+50+30。
-     **数を動かすときは、合わせて 300 になるか必ず数え直すこと** */
-  { id: 'd_camp',  tab: '日課', key: 'camp',  goal: 1, text: '全国に一度 出陣するワン！',       rw: { stone: 30 } },
-  { id: 'd_buy',   tab: '日課', key: 'buy',   goal: 1, text: '蔵で買い物をするワン！',          rw: { koban: 150, stone: 20 } },
-  { id: 'd_lv',    tab: '日課', key: 'lv',    goal: 1, text: '武将を一度 強くするワン！',       rw: { koban: 200, stone: 30 } },
-  { id: 'd_gacha', tab: '日課', key: 'gacha', goal: 1, text: 'わんこみくじを引くワン！',        rw: { koban: 200, stone: 30 } },
-  { id: 'd_login', tab: '日課', key: 'login', goal: 1, text: '城に戻るワン！',                  rw: { koban: 100, stone: 20 } },
-  { id: 'd_evOk',  tab: '日課', key: 'evOk',  goal: 1, text: '催しに一度 勝つワン！',           rw: { stone: 40 } },
-  { id: 'd_spar',  tab: '日課', key: 'spar',  goal: 1, text: '友と一度 競うワン！',             rw: { koban: 200, stone: 30 } },
-  { id: 'd_item',  tab: '日課', key: 'item',  goal: 1, text: '道具を一度 使うワン！',           rw: { koban: 150, stone: 20 } },
-  { id: 'd_batt3', tab: '日課', key: 'battle', goal: 3, text: '三度 出陣するワン！',            rw: { stone: 50 } },
-  { id: 'd_duty',  tab: '日課', key: 'duty',  goal: 1, text: 'お役目の褒美を一度 受け取るワン！', rw: { koban: 100, stone: 30 } },
+     2026-10-07（悠さんの指図）：石が少なすぎたので **一日で合わせて 300** に上げた。
+     **褒美の顔ぶれは変えない。** 小判のお役目は小判のまま、石のお役目の数だけを上げる。
+     石が出るのは三つだけなので、三つで 100 ずつ ＝ 300。
+     **数を動かすときは、石の三つで 300 になるか必ず数え直すこと** */
+  { id: 'd_camp',  tab: '日課', key: 'camp',  goal: 1, text: '全国に一度 出陣するワン！',       rw: { stone: 100 } },
+  { id: 'd_buy',   tab: '日課', key: 'buy',   goal: 1, text: '蔵で買い物をするワン！',          rw: { koban: 150 } },
+  { id: 'd_lv',    tab: '日課', key: 'lv',    goal: 1, text: '武将を一度 強くするワン！',       rw: { koban: 200 } },
+  { id: 'd_gacha', tab: '日課', key: 'gacha', goal: 1, text: 'わんこみくじを引くワン！',        rw: { koban: 200 } },
+  { id: 'd_login', tab: '日課', key: 'login', goal: 1, text: '城に戻るワン！',                  rw: { koban: 100 } },
+  { id: 'd_evOk',  tab: '日課', key: 'evOk',  goal: 1, text: '催しに一度 勝つワン！',           rw: { stone: 100 } },
+  { id: 'd_spar',  tab: '日課', key: 'spar',  goal: 1, text: '友と一度 競うワン！',             rw: { koban: 200 } },
+  { id: 'd_item',  tab: '日課', key: 'item',  goal: 1, text: '道具を一度 使うワン！',           rw: { koban: 150 } },
+  { id: 'd_batt3', tab: '日課', key: 'battle', goal: 3, text: '三度 出陣するワン！',            rw: { stone: 100 } },
+  { id: 'd_duty',  tab: '日課', key: 'duty',  goal: 1, text: 'お役目の褒美を一度 受け取るワン！', rw: { koban: 100 } },
 
   /* ---- 週課（2026-10-02 に十に組み直した）----
      日課より重く、育てるほうへ寄せた。一週かけて ゆっくり埋まる重さにしてある。
 
-     2026-10-07（悠さんの指図）：石を **十こで合わせて 1000** に振り直した。
-     合わせて 1000 ＝ 100+100+120+80+120+100+100+80+120+80。
-     **数を動かすときは、合わせて 1000 になるか必ず数え直すこと**
+     2026-10-07（悠さんの指図）：石を **一週で合わせて 1000** に上げた。
+     日課と同じで **褒美の顔ぶれは変えない**。石が出る五つだけを上げる。
+     五つで 200 ずつ ＝ 1000。
+     **数を動かすときは、石の五つで 1000 になるか必ず数え直すこと**
 
      日課300×7 ＋ 週課1000 ＝ 一週で 3100。十連がちょうど一度ぶん回る勘定 */
-  { id: 'w_up',    tab: '週課', key: 'up',      goal: 1,     text: '特技の強化に一度 挑むワン！',       rw: { koban: 1500, stone: 100 } },
-  { id: 'w_inh',   tab: '週課', key: 'inh',     goal: 1,     text: '特技の継承に一度 挑むワン！',       rw: { koban: 1500, stone: 100 } },
-  { id: 'w_awake', tab: '週課', key: 'awake',   goal: 1,     text: '武将を一体 覚醒させるワン！',       rw: { stone: 120 } },
-  { id: 'w_soul',  tab: '週課', key: 'soulUp',  goal: 1,     text: '武士の魂を振って 武将を強くするワン！', rw: { items: { '稽古の書': 3 }, stone: 80 } },
-  { id: 'w_auto',  tab: '週課', key: 'autoWin', goal: 10,    text: 'おまかせで十度 勝つワン！',         rw: { stone: 120 } },
-  { id: 'w_spar',  tab: '週課', key: 'spar',    goal: 10,    text: '友と十度 競うワン！',               rw: { soul: 150, stone: 100 } },
-  { id: 'w_koban', tab: '週課', key: 'koban',   goal: 10000, text: '小判を合わせて一万 集めるワン！',   rw: { stone: 100 } },
-  { id: 'w_login', tab: '週課', key: 'login',   goal: 3,     text: '三日 城に戻るワン！',               rw: { stone: 80 } },
-  { id: 'w_rk',    tab: '週課', key: 'rkWin',   goal: 5,     text: '番付で五度 勝つワン！',             rw: { stone: 120 } },
-  { id: 'w_evMat', tab: '週課', key: 'evMat',   goal: 1,     text: '催しで覚醒の品を手に入れるワン！',  rw: { koban: 2000, stone: 80 } },
+  { id: 'w_up',    tab: '週課', key: 'up',      goal: 1,     text: '特技の強化に一度 挑むワン！',       rw: { koban: 1500 } },
+  { id: 'w_inh',   tab: '週課', key: 'inh',     goal: 1,     text: '特技の継承に一度 挑むワン！',       rw: { koban: 1500 } },
+  { id: 'w_awake', tab: '週課', key: 'awake',   goal: 1,     text: '武将を一体 覚醒させるワン！',       rw: { stone: 200 } },
+  { id: 'w_soul',  tab: '週課', key: 'soulUp',  goal: 1,     text: '武士の魂を振って 武将を強くするワン！', rw: { items: { '稽古の書': 3 } } },
+  { id: 'w_auto',  tab: '週課', key: 'autoWin', goal: 10,    text: 'おまかせで十度 勝つワン！',         rw: { stone: 200 } },
+  { id: 'w_spar',  tab: '週課', key: 'spar',    goal: 10,    text: '友と十度 競うワン！',               rw: { soul: 150 } },
+  { id: 'w_koban', tab: '週課', key: 'koban',   goal: 10000, text: '小判を合わせて一万 集めるワン！',   rw: { stone: 200 } },
+  { id: 'w_login', tab: '週課', key: 'login',   goal: 3,     text: '三日 城に戻るワン！',               rw: { stone: 200 } },
+  { id: 'w_rk',    tab: '週課', key: 'rkWin',   goal: 5,     text: '番付で五度 勝つワン！',             rw: { stone: 200 } },
+  { id: 'w_evMat', tab: '週課', key: 'evMat',   goal: 1,     text: '催しで覚醒の品を手に入れるワン！',  rw: { koban: 2000 } },
 
   /* ---- 祭（2026-10-02 に十に組み直した）----
      週で入れ替わる。褒美は祭の札 一枚ずつ、ぜんぶで十枚。

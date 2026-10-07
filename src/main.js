@@ -8614,9 +8614,17 @@ function drawBattle() {
       const won0 = iWon(res);
       /* 石は「初めて取ったとき」だけ（2026-10-07・悠さんの指図）。
          全国は、その段をまだ抜けていなければ初めて。制覇した国をもう一度攻めても湧かない。
-         お祭りは evFirst がもともと褒美ぜんぶを止めているので、ここは念のため */
+
+         お祭りは **evDone ではなく evCleared で見る**（2026-10-07・悠さんの実測）。
+         evDone は「今日（今週）ぶんを使ったか」で、
+         大判小判・武将強化の日のような kind:'free' の祭りでは **いつも false**。
+         だから evFirst で見ていると、兵糧のつづく限り何度でも石が湧いていた。
+         evCleared は「その級をこれまでに一度でも取ったか」なので、
+         何度通っても石が湧くのは最初の一度だけになる。
+         小判・品・経験・稽古の書は これまでどおり通うたびに付く */
       const campFirst = !!(BATTLE.camp && BATTLE.camp.step >= prefStep(BATTLE.camp.pref.id));
-      const noStone = BATTLE.camp ? !campFirst : BATTLE.ev ? !evFirst : false;
+      const evFirstEver = !!(BATTLE.ev && !evCleared(BATTLE.ev.id, BATTLE.ev.rank));
+      const noStone = BATTLE.camp ? !campFirst : BATTLE.ev ? !evFirstEver : false;
       /* 経験は払った兵糧のぶんだけ（2026-10-01）。
          章が進むほど兵糧は重いので、重い戦ほど伸びる */
       const paid = BATTLE.camp ? marchFood(BATTLE.camp.pref, BATTLE.camp.step)
@@ -9800,8 +9808,10 @@ function evSkip(id, rank) {
   // 盤面は出さないが、褒美の配りかたは同じ道を通す
   // お祭りの勝ちの褒美は初めて取ったときだけ（2026-09-29）。盤面を見る戦と同じ決まりにそろえた
   const evFirst2 = !evDone(id, rank);
+  /* 石だけは「その級を一度でも取ったか」で見る（2026-10-07）。盤を見る戦と同じ決まり */
+  const evFirstEver2 = !evCleared(id, rank);
   BATTLE = { ev: { id, rank }, camp: null,
-             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirst2),
+             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2),
              march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）

@@ -110,7 +110,8 @@ export const EVENTS = [
   {
     id: 'daily_soul', kind: 'free', days: 'weekend', allRanks: true, name: '武士の魂', mark: '魂',
     note: '武士の魂が出る。土日のあいだ、どの級にも何度でも', icon: 'ev_soul',
-    reward: r => ({ soul: [15, 45, 100, 240][r] }),
+    /* 2026-10-07：悠さんの指図で 15/45/100/240 → 10/30/50/100 に下げた */
+    reward: r => ({ soul: [10, 30, 50, 100][r] }),
   },
   {
     /* once（2026-10-02）＝級をぜんぶ取ったら、一覧から消える。

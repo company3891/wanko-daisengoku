@@ -2212,7 +2212,7 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
   color:#f5e2a8;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;cursor:pointer}
 .w.hasplus .plus:active{filter:brightness(1.3)}
 
-/* ================= ストーンショップ（2026-10-07・悠さんの指図）=================
+/* ================= ストーン販売所（2026-10-07・悠さんの指図）=================
    課金の棚。値は大きく、おまけは帯で。買う前に一枚 確かめの札を挟む */
 .sthave{display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:11px 14px;margin-bottom:12px}

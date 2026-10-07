@@ -6098,6 +6098,8 @@ function menuSheet() {
           const spar = inWar && (BATTLE.spar || BATTLE.bout || BATTLE.away);
           const now = inWar && !spar ? manualNow() : !!P.manual;
           if (spar) return row('戦のやり方', 'オート（稽古）');
+          /* はじめて挑む場は手でしか動かせない（2026-10-07） */
+          if (inWar && BATTLE.firstTry) return row('戦のやり方', '手動（はじめての戦）');
           return row('戦のやり方', now ? '手動' : 'オート', () => {
             if (inWar) { S.menu = false; toggleAuto(); draw(); return; }
             P.manual = !P.manual; savePlayer(); SFX.pick(); draw();
@@ -7967,7 +7969,19 @@ function startBattle(camp, evb, spar, bout, tw, away) {
      手で動かせるようにはしない。切り替えの札も盤面に出さない */
   /* 初陣は手で動かすところから覚えてもらう（2026-09-30）。そのあともしばらく手動のまま */
   if (first) P.manual = true;
-  BATTLE = { seed, rules, B, bForm, first, commands: [], modes: [{ turn: 0, manual: (spar || bout || away) ? false : !!P.manual }],
+  /* **はじめて挑む場は手でしか動かせない**（2026-10-07・悠さんの指図）。
+     おまかせで素通りすると、その場で何が起きているのか覚えないまま先へ進んでしまう。
+     一度取った場は、これまでどおり好きなほうで。
+       全国 … その段をまだ抜けていない
+       お祭り … その級をまだ取っていない
+       塔 … その階をまだ抜けていない
+     稽古・番付・留守の陣・果たし合いは、もともと手で動かす話ではないので外す */
+  const firstTry = !(spar || bout || away)
+    && !!(camp ? (camp.step >= prefStep(camp.pref.id))
+        : evb ? !evCleared(evb.id, evb.rank)
+        : tw ? !twGot(tw.f) : false);
+  BATTLE = { seed, rules, B, bForm, first, firstTry, commands: [],
+             modes: [{ turn: 0, manual: (spar || bout || away) ? false : (firstTry ? true : !!P.manual) }],
              shown: 0, live: null, playing: true, sel: null, busy: false, camp: camp || null,
              ev: evb || null,
              spar: spar || null,
@@ -8107,6 +8121,8 @@ function pendingSwitch() {
    ・オート→手動：必ず次のターンから（途中まで見せたターンをやり直さないため） */
 function toggleAuto() {
   if (BATTLE && (BATTLE.spar || BATTLE.bout || BATTLE.away)) return;   // 稽古と番付は必ずオート
+  /* はじめて挑む場は手でしか動かせない（2026-10-07・悠さんの指図） */
+  if (BATTLE && BATTLE.firstTry) { S.res = S.res; return; }
   const b = BATTLE;
   if (!b || !b.res) return;
   const t = curTurn(), wasManual = manualNow();
@@ -9970,7 +9986,9 @@ function screenEvent() {
                 }, '挑む'),
                 /* 土日の二つ（allRanks）は、まだ取っていなくても早送りできる（2026-09-29）。
                    二日で何度も回る祭りなので、毎回盤面を見るのはかえって重い */
-                (cleared || open.allRanks) ? el('button', {
+                /* 2026-10-07（悠さんの指図）：**はじめて挑む級は早送りできない**。
+                   土日の二つ（allRanks）も、取るまでは盤を見てもらう */
+                cleared ? el('button', {
                   class: 'ghost sm', onclick: () => evGo(open.id, r, true),
                 }, 'スキップ') : null,
                 /* 二度目からは品だけ、という断りをその場に出す（2026-10-01）。
@@ -10038,8 +10056,13 @@ function screenBattle() {
         el('div', { class: 'mid', id: 'barMid' }),
         el('div', { class: 'n nA', id: 'tA' }, '—'),
         el('div', { class: 'n nB', id: 'tB' }, '—')),
-      el('button', { id: 'autoBtn', class: 'autobtn', onclick: () => toggleAuto() },
-        el('span', { class: 'lbl' }, '手動'), el('span', { class: 'g' }, '')),
+      /* はじめて挑む場では、やり方の釦を出さない（2026-10-07・悠さんの指図）。
+         押せない釦を置くより、無いほうが迷わない */
+      (BATTLE && BATTLE.firstTry)
+        ? el('div', { id: 'autoBtn', class: 'autobtn fixedman' },
+            el('span', { class: 'lbl' }, '手動'), el('span', { class: 'g' }, 'はじめて'))
+        : el('button', { id: 'autoBtn', class: 'autobtn', onclick: () => toggleAuto() },
+            el('span', { class: 'lbl' }, '手動'), el('span', { class: 'g' }, '')),
       el('button', { id: 'ultBtn', class: 'ultbtn' + (uiUrl('ult_btn') ? ' art' : '') + (uiUrl('ult_btn_ready') ? ' hasready' : ''),
         style: 'display:none' },
         uiUrl('ult_btn') ? el('img', { class: 'bgimg off', src: uiUrl('ult_btn'), alt: '' }) : null,
@@ -10415,7 +10438,10 @@ const GUIDE = [
     },
     /* 札を差しているあいだも「陣形へ」は押せるままにする（行き止まりを作らない） */
     also: '.acts .go' },
-  { say: ['陣を敷くワン！', '武将を枠に引いて置くワン。置けたら「保存して部隊へ」だワン'],
+  /* 2026-10-07（悠さんの指図）：「武将を枠に引いて置く」が伝わらなかったので
+     「武士をドラッグして配置する」に書き替えた。
+     カタカナの専門語は避ける決まりだが、ここは伝わるほうを取る */
+  { say: ['陣を敷くワン！', '武士をドラッグして配置するワン！置けたら「保存して部隊へ」だワン'],
     find: () => {
       if (S.screen !== 'form') return gdToSquads();
       /* 枠に入れていない武将が居るあいだは、その子を差す（2026-09-30）。
@@ -10466,11 +10492,17 @@ const GUIDE = [
       if (!S.gpop) return gq('.pickgrid .pg');
       return gdAct('技を継承する', '.matpick .mc');
     } },
-  { say: ['締めはくじだワン！', '下の帯の「ガチャ」を押すワン。初回の十連はただだワン'],
+  /* 2026-10-07（悠さんの指図）三つ直した。
+     ・「締めはくじ」が何のことか分からないので「祈りおみくじ」に
+     ・一祈りの説明は要らない。**十連だけ**差せば引き方は伝わる
+     ・くじの画面に入ったら吹き出しは出さない（押したあとに同じ説明が残っていた）。
+       差す丸だけ残して、言葉は引っ込める */
+  { say: ['祈りおみくじだワン！', '下の帯の「ガチャ」を押すワン。初回の十連はただだワン'],
+    quiet: () => S.screen === 'gacha' || S.screen === 'gachalist',
     /* 引き終わるまで続ける（2026-09-30）。帯をえらんで、十連を押すまで */
     auto: () => !P.firstFree,
     find: () => {
-      if (S.screen === 'gacha') return gq('.pulls .pull.free') || gq('.pulls .pull.ten');
+      if (S.screen === 'gacha') return gq('.pulls .pull.ten') || gq('.pulls .pull.free');
       if (S.screen === 'gachalist') {
         /* 門出のくじ（信わんが出るのはここだけ）を名指しで差す */
         const i = GACHAS.findIndex(x => x.id === 'release');
@@ -10564,8 +10596,13 @@ function guidePaint() {
    巻くたび・画面の向きが変わるたびに置き直す */
 function gdBubble(g, hit) {
   let a = document.querySelector('.gdarw');
+  /* 吹き出しを出さない歩がある（2026-10-07・悠さんの指図）。
+     くじの画面では、押したあとも同じ説明が残って邪魔だった。
+     差す丸（矢印と光）は残して、言葉だけ引っ込める */
+  const quiet = !!(g.quiet && g.quiet());
   let say = document.querySelector('.gdsay');
-  if (!say) {
+  if (quiet) { if (say) say.remove(); say = null; }
+  if (!say && !quiet) {
     const no = talkerNo('guide' + P.gstep);
     const art = faceUrl(no, '笑顔') || faceUrl(no, '通常') || pawnUrl(no);
     say = el('div', { class: 'gdsay' },
@@ -10582,7 +10619,7 @@ function gdBubble(g, hit) {
   }
   if (!hit) {                                   // 指す先が無いときは、いつもの下ぎわ
     if (a) a.remove();
-    say.style.top = ''; say.style.bottom = '';
+    if (say) { say.style.top = ''; say.style.bottom = ''; }
     return;
   }
   const r = hit.getBoundingClientRect();
@@ -10595,6 +10632,7 @@ function gdBubble(g, hit) {
   }
   a.style.left = Math.round(Math.max(20, Math.min(innerWidth - 20, r.left + r.width / 2))) + 'px';
   a.style.top = Math.round(up ? r.top - 30 : r.bottom + 10) + 'px';
+  if (!say) return;                             // 言葉を引っ込めた歩は、矢印だけで終わり
   const h = say.getBoundingClientRect().height || 76;
   if (up) {
     say.style.bottom = Math.round(Math.max(8, innerHeight - r.top + 34)) + 'px';
@@ -10612,7 +10650,7 @@ function gdRelayout() {
      前はここが語りを作り直していたので、手引きを出してはいけない画面
      （開幕の一枚絵・合戦・天下の分け目の札）にも語りが居残り、
      指す先が無いまま画面がふさがって先へ進めなくなっていた */
-  if (!document.querySelector('.gdsay')) return;
+  if (!document.querySelector('.gdsay') && !document.querySelector('.gdarw')) return;
   gdTick = requestAnimationFrame(() => {
     gdTick = 0;
     const g = gdNow(); if (!g) return;

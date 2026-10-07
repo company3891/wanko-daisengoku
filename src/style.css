@@ -2205,6 +2205,53 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
   width:18px;height:18px;border-radius:50%;border:1px solid #b8d06a88;background:#b8d06a22;
   color:#cfe38a;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;cursor:pointer}
 .w.food .plus:active{filter:brightness(1.3)}
+/* ストーンの＋（2026-10-07）。兵糧の＋と同じ形で、色は金 */
+.w.hasplus{position:relative;padding-right:24px}
+.w.hasplus .plus{position:absolute;right:2px;top:50%;transform:translateY(-50%);
+  width:18px;height:18px;border-radius:50%;border:1px solid #d8a94a88;background:#d8a94a22;
+  color:#f5e2a8;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;cursor:pointer}
+.w.hasplus .plus:active{filter:brightness(1.3)}
+
+/* ================= ストーンショップ（2026-10-07・悠さんの指図）=================
+   課金の棚。値は大きく、おまけは帯で。買う前に一枚 確かめの札を挟む */
+.sthave{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 14px;margin-bottom:12px}
+.sthn{display:inline-flex;align-items:center;gap:7px}
+.sthn b{font-size:20px;color:var(--gold);font-variant-numeric:tabular-nums}
+.sthn em{font-style:normal;font-size:11px;color:var(--text3);letter-spacing:.08em}
+.sthb{font-size:11px;color:var(--text3);letter-spacing:.04em;white-space:nowrap}
+.stlist{display:flex;flex-direction:column;gap:9px}
+.stcard{position:relative;display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:11px 13px;border-radius:13px;border:1px solid #d8a94a3d;
+  background:linear-gradient(180deg,#1d1814,#15120f);color:var(--text);cursor:pointer}
+.stcard:active{transform:translateY(1px);filter:brightness(.94)}
+.stcard.bonus{border-color:#d8a94a7a;box-shadow:0 0 0 1px #d8a94a1f inset}
+.stpic{flex:0 0 auto;width:46px;height:46px;display:grid;place-items:center;
+  border-radius:10px;background:#00000040;border:1px solid #ffffff12;overflow:hidden}
+.stpic img{width:100%;height:100%;object-fit:contain;display:block}
+.stpic i{font-style:normal;font-size:18px;color:#8fd0ff}
+.sttx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sttx b{font-size:19px;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1.2}
+.sttx b em{font-style:normal;font-size:11px;color:var(--text3);margin-left:5px;letter-spacing:.06em}
+.stsub{font-size:11px;color:var(--text3)}
+.stsub i{font-style:normal;color:#8fe0b0}
+.styen{flex:0 0 auto;font-size:17px;font-weight:800;color:#fff;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em}
+/* おまけの帯は右上に小さく。絵が無くても形が崩れないよう、札の外には出さない */
+.stbn{position:absolute;right:8px;top:-8px;font-size:9.5px;font-weight:800;letter-spacing:.06em;
+  color:#12100e;background:linear-gradient(180deg,#f5e2a8,#d8a94a);
+  padding:2px 8px;border-radius:999px;box-shadow:0 2px 6px #0007}
+.stnote{font-size:11px;color:var(--text3);line-height:1.8;margin:12px 0 0;text-align:center}
+.stnote b{color:#f5e2a8;font-size:12px}
+.stnote.dim{opacity:.72;margin-top:6px}
+.stbox{max-width:340px}
+.strow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:7px 0;border-bottom:1px dashed #ffffff14;font-size:12.5px;color:var(--text2)}
+.strow b{font-size:15px;color:var(--text);font-variant-numeric:tabular-nums}
+.strow.fr b{color:#8fe0b0}
+.strow.tot b{color:var(--gold);font-size:18px}
+.strow.yen{border-bottom:0}
+.strow.yen b{font-size:19px;color:#fff}
 
 /* 部隊の札 → もう一度押すと編成へ（2026-09-21） */
 .sq .h .goedit{margin-left:auto;margin-right:8px;font-size:10px;color:var(--gold);opacity:.85}

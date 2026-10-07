@@ -15,6 +15,7 @@ import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, m
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
+         STONE_PACKS, STONE_FREE_FROM, STONE_FREE_PCT, stonePack,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
@@ -194,6 +195,9 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   /* 友の札（2026-10-06）。frTab＝'find'（友を探す）／'my'（マイフレンド）、
      frQ＝さがす字、frBusy＝サーバーの返事待ち */
   frTab: 'my', frQ: '', frBusy: false,
+  /* ストーンショップ（2026-10-07）。stoneBack＝どの画面から来たか
+     （＋はどこからでも押せるので、戻り先を預かる）／stAsk＝確かめている口／stMsg＝その場の一言 */
+  stoneBack: null, stAsk: null, stMsg: '',
   detailRO: false, detailBase: false, nmMsg: '', rwi: null,
   /* 取引所の品を札で見るとき（2026-10-01）。
      detailSt＝その品の育ち（売り主が育てた値）／detailBuy＝買える品そのもの */
@@ -435,20 +439,28 @@ function playerBar() {
       coin('soul', '魂', '武士の魂', P.soul),
       /* 小判はヘッダーから外した（2026-09-22）。買い物のときだけ要る数字で、
          iPhone16 の幅では通貨4つが入らなかった。ショップの上に大きく出している */
-      coin('stone', '勾', 'ガチャ石（有償＋無償）', stones())));
+      /* ストーンの玉には ＋ を添える（2026-10-07・悠さんの指図）。
+         押すとストーンショップへ。兵糧の ＋ と同じ姿にそろえてある */
+      coin('stone', '勾', 'ストーン（有償＋無償）', stones(), false, null,
+        () => { S.stoneBack = S.screen; S.screen = 'stoneshop'; S.stMsg = ''; })));
 }
 /* 通貨の玉（2026-09-21）
    app/assets/ui/coin_魂.png のように置くと、漢字の丸から絵に変わる。 */
-function coin(cls, mark, title, n, full, arts) {
+function coin(cls, mark, title, n, full, arts, plus) {
   /* 絵の名は題から起こすが、軍功のように別名で来た絵もあるので
-     候補を渡せるようにした（2026-09-26）。先に見つかったほうを使う */
+     候補を渡せるようにした（2026-09-26）。先に見つかったほうを使う。
+     ※ 絵のファイル名は coin_石 のまま。呼び名をストーンに替えても素材は動かさない */
   let art = null;
-  for (const nm of arts || [title.replace('武士の魂', '魂').replace('ガチャ石（有償＋無償）', '石')]) {
+  for (const nm of arts || [title.replace('武士の魂', '魂').replace('ストーン（有償＋無償）', '石')]) {
     art = uiUrl('coin_' + nm); if (art) break;
   }
-  return el('span', { class: 'w ' + cls + (art ? ' art' : ''), title: `${title}　${num(n)}` },
+  return el('span', { class: 'w ' + cls + (art ? ' art' : '') + (plus ? ' hasplus' : ''),
+                      title: `${title}　${num(n)}` },
     art ? keepImg({ class: 'ci', src: art, alt: '' }) : el('i', {}, mark),
-    full ? num(n) : numShort(n));
+    full ? num(n) : numShort(n),
+    /* ＋（2026-10-07）。兵糧の ＋ と同じ形。押すとストーンショップへ */
+    plus ? el('button', { class: 'plus', title: 'ストーンを買う',
+      onclick: e => { e.stopPropagation(); plus(); SFX.pick(); draw(); } }, '＋') : null);
 }
 
 /* 褒美の並びで使う通貨の粒（2026-09-23）。
@@ -2095,7 +2107,7 @@ function miWords(rw) {
   const w = [];
   if (rw.koban) w.push(`小判 ${rw.koban}`);
   if (rw.soul) w.push(`武士の魂 ${rw.soul}`);
-  if (rw.stone) w.push(`石 ${rw.stone}`);
+  if (rw.stone) w.push(`ストーン ${rw.stone}`);
   if (rw.stamina) w.push(`兵糧 ${rw.stamina}`);
   if (rw.ticket) w.push(`${TICKET} ${rw.ticket}`);
   for (const [k, v] of Object.entries(rw.items || {})) w.push(`${k} ${v}`);
@@ -2366,7 +2378,7 @@ function miSheet() {
 const CUR_INFO = {
   koban:  ['小判',     '蔵で道具を買うのに使う'],
   soul:   ['武士の魂', '重ねを解雇すると増える。魂を振る・取引所で使う'],
-  stone:  ['石',       'くじを引くのに使う'],
+  stone:  ['ストーン', 'くじを引くのに使う'],
   stamina:['兵糧',     '出陣に要る。時がたつと戻る'],
 };
 function rwInfoRows(rw) {
@@ -4841,7 +4853,7 @@ const SHOP_TABS = [
   { key: 'kura', name: '蔵', note: '小判で買える品' },
   /* 石の蔵（2026-10-03）。兵糧を石で戻す品だけを別の棚にした。
      小判の品と同じ棚に並んでいると、どちらの財布から出るのか紛れていた */
-  { key: 'stone', name: '石の蔵', note: '石で買う品。兵糧はここで戻す' },
+  { key: 'stone', name: 'ストーンの蔵', note: 'ストーンで買う品。兵糧はここで戻す' },
   { key: 'awake', name: '具足屋', note: '覚醒に要る具足と軍配。属性ごとに別の品が要る' },
   { key: 'rank',  name: '番付の蔵', note: '軍功と引き換える。番付でしか手に入らぬ品' },
   /* 「持ち物」の棚は外した（2026-09-26）。三本線の「所持アイテム」（袋）で
@@ -4884,7 +4896,7 @@ function kobanRow() {
   return el('div', { class: 'wallet' },
     coin('koban', '判', '小判', P.koban, true),
     coin('soul', '魂', '武士の魂', P.soul, true),
-    coin('stone', '石', '石', stones(), true, CUR_ART.stone),   // 石の蔵を足したので財布にも出す（2026-10-03）
+    coin('stone', '勾', 'ストーン', stones(), true, CUR_ART.stone),   // ストーンの蔵を足したので財布にも出す（2026-10-03）
     coin('gun', '功', '軍功', P.gun || 0, true, CUR_ART.gun));
 }
 /* 買う釦に、その数ぶんの総額を乗せる（2026-10-03）。
@@ -4903,8 +4915,8 @@ function shopBuy(name, price, n, kind) {
     /* 通貨で字を出し分ける（2026-10-02）。兵糧は石で買う */
     const st = !!(ITEMS[name] || {}).stone;
     if (r) { miBump('buy'); SFX.coin();
-      S.shopMsg = `${name} を ${r.n} つ手に入れた（${r.cur === 'stone' ? '石' : '小判'} ${num(r.cost)}）`; }
-    else { SFX.pick(); S.shopMsg = st ? '石が足りない' : '小判が足りない'; }
+      S.shopMsg = `${name} を ${r.n} つ手に入れた（${r.cur === 'stone' ? 'ストーン' : '小判'} ${num(r.cost)}）`; }
+    else { SFX.pick(); S.shopMsg = st ? 'ストーンが足りない' : '小判が足りない'; }
     draw();
   };
 }
@@ -5016,7 +5028,7 @@ function screenShop() {
                 el('div', { class: 'sitm' },
                   el('b', {}, name, el('span', { class: 'have' }, `持 ${num(item(name))}`)),
                   el('span', { class: 'sd' }, it.desc),
-                  el('span', { class: 'sp2' }, st ? `石 ${num(cost)}` : `小判 ${num(cost)}`)),
+                  el('span', { class: 'sp2' }, st ? `ストーン ${num(cost)}` : `小判 ${num(cost)}`)),
                 el('div', { class: 'sbtns' },
                   buyBtn(st ? 'stone' : 'koban', cost, '×1',
                     have() < cost, shopBuy(name, cost, 1)),
@@ -5047,7 +5059,7 @@ function screenShop() {
               el('div', { class: 'sitm' },
                 el('b', {}, name, el('span', { class: 'have' }, `持 ${num(item(name))}`)),
                 el('span', { class: 'sd' }, it.desc),
-                el('span', { class: 'sp2' }, `石 ${num(cost)}`)),
+                el('span', { class: 'sp2' }, `ストーン ${num(cost)}`)),
               el('div', { class: 'sbtns' },
                 buyBtn('stone', cost, '×1', stones() < cost, shopBuy(name, cost, 1)),
                 buyBtn('stone', cost * 10, '×10', stones() < cost * 10, shopBuy(name, cost, 10))));
@@ -5894,13 +5906,13 @@ function screenGacha() {
                 : byOne ? tktPrice(TICKET_PRICE.single) : stonePrice(PRICE.single),
               oneFree || canOne, () => doPull(1),
               oneFree ? '1回無料'
-                : byOne ? `祭の札 ${TICKET_PRICE.single}枚` : `${num(PRICE.single)} 石`),
+                : byOne ? `祭の札 ${TICKET_PRICE.single}枚` : `${num(PRICE.single)} ストーン`),
             pullBtn('ten' + (P.firstFree ? ' free' : ''), '十連',
               P.firstFree ? '初回無料'
                 : byTen ? tktPrice(TICKET_PRICE.ten) : stonePrice(PRICE.ten),
               canTen, () => doPull(10),
               P.firstFree ? '初回無料'
-                : byTen ? `祭の札 ${TICKET_PRICE.ten}枚` : `${num(PRICE.ten)} 石`)),
+                : byTen ? `祭の札 ${TICKET_PRICE.ten}枚` : `${num(PRICE.ten)} ストーン`)),
       S.rv || S.rvall ? null : (g ? gachaResult(g) : null),
       S.rates ? ratesSheet(toSSR, toUR) : null,
       S.shop ? shopSheet() : null)))(gachaBgEl(inBox)),
@@ -6189,7 +6201,7 @@ function giftWords(g) {
   const w = [];
   if (g.koban) w.push(`小判 ${g.koban}`);
   if (g.soul) w.push(`武士の魂 ${g.soul}`);
-  if (g.stone) w.push(`石 ${g.stone}`);
+  if (g.stone) w.push(`ストーン ${g.stone}`);
   if (g.stamina) w.push(`兵糧 ${g.stamina}`);
   for (const [k, v] of Object.entries(g.items || {})) w.push(`${k} ${v}`);
   return w.join('　');
@@ -6513,21 +6525,105 @@ function bagSheet() {
       closeX(close)));
 }
 
-/* 石が足りないときの案内（2026-09-21）
-   いまは案内だけ。課金画面ができたら、この「石を買う」から遷移させる。 */
+/* ストーンが足りないときの案内（2026-09-21）
+   2026-10-07：ストーンショップができたので、「買いに行く」から繋いだ */
 function shopSheet() {
   const close = () => { S.shop = false; draw(); };
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2' },
-      el('b', { style: 'font-size:16px' }, '石が足りぬ'),
+      el('b', { style: 'font-size:16px' }, 'ストーンが足りぬ'),
       el('p', { style: 'font-size:12px;color:var(--text2);margin:8px 0 14px;line-height:1.7' },
-        `いま持っているのは ${num(stones())} 石。`,
+        `いま持っているのは ${num(stones())}。`,
         el('br', {}),
-        `一祈りに ${num(PRICE.single)} 石、十連に ${num(PRICE.ten)} 石が要る。`),
+        `一祈りに ${num(PRICE.single)}、十連に ${num(PRICE.ten)} が要る。`),
       el('div', { class: 'acts', style: 'margin-top:0' },
         el('button', { class: 'ghost', onclick: close }, '閉じる'),
         el('div', { class: 'spacer' }),
-        el('button', { class: 'go', onclick: close }, '石を買う（近日）'))));
+        el('button', { class: 'go', onclick: () => {
+          S.shop = false; S.stoneBack = S.screen; S.screen = 'stoneshop'; S.stMsg = '';
+          SFX.pick(); draw();
+        } }, 'ストーンを買いに行く'))));
+}
+
+/* ================= ストーンショップ（2026-10-07・悠さんの指図）=================
+   ヘッダーのストーンの玉の ＋ から来る、課金の棚。
+   値と口の中身は player.js の STONE_PACKS が正典。ここでは並べるだけ。
+
+   **お支払いの繋ぎ込みは、まだ無い。** ストア（App Store / Google Play）の
+   買い物と、そのレシートを確かめる道ができてから grantStones() を呼ぶ。
+   いまは押すと「これから」の札が出るだけで、ストーンは一粒も増えない。
+   ここで配ってしまうと、ただのストーン配布機になってしまう。 */
+function stoneShopBack() {
+  S.screen = S.stoneBack && SCREENS[S.stoneBack] ? S.stoneBack : 'home';
+  S.stoneBack = null; S.stAsk = null; S.stMsg = '';
+  SFX.pick(); draw();
+}
+function stoneCard(pk) {
+  const art = uiUrl('stone_' + pk.no) || uiUrl('coin_石');
+  const tot = pk.paid + pk.free;
+  return el('button', {
+    class: 'stcard' + (pk.free ? ' bonus' : ''),
+    onclick: () => { S.stAsk = pk.no; S.stMsg = ''; SFX.pick(); draw(); },
+  },
+    /* おまけの帯は、付く口だけ（2026-10-07）。
+       「二割」とだけ言い、何粒かは下の数で見せる */
+    pk.free ? el('span', { class: 'stbn' }, `おまけ ${Math.round(STONE_FREE_PCT * 100)}％`) : null,
+    el('span', { class: 'stpic' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, '勾')),
+    el('span', { class: 'sttx' },
+      el('b', {}, num(tot), el('em', {}, 'ストーン')),
+      el('span', { class: 'stsub' },
+        `有償 ${num(pk.paid)}`,
+        pk.free ? el('i', {}, ` ＋ 無料 ${num(pk.free)}`) : null)),
+    el('span', { class: 'styen' }, '¥', num(pk.yen)));
+}
+/* 買う前の確かめ。中身と値を並べ、押したら いまは「これから」の札 */
+function stoneAsk() {
+  const pk = stonePack(S.stAsk); if (!pk) return null;
+  const close = () => { S.stAsk = null; SFX.pick(); draw(); };
+  const tot = pk.paid + pk.free;
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 stbox' },
+      el('b', { class: 'mittl' }, 'これを買いますか'),
+      el('div', { class: 'strow' }, el('span', {}, '有償ストーン'), el('b', {}, num(pk.paid))),
+      pk.free ? el('div', { class: 'strow fr' }, el('span', {}, '無料ストーン'), el('b', {}, '＋' + num(pk.free))) : null,
+      el('div', { class: 'strow tot' }, el('span', {}, '受け取る数'), el('b', {}, num(tot))),
+      el('div', { class: 'strow yen' }, el('span', {}, 'お支払い'), el('b', {}, '¥' + num(pk.yen))),
+      S.stMsg ? el('p', { class: 'note warn' }, S.stMsg) : null,
+      el('div', { class: 'acts', style: 'margin-top:12px' },
+        el('button', { class: 'ghost', onclick: close }, 'やめる'),
+        el('div', { class: 'spacer' }),
+        el('button', { class: 'go', onclick: () => {
+          /* ここでストーンを配ってはいけない（2026-10-07）。
+             ストアの支払いが通り、レシートを確かめてから grantStones() を呼ぶ。
+             その道がまだ無いので、いまは断りの札だけ出す */
+          S.stMsg = 'お支払いの繋ぎ込みはこれから。いまはまだ買えません';
+          SFX.pick(); draw();
+        } }, '購入へ進む')),
+      closeX(close)));
+}
+function screenStone() {
+  return {
+    body: el('div', {},
+      el('button', { class: 'ghost back', onclick: stoneShopBack }, '← もどる'),
+      /* 題は上の帯（SUB）がもう出しているので、ここには置かない（2026-10-07）。
+         二度書くと同じ字が縦に並んで、画面が間延びして見えた */
+      /* いま持っている数は、買う前にいちばん見たい数（2026-10-07）。
+         有償と無料の内訳まで出す。減るのは無料のほうが先 */
+      el('div', { class: 'card2 sthave' },
+        el('span', { class: 'sthn' }, curIcon('stone'), el('b', {}, num(stones())), el('em', {}, 'ストーン')),
+        el('span', { class: 'sthb' }, `有償 ${num(P.paid)}　無料 ${num(P.free)}`)),
+      el('div', { class: 'stlist' }, STONE_PACKS.map(stoneCard)),
+      el('p', { class: 'stnote' },
+        `${num(STONE_FREE_FROM)} ストーンから上の口には、買った数の `,
+        el('b', {}, Math.round(STONE_FREE_PCT * 100) + '％'),
+        ' を無料ストーンとして添えます。'),
+      el('p', { class: 'stnote dim' },
+        '無料ストーンから先に使われます。表示は税込。',
+        el('br', {}),
+        'お支払いの繋ぎ込みはこれから（いまは買えません）'),
+      S.stAsk ? stoneAsk() : null),
+    nav: true,
+  };
 }
 
 /* 天井バー（2026-09-21）
@@ -6607,11 +6703,11 @@ function ratesSheet(toSSR, toUR) {
       /* 祭りのくじは札で引ける（2026-09-30）。札が先、尽きたら石 */
       el('div', { class: 'rtab' },
         row('一祈り', curGacha().ticket
-          ? `${TICKET}${TICKET_PRICE.single}枚／なければ ${num(PRICE.single)} 石`
-          : `${num(PRICE.single)} 石`),
+          ? `${TICKET}${TICKET_PRICE.single}枚／なければ ${num(PRICE.single)} ストーン`
+          : `${num(PRICE.single)} ストーン`),
         row('十連', curGacha().ticket
-          ? `${TICKET}${TICKET_PRICE.ten}枚／なければ ${num(PRICE.ten)} 石`
-          : `${num(PRICE.ten)} 石`)),
+          ? `${TICKET}${TICKET_PRICE.ten}枚／なければ ${num(PRICE.ten)} ストーン`
+          : `${num(PRICE.ten)} ストーン`)),
       el('h3', {}, '確定と天井'),
       el('div', { class: 'rtab' },
         row('十連', '10体目までにSR以上が1体確定'),
@@ -6626,9 +6722,9 @@ function ratesSheet(toSSR, toUR) {
         row(r, `武士の魂 +${SOUL_BY_RARITY[r]}`))),
       el('h3', {}, '手持ち'),
       el('div', { class: 'rtab' },
-        row('石（合計）', `${num(stones())} 石`),
-        row('　うち有償石', `${num(P.paid)} 石`),
-        row('　うち無償石', `${num(P.free)} 石`),
+        row('ストーン（合計）', `${num(stones())}`),
+        row('　うち有償', `${num(P.paid)}`),
+        row('　うち無料', `${num(P.free)}`),
         row('兵糧', `${P.stamina} / ${P.staminaMax}`),
         row('所持している武将', `${P.own.filter(hasCard).length} / ${C.length} 体`)),
       el('p', { class: 'ticketnote' },
@@ -6682,7 +6778,7 @@ function gachaResult(g) {
 /* 値札（2026-09-30）。粒の絵 ＋ 数。石も札も同じ組みにして、見比べやすくする。
    絵が無ければ、itemIcon / curIcon が字の粒に落ちる（絵が無くても動く） */
 const tktPrice = n => el('span', { class: 'tkp' }, itemIcon(TICKET), el('em', {}, '×' + n));
-const stonePrice = n => el('span', { class: 'tkp' }, curIcon('stone'), el('em', {}, num(n) + '石'));
+const stonePrice = n => el('span', { class: 'tkp' }, curIcon('stone'), el('em', {}, num(n)));
 /* 引く釦（2026-09-30 改）。
    前は名も値段も絵に焼いてあったので、絵の上に字を重ねていなかった。
    石と札で値札を出し分けたいので、絵は空にしてもらい、名と値はこちらで書く。
@@ -6958,7 +7054,7 @@ function revealAll(res) {
         tut ? '城へ戻る' : 'もどる'),
       tut ? null : el('button', { class: 'rvb again', onclick: againPull },
         el('b', {}, n === 1 ? 'もう一祈り' : 'もう十連'),
-        el('span', {}, `${num(price)} 石`))));
+        el('span', {}, `${num(price)} ストーン`))));
 }
 /* 帯の節目でもらったもの（2026-09-26）。もらった引きのときだけ出す */
 function giftRow(res) {
@@ -8661,14 +8757,14 @@ function prizeRow(rw, ev) {
      お祭りは二度目から勝ちの褒美が付かないので、そのときはお祭りのぶんだけ並ぶ */
   const add = (a, m, n, c) => { if (c) t.push(prizeTile(a, m, n, c)); };
   if (rw && !rw.lost) {
-    add(uiUrl('coin_石'), '勾', '勾玉', rw.stone);
+    add(uiUrl('coin_石'), '勾', 'ストーン', rw.stone);
     add(uiUrl('coin_小判'), '判', '小判', rw.koban);
     add(uiUrl('coin_魂'), '魂', '魂', rw.soul);
     add(itemUrl('稽古の書'), '書', '稽古の書', rw.book);
     add(null, '将', '経験', rw.exp);
   }
   if (ev) {
-    add(uiUrl('coin_石'), '勾', '勾玉', ev.stone);
+    add(uiUrl('coin_石'), '勾', 'ストーン', ev.stone);
     add(uiUrl('coin_小判'), '判', '小判', ev.koban);
     add(uiUrl('coin_魂'), '魂', '魂', ev.soul);
     for (const [k, n] of Object.entries(ev.items || {})) add(itemUrl(k), '具', k, n);
@@ -8787,7 +8883,7 @@ function takenTalk(p, foeGen) {
 function bonusRow(b) {
   if (!b) return null;
   const t = [];
-  if (b.stone) t.push(prizeTile(uiUrl('coin_石'), '勾', '勾玉', b.stone));
+  if (b.stone) t.push(prizeTile(uiUrl('coin_石'), '勾', 'ストーン', b.stone));
   if (b.koban) t.push(prizeTile(uiUrl('coin_小判'), '判', '小判', b.koban));
   if (b.soul)  t.push(prizeTile(uiUrl('coin_魂'), '魂', '魂', b.soul));
   if (b.book)  t.push(prizeTile(itemUrl('大稽古の書'), '書', '大稽古の書', b.book));
@@ -9149,7 +9245,7 @@ function twPrize(t, got) {
   const pz = (icon, n, label) => el('div', { class: 'twpzb', title: label },
     el('span', { class: 'twpzi' }, icon), el('em', {}, n));
   const out = [];
-  if (t.rw.stone) out.push(pz(curIcon('stone'), num(t.rw.stone), '石'));
+  if (t.rw.stone) out.push(pz(curIcon('stone'), num(t.rw.stone), 'ストーン'));
   if (t.rw.koban) out.push(pz(curIcon('koban'), num(t.rw.koban), '小判'));
   for (const [k, v] of Object.entries(t.rw.items || {})) out.push(pz(itemIcon(k), '×' + v, k));
   if (t.rw.title) out.push(pz(el('i', { class: 'twpzt' }, '称'), t.rw.title, '称号'));
@@ -10046,7 +10142,8 @@ const NAV = [
 // 育成の下位画面はすべて「育成」を光らせる
 const NAV_OF = { map: 'map', march: 'map', grow: 'grow', squads: 'grow', team: 'grow', form: 'grow',
                  power: 'grow', skillup: 'grow', inherit: 'grow', shop: 'grow',
-                 home: 'home', dex: 'dex', gacha: 'gachalist', gachalist: 'gachalist' };
+                 home: 'home', dex: 'dex', gacha: 'gachalist', gachalist: 'gachalist',
+                 stoneshop: 'gachalist' };
 function navBar() {
   const here = NAV_OF[S.screen];
   const nf = uiUrl('nav_frame');
@@ -10108,6 +10205,9 @@ const SCREEN_BG = {
   gachalist: 'gachalist',
   battle:  'battle',   // 合戦（2026-09-23）。盤面の上下、陣幕の帯になる
   event:   'event',    // お祭り（2026-09-23）
+  /* ストーンショップ（2026-10-07）。bg/stoneshop.jpg を置けばそれ、
+     無ければ家紋の地紋に落ちる（screenBg が BG_FALLBACK を見る） */
+  stoneshop: 'stoneshop',
 };
 /* その画面の専用の絵が無いときに敷く地紋（2026-09-23）。
    家紋を散らした茶色の一枚で、黒いままの画面をぜんぶ埋める。
@@ -10471,7 +10571,7 @@ const PAGE_TALK = {
   /* 育成武将の棚は、図鑑と見ているものが違う（2026-10-03）。
      台帳ではなく「手元の子がどこまで育ったか」の棚なので、語りも分けた */
   dexown:  ['育てた子を並べるワン！！', '位も技も、いま育っているままの姿で見られるワン'],
-  shop:    ['買い物をするワン！！', '小判・石・軍功で品を換えるワン。兵糧は石の蔵で戻すワン'],
+  shop:    ['買い物をするワン！！', '小判・ストーン・軍功で品を換えるワン。兵糧はストーンの蔵で戻すワン'],
   event:   ['お祭りに出るワン！！', '兵糧を使って小さな戦に挑むワン。前の級を取ると次が開くワン'],
   /* 出陣の画面は、県の名と家紋の大きな見出しがもう上にあるので語りは置かない（2026-09-29） */
 };
@@ -10513,11 +10613,12 @@ const SCREENS = {
   event: screenEvent, loading: screenLoading,
   tower: screenTower,
   market: screenMarket,
+  stoneshop: screenStone,          // ストーンショップ（2026-10-07）
 };
 const SUB = { title: '', tutorial: 'はじまり', home: 'ホーム', map: '全国', march: '出陣', squads: '部隊', dex: '図鑑',
               gacha: 'わんこみくじ', gachalist: 'くじ選び', team: '編成', form: '陣形と配置', battle: '合戦', event: 'お祭り',
               grow: '育成', power: '武将強化', skillup: '特技強化', inherit: '特技継承', shop: 'ショップ',
-              tower: '試練の塔', market: '取引所' };
+              tower: '試練の塔', market: '取引所', stoneshop: 'ストーンショップ' };
 /* 画面は毎回まるごと組み直すので、そのままだと押すたびに先頭へ戻ってしまう。
    同じ画面のままなら、縦の位置を覚えておいて戻す（2026-09-21） */
 let LAST_SCREEN = null;

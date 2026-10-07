@@ -45,8 +45,11 @@ export const P = {
   /* 兵糧を最後に数え直した時刻（2026-09-26）。時間で戻す仕掛けに使う。
      P の既定値に並べておかないと loadPlayer が読み戻さない */
   foodAt: 0,
-  paid: 0,            // 有償石（金の勾玉）
-  /* 無償石（青の勾玉）。はじめは持たせない（2026-09-26）。
+  paid: 0,            // 有償ストーン（金の勾玉）
+  /* ストーンショップで買った控え（2026-10-07）。
+     P の既定値に並べておかないと loadPlayer が読み戻さない */
+  buys: [],
+  /* 無償ストーン（青の勾玉）。はじめは持たせない（2026-09-26）。
      むかしは 3000 を配っていたが、門出のお役目を果たしてもらう形に寄せた */
   /* 背景を動かすか（2026-09-26）。古い端末や電池のために切れるようにした。
      ここに並べておかないと loadPlayer が読み戻さない */
@@ -872,11 +875,48 @@ export const newSquad = (i, FORMS) =>
 
 export const owns = no => P.own.includes(no);
 export const stones = () => P.paid + P.free;
-// 無償石から先に減らす（有償石を残すのが親切）
+// 無償ストーンから先に減らす（有償ストーンを残すのが親切）
 export function spendStones(n) {
   if (stones() < n) return false;
   const f = Math.min(P.free, n); P.free -= f; P.paid -= (n - f);
   return true;
+}
+
+/* ================= ストーンショップ（2026-10-07・悠さんの指図）=================
+   ストーン（これまで「石」と呼んでいたもの）を買う棚。
+   値は「300ストーン＝350円」から割り出した。十円の位で丸めてある。
+   500ストーンから上の口には、買った数の **2割** を無償ストーンとして添える。
+   だから得をするのは「300より上を買うかどうか」の一段だけで、
+   口が大きいほど得、という積み上げはしていない。
+   刻みを増やしたくなったら STONE_FREE_PCT をここで段にする。
+
+   no   … 保存と突き合わせに使う名札。**増やしてよいが消さないこと**
+   paid … 有償ストーン（P.paid へ）
+   free … 無償ストーン（P.free へ。先に減る）
+   yen  … 円（税込のつもり） */
+export const STONE_RATE = 350 / 300;        // 1ストーンの値（円）
+export const STONE_FREE_PCT = 0.2;          // 添える無償の割合
+export const STONE_FREE_FROM = 500;         // この口から無償が付く
+export const STONE_PACKS = [300, 500, 700, 1000, 2000, 3000, 5000, 10000].map(paid => ({
+  no: 'st' + paid,
+  paid,
+  free: paid >= STONE_FREE_FROM ? Math.round(paid * STONE_FREE_PCT) : 0,
+  yen: Math.round(paid * STONE_RATE / 10) * 10,
+}));
+export const stonePack = no => STONE_PACKS.find(x => x.no === no) || null;
+
+/* 買えたあとに呼ぶ。**お支払いが通ってから**しか呼んではいけない。
+   いまはストア（App Store / Google Play）との繋ぎが無いので、画面からは呼ばない。
+   繋いだら、レシートを確かめたあとにここを通す。
+   買った控えは P.buys に積む（重ねて配らないための突き合わせに使う） */
+export function grantStones(no, receipt) {
+  const pk = stonePack(no); if (!pk) return null;
+  P.paid += pk.paid; P.free += pk.free;
+  if (!Array.isArray(P.buys)) P.buys = [];
+  P.buys.push({ no, yen: pk.yen, at: Date.now(), receipt: receipt || null });
+  if (P.buys.length > 200) P.buys = P.buys.slice(-200);   // 控えは直近200まで
+  savePlayer();
+  return pk;
 }
 
 /* ================= ガチャ =================

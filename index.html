@@ -3248,6 +3248,12 @@ main.hasnav{padding-bottom:124px}
 .frc i{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:6px}
 .frc i b{font-size:16px;color:#12100e;text-shadow:0 1px 0 #ffffff55}
 .frmsg{margin:0;text-align:center;font-size:12px;color:var(--text2)}
+/* 一言を札の上に貼り付ける（2026-10-07）。
+   友が48人並ぶと、下の釦を押したとき 上の一言が画面の外にあって
+   「押しても何も出ない」ように見えていた */
+.frmsg.stick{position:sticky;top:0;z-index:7;padding:7px 10px;border-radius:9px;
+  background:#12100eef;border:1px solid #d8a94a4d;color:#f5e2a8;font-weight:700;
+  box-shadow:0 3px 10px #0007}
 .frmsg.good{color:var(--hi);font-weight:700}
 .frbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .frbtns button{padding:11px 0;font-size:12.5px}
@@ -29553,22 +29559,35 @@ function palTick(force) {
 }
 
 /* 本物の相手を押したときの作り。待っているあいだ釦を止める */
+/* 返事待ちの錠（2026-10-07）。
+   **これが立ったままになると、友の釦がぜんぶ disabled になり、
+   押しても何も起きない**（悠さんの実測「留守の陣を押すと何も表示されない」）。
+   どこか一か所でも下ろし忘れると、そのあとずっと黙る作りだった。
+   そこで「いつ立てたか」も覚えておき、25秒を過ぎたら勝手に下りるようにした。
+   サーバーの返事はどれも数秒で来るので、25秒かかっていればもう来ない */
+let FR_BUSY_AT = 0;
+const frBusyNow = () => {
+  if (S.frBusy && Date.now() - FR_BUSY_AT > 25000) S.frBusy = false;   // 錠が錆びついたら外す
+  return S.frBusy;
+};
+const frBusySet = (v) => { S.frBusy = !!v; if (v) FR_BUSY_AT = Date.now(); };
+
 function palDo(fn, done) {
-  if (S.frBusy) return;
-  S.frBusy = true; draw();
+  if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; draw(); return; }
+  frBusySet(true); draw();
   Promise.resolve(fn()).then(r => {
-    S.frBusy = false;
+    frBusySet(false);
     done(r || {});
     PAL_AT = 0; palTick(true);
     draw();
-  }).catch(() => { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); });
+  }).catch(() => { frBusySet(false); S.frMsg = '繋がらなかった'; draw(); });
 }
 
 /* 友ひとりの行。**本物も国の主も同じ形**（2026-10-06）。
    kind … 'find'（まだ友でない）／'ask'（届いた願い）／'sent'（返事待ち）／'pal'（友） */
 function palRow(c, kind) {
   const btn = (cls, label, on) => el('button', {
-    class: 'frbtn ' + cls, ...(S.frBusy ? { disabled: true } : {}),
+    class: 'frbtn ' + cls, ...(frBusyNow() ? { disabled: true } : {}),
     onclick: e => { e.stopPropagation(); on(); } }, label);
   const acts = [];
   if (kind === 'find') acts.push(btn('go', '友になる', () => {
@@ -29707,25 +29726,25 @@ const palInviteFrom = (id) => palInvites().find(x => x.from && x.from === id) ||
 
 /* 果たし合いに誘う。先に座を立て、その合言葉を相手の机に置く */
 function palInvite(c) {
-  if (S.frBusy) return;
+  if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; SFX.pick(); draw(); return; }
   /* 押す直前に相手の誘いが届いていたら、そちらへ入る（2026-10-06）。
      画面を描き直す間に行き違うことがあるので、ここでももう一度見る */
   const iv0 = palInviteFrom(c.id);
   if (iv0) { palTakeInvite(iv0); return; }
-  S.frBusy = true; S.frMsg = `${c.name} を誘っています…`; draw();
+  frBusySet(true); S.frMsg = `${c.name} を誘っています…`; draw();
   (async () => {
     try {
       const r = await duelOpen(dlTeam());
-      if (!r || !r.ok || !r.duel) { S.frBusy = false; S.frMsg = '座を立てられなかった'; draw(); return; }
+      if (!r || !r.ok || !r.duel) { frBusySet(false); S.frMsg = '座を立てられなかった'; draw(); return; }
       const r2 = await palDuel({ id: c.id }, r.duel);
-      S.frBusy = false;
+      frBusySet(false);
       if (!r2 || !r2.ok) { S.frMsg = '誘いを出せなかった'; draw(); return; }
       /* 自分はその座で待つ。相手が気づいて入ってくるのを待ち合いの間で待つ */
       S.fr = false; S.frId = null; S.screen = 'home';
       dlEnter(r.duel, r.seed);
       S.frMsg = '';
       SFX.win(); draw();
-    } catch (_) { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); }
+    } catch (_) { frBusySet(false); S.frMsg = '繋がらなかった'; draw(); }
   })();
 }
 
@@ -29738,27 +29757,48 @@ function palInvite(c) {
    同じ陣には一日一度しか入れない（稽古と同じ勘定）。
    戦ったあと、相手の机に置き手紙を残す ── 相手は次に城を開いたとき、
    誰に攻められ、陣が守り切ったかを知る。そこが置き部隊の値打ち。 */
+/* 留守の陣（2026-10-06）。
+   2026-10-07：**押しても何も出ない**という報せを受けて、
+   黙って帰る道を全部ふさいだ（悠さんの実測）。どの枝でも必ず一言は出す。
+   ・国の主の陣が引けない → 言う（前は黙って return していた）
+   ・ほかの返事を待っている → 言う（前は黙って return していた）
+   ・返事が来ないときは 20秒で諦める（frBusy が立ちっぱなしだと以後ずっと黙る）
+   ・置き部隊の中身が壊れていたら、盤を立てる前に止める
+     （番号だけの並びを engine に渡すと、戦の画面が真っ白になる） */
 function awayGo(c) {
   if (!canSpar(c.id)) { S.frMsg = '今日はもうその陣に入った'; SFX.pick(); draw(); return; }
   if (c.npc) {
     /* 国の主の留守。盤はこれまでの稽古とおなじものを使う（国主戦の顔ぶれ）。
        留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る */
     const fr = frOf(c.id);
-    if (!fr) return;
+    if (!fr || !(fr.team || []).length) {
+      S.frMsg = `${c.name} の陣が引けなかった`; SFX.pick(); draw(); return;
+    }
     S.fr = false; S.frId = null; S.frMsg = '';
     startBattle(null, null, { id: c.id, pref: fr.pref, duel: false, away: true });
     return;
   }
-  if (S.frBusy) return;
-  S.frBusy = true; S.frMsg = `${c.name} の陣をうかがっています…`; draw();
+  if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; SFX.pick(); draw(); return; }
+  frBusySet(true); S.frMsg = `${c.name} の陣をうかがっています…`; draw();
+  let done = false;
+  const giveUp = setTimeout(() => {
+    if (done) return;
+    done = true; frBusySet(false); S.frMsg = '返事が来なかった。少しして試されよ'; draw();
+  }, 20000);
   (async () => {
     try {
       const r = await palTeam(c.id);
-      S.frBusy = false;
+      if (done) return;
+      done = true; clearTimeout(giveUp);
+      frBusySet(false);
       if (!r || !r.ok || !r.team || !(r.team.members || []).length) {
         S.frMsg = (r && r.status === 404) ? 'まだ陣が組まれていない' : '陣をうかがえなかった';
         draw(); return;
       }
+      /* 置き部隊の中身を検める（2026-10-07）。
+         預かったものが古い形（番号だけ）だと engine が読めず、戦の画面が真っ白になる */
+      const bad = (r.team.members || []).some(m => !m || typeof m !== 'object' || !m.stats);
+      if (bad) { S.frMsg = `${c.name} の陣が古い形で預かられておる（相手が開き直せば直る）`; draw(); return; }
       /* うかがっているあいだに戻っていたら、攻めずに引く（2026-10-06）。
          居る相手の置き部隊を叩けるようにすると、生身の読み合いを誰もしなくなる */
       if (!r.away) {
@@ -29766,8 +29806,21 @@ function awayGo(c) {
         PAL_AT = 0; palTick(true); draw(); return;
       }
       S.fr = false; S.frId = null; S.frMsg = '';
-      startBattle(null, null, null, null, null, { id: c.id, name: c.name, team: r.team });
-    } catch (_) { S.frBusy = false; S.frMsg = '繋がらなかった'; draw(); }
+      try {
+        startBattle(null, null, null, null, null, { id: c.id, name: c.name, team: r.team });
+      } catch (e) {
+        /* 盤が立たなかったら、真っ白のまま置き去りにしない（2026-10-07） */
+        S.screen = 'home'; S.fr = true; S.frId = null;
+        S.frMsg = '陣が立たなかった：' + String((e && e.message) || e).slice(0, 60);
+        draw();
+      }
+    } catch (e) {
+      if (done) return;
+      done = true; clearTimeout(giveUp);
+      frBusySet(false);
+      S.frMsg = '繋がらなかった：' + String((e && e.message) || e).slice(0, 60);
+      draw();
+    }
   })();
 }
 
@@ -29825,7 +29878,10 @@ function frSheet() {
       !my && P.palTag ? el('p', { class: 'frtag' },
         'わたしの主番号　', el('b', {}, P.palTag),
         el('span', {}, 'この番号を伝えると探してもらえる')) : null,
-      S.frMsg ? el('p', { class: 'frmsg' }, S.frMsg) : null,
+      /* 一言は札の上に貼り付ける（2026-10-07）。
+         友が48人も並ぶと、下のほうの釦を押したとき
+         上に出た一言が画面の外にあって「何も出ない」ように見えていた */
+      S.frMsg ? el('p', { class: 'frmsg stick' }, S.frMsg) : null,
       !my ? searchRow('frqin', S.frQ, (v) => {
         S.frQ = v; clearTimeout(FRQ_T);
         FRQ_T = setTimeout(() => { palTick(true); redraw(); }, 260);
@@ -29841,7 +29897,7 @@ function frSheet() {
                 el('b', {}, `${iv.name} が誘っている`),
                 el('i', {}, `合言葉 ${iv.code}`)),
               el('span', { class: 'frr' },
-                el('button', { class: 'frbtn go take', ...(S.frBusy ? { disabled: true } : {}),
+                el('button', { class: 'frbtn go take', ...(frBusyNow() ? { disabled: true } : {}),
                   onclick: () => palTakeInvite(iv) }, '受けて立つ')))))) : null,
         askN ? el('div', {},
           el('b', { class: 'frhd' }, `友の願いが ${num(askN)} 件`),

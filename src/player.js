@@ -875,10 +875,34 @@ export const newSquad = (i, FORMS) =>
 
 export const owns = no => P.own.includes(no);
 export const stones = () => P.paid + P.free;
-// 無償ストーンから先に減らす（有償ストーンを残すのが親切）
+
+/* ★ストーンの決めごと（2026-10-07・悠さんの指図）★
+   **褒美でもらえるストーンは、すべて「無料ストーン」（P.free）**。
+   有償ストーン（P.paid）が増えるのは、**ストーン販売所で買ったときだけ**。
+   いずれ「有料ストーンでしか引けないくじ」を作るので、ここが混ざると台無しになる。
+
+   だから、褒美を配るところは **必ず addFreeStones() を通すこと**。
+   `P.free += n` と直に書いてもよいが、書くところが増えるほど
+   いつか `P.paid` と書き間違える。入り口は一本にしておく。 */
+export function addFreeStones(n) {
+  const v = Math.max(0, Math.round(n || 0));
+  if (!v) return 0;
+  P.free += v;
+  return v;
+}
+
+// 無料ストーンから先に減らす（有償ストーンを残すのが親切）
 export function spendStones(n) {
   if (stones() < n) return false;
   const f = Math.min(P.free, n); P.free -= f; P.paid -= (n - f);
+  return true;
+}
+/* 有償ストーンだけで払う（2026-10-07）。
+   「有料ストーンでしか引けないくじ」のための戸口。まだ誰も呼んでいない。
+   使うときは、払えるかを spendPaidOnly の戻り値で見ること（足りなければ何も減らない） */
+export function spendPaidOnly(n) {
+  if (P.paid < n) return false;
+  P.paid -= n;
   return true;
 }
 
@@ -1139,7 +1163,7 @@ export function giveReward(won, mul = 1, food = 0, noStone = false) {
     exp: expForFood(food),
     mul: mul > 1 ? mul : undefined,
   };
-  P.free += r.stone; P.koban += r.koban; P.soul += r.soul;
+  addFreeStones(r.stone); P.koban += r.koban; P.soul += r.soul;
   /* 集めた小判の合計（2026-10-02）。お役目「小判を一万集める」はこれを見る。
      使った小判は引かない。「稼いだ覚え」なので、減らすと数えられなくなる */
   if (r.koban) miBump('koban', r.koban);
@@ -1165,7 +1189,7 @@ export function giveReward(won, mul = 1, food = 0, noStone = false) {
 export const SPAR_STONE = 5;
 export function sparReward(won) {
   if (!won) return { stone: 0 };
-  P.free += SPAR_STONE;
+  addFreeStones(SPAR_STONE);
   savePlayer();
   return { stone: SPAR_STONE };
 }
@@ -1308,7 +1332,7 @@ export function advancePref(id) {
     const badge = badgeMat(ATTRS[seedOf(id) % ATTRS.length], pr.battles > 2 ? 1 : 0);
     bonus = { stone: 100 * pr.battles, koban: 1000 * pr.battles, soul: pr.battles,
               book: pr.battles, gear: freeMat(tier), gearN: pr.battles, badge, badgeN: 1 };
-    P.free += bonus.stone; P.koban += bonus.koban; P.soul += bonus.soul;
+    addFreeStones(bonus.stone); P.koban += bonus.koban; P.soul += bonus.soul;
     P.items['大稽古の書'] = (P.items['大稽古の書'] || 0) + bonus.book;
     P.items[bonus.gear] = (P.items[bonus.gear] || 0) + bonus.gearN;
     P.items[badge] = (P.items[badge] || 0) + bonus.badgeN;

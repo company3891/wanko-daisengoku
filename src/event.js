@@ -5,7 +5,7 @@
    ・兵糧は級で決まる。10 / 30 / 50 / 100
    報酬はこのファイルだけで決まるので、調整はここを触ればよい。 */
 
-import { P, savePlayer, ITEMS, addItem, badgeMat, freeMat, ATTRS, today, dayNow } from './player.js';
+import { P, savePlayer, ITEMS, addItem, badgeMat, freeMat, ATTRS, today, dayNow, addFreeStones } from './player.js';
 
 export const EV_RANKS = ['初級', '中級', '上級', '超級'];
 export const EV_FOOD  = [10, 30, 50, 100];
@@ -175,7 +175,7 @@ export function evWin(id, r) {
   const rw = ev.reward(r) || {};
   if (rw.koban) P.koban += rw.koban;
   if (rw.soul)  P.soul  += rw.soul;
-  if (rw.stone) P.free  += rw.stone;
+  if (rw.stone) addFreeStones(rw.stone);   // 褒美の石は必ず無料ストーン（2026-10-07）
   if (rw.items) for (const [k, n] of Object.entries(rw.items)) if (n > 0) addItem(k, n);
   const got = [];
   for (const no of (rw.chars || [])) {

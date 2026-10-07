@@ -15,7 +15,7 @@ import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, m
 import { pityOf } from './player.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
-         STONE_PACKS, STONE_FREE_FROM, STONE_FREE_PCT, stonePack,
+         STONE_PACKS, STONE_FREE_FROM, STONE_FREE_PCT, stonePack, addFreeStones,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
@@ -2145,7 +2145,7 @@ function miTake(m) {
   const rw = m.rw || {};
   if (rw.koban) P.koban += rw.koban;
   if (rw.soul) P.soul += rw.soul;
-  if (rw.stone) P.free += rw.stone;
+  if (rw.stone) addFreeStones(rw.stone);   // 褒美の石は必ず無料ストーン（2026-10-07）
   if (rw.stamina) P.stamina = Math.min(P.staminaMax, P.stamina + rw.stamina);
   if (rw.ticket) P.items[TICKET] = (P.items[TICKET] || 0) + rw.ticket;
   for (const [k, v] of Object.entries(rw.items || {})) P.items[k] = (P.items[k] || 0) + v;
@@ -2429,7 +2429,7 @@ const tebikiAll = () => TEBIKI.every(t => t.ok());
 /* 仕上げの褒美 */
 const TEBIKI_PRIZE = { stone: 300, koban: 3000, items: { '稽古の書': 10 } };
 function tebikiTake() {
-  P.free += TEBIKI_PRIZE.stone;
+  addFreeStones(TEBIKI_PRIZE.stone);       // 褒美の石は必ず無料ストーン（2026-10-07）
   P.koban += TEBIKI_PRIZE.koban;
   for (const [k, v] of Object.entries(TEBIKI_PRIZE.items)) P.items[k] = (P.items[k] || 0) + v;
   P.tut2.got = true; P.tut2.on = false;
@@ -2603,7 +2603,7 @@ function rkTakePrize() {
   if (!r.last) return null;
   const g = r.last.prize || {};
   if (g.koban) P.koban += g.koban;
-  if (g.stone) P.free += g.stone;
+  if (g.stone) addFreeStones(g.stone);     // 褒美の石は必ず無料ストーン（2026-10-07）
   if (g.gun) P.gun = (P.gun || 0) + g.gun;
   const out = r.last;
   r.last = null;
@@ -6189,7 +6189,7 @@ function newsTake(n) {
   const g = n.gift;
   if (g.koban) P.koban += g.koban;
   if (g.soul) P.soul += g.soul;
-  if (g.stone) P.free += g.stone;
+  if (g.stone) addFreeStones(g.stone);     // 褒美の石は必ず無料ストーン（2026-10-07）
   if (g.stamina) P.stamina = Math.min(P.staminaMax, P.stamina + g.stamina);
   for (const [k, v] of Object.entries(g.items || {})) P.items[k] = (P.items[k] || 0) + v;
   P.newsGot.push(n.id);
@@ -9167,7 +9167,7 @@ function twClear(f) {
   if (first) {
     st.got = [...(st.got || []), f];
     if (f >= (st.floor || 1)) st.floor = Math.min(TOWER_MAX, f + 1);
-    P.free = (P.free || 0) + (t.rw.stone || 0);
+    addFreeStones(t.rw.stone);             // 褒美の石は必ず無料ストーン（2026-10-07）
     P.koban = (P.koban || 0) + (t.rw.koban || 0);
     for (const [k, v] of Object.entries(t.rw.items || {})) addItem(k, v);
     if (t.rw.title) gainTitle(t.rw.title);

@@ -2216,7 +2216,12 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
   .baggrid{grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:7px}
   .bagc .itic{width:30px;height:30px;font-size:13px}
 }
-.itic.art{background:#1a1613;padding:0}
+/* 道具の絵は **どこでも白地**（2026-10-07・悠さんの指図）。
+   黒地の画面（褒美の札・くじ・蔵）と、クリーム地の画面とで
+   地の色が食い違っていたのをそろえた。
+   絵のある品だけ。絵の無い品は漢字の丸のままにする（白地だと字が読めない） */
+.itic.art{background:#fff;padding:0}
+.pwbox .fdm .itic.art{background:#fff}
 .itic.art img{width:100%;height:100%;object-fit:contain;display:block;border-radius:inherit}
 
 /* 兵糧の＋（2026-09-21） */
@@ -3041,7 +3046,10 @@ main.hasnav{padding-bottom:124px}
 .evhd{display:flex;align-items:center;gap:8px;margin-bottom:7px}
 .evhd b{font-size:14px;letter-spacing:.1em;font-family:var(--mincho);color:var(--gold)}
 .evclr{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:999px;
-  background:#8fd48a26;border:1px solid #8fd48a77;color:#a8e0a2}
+  background:#8fd48a26;border:1px solid #8fd48a77;color:#a8e0a2;
+  /* 「済」をやめて CLEAR に（2026-10-07・悠さんの指図）。
+     欧文なので字間を少しあけ、小さめにそろえる */
+  font-size:8.5px;letter-spacing:.1em;font-family:system-ui,sans-serif}
 .evfood{margin-left:auto;font-size:10.5px;color:var(--text3);
   display:inline-flex;align-items:center;gap:4px}
 /* 褒美の札 */
@@ -3832,7 +3840,6 @@ main.hasnav{padding-bottom:124px}
 /* 道具の絵の下地（2026-09-25）。
    絵そのものは四隅が透けているだけで、黒い角丸は CSS が敷いていた。
    明るい札の中では白に。絵を作り直さなくても変えられる */
-.card2:not(.winbox):not(.resbox):not(.growbox) .itic.art{background:#fff}
 
 /* 添えた護符の一行（2026-09-25）。丸札の列をやめ、いま添えているものだけを出す */
 .charmon{display:flex;align-items:center;gap:9px;padding:9px 11px;margin:6px 0 10px;
@@ -3939,9 +3946,14 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 @keyframes marchbeat{0%,100%{transform:none}50%{transform:scale(1.015)}}
 .marchsub{margin:7px 0 0;font-size:11px;color:var(--text3);letter-spacing:.06em}
 /* 早送りの釦（2026-10-07）。制覇した国にだけ出る。
-   出陣より先に目に入らないよう、下に小さく薄く置く */
-.mchskip{margin-top:10px;font-size:12px;letter-spacing:.06em;opacity:.82}
-.mchskip:disabled{opacity:.35}
+   下に小さく置いたら気づかれなかったので、**出陣と同じ行の左**へ移した。
+   右の道具の丸と左右で対になる。地は蒼（出陣の金と取り違えないように） */
+.prepcir.mchskip{width:62px;height:62px;
+  background:linear-gradient(180deg,#3d6f9e,#28506f);border-color:#1d3d55}
+.prepcir.mchskip i{font-family:var(--mincho);font-size:22px}
+.prepcir.mchskip em{opacity:.95}
+.prepcir.mchskip:disabled{opacity:.35}
+.prepcir.mchskip:active{transform:scale(.95)}
 
 /* ---- 稽古の書を絵で並べる（2026-09-26）----
    覚醒の品と同じ姿にそろえた。持っている数は絵の右下に小さく載せる。
@@ -4639,8 +4651,10 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .pzrow{display:flex;gap:4px;flex-wrap:wrap;align-items:flex-start;justify-content:center}
 .pz{width:26px;display:flex;flex-direction:column;align-items:center;gap:1px}
 .pzw{position:relative;display:block;line-height:0}
+/* 褒美の粒も白地にそろえた（2026-10-07・悠さんの指図）。
+   道具の丸（.itic.art）と同じ地にして、画面をまたいでも同じ見た目にする */
 .pzi{width:26px;height:26px;object-fit:contain;
-  background:#1a140cd9;border:1px solid #a8802c;border-radius:7px;padding:2px;
+  background:#fff;border:1px solid #a8802c;border-radius:7px;padding:2px;
   box-shadow:0 1px 3px #0000004d}
 .pzm{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
   font-style:normal;font-size:12px;font-family:var(--mincho);color:#f5e2a8;
@@ -4848,13 +4862,15 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 /* 一枚絵の道具の釦（2026-09-29）。絵そのものが丸いので、緑の地と枠は外す */
 /* 一枚絵の道具の釦（2026-09-29 に丸い地を付け、メニューの釦と同じ大きさにした）。
    絵だけだと押せるものに見えず、周りから浮いていた */
-.prepcir.art{width:44px;height:44px;padding:5px;position:relative;gap:0;border-radius:50%;
-  background:#12100ec4;border:1.5px solid var(--gold);box-shadow:0 1px 4px #000a}
-.prepcir.art img{width:100%;height:100%;object-fit:contain;filter:none}
-.prepcir.art em{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);
-  font-size:8.5px;font-weight:700;color:#f5e2a8;background:#12100ee6;
-  border:1px solid #a8802c99;border-radius:999px;padding:0 6px;line-height:1.5;opacity:1}
-.prepcir.art.on{border-color:#f5e2a8;box-shadow:0 0 0 1px #d8a94a66,0 1px 4px #000a}
+/* 2026-10-07（悠さんの指図）：**丸い地と枠を外した**。絵だけで置く。
+   袋の絵そのものが丸いので、黒い丸を敷くと二重丸に見えていた。
+   数（0/3）も出さないので、em の飾りも要らない */
+.prepcir.art{width:48px;height:48px;padding:0;position:relative;gap:0;border-radius:0;
+  background:none;border:0;box-shadow:none}
+.prepcir.art img{width:100%;height:100%;object-fit:contain;
+  filter:drop-shadow(0 2px 4px #000a)}
+.prepcir.art.on img{filter:drop-shadow(0 0 5px #f5e2a899) drop-shadow(0 2px 4px #000a)}
+.prepcir.art.on{border:0;box-shadow:none}
 .prepcir.art:active{transform:scale(.93)}
 .prepcir.on{border-color:#f5e2a8;box-shadow:0 0 0 1px #d8a94a66,0 3px 8px #0007}
 .prepcir:active{transform:scale(.95)}
@@ -5133,7 +5149,7 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .twt i{display:block;font-style:normal;font-size:11px;color:var(--text2);margin-top:3px;line-height:1.5}
 .twr{flex:0 0 auto}
 .twh{font-style:normal;font-size:10px;color:#d8a94abb;letter-spacing:-.5px}
-.twok{font-style:normal;font-size:11px;font-weight:700;color:#8fd08f}
+.twok{font-style:normal;font-size:9px;font-weight:800;color:#8fd08f;letter-spacing:.1em}
 /* 階の札 */
 .card2.twbox{max-width:360px}
 .twcond{margin:8px 0 10px;font-size:13px;line-height:1.7;color:var(--text)}
@@ -28320,8 +28336,9 @@ function sqSheet() {
           el('button', {
             class: 'prepcir' + (prepN ? ' on' : '') + (part ? ' art' : ''), title: '道具を使う',
             onclick: () => { S.prepBox = true; SFX.pick(); draw(); },
-          }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'),
-             el('em', {}, `${prepN}/${PREP_MAX}`)));
+            /* 数（0/3）は出さない（2026-10-07・悠さんの指図）。
+               戦に持ち込めるのは一つという前提なので、分母を見せても意味が無い */
+          }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具')));
       })(),
       a.edit ? null : prepTags(),
       el('button', { class: 'ghost wide', onclick: close }, 'やめる')),
@@ -28796,7 +28813,7 @@ function miSheet() {
               const rw = miTake(m);
               if (rw) { S.miMsg = miWords(rw); SFX.get(); draw(); }
             },
-          }, got ? '済' : '頂戴'));
+          }, got ? 'CLEAR' : '頂戴'));
       }) : el('p', { class: 'minone' }, 'いまはお役目がないワン！')),
       S.miMsg ? el('p', { class: 'mimsg' }, S.miMsg) : null,
       el('button', {
@@ -28888,7 +28905,7 @@ function tebikiCard() {
         class: 'tbrow' + (ok ? ' ok' : ''), disabled: ok ? true : null,
         onclick: () => { t.go(); SFX.pick(); draw(); },
       },
-        el('i', {}, ok ? '済' : '→'),
+        el('i', {}, ok ? 'CLEAR' : '→'),
         el('span', {}, t.text));
     })));
 }
@@ -29972,10 +29989,10 @@ function frHomeSheet() {
       el('div', { class: 'frbtns' },
         el('button', { class: 'go' + (canSpar(id) ? '' : ' soon'), disabled: canSpar(id) ? null : true,
           /* 済んだときは「済」の一字（2026-09-25）。長い文だと二行に折れて釦の形が崩れる */
-          onclick: () => sparStart(id) }, canSpar(id) ? '稽古を申し込む' : '済'),
+          onclick: () => sparStart(id) }, canSpar(id) ? '稽古を申し込む' : 'CLEAR'),
         el('button', { class: 'ghost' + (f.gift === today() ? ' soon' : ''), disabled: f.gift === today() ? true : null,
           onclick: () => { if (frGift(id)) { S.frMsg = '見舞いを置いてきたわん。返礼は後日であろう'; SFX.pick(); draw(); } } },
-          f.gift === today() ? '済' : '陣中見舞')),
+          f.gift === today() ? 'CLEAR' : '陣中見舞')),
       closeX(back, 'もどる')));
 }
 
@@ -30166,10 +30183,11 @@ function screenMarch() {
         const pbtn = el('button', {
           class: 'prepcir' + (prepN ? ' on' : '') + (part ? ' art' : ''), title: '道具を使う',
           onclick: () => { S.prepBox = true; SFX.pick(); draw(); },
-        }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'),
-           el('em', {}, `${prepN}/${PREP_MAX}`));
-        /* 早送りの釦（2026-10-07・悠さんの指図）。
-           制覇した国にだけ出す。お祭りの早送りと同じ言い回しにそろえた。
+          /* 数（0/3）は出さない（2026-10-07・悠さんの指図） */
+        }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'));
+        /* 早送りの釦（2026-10-07・悠さんの指図）。制覇した国にだけ出す。
+           2026-10-07 改：出陣の釦の下に小さく置いていたら気づかれなかったので、
+           **出陣と同じ行の左**へ移した。道具の丸と左右で対になる。
            兵糧はふつうの出陣と同じだけ要る（払わずに回せる道を作らないため） */
         const skipGo = () => {
           const run = () => { if (!spendFood(p, step)) return; marchSkip(p, step); };
@@ -30177,16 +30195,19 @@ function screenMarch() {
           run();
         };
         const skipBtn = taken ? el('button', {
-          class: 'ghost wide mchskip', disabled: can ? null : true, onclick: skipGo,
-        }, '早送りで決着　兵糧 ' + food) : null;
+          class: 'prepcir mchskip', disabled: can ? null : true,
+          title: `早送りで決着　兵糧 ${food}`, onclick: skipGo,
+        }, el('i', {}, '早'), el('em', {}, '早送り')) : null;
         if (!art) {
           return el('div', { class: 'marchgo' },
             el('div', { class: 'mgrow' },
+              skipBtn,
               el('button', { class: 'go big out', disabled: can ? null : true, onclick: go }, word), pbtn),
-            skipBtn, prepTags());
+            prepTags());
         }
         return el('div', { class: 'marchgo' },
           el('div', { class: 'mgrow' },
+            skipBtn,
             el('button', {
               class: 'go big out pic', disabled: can ? null : true, title: word, onclick: go,
             }, keepImg({ src: art, alt: '出陣' })),
@@ -30194,7 +30215,7 @@ function screenMarch() {
           el('p', { class: 'marchsub' },
             canMarch(p, step) ? (taken ? `もう一度戦う　兵糧 ${food}` : `兵糧 ${food}`)
                        : `兵糧をもどして出陣（要 ${food}）`),
-          skipBtn, prepTags());
+          prepTags());
       })(),
       S.prepBox ? prepSheet() : null),
     nav: true,
@@ -35734,7 +35755,7 @@ function twBossSheet() {
           el('span', { class: 'twbp' }, curIcon('stone'), el('b', {}, num(t.rw.stone)),
             curIcon('koban'), el('b', {}, num(t.rw.koban || 0))),
           el('span', { class: 'twbt' }, t.rw.title ? `「${t.rw.title}」` : ''),
-          done ? el('i', { class: 'twok' }, '済') : null);
+          done ? el('i', { class: 'twok' }, 'CLEAR') : null);
       })),
       closeX(close)));
 }
@@ -36384,7 +36405,7 @@ function screenEvent() {
             + (done && open.repeat ? ' again' : '') },
             el('div', { class: 'evhd' },
               el('b', {}, rk),
-              cleared ? el('span', { class: 'evclr' }, '済') : null,
+              cleared ? el('span', { class: 'evclr' }, 'CLEAR') : null,
               el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
             el('div', { class: 'evrw2' }, rwChips(rw)),
             !opened ? el('p', { class: 'note' }, `${EV_RANKS[r - 1]} を取ると開く`)

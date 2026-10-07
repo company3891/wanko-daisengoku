@@ -1888,8 +1888,9 @@ function sqSheet() {
           el('button', {
             class: 'prepcir' + (prepN ? ' on' : '') + (part ? ' art' : ''), title: '道具を使う',
             onclick: () => { S.prepBox = true; SFX.pick(); draw(); },
-          }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'),
-             el('em', {}, `${prepN}/${PREP_MAX}`)));
+            /* 数（0/3）は出さない（2026-10-07・悠さんの指図）。
+               戦に持ち込めるのは一つという前提なので、分母を見せても意味が無い */
+          }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具')));
       })(),
       a.edit ? null : prepTags(),
       el('button', { class: 'ghost wide', onclick: close }, 'やめる')),
@@ -2364,7 +2365,7 @@ function miSheet() {
               const rw = miTake(m);
               if (rw) { S.miMsg = miWords(rw); SFX.get(); draw(); }
             },
-          }, got ? '済' : '頂戴'));
+          }, got ? 'CLEAR' : '頂戴'));
       }) : el('p', { class: 'minone' }, 'いまはお役目がないワン！')),
       S.miMsg ? el('p', { class: 'mimsg' }, S.miMsg) : null,
       el('button', {
@@ -2456,7 +2457,7 @@ function tebikiCard() {
         class: 'tbrow' + (ok ? ' ok' : ''), disabled: ok ? true : null,
         onclick: () => { t.go(); SFX.pick(); draw(); },
       },
-        el('i', {}, ok ? '済' : '→'),
+        el('i', {}, ok ? 'CLEAR' : '→'),
         el('span', {}, t.text));
     })));
 }
@@ -3540,10 +3541,10 @@ function frHomeSheet() {
       el('div', { class: 'frbtns' },
         el('button', { class: 'go' + (canSpar(id) ? '' : ' soon'), disabled: canSpar(id) ? null : true,
           /* 済んだときは「済」の一字（2026-09-25）。長い文だと二行に折れて釦の形が崩れる */
-          onclick: () => sparStart(id) }, canSpar(id) ? '稽古を申し込む' : '済'),
+          onclick: () => sparStart(id) }, canSpar(id) ? '稽古を申し込む' : 'CLEAR'),
         el('button', { class: 'ghost' + (f.gift === today() ? ' soon' : ''), disabled: f.gift === today() ? true : null,
           onclick: () => { if (frGift(id)) { S.frMsg = '見舞いを置いてきたわん。返礼は後日であろう'; SFX.pick(); draw(); } } },
-          f.gift === today() ? '済' : '陣中見舞')),
+          f.gift === today() ? 'CLEAR' : '陣中見舞')),
       closeX(back, 'もどる')));
 }
 
@@ -3734,10 +3735,11 @@ function screenMarch() {
         const pbtn = el('button', {
           class: 'prepcir' + (prepN ? ' on' : '') + (part ? ' art' : ''), title: '道具を使う',
           onclick: () => { S.prepBox = true; SFX.pick(); draw(); },
-        }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'),
-           el('em', {}, `${prepN}/${PREP_MAX}`));
-        /* 早送りの釦（2026-10-07・悠さんの指図）。
-           制覇した国にだけ出す。お祭りの早送りと同じ言い回しにそろえた。
+          /* 数（0/3）は出さない（2026-10-07・悠さんの指図） */
+        }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'));
+        /* 早送りの釦（2026-10-07・悠さんの指図）。制覇した国にだけ出す。
+           2026-10-07 改：出陣の釦の下に小さく置いていたら気づかれなかったので、
+           **出陣と同じ行の左**へ移した。道具の丸と左右で対になる。
            兵糧はふつうの出陣と同じだけ要る（払わずに回せる道を作らないため） */
         const skipGo = () => {
           const run = () => { if (!spendFood(p, step)) return; marchSkip(p, step); };
@@ -3745,16 +3747,19 @@ function screenMarch() {
           run();
         };
         const skipBtn = taken ? el('button', {
-          class: 'ghost wide mchskip', disabled: can ? null : true, onclick: skipGo,
-        }, '早送りで決着　兵糧 ' + food) : null;
+          class: 'prepcir mchskip', disabled: can ? null : true,
+          title: `早送りで決着　兵糧 ${food}`, onclick: skipGo,
+        }, el('i', {}, '早'), el('em', {}, '早送り')) : null;
         if (!art) {
           return el('div', { class: 'marchgo' },
             el('div', { class: 'mgrow' },
+              skipBtn,
               el('button', { class: 'go big out', disabled: can ? null : true, onclick: go }, word), pbtn),
-            skipBtn, prepTags());
+            prepTags());
         }
         return el('div', { class: 'marchgo' },
           el('div', { class: 'mgrow' },
+            skipBtn,
             el('button', {
               class: 'go big out pic', disabled: can ? null : true, title: word, onclick: go,
             }, keepImg({ src: art, alt: '出陣' })),
@@ -3762,7 +3767,7 @@ function screenMarch() {
           el('p', { class: 'marchsub' },
             canMarch(p, step) ? (taken ? `もう一度戦う　兵糧 ${food}` : `兵糧 ${food}`)
                        : `兵糧をもどして出陣（要 ${food}）`),
-          skipBtn, prepTags());
+          prepTags());
       })(),
       S.prepBox ? prepSheet() : null),
     nav: true,
@@ -9302,7 +9307,7 @@ function twBossSheet() {
           el('span', { class: 'twbp' }, curIcon('stone'), el('b', {}, num(t.rw.stone)),
             curIcon('koban'), el('b', {}, num(t.rw.koban || 0))),
           el('span', { class: 'twbt' }, t.rw.title ? `「${t.rw.title}」` : ''),
-          done ? el('i', { class: 'twok' }, '済') : null);
+          done ? el('i', { class: 'twok' }, 'CLEAR') : null);
       })),
       closeX(close)));
 }
@@ -9952,7 +9957,7 @@ function screenEvent() {
             + (done && open.repeat ? ' again' : '') },
             el('div', { class: 'evhd' },
               el('b', {}, rk),
-              cleared ? el('span', { class: 'evclr' }, '済') : null,
+              cleared ? el('span', { class: 'evclr' }, 'CLEAR') : null,
               el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
             el('div', { class: 'evrw2' }, rwChips(rw)),
             !opened ? el('p', { class: 'note' }, `${EV_RANKS[r - 1]} を取ると開く`)

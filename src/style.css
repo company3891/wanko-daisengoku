@@ -3936,13 +3936,13 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .marchsub{margin:7px 0 0;font-size:11px;color:var(--text3);letter-spacing:.06em}
 /* 早送りの釦（2026-10-07）。制覇した国にだけ出る。
    下に小さく置いたら気づかれなかったので、**出陣と同じ行の左**へ移した。
-   右の道具の丸と左右で対になる。地は蒼（出陣の金と取り違えないように） */
-.prepcir.mchskip{width:62px;height:62px;
-  background:linear-gradient(180deg,#3d6f9e,#28506f);border-color:#1d3d55}
-.prepcir.mchskip i{font-family:var(--mincho);font-size:22px}
-.prepcir.mchskip em{opacity:.95}
-.prepcir.mchskip:disabled{opacity:.35}
-.prepcir.mchskip:active{transform:scale(.95)}
+   2026-10-07 改（悠さんの指図）：丸い釦はダサいので、
+   **お祭りと同じ『スキップ』の文字釦**にそろえた。丸に合わせない。
+   右の道具は丸のままだが、左右で姿がそろっている必要はない */
+.mgrow .ghost.sm.mchskip{flex:0 0 auto;min-width:0;padding:9px 13px;font-size:12px;
+  letter-spacing:.04em;white-space:nowrap}
+.mgrow .ghost.sm.mchskip:disabled{opacity:.35;pointer-events:none}
+.mgrow .ghost.sm.mchskip:active{transform:translateY(1px);filter:brightness(.93)}
 
 /* ---- 稽古の書を絵で並べる（2026-09-26）----
    覚醒の品と同じ姿にそろえた。持っている数は絵の右下に小さく載せる。

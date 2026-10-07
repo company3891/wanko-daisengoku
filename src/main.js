@@ -3738,8 +3738,10 @@ function screenMarch() {
           /* 数（0/3）は出さない（2026-10-07・悠さんの指図） */
         }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具'));
         /* 早送りの釦（2026-10-07・悠さんの指図）。制覇した国にだけ出す。
-           2026-10-07 改：出陣の釦の下に小さく置いていたら気づかれなかったので、
-           **出陣と同じ行の左**へ移した。道具の丸と左右で対になる。
+           2026-10-07 改その一：出陣の釦の下に小さく置いていたら気づかれなかったので、
+           **出陣と同じ行の左**へ移した。
+           2026-10-07 改その二（悠さんの指図）：丸い釦は見栄えが悪いので、
+           **お祭りと同じ『スキップ』の文字釦**にそろえた。丸に合わせる必要はない。
            兵糧はふつうの出陣と同じだけ要る（払わずに回せる道を作らないため） */
         const skipGo = () => {
           const run = () => { if (!spendFood(p, step)) return; marchSkip(p, step); };
@@ -3747,9 +3749,9 @@ function screenMarch() {
           run();
         };
         const skipBtn = taken ? el('button', {
-          class: 'prepcir mchskip', disabled: can ? null : true,
+          class: 'ghost sm mchskip', disabled: can ? null : true,
           title: `早送りで決着　兵糧 ${food}`, onclick: skipGo,
-        }, el('i', {}, '早'), el('em', {}, '早送り')) : null;
+        }, 'スキップ') : null;
         if (!art) {
           return el('div', { class: 'marchgo' },
             el('div', { class: 'mgrow' },

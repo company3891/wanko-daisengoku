@@ -2763,12 +2763,21 @@ function rkFoeSheet(foe) {
         return `勝てば ${w > 0 ? '+' : ''}${w}　負ければ ${l}`;
       })()),
       S.rkMsg ? el('p', { class: 'frmsg' }, S.rkMsg) : null,
-      /* 釦は一つだけなので、二列の枠から外して真ん中に置く（2026-09-25）。
-         友の札と同じ .frbtns を使っていたせいで、左の列に寄っていた */
-      el('div', { class: 'frbtns solo' },
-        el('button', { class: 'go' + (ok ? '' : ' soon'), disabled: ok ? null : true,
-          onclick: () => rkStart(foe) },
-          r.tick < 1 ? '対戦札が無いわん' : '出陣')),
+      /* 2026-10-09（悠さんの指図）：番付の相手にも **友の願いを出せる**ようにした。
+         強い相手と出会える場は番付しかないので、ここで結べないのはもったいない。
+         結んだあとは マイフレンドに並び、果たし合いも留守の陣も見舞も通る。
+         番付の顔ぶれは月で組み替わるので、願いを出した時点の姿を控える */
+      (() => {
+        const mine = !!rkPalOf(foe.id);
+        const asked = !!((P.palRkAsk || {})[foe.id]);
+        return el('div', { class: 'frbtns' },
+          el('button', { class: 'go' + (ok ? '' : ' soon'), disabled: ok ? null : true,
+            onclick: () => rkStart(foe) },
+            r.tick < 1 ? '対戦札が無いわん' : '出陣'),
+          mine ? el('button', { class: 'ghost', disabled: true }, 'もう友である')
+          : asked ? el('button', { class: 'ghost', disabled: true }, '返事待ち')
+          : el('button', { class: 'ghost', onclick: () => rkAsk(foe) }, '友になる'));
+      })(),
       closeX(back, 'もどる')));
 }
 /* 褒美の一覧（2026-09-25）。番付の右上の小さな釦から開く。
@@ -2969,7 +2978,7 @@ function frTakeBack(id) {
    seed に日付を混ぜてあるので、毎日ちがう空と地形になる。 */
 const canSpar = id => frState(id).spar !== today();
 function sparStart(id) {
-  const fr = frOf(id);
+  const fr = npcFriendOf(id);      // 国の主でも 番付の相手でも通る（2026-10-09）
   if (!fr || !canSpar(id)) return;
   // どう手合わせするかを先にえらぶ（2026-09-30）
   S.spAsk = id; SFX.pick(); draw();
@@ -2980,7 +2989,7 @@ function sparStart(id) {
    どちらも「何が違うか」は字で並べず、語り手の吹き出しで言わせる */
 function sparAskSheet() {
   const id = S.spAsk; if (id == null) return null;
-  const fr = frOf(id); if (!fr) { S.spAsk = null; return null; }
+  const fr = npcFriendOf(id); if (!fr) { S.spAsk = null; return null; }
   const close = () => { S.spAsk = null; SFX.pick(); draw(); };
   const go = duel => {
     S.spAsk = null;
@@ -2988,7 +2997,11 @@ function sparAskSheet() {
       duel ? `${fr.name} との一騎打ち。出るのは総大将ひとりだけ` : `${fr.name} との総力戦`,
       () => {
         S.fr = false; S.frId = null; S.frMsg = '';
-        startBattle(null, null, { id, pref: fr.pref, duel: !!duel });
+        /* 番付で知り合った相手は、国を持たない。
+           盤も顔ぶれも「番付のときのその人」をそのまま借りる（2026-10-09）。
+           friendly を立ててあるので、点は動かないし 対戦札も減らない */
+        if (fr.rk) startBattle(null, null, null, { npc: fr.rk, friendly: true, duel: !!duel });
+        else startBattle(null, null, { id, pref: fr.pref, duel: !!duel });
       }, !!duel);
   };
   /* 絵と話は「読むもの」、えらぶのは下の二つの釦（2026-09-30）。
@@ -3101,6 +3114,62 @@ const npcPals = () => {
   return PREFS.filter(x => set.has(x.id));
 };
 const npcPalIds = () => new Set(npcPals().map(x => x.id));
+/* ---- 番付で知り合った相手（2026-10-09・悠さんの指図）----
+   番付の相手の札から「友になる」を押せるようにした。
+   番付の顔ぶれは月ごとに組み替わるので、**友になった時点の姿をまるごと控える**。
+   控えないと、来月には同じ番号（n0_12 など）が別の犬を指してしまう。
+   控えてあるぶんは番付とは切り離されて、ずっとその人のまま。
+
+   見た目も手ざわりも 国の主とまったく同じにする ── 願い、待ち、在／留守、
+   見舞、果たし合い、留守の陣。どれが人でどれが NPC か、遊ぶ人には分からない */
+const rkPals = () => (P.palRk || []);
+const rkPalOf = id => rkPals().find(x => x.id === id) || null;
+/* 位は総合力から。番付の組は lv を持たないので、強さから見立てる */
+const rkPalLv = x => Math.max(1, Math.min(200, Math.round((x.power || 0) / 110)));
+function rkFriendCard(x) {
+  const team = rkTeamOf(x);
+  const gen = team[0] || null;
+  return { id: x.id, npc: true, rk: x, tag: npcTag(x.id), name: x.name, lv: rkPalLv(x),
+           face: gen, gen, away: npcAway(x.id), team: 1 };
+}
+/* 友になっている NPC を番号で引く（2026-10-09）。
+   国の主（県）と 番付の相手（控え）の二種類があるので、ここで吸収する。
+   pref があれば国の主、rk があれば番付の相手 */
+function npcFriendOf(id) {
+  const x = rkPalOf(id);
+  if (x) return { rk: x, pref: null, name: x.name, team: rkTeamOf(x) };
+  const fr = frOf(id);
+  return fr ? { rk: null, pref: fr.pref, name: fr.name, team: fr.team } : null;
+}
+/* 番付の相手に出した願い。国の主と同じく 15〜45秒ほどで必ず受ける */
+const rkAsks = () => Object.keys(P.palRkAsk || {});
+function rkAskTick() {
+  const m = P.palRkAsk || {};
+  const now = Date.now();
+  let moved = false;
+  for (const id of Object.keys(m)) {
+    const a = m[id];
+    if (!a || now < (a.at || 0)) continue;
+    delete m[id];
+    if (!Array.isArray(P.palRk)) P.palRk = [];
+    if (a.x && !P.palRk.some(y => y.id === id)) P.palRk.push(a.x);
+    moved = true;
+  }
+  if (moved) { P.palRkAsk = m; savePlayer(); }
+  return moved;
+}
+/* 番付の相手に願いを出す。押した時点の姿を控える */
+function rkAsk(npc) {
+  if (rkPalOf(npc.id)) { S.rkMsg = 'もう友である'; SFX.pick(); draw(); return; }
+  const m = P.palRkAsk || (P.palRkAsk = {});
+  if (m[npc.id]) { S.rkMsg = 'すでに願いを出しておる。返事を待たれよ'; SFX.pick(); draw(); return; }
+  m[npc.id] = { at: Date.now() + 15000 + Math.floor(Math.random() * 30000),
+                x: { id: npc.id, name: npc.name, power: npc.power, pick: npc.pick,
+                     tier: rkState().tier, at: Date.now() } };
+  savePlayer();
+  S.rkMsg = `${npc.name} に願いを出した。相手の返事を待つ`;
+  SFX.pick(); draw();
+}
 /* 願いを出して、返事を待っている国の主（2026-10-06）。
    本物と同じく少し待たせる。15〜45秒ほどで必ず受ける */
 const npcAsks = () => Object.keys(P.palNpcAsk || {});
@@ -3448,8 +3517,8 @@ function frPeek(c) {
     SFX.pick(); draw();
   };
   if (c.npc) {
-    const fr = frOf(c.id);
-    const gen = fr && fr.general;
+    const fr = npcFriendOf(c.id);
+    const gen = fr && (fr.team || [])[0];
     if (!gen) { S.frMsg = `${c.name} の主役が引けなかった`; SFX.pick(); draw(); return; }
     open(gen.no, gen.stats || null);
     return;
@@ -3496,13 +3565,15 @@ function awayGo(c) {
   if (!canSpar(c.id)) { S.frMsg = '今日はもうその陣に入った'; SFX.pick(); draw(); return; }
   if (c.npc) {
     /* 国の主の留守。盤はこれまでの稽古とおなじものを使う（国主戦の顔ぶれ）。
-       留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る */
-    const fr = frOf(c.id);
+       留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る。
+       2026-10-09：番付で知り合った相手も同じ道を通す（国を持たないので盤は番付のもの） */
+    const fr = npcFriendOf(c.id);
     if (!fr || !(fr.team || []).length) {
       S.frMsg = `${c.name} の陣が引けなかった`; SFX.pick(); draw(); return;
     }
     S.fr = false; S.frId = null; S.frMsg = '';
-    startBattle(null, null, { id: c.id, pref: fr.pref, duel: false, away: true });
+    if (fr.rk) startBattle(null, null, null, { npc: fr.rk, friendly: true, away: true });
+    else startBattle(null, null, { id: c.id, pref: fr.pref, duel: false, away: true });
     return;
   }
   if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; SFX.pick(); draw(); return; }
@@ -3599,6 +3670,7 @@ function frSheet() {
   const close = () => { S.fr = false; S.frMsg = ''; draw(); };
   palTick();
   npcAskTick();
+  rkAskTick();        // 番付で出した願いも、ここで受けてもらう（2026-10-09）
   npcBackTick();
   const my = S.frTab !== 'find';
   const t = frTotal();
@@ -3606,6 +3678,9 @@ function frSheet() {
   /* 国の主も本物と同じ形にそろえる（2026-10-06） */
   const npcMine = npcPals().map(npcCard);
   const npcSent = PREFS.filter(x => askIds.has(x.id)).map(npcCard);
+  /* 番付で知り合った相手も、まったく同じ形で並べる（2026-10-09） */
+  const rkMine = rkPals().map(rkFriendCard);
+  const rkSent = rkAsks().map(id => ((P.palRkAsk || {})[id] || {}).x).filter(Boolean).map(rkFriendCard);
   /* 「友を探す」の並びは frFindEl が組む（2026-10-06）。ここでは作らない */
   const asks = PAL.asks;
   const askN = asks.length;
@@ -3613,8 +3688,8 @@ function frSheet() {
      本物のプレイヤーが先、そのあと国の主。
      本物どうしは「最後にゲームを開いた刻」の新しい順 ── いま遊んでいる人が上に来る。
      果たし合いを申し込むなら、さっきまで居た人のほうが受けてもらえる */
-  const mine = [...[...PAL.pals].sort((x, y) => (y.seen || 0) - (x.seen || 0)), ...npcMine];
-  const sent = [...PAL.sent, ...npcSent];
+  const mine = [...[...PAL.pals].sort((x, y) => (y.seen || 0) - (x.seen || 0)), ...npcMine, ...rkMine];
+  const sent = [...PAL.sent, ...npcSent, ...rkSent];
   if (!my) softSet('frbody', frFindEl);   // さがす一行から入れ替える場所（2026-10-06）
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 frbox' },
@@ -8314,7 +8389,7 @@ function resolve() {
   const grown = grownFor;
   /* 一騎打ちは、たがいの総大将ひとりずつだけで解く（2026-09-30）。
      並び順の指定（slots）は一体には要らないので外す */
-  const duel = !!(b.spar && b.spar.duel);
+  const duel = !!((b.spar && b.spar.duel) || (b.bout && b.bout.duel));
   const mine = duel ? S.picked.filter(m => m.no === S.general).slice(0, 1) : S.picked;
   const foes = duel ? b.B.slice(0, 1) : b.B;
   b.res = runBattle(
@@ -8880,6 +8955,7 @@ function drawBattle() {
                  : BATTLE.ev ? EV_FOOD[BATTLE.ev.rank]
                  : FOOD_COST;
       BATTLE.reward = BATTLE.duel ? null       // 果たし合いに褒美は無い（2026-10-05）
+                    : (BATTLE.bout && BATTLE.bout.friendly) ? sparReward(won0)   // 友との手合わせ（2026-10-09）
                     : BATTLE.bout ? null
                     : BATTLE.tw ? null
                     : BATTLE.away ? sparReward(won0)
@@ -8919,7 +8995,16 @@ function drawBattle() {
         try { palRaid(BATTLE.away.id, won0); } catch (_) {}
       }
       // 番付の点はその場で動く（2026-09-25）。挑まれたぶんは日が変わってからまとめて
-      if (BATTLE.bout) BATTLE.boutPt = rkFinish(BATTLE.bout, res.winner === 'A');
+      /* 友との手合わせ（friendly）は点を動かさない（2026-10-09）。
+         番付で知り合った相手と遊んでいるだけなので、番付の格には関わらせない。
+         勝敗は友ごとの戦績に積む ── 国の主との稽古とそろえる */
+      if (BATTLE.bout && !BATTLE.bout.friendly) BATTLE.boutPt = rkFinish(BATTLE.bout, res.winner === 'A');
+      if (BATTLE.bout && BATTLE.bout.friendly) {
+        const f = frState(BATTLE.bout.npc.id);
+        if (res.winner === 'A') f.win++; else f.lose++;
+        f.spar = today();
+        savePlayer();
+      }
       if (!BATTLE.duel) miAfterWin(won0);    // お役目の数（2026-10-02／果たし合いは数えない）
       if (BATTLE.evWon) miEvMat(BATTLE.evWon);
       if (BATTLE.twWon) miBump('twOk');
@@ -9218,11 +9303,13 @@ function resSheet() {
     /* 褒美を受け取り終えたら閉じる（2026-09-23）。
        天下統一の道の一戦は、終わった盤面に戻っても何もできないので、そのまま全国へ返す。
        戦場を選んで戦う一戦（camp なし）は、もう一戦できるので盤面に残す */
-    const toMap = !!BATTLE.camp, toEv = !!BATTLE.ev, toFr = BATTLE.spar && BATTLE.spar.id;
+    const toMap = !!BATTLE.camp, toEv = !!BATTLE.ev;
+    /* 友との手合わせ（番付で知り合った相手）は、番付ではなく友へ戻す（2026-10-09） */
+    const toFr = (BATTLE.spar && BATTLE.spar.id) || (BATTLE.bout && BATTLE.bout.friendly);
     /* 留守の陣のあとは 友の一覧へ返す（2026-10-06）。
        本物の友には「家」が無いので、家ではなく一覧をそのまま開く */
     const toAway = !!(BATTLE.away && BATTLE.away.id);
-    const toRk = !!BATTLE.bout, rkD = BATTLE.boutPt;
+    const toRk = !!BATTLE.bout && !BATTLE.bout.friendly, rkD = BATTLE.boutPt;
     /* 塔は必ず塔へ返す（2026-10-01）。抜けたなら褒美を、届かなかったなら
        何が足りなかったかを、そのまま塔の画面に出す */
     const toTw = !!BATTLE.tw;
@@ -9322,7 +9409,7 @@ function resSheet() {
       el('p', { class: 'rsub' }, S.res.skip ? '早送りで決着' : `${S.res.reason}　残兵量 ${num(S.res.ta)} 対 ${num(S.res.tb)}`),
       rewardRow(rw, rw && rw.exp),
       /* 番付は褒美のかわりに、動いた点を出す（2026-09-25）*/
-      BATTLE.bout ? el('div', { class: 'rw' },
+      (BATTLE.bout && !BATTLE.bout.friendly) ? el('div', { class: 'rw' },
         el('span', {}, `番付　${BATTLE.boutPt > 0 ? '+' : ''}${BATTLE.boutPt} pt`)) : null,
       rw && rw.lvUp ? el('p', { class: 'rlv' }, `Lv.${P.lv} に上がった`) : null);
   } else if (kind === 'taken') {

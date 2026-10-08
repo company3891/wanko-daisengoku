@@ -1727,11 +1727,16 @@ const HOME_MENU = [
   { side: 'BR', name: 'イベント', mark: '祭', file: 'home_event',   go: () => { S.screen = 'event'; S.evId = null; S.evMsg = ''; } },
   /* 果たし合い（2026-10-04）。合言葉で友と五対五。
      サーバーに繋いでいないと座に入れないので、繋ぐまでは灰色のまま */
+  /* 果たし合いの座は ふだん出さない（2026-10-09・悠さんの指図）。
+     友の行から直に挑めるようになったので、城に別の入口を置く意味が無くなった。
+
+     **ただし、間（ルーム）を開いているあいだだけは出す。**
+     部隊を組み直しに抜けたあと、ここから戻れないと
+     自分が立てた座に二度と入れず、相手をずっと待たせることになる
+     （2026-10-05 にそのために足した道。消すと詰む） */
   { side: 'BR', name: '果たし合い', mark: '果', file: 'home_duel',
-    lock: () => (KURA && linked()) ? null : 'バックアップ接続で解放',
-    /* すでに間にいるなら、そのまま間へ返す（2026-10-05）。
-       部隊を組み直しに抜けても、ここから戻ってこられる */
-    go: () => { S.dl = DUEL ? 'room' : 'menu'; S.dlMsg = ''; S.dlCode = ''; } },
+    off: () => !DUEL,
+    go: () => { S.dl = 'room'; S.dlMsg = ''; S.dlCode = ''; } },
   /* 落ち延び道中（2026-10-08）。戦の途中なら、そのまま戦へ戻す */
   { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail',
     go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
@@ -1782,7 +1787,10 @@ function homeMenuBtn(m) {
     })());
 }
 const homeMenu = side => {
-  const list = HOME_MENU.filter(m => m.side === side && !m.off);
+  /* off は決め打ちでも、その場で決める関数でもよい（2026-10-09）。
+     果たし合いの座は「間を開いているあいだだけ」出したいので関数にした */
+  const list = HOME_MENU.filter(m => m.side === side
+    && !(typeof m.off === 'function' ? m.off() : m.off));
   if (!list.length) return null;
   const cls = side === 'BR' ? 'bottom' : side === 'BL' ? 'bottomleft' : 'topleft';
   return el('div', { class: 'hmenu ' + cls }, list.map(homeMenuBtn));

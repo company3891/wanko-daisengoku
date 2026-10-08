@@ -1322,6 +1322,16 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 .clv.num{transform:translate(-50%,-50%);color:#fcf0d0;font-family:var(--gothic);font-weight:700;
   text-shadow:0 1px 2px #000,0 0 7px #000a}
 .clv.lv{transform:translateX(-100%);color:#241e18;font-family:var(--mincho);font-weight:700}
+/* 戦のさなかの一時の増減（2026-10-08）。数の真下に小さく。
+   色はその数値の色＝盤のコマの矢印とそろえた。
+   この戦のあいだだけのものなので、ふだんの札には出ない */
+.clv.dlt{transform:translate(-50%,-50%);font-family:var(--gothic);font-weight:800;
+  letter-spacing:-.02em;text-shadow:0 1px 2px #000,0 0 6px #000c}
+.clv.dlt.s-火力{color:#ff6a58}
+.clv.dlt.s-賢さ{color:#aa8ef5}
+.clv.dlt.s-防御{color:#52d694}
+.clv.dlt.s-回復{color:#6fd8e8}
+.clv.dlt.s-速さ{color:#ffd23f}
 /* 役割の箱の塗り直し（2026-09-30）。焼いた字を地の色で隠し、上に書き直す */
 .cdc .crolebg{position:absolute;z-index:2;border-radius:.4cqw;pointer-events:none}
 .clv.crole{transform:translate(-50%,-50%);font-family:var(--mincho);font-weight:700;

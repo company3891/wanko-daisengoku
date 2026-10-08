@@ -199,6 +199,9 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
      （＋はどこからでも押せるので、戻り先を預かる）／stAsk＝確かめている口／stMsg＝その場の一言 */
   stoneBack: null, stAsk: null, stMsg: '',
   detailRO: false, detailBase: false, nmMsg: '', rwi: null,
+  /* 戦のさなかに札を開いたときだけ入る（2026-10-08）。
+     { 火力: +120, 防御: -30 } のように、素からの差だけを持つ */
+  detailMod: null,
   /* 取引所の品を札で見るとき（2026-10-01）。
      detailSt＝その品の育ち（売り主が育てた値）／detailBuy＝買える品そのもの */
   detailSt: null, detailBuy: null, mkPEdit: false,
@@ -2330,7 +2333,14 @@ function miSheet() {
   const close = () => { S.mi = false; S.miMsg = ''; draw(); };
   // 開いている間に門出が終わることがある（最後の一つを受け取った直後）
   const tab = miTabs().includes(S.miTab) ? S.miTab : (S.miTab = miTab0());
-  const list = miOfTab(tab);
+  /* 並びは三段（2026-10-08・悠さんの指図）。
+       一 … 果たして まだ受け取っていないもの（頂戴の釦が灯っている）
+       二 … まだ果たしていないもの
+       三 … 受け取り済み（CLEAR）
+     長い一覧の下のほうで釦が灯っていても気づけなかった。
+     段の中の並びは mission.js に書いた順のまま（sort は安定なので崩れない） */
+  const miSeat = m => (miReady(m) ? 0 : miGot(m) ? 2 : 1);
+  const list = miOfTab(tab).slice().sort((a, b) => miSeat(a) - miSeat(b));
   const ready = miReadyCount(tab);
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 mibox' },
@@ -5067,7 +5077,8 @@ function screenShop() {
 
       /* 「魂の市」は外した（2026-10-02）。小判で魂がいくらでも買えると、
          重ねを解雇する・取引所で売るという 魂の出どころが要らなくなる。
-         伝書と護符も noShop にしたので、特技の蔵は空になって自動で消える */
+         伝書と護符も noShop にしたので、特技の蔵は空になって自動で消える。
+         2026-10-08（悠さんの指図）：稽古の書も noShop にしたので、稽古の蔵も同じく消える */
       tab === 'kura' ? el('div', {},
         ITEM_KINDS.map(kind => {
           // 石で買う品は「石の蔵」へ移した（2026-10-03）
@@ -5590,10 +5601,10 @@ const ROLE_BOX = {
 };
 /* 札を閉じる。取引所から開いたときの覚えもここで消す（2026-10-01） */
 function closeDetail() {
-  S.detail = null; S.side = null; S.detailRO = false; S.detailBase = false;
+  S.detail = null; S.side = null; S.detailRO = false; S.detailBase = false; S.detailMod = null;
   S.detailSt = null; S.detailBuy = null; draw();
 }
-function cardStatOverlay(c, ro) {
+function cardStatOverlay(c, ro, mod) {
   if (!c || c.no == null || c.no === '未奉公') return [];
   const lay = cardLayout(c.no);
   if (!lay || !lay.stat) return [];
@@ -5612,6 +5623,25 @@ function cardStatOverlay(c, ro) {
     class: 'clv num',
     style: `left:${pc(t.cx, 864)};top:${pc(t.cy, 1280)};font-size:${fs(t.size)}`,
   }, String(g[t.k] ?? (c.stats || {})[t.k] ?? 0)));   // 札はカンマを打たない
+  /* 戦のさなかの一時の増減（2026-10-08・悠さんの指図）。
+     数の真下に小さく「+120」「−30」。色はその数値の色（盤のコマの矢印と同じ割り当て）。
+     この戦のあいだだけのものなので、ふだんの札には出ない。
+     理由（薬か特技か天候か地形か）は書かない。何が起きたかだけ見せて、
+     なぜ上がったかは盤を見て察してもらう */
+  if (mod) {
+    for (const t of lay.stat) {
+      const d = mod[t.k];
+      if (!d) continue;
+      /* 置き場は 数の真下、役割の箱（y=1127）の手前（2026-10-08）。
+         数（cy=1086・大きさ35）の底が 1103、箱の上が 1127。
+         その 24 の隙に収まるよう、中心 1115・大きさ 21 にしてある */
+      out.push(el('b', {
+        class: 'clv dlt s-' + t.k,
+        style: `left:${pc(t.cx, 864)};top:${pc(t.cy + t.size * 0.83, 1280)};`
+             + `font-size:${fs(Math.round(t.size * 0.60))}`,
+      }, (d > 0 ? '+' : '−') + Math.abs(d)));
+    }
+  }
   /* 射程が分かる子だけ書き換える。無ければ焼いたままの「役割」で通す */
   if (c.range != null && c.role) {
     /* 役割の名は「万能・軍団指揮」のように長い子がいる。
@@ -5647,7 +5677,7 @@ function cardSheet(c) {
     const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
     const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
     const out = [];
-    if (side === 'front') out.push(...cardStatOverlay(c, cardRaw()));
+    if (side === 'front') out.push(...cardStatOverlay(c, cardRaw(), S.detailMod));
     if (side === 'back' && lay.slot) {
       /* 特技の枠は3つ。焼いてあるのは元の技なので、継承で中身が入れ替わった枠だけ
          和紙で塗りつぶして描き直す（2026-09-27）。
@@ -7408,7 +7438,7 @@ function cardArt(c) {
    base … 釦は出すが、札の数と技は「手に入れたときのまま」を見せる（図鑑）
    図鑑は「どんな武将がいるか」を見る台帳なので、
    自分が育てたぶんを混ぜると、素の強さが どこにも見られなくなる */
-function openCard(c, ro, base) {
+function openCard(c, ro, base, mod) {
   if (!c) return;
   /* 取引所の覚えを消してから開く（2026-10-05）。
      取引所で品の札を開くと S.detailBuy（買える品）と S.detailSt（売り主の育ち）が立つ。
@@ -7416,6 +7446,9 @@ function openCard(c, ro, base) {
      「◯◯ の品／召し抱える」の帯が出てしまっていた（実測で踏んだ）。
      開くたびに消せば、どこから開いても取り違えない */
   S.detailSt = null; S.detailBuy = null;
+  /* 一時の増減は、戦のさなかに開いたときだけ（2026-10-08）。
+     開くたびに入れ替えるので、戦が終わってから図鑑を開いても残らない */
+  S.detailMod = (mod && Object.keys(mod).length) ? mod : null;
   S.detail = c.no; S.side = null; S.detailRO = !!ro; S.detailBase = !!base; draw();
 }
 /* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか。
@@ -7965,6 +7998,11 @@ function startBattle(camp, evb, spar, bout, tw, away) {
     if (!useItem(name, 1)) continue;
     prep.push({ turn: 1, name, side: 'A', stat: it.stat, pct: it.pct ? it.pct / 100 : 0, weather: it.weather });
   }
+  /* 戦仕度で持ち込んだ道具も「道具を使った」に数える（2026-10-08・悠さんの指図）。
+     これまで miBump('item') は 持ち物の棚から使ったときだけ呼んでいたので、
+     果たし合いや全国に秘薬を持ち込んでも お役目が一つも進まなかった。
+     実際に減ったぶん（useItem が通ったぶん）だけ数える */
+  if (prep.length) miBump('item', prep.length);
   const wSet = prep.map(x => x.weather).filter(Boolean).pop();
   S.prep = [];
   /* 稽古は必ずオート（2026-09-24）。友との手合わせは見るものにしたいので、
@@ -10126,7 +10164,9 @@ function rosterRow(box, side) {
                : `兵量 ${num(hp)} / ${num(u.maxHp || 0)}`,
       /* 味方は育った姿で出す（2026-10-03）。継承した◆も特技の位もここで確かめたい。
          敵は こちらの育ちと関わりが無いので素のまま */
-      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true, side === 'B'); }) : null,
+      /* 一時の増減（u.sd）も渡す（2026-10-08・悠さんの指図）。
+         この戦のあいだだけ上がっているぶんを、札の数の下に色で出す */
+      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true, side === 'B', u.sd); }) : null,
     },
       el('div', { class: 'rf' },
         art ? el('img', { src: art, alt: '' }) : el('i', { style: c ? chipStyle(c) : '' }),

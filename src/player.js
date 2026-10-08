@@ -175,7 +175,9 @@ export const P = {
   /* 落ち延び道中（2026-10-08）。prog＝武将ごとに抜けた話の数／deck＝武将ごとの山札
      ／cur＝いま連れている武将／fight＝戦の途中（閉じても続きから）。
      P の既定値に並べておかないと loadPlayer が読み戻さない */
-  trail: { prog: {}, deck: {}, cur: 0, fight: null },
+  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {} },
+  /* runs＝武将ごとの道の途中（2026-10-09）。武将を替えると その武将の道に切り替わり、
+     戻せば前の続きから。上限が開くのも、その道を抜けた武将だけ */
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
   shop: { day: '', bought: {} },
   /* 重ねて引いた同じ武将（2026-09-21）。{ '8': 2 }。旧形式。いまは cnt を使う */
@@ -890,8 +892,8 @@ export function loadPlayer(FORMS) {
   if (!P.camp.done || typeof P.camp.done !== 'object') P.camp.done = {};
   if (!P.items || typeof P.items !== 'object') P.items = {};
   /* 道中の入れ物（2026-10-08）。入れ子は丸ごと差し替わるので形を整え直す */
-  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, ...(P.trail || {}) };
-  for (const k of ['prog', 'deck']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
+  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, ...(P.trail || {}) };
+  for (const k of ['prog', 'deck', 'runs']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
   if (!P.shop || typeof P.shop !== 'object') P.shop = { day: '', bought: {} };
   if (!P.dup || typeof P.dup !== 'object') P.dup = {};
   if (!P.cnt || typeof P.cnt !== 'object') P.cnt = {};

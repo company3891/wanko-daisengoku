@@ -5801,23 +5801,6 @@ button.mkpv:active{transform:translateY(1px)}
 .trst { font-size: 12px; color: #d8a94a; flex: none; }
 .trrow.next .trst { background: #3f8f4f; color: #fff; padding: 4px 10px; border-radius: 99px; }
 
-/* 札 */
-.trc { position: relative; width: 70px; height: 104px; flex: none; border-radius: 9px; padding: 0;
-  background: linear-gradient(180deg, #2a221a, #15110d); border: 2px solid var(--ac); color: #f2e8d2;
-  display: flex; flex-direction: column; align-items: center; overflow: hidden; transition: transform .12s; }
-.trc.k-ult { border-color: #f5e2a8; background: linear-gradient(180deg, #4a3514, #1b130a); }
-.trc.k-gen { background: linear-gradient(180deg, #1f2a3a, #10141c); }
-.trc.sel { transform: translateY(-14px) scale(1.06); box-shadow: 0 6px 16px rgba(0,0,0,.6), 0 0 0 2px #f5e2a8; z-index: 2; }
-.trc.dim { filter: grayscale(.8) brightness(.6); }
-.trcost { position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%; background: #d8a94a;
-  color: #12100e; font-weight: 700; font-size: 12px; display: grid; place-items: center; z-index: 1; }
-.trkind { position: absolute; top: 3px; right: 3px; font-size: 8.5px; background: rgba(0,0,0,.55); padding: 1px 3px; border-radius: 4px; z-index: 1; }
-.trcimg { width: 100%; height: 50px; object-fit: cover; object-position: top; }
-.trcname { font-size: 10px; line-height: 1.15; padding: 2px 3px 0; text-align: center; font-family: var(--mincho, serif);
-  max-height: 24px; overflow: hidden; }
-.trcw { font-size: 9px; line-height: 1.2; color: #d9c99f; white-space: pre-line; text-align: center; padding: 1px 2px; }
-.trc.sm { width: 62px; height: 92px; } .trc.sm .trcimg { height: 42px; }
-
 /* 山札 */
 .trdeckhd { display: flex; justify-content: space-between; align-items: baseline; }
 .trdeckhd b { font-family: var(--mincho, serif); font-size: 17px; color: #f5e2a8; }
@@ -5840,63 +5823,6 @@ button.mkpv:active{transform:translateY(1px)}
 .trpc img { width: 56px; height: 56px; object-fit: contain; }
 .trpc span { font-size: 10px; line-height: 1.2; text-align: center; } .trpc em { font-style: normal; font-size: 10px; color: #d8a94a; }
 
-/* 戦 */
-.trfight { display: flex; flex-direction: column; gap: 6px; padding: 2px 8px 10px; min-height: 100%; }
-.trfhd { display: flex; align-items: center; gap: 8px; color: #f5e2a8; font-family: var(--mincho, serif); font-size: 14px; }
-.trfhd em { font-style: normal; color: #d8a94a; margin-right: 6px; font-size: 12px; }
-.trturn { margin-left: auto; font-size: 12px; color: #b8ab90; }
-.trquit { background: rgba(0,0,0,.5); color: #e9dfc8; border: 1px solid #6b5f4c; border-radius: 99px; padding: 4px 10px; font-size: 11.5px; }
-.trquit.on { background: #a33b2c; border-color: #e0654f; }
-.trfoes { display: flex; justify-content: center; gap: 6px; min-height: 200px; align-items: flex-end; }
-.trfoe { position: relative; flex: 1; max-width: 124px; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 4px 3px 6px; border-radius: 10px; background: rgba(18,16,14,.6); border: 1px solid transparent; color: #e9dfc8; }
-.trfoe.tgt { border-color: #e0654f; box-shadow: 0 0 10px rgba(224,101,79,.5); }
-.trfoe.dead { opacity: .25; filter: grayscale(1); }
-.trfoe.acting { animation: trlunge .45s ease; }
-.trfoe.boss .trfimg { width: 110px; height: 110px; }
-@keyframes trlunge { 40% { transform: translateY(14px) scale(1.06); } }
-.trfimg { width: 88px; height: 88px; object-fit: contain; transform: scaleX(-1); }
-.trfn { font-size: 11px; line-height: 1.2; text-align: center; font-family: var(--mincho, serif); }
-.trit { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
-  background: #3a1f1a; color: #ffcfbf; min-height: 20px; }
-.trit i { font-style: normal; background: #e0654f; color: #fff; border-radius: 50%; width: 16px; height: 16px; display: grid; place-items: center; font-size: 10px; }
-.trit.guard { background: #1c2e22; color: #bfe8c8; } .trit.guard i { background: #4fa36b; }
-.trit.heal { background: #33202c; color: #f2cce2; } .trit.heal i { background: #d98fc0; }
-.trit.ult { background: #4a3514; color: #f5e2a8; animation: trpulse 1s infinite alternate; } .trit.ult i { background: #d8a94a; color: #12100e; }
-.trit.stun { background: #333; color: #ccc; } .trit.none { visibility: hidden; }
-@keyframes trpulse { to { box-shadow: 0 0 10px #d8a94a; } }
-.trbar { position: relative; width: 100%; height: 15px; background: #2b1a17; border-radius: 4px; overflow: visible; }
-.trbar > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #a33b2c, #e0654f); border-radius: 4px; transition: width .3s; }
-.trbar > span { position: relative; display: block; text-align: center; font-size: 10px; line-height: 15px; color: #fff; text-shadow: 0 1px 2px #000; }
-.trblk { position: absolute; left: -6px; top: -5px; font-style: normal; font-size: 10px; font-weight: 700; background: #5aa9e6; color: #fff;
-  min-width: 22px; height: 22px; border-radius: 6px 6px 11px 11px; display: grid; place-items: center; padding: 0 2px; }
-.trtags { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; min-height: 14px; }
-.trtags i { font-style: normal; font-size: 9.5px; background: rgba(255,255,255,.12); padding: 0 4px; border-radius: 4px; }
-.trme { position: relative; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px;
-  background: rgba(18,16,14,.78); border: 1px solid var(--ac); }
-.trmeimg { width: 64px; height: 64px; object-fit: contain; flex: none; }
-.trmein { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.trmein b { font-size: 13px; color: #f5e2a8; font-family: var(--mincho, serif); }
-.trmein .trbar { height: 18px; } .trmein .trbar > span { line-height: 18px; font-size: 11.5px; }
-.trmein .trbar > i { background: linear-gradient(90deg, #2f7d43, #5fbf74); }
-.trdesk { display: flex; align-items: center; gap: 8px; }
-.trki { display: flex; align-items: center; gap: 3px; }
-.trki i { width: 14px; height: 14px; border-radius: 50%; background: #3a3127; border: 1px solid #6b5f4c; }
-.trki i.on { background: radial-gradient(circle at 35% 35%, #fff3c4, #d8a94a 60%, #a8802c); border-color: #f5e2a8; }
-.trki b { margin-left: 4px; color: #f5e2a8; font-size: 16px; }
-.trpile { font-size: 11px; color: #9a8f7a; }
-.trdesk .go.trendb { margin-left: auto; flex: none; min-width: 0; padding: 9px 14px; font-size: 13.5px; }
-.trdetail { min-height: 46px; background: rgba(18,16,14,.85); border-radius: 10px; padding: 6px 10px; border: 1px solid rgba(216,169,74,.3); }
-.trdetail b { font-size: 13px; color: #f5e2a8; } .trdetail p { margin: 2px 0 0; font-size: 12px; color: #e9dfc8; }
-.trdetail small { font-size: 10.5px; color: #9a8f7a; } .trdetail.hint { display: grid; place-items: center; }
-.trhand { display: flex; justify-content: center; gap: 4px; padding-top: 14px; flex-wrap: nowrap; overflow-x: auto; }
-.trfx { position: absolute; left: 0; right: 0; top: 30%; display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 3; }
-.trfx b { font-size: 20px; font-weight: 800; color: #fff; text-shadow: 0 2px 3px #000, 0 0 6px #e0654f; animation: trfloat .7s ease-out forwards; }
-.trfx .fx-heal, .trfx .fx-fheal { text-shadow: 0 2px 3px #000, 0 0 6px #5fbf74; }
-.trfx .fx-blk, .trfx .fx-fblk, .trfx .fx-dodge { text-shadow: 0 2px 3px #000, 0 0 6px #5aa9e6; font-size: 15px; }
-.trfx .fx-ko { font-family: var(--mincho, serif); font-size: 30px; color: #e0654f; }
-@keyframes trfloat { from { transform: translateY(6px); opacity: 0; } 20% { opacity: 1; } to { transform: translateY(-26px); opacity: 0; } }
-
 /* 決着の札 */
 .trres { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .trresh { font-family: var(--mincho, serif); font-size: 24px; color: #f5e2a8; letter-spacing: .15em; }
@@ -5906,8 +5832,6 @@ button.mkpv:active{transform:translateY(1px)}
 .trmileup { display: flex; flex-direction: column; gap: 3px; padding: 8px 14px; border-radius: 10px; background: rgba(224,101,79,.18); border: 1px solid #e0654f; }
 .trmileup b { color: #f5e2a8; font-family: var(--mincho, serif); } .trmileup span { font-size: 13px; }
 .trres .mgrow { display: flex; gap: 6px; width: 100%; } .trres .mgrow button { flex: 1; min-width: 0; }
-/* 手札は五枚が幅に収まるよう縮める（2026-10-08・393幅で右がはみ出していた） */
-.trhand .trc { flex: 1 1 0; width: auto; min-width: 0; max-width: 74px; }
 /* 札（card2）は地が明るいので、金の字は沈める */
 .trres .trresh { color: #8a5a14; } .trres.lose .trresh { color: #6b5f4c; }
 .trres p { color: #3a2f22; }
@@ -5937,9 +5861,6 @@ button.mkpv:active{transform:translateY(1px)}
 /* 「ほかの主を見る」（2026-10-08） */
 .frmore{margin-top:8px}
 
-/* 敵の一手は 攻・守・昂 の三つ（2026-10-09） */
-.trit.buff { background: #3a2f12; color: #f5e2a8; } .trit.buff i { background: #d8a94a; color: #12100e; }
-.trfx .fx-fbuff { text-shadow: 0 2px 3px #000, 0 0 6px #d8a94a; font-size: 15px; }
 
 /* 右下の正方形の座を横一列に（2026-10-09・悠さんの指図）。
    お役目とミニゲーム（落ち延び道中）を同じ大きさで並べる。
@@ -5955,6 +5876,162 @@ button.mkpv:active{transform:translateY(1px)}
 .mirow.solo{border-color:#d8a94a99;background:linear-gradient(180deg,#d8a94a1f,#d8a94a0a)}
 .mirow.solo .mig.on{animation:miglow 1.6s ease-in-out infinite}
 @keyframes miglow{0%,100%{box-shadow:0 0 0 0 #d8a94a00}50%{box-shadow:0 0 0 4px #d8a94a3d}}
+
+/* ================= 道中の札（2026-10-09 作り直し）=================
+   技名は上。絵は種類ごとに替え、縁の色でも見分ける
+   特技＝属性の色／固有＝紫と金／奥義＝朱と金／大将特性＝蒼 */
+.trc { position: relative; width: 86px; height: 124px; flex: none; padding: 0; border-radius: 10px;
+  display: flex; flex-direction: column; overflow: hidden; color: #f2e8d2; text-align: center;
+  border: 2px solid var(--ac); background: linear-gradient(180deg, #2b2219, #15110d);
+  box-shadow: 0 4px 10px rgba(0,0,0,.55); touch-action: none; user-select: none; -webkit-user-select: none; }
+.trc.k-u   { border-color: #b48cff; background: linear-gradient(180deg, #2c2140, #140f1d); }
+.trc.k-ult { border-color: #f5e2a8; background: linear-gradient(180deg, #5a1d14, #1d0b07);
+  box-shadow: 0 0 0 1px #d8a94a inset, 0 0 12px rgba(224,101,79,.55), 0 4px 10px rgba(0,0,0,.55); }
+.trc.k-gen { border-color: #5aa9e6; background: linear-gradient(180deg, #14283b, #0a121b); }
+.trcost { position: absolute; top: -1px; left: -1px; width: 24px; height: 24px; z-index: 2; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #12100e;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #d8a94a 60%, #a8802c); border: 2px solid #12100e; }
+.trc.k-ult .trcost { background: radial-gradient(circle at 35% 30%, #ffd2c4, #e0654f 60%, #8a2a1c); color: #fff; }
+.trcname { display: block; padding: 4px 4px 3px 22px; min-height: 22px; font-family: var(--mincho, serif);
+  font-size: 10.5px; line-height: 1.15; background: rgba(0,0,0,.55); border-bottom: 1px solid var(--ac);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trc.k-u .trcname { border-color: #b48cff; } .trc.k-ult .trcname { border-color: #d8a94a; color: #f5e2a8; }
+.trc.k-gen .trcname { border-color: #5aa9e6; }
+.trcart { position: relative; display: block; height: 52px; overflow: hidden; }
+.trcimg { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block; }
+.trkind { position: absolute; left: 0; right: 0; bottom: 0; font-style: normal; font-size: 9px; letter-spacing: .2em;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.75), transparent); padding: 1px 0; }
+.trc.k-sk .trkind { color: #dff5ec; } .trc.k-u .trkind { color: #e2d2ff; } .trc.k-ult .trkind { color: #ffd9a0; } .trc.k-gen .trkind { color: #cfe8ff; }
+.trcw { flex: 1; display: flex; align-items: center; justify-content: center; white-space: pre-line;
+  font-size: 9.5px; line-height: 1.25; color: #ead9b0; padding: 2px 3px; }
+.trc.dim { filter: grayscale(.85) brightness(.55); }
+.trc.sm { width: 74px; height: 108px; } .trc.sm .trcart { height: 44px; } .trc.sm .trcname { font-size: 9.5px; }
+.trdrow .trc { flex: none; }
+
+/* ================= 戦の場（2026-10-09 作り直し）=================
+   戦の地を大きく敷き、自分は左・敵は右。下に気・山札・ターン終了、いちばん下に手札を扇に開く */
+.trfight { position: fixed; top: 0; left: 0; right: 0; bottom: var(--nav, 0px); display: flex; flex-direction: column; background: #0d0b09; overflow: hidden; }
+.trfield { position: relative; flex: 1; min-height: 0; background-size: cover; background-position: center 35%; }
+.trfield::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,.45) 0, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 62%, rgba(13,11,9,.95) 100%); }
+.trfield.drop { box-shadow: inset 0 0 0 3px rgba(245,226,168,.6); }
+.trfhd { position: absolute; z-index: 3; top: calc(env(safe-area-inset-top, 0px) + 8px); left: 10px; right: 10px;
+  display: flex; align-items: center; gap: 8px; color: #f5e2a8; font-family: var(--mincho, serif); font-size: 15px;
+  text-shadow: 0 1px 3px #000; }
+.trfhd em { font-style: normal; color: #d8a94a; margin-right: 6px; font-size: 12.5px; }
+.trturn { margin-left: auto; font-size: 12px; color: #e9dfc8; }
+.trquit { background: rgba(0,0,0,.55); color: #e9dfc8; border: 1px solid #6b5f4c; border-radius: 99px; padding: 4px 11px; font-size: 12px; }
+.trquit.on { background: #a33b2c; border-color: #e0654f; }
+/* 立ち位置：足もとを地面の線（下から 30%）にそろえる */
+.trme, .trfoe { position: absolute; z-index: 1; bottom: 26%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.trme { left: 3%; width: 36%; }
+.trfoe { width: 27%; transform: translateX(-50%); }
+.trfoe.back { bottom: 36%; z-index: 0; } .trfoe.back .trfimg { width: 74px; height: 74px; }
+.trmeimg { width: 128px; height: 128px; object-fit: contain; filter: drop-shadow(0 6px 6px rgba(0,0,0,.6)); }
+.trfimg { width: 92px; height: 92px; object-fit: contain; transform: scaleX(-1); filter: drop-shadow(0 6px 6px rgba(0,0,0,.6)); }
+.trfoe.boss .trfimg { width: 118px; height: 118px; }
+.trfoe.dead { opacity: 0; transition: opacity .5s; pointer-events: none; }
+.trfoe.hov .trfimg { filter: drop-shadow(0 0 10px #e0654f) drop-shadow(0 0 4px #fff); transform: scaleX(-1) scale(1.06); }
+.trfoe.acting { animation: trlunge .45s ease; }
+@keyframes trlunge { 40% { transform: translateX(calc(-50% - 22px)); } }
+.trnm { font-size: 10.5px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; font-family: var(--mincho, serif);
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.trbar { position: relative; width: 92%; height: 13px; background: rgba(43,26,23,.9); border-radius: 7px; border: 1px solid rgba(0,0,0,.6); }
+.trbar > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; background: linear-gradient(90deg, #a33b2c, #e0654f); transition: width .3s; }
+.trme .trbar > i { background: linear-gradient(90deg, #2f7d43, #5fbf74); }
+.trbar > span { position: relative; display: block; text-align: center; font-size: 9.5px; line-height: 13px; color: #fff; text-shadow: 0 1px 2px #000; font-weight: 700; }
+.trblk { position: absolute; left: -10px; top: -5px; font-style: normal; font-size: 10px; font-weight: 800; color: #fff;
+  min-width: 22px; height: 22px; padding: 0 2px; display: grid; place-items: center;
+  background: #3f86c6; border: 1px solid #bfe0ff; border-radius: 5px 5px 11px 11px; }
+.trit { display: inline-flex; align-items: center; gap: 3px; font-size: 14px; font-weight: 800; color: #fff;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000; min-height: 22px; }
+.trit i { font-style: normal; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font-size: 11px;
+  background: #c8452f; border: 1px solid #ffd2c4; }
+.trit.guard i { background: #3f86c6; border-color: #bfe0ff; } .trit.buff i { background: #b8872a; border-color: #f5e2a8; }
+.trit.ult i { background: #d8a94a; color: #12100e; box-shadow: 0 0 10px #e0654f; animation: trpulse 1s infinite alternate; }
+.trit.stun { font-size: 11px; color: #ccc; } .trit.none { visibility: hidden; }
+@keyframes trpulse { to { box-shadow: 0 0 16px #ffcf6a; } }
+.trtags { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; min-height: 14px; }
+.trtags i { font-style: normal; font-size: 9.5px; color: #fff; background: rgba(0,0,0,.55); padding: 0 4px; border-radius: 4px; }
+.trfx { position: absolute; left: 0; right: 0; top: 18%; display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 4; }
+.trfx b { font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 2px 3px #000, 0 0 8px #e0654f; animation: trfloat .7s ease-out forwards; }
+.trfx .fx-heal, .trfx .fx-fheal { text-shadow: 0 2px 3px #000, 0 0 8px #5fbf74; }
+.trfx .fx-blk, .trfx .fx-fblk, .trfx .fx-dodge { text-shadow: 0 2px 3px #000, 0 0 8px #5aa9e6; font-size: 17px; }
+.trfx .fx-fbuff { text-shadow: 0 2px 3px #000, 0 0 8px #d8a94a; font-size: 17px; }
+.trfx .fx-ko { font-family: var(--mincho, serif); font-size: 34px; color: #e0654f; }
+@keyframes trfloat { from { transform: translateY(8px); opacity: 0; } 20% { opacity: 1; } to { transform: translateY(-30px); opacity: 0; } }
+
+/* 気・山札・中身・ターン終了 */
+.trdesk { position: relative; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 0 8px; height: 58px; }
+.trki { flex: none; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #d8a94a 55%, #7a5a1c); border: 2px solid #12100e;
+  box-shadow: 0 0 12px rgba(216,169,74,.55); }
+.trki b { font-size: 17px; font-weight: 900; color: #12100e; }
+.trpile { flex: none; display: flex; flex-direction: column; align-items: center; font-size: 13px; font-weight: 800; color: #f5e2a8; }
+.trpile i { font-style: normal; font-size: 10px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 4px;
+  background: #2b2219; border: 1px solid #a8802c; color: #e9dfc8; }
+.trdetail { flex: 1; min-width: 0; min-height: 44px; background: rgba(18,16,14,.85); border-radius: 8px; padding: 4px 8px;
+  border: 1px solid rgba(216,169,74,.35); display: flex; flex-direction: column; justify-content: center; }
+.trdetail b { font-size: 11.5px; color: #f5e2a8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trdetail p { margin: 1px 0 0; font-size: 11px; color: #e9dfc8; line-height: 1.3; }
+.trdetail small { font-size: 11px; color: #b8ab90; text-align: center; }
+.trendb { flex: none; padding: 10px 10px; border-radius: 10px; font-size: 13px; font-weight: 800; letter-spacing: .05em;
+  color: #f5e2a8; background: linear-gradient(180deg, #3d556b, #22313f); border: 2px solid #8fb3cf; box-shadow: 0 3px 0 #0d151d; }
+.trendb:disabled { filter: grayscale(1) brightness(.6); }
+/* 手札は扇に開く。引きずるあいだは札が指についてくる */
+.trhand { position: relative; z-index: 3; display: flex; justify-content: center; align-items: flex-end;
+  height: 142px; padding: 0 6px 8px; }
+.trhand .trc { width: 80px; height: 120px; margin: 0 -10px; transform: translateY(var(--y)) rotate(var(--r)); transform-origin: 50% 120%; transition: transform .15s; }
+.trhand .trc.sel { transform: translateY(-26px) scale(1.12); z-index: 30 !important; box-shadow: 0 0 0 2px #f5e2a8, 0 8px 18px rgba(0,0,0,.7); }
+.trhand .trc.drag { transition: none; z-index: 50 !important; box-shadow: 0 0 0 2px #f5e2a8, 0 12px 24px rgba(0,0,0,.8); }
+body.trdragging { cursor: grabbing; }
+
+/* ================= 道（2026-10-09）=================
+   分かれ道の地図。下から上へ歩き、上の国主は必ず通る */
+.trrun { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; padding: 8px 12px; border-radius: 12px;
+  background: rgba(18,16,14,.85); border: 1px solid rgba(216,169,74,.4); }
+.trrun b { font-family: var(--mincho, serif); color: #f5e2a8; font-size: 15px; }
+.trrun > span { color: #d8a94a; font-size: 13px; }
+.trrun .trmebar { grid-column: 1 / -1; } .trrun .trbar { width: 100%; height: 16px; } .trrun .trbar > span { line-height: 16px; font-size: 11px; }
+.trrun .trbar > i { background: linear-gradient(90deg, #2f7d43, #5fbf74); }
+.trrun small { grid-column: 1 / -1; font-size: 11px; color: #b8ab90; }
+.trmap { position: relative; border-radius: 14px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #d9cdb0, #b9a983 70%, #8f7f5c);
+  box-shadow: inset 0 0 40px rgba(60,40,10,.55), 0 4px 12px rgba(0,0,0,.5); }
+.trlines { position: absolute; inset: 0; } .trlines svg { display: block; }
+.trlines line { stroke: #5b4a30; stroke-width: 2.2; stroke-dasharray: 5 6; opacity: .75; }
+.trlines line.walk { stroke: #a33b2c; stroke-dasharray: none; stroke-width: 3.2; opacity: 1; }
+.trnode { position: absolute; transform: translate(-50%, -50%); width: 38px; height: 38px; border-radius: 50%; padding: 0;
+  display: grid; place-items: center; background: #efe4c8; border: 2px solid #5b4a30; color: #3a2c18;
+  font-family: var(--mincho, serif); font-size: 16px; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+.trnode i { font-style: normal; }
+.trnode:disabled { opacity: .78; }
+.trnode.t-強 { width: 44px; height: 44px; background: #3a1f1a; color: #ffcfbf; border-color: #e0654f; }
+.trnode.t-宿 { color: #2f7d43; } .trnode.t-商 { color: #8a5a14; } .trnode.t-宝 { color: #a8802c; background: #fff3c4; }
+.trnode.t-？ { color: #5a4ab0; }
+.trnode.done { background: #a33b2c; color: #fff; border-color: #6b1f14; opacity: 1; }
+.trnode.here { box-shadow: 0 0 0 4px rgba(224,101,79,.45), 0 2px 4px rgba(0,0,0,.35); }
+.trnode.can { opacity: 1; border-color: #12100e; animation: trcan 1s ease-in-out infinite alternate; z-index: 2; }
+@keyframes trcan { from { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(216,169,74,.0); }
+                   to { transform: translate(-50%, -50%) scale(1.14); box-shadow: 0 0 0 6px rgba(216,169,74,.55); } }
+.trnode.boss { width: 76px; height: 76px; background: #3a1f1a; border: 3px solid #d8a94a; overflow: visible; }
+.trnode.boss .trbossimg { position: absolute; width: 74px; height: 74px; object-fit: contain; transform: scaleX(-1); }
+.trnode.boss i { position: absolute; bottom: -10px; background: #a33b2c; color: #fff; font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid #f5e2a8; }
+.trlegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px;
+  padding: 6px 8px; border-radius: 10px; background: rgba(239,228,200,.92); border: 1px solid #5b4a30; }
+.trlegend span { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: #3a2c18; }
+.trlegend i { font-style: normal; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  background: #efe4c8; border: 1px solid #5b4a30; font-family: var(--mincho, serif); }
+.trlegend i.t-強 { background: #3a1f1a; color: #ffcfbf; border-color: #e0654f; }
+.trshop { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.trgood { display: grid; grid-template-columns: 1fr auto; text-align: left; padding: 8px 12px; border-radius: 10px;
+  background: #fff8e8; border: 1px solid #a8802c; color: #3a2f22; }
+.trgood b { font-size: 14px; } .trgood small { grid-column: 1; font-size: 11px; color: #6b5f4c; }
+.trgood em { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-style: normal; font-weight: 800; color: #8a5a14; }
+.trgood:disabled { opacity: .45; }
+
+/* 技名は二行まで折り返す（2026-10-09・省略の「…」で名が読めなかった） */
+.trcname { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 9.5px; min-height: 26px; padding-top: 3px; }
 
 </style>
 </head>
@@ -11091,7 +11168,9 @@ const P = {
   /* 落ち延び道中（2026-10-08）。prog＝武将ごとに抜けた話の数／deck＝武将ごとの山札
      ／cur＝いま連れている武将／fight＝戦の途中（閉じても続きから）。
      P の既定値に並べておかないと loadPlayer が読み戻さない */
-  trail: { prog: {}, deck: {}, cur: 0, fight: null },
+  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {} },
+  /* runs＝武将ごとの道の途中（2026-10-09）。武将を替えると その武将の道に切り替わり、
+     戻せば前の続きから。上限が開くのも、その道を抜けた武将だけ */
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
   shop: { day: '', bought: {} },
   /* 重ねて引いた同じ武将（2026-09-21）。{ '8': 2 }。旧形式。いまは cnt を使う */
@@ -11806,8 +11885,8 @@ function loadPlayer(FORMS) {
   if (!P.camp.done || typeof P.camp.done !== 'object') P.camp.done = {};
   if (!P.items || typeof P.items !== 'object') P.items = {};
   /* 道中の入れ物（2026-10-08）。入れ子は丸ごと差し替わるので形を整え直す */
-  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, ...(P.trail || {}) };
-  for (const k of ['prog', 'deck']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
+  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, ...(P.trail || {}) };
+  for (const k of ['prog', 'deck', 'runs']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
   if (!P.shop || typeof P.shop !== 'object') P.shop = { day: '', bought: {} };
   if (!P.dup || typeof P.dup !== 'object') P.dup = {};
   if (!P.cnt || typeof P.cnt !== 'object') P.cnt = {};
@@ -14246,39 +14325,40 @@ const trR = v => Math.max(0, Math.round(v));
 
 /* ================= 30話 =================
    一の部「都落ち」→ 二の部「山越え」→ 三の部「帰り道」。10・20・30話は国主が出る。
-   h は家の名（campaign.js と同じ書き方）。n は国主のほかの頭数、boss は国主の No. */
+   h は家の名（campaign.js と同じ書き方）。n は国主のほかの頭数、boss は国主の No.
+   g は戦の地（2026-10-09）。app/assets/stage/<地>_背景.jpg を戦の背に敷く */
 const TR_PARTS = ['都落ち', '山越え', '帰り道'];
 const TR_STORY = [
-  { t: '燃える御殿',   h: '明智家', n: 1, l: '火の粉の舞う廊下。まずは目の前の一匹を退けよ' },
-  { t: '裏門の番犬',   h: '明智家', n: 1, l: '門を守る犬が、低くうなっている' },
-  { t: '鴨川の渡し',   h: '明智家', n: 2, l: '浅瀬に追っ手がふたり。水音で気づかれた' },
-  { t: '竹藪の伏兵',   h: '筒井家', n: 1, l: '笹がざわめく。風ではない' },
-  { t: '近江の峠',     h: '浅井家', n: 2, l: '峠の茶屋は、もう敵の手に落ちていた' },
-  { t: '湖畔の夜襲',   h: '浅井家', n: 2, l: '湖を背に、夜目のきく犬どもが囲む' },
-  { t: '伊賀の抜け道', h: '藤堂家', n: 1, l: '道案内を名乗る者の目が笑っていない' },
-  { t: '霧の山寺',     h: '筒井家', n: 2, l: '鐘が鳴るたび、霧の向こうに影がふえる' },
-  { t: '追っ手の大将', h: '明智家', n: 3, l: '名のある将が、ついに自ら出てきた' },
-  { t: '惟任の執念',   h: '明智家', n: 2, boss: 38, l: '追っ手の主が、道をふさいで待っていた' },
-  { t: '美濃の関所',   h: '斎藤家', n: 1, l: '通行の札は無い。押し通るしかない' },
-  { t: '長良の河原',   h: '斎藤家', n: 2, l: '川霧にまぎれて、槍の穂先が光る' },
-  { t: '木曽の吊り橋', h: '真田家', n: 1, l: '揺れる橋の向こうに、一匹が立ちはだかる' },
-  { t: '雪の峠越え',   h: '真田家', n: 2, l: '足跡を追ってくる者がいる' },
-  { t: '山の民の試し', h: '真田家', n: 2, l: '山に住む犬たちが、腕を見せよと言う' },
-  { t: '諏訪の湖',     h: '武田家', n: 2, l: '氷の張った湖を渡る。割れる音がした' },
-  { t: '騎馬の群れ',   h: '武田家', n: 3, l: '地鳴りが近づいてくる' },
-  { t: '甲斐の隠し湯', h: '武田家', n: 1, l: '湯けむりの奥で、誰かが刀を研いでいる' },
-  { t: '風林火山の陣', h: '武田家', n: 3, l: '旗が四つ。どれも動かぬ山のよう' },
-  { t: '甲斐の虎',     h: '武田家', n: 2, boss: 28, l: '山の主が、ゆっくりと立ち上がる' },
-  { t: '駿河の浜',     h: '今川家', n: 1, l: '海が見えた。帰り道は近い……はずだった' },
-  { t: '富士の裾野',   h: '今川家', n: 2, l: '裾野は広く、隠れる場所が無い' },
-  { t: '箱根の山道',   h: '北条家', n: 2, l: '関の手前で、待ち伏せの声' },
-  { t: '小田原の堀',   h: '北条家', n: 3, l: '城の堀ばたで、物見に見つかった' },
-  { t: '相模の夜',     h: '北条家', n: 2, l: '月の無い夜。鼻だけがたよりになる' },
-  { t: '越後の雪原',   h: '上杉家', n: 2, l: '一面の白。足もとから冷えてくる' },
-  { t: '春日山の麓',   h: '上杉家', n: 3, l: '毘の旗が、風に鳴っている' },
-  { t: '最後の関',     h: '上杉家', n: 2, l: 'この関を越えれば、本国の匂いがする' },
-  { t: '夜明けの追撃', h: '上杉家', n: 3, l: '夜が明ける。追っ手も最後の力をふりしぼる' },
-  { t: '越後の龍',     h: '上杉家', n: 2, boss: 15, l: '龍が、道のまん中で待っていた' },
+  { g: '城郭', t: '燃える御殿',   h: '明智家', n: 1, l: '火の粉の舞う廊下。まずは目の前の一匹を退けよ' },
+  { g: '城郭', t: '裏門の番犬',   h: '明智家', n: 1, l: '門を守る犬が、低くうなっている' },
+  { g: '河川', t: '鴨川の渡し',   h: '明智家', n: 2, l: '浅瀬に追っ手がふたり。水音で気づかれた' },
+  { g: '草原', t: '竹藪の伏兵',   h: '筒井家', n: 1, l: '笹がざわめく。風ではない' },
+  { g: '山岳', t: '近江の峠',     h: '浅井家', n: 2, l: '峠の茶屋は、もう敵の手に落ちていた' },
+  { g: '河川', t: '湖畔の夜襲',   h: '浅井家', n: 2, l: '湖を背に、夜目のきく犬どもが囲む' },
+  { g: '山岳', t: '伊賀の抜け道', h: '藤堂家', n: 1, l: '道案内を名乗る者の目が笑っていない' },
+  { g: '山岳', t: '霧の山寺',     h: '筒井家', n: 2, l: '鐘が鳴るたび、霧の向こうに影がふえる' },
+  { g: '草原', t: '追っ手の大将', h: '明智家', n: 3, l: '名のある将が、ついに自ら出てきた' },
+  { g: '城郭', t: '惟任の執念',   h: '明智家', n: 2, boss: 38, l: '追っ手の主が、道をふさいで待っていた' },
+  { g: '城郭', t: '美濃の関所',   h: '斎藤家', n: 1, l: '通行の札は無い。押し通るしかない' },
+  { g: '河川', t: '長良の河原',   h: '斎藤家', n: 2, l: '川霧にまぎれて、槍の穂先が光る' },
+  { g: '山岳', t: '木曽の吊り橋', h: '真田家', n: 1, l: '揺れる橋の向こうに、一匹が立ちはだかる' },
+  { g: '山岳', t: '雪の峠越え',   h: '真田家', n: 2, l: '足跡を追ってくる者がいる' },
+  { g: '山岳', t: '山の民の試し', h: '真田家', n: 2, l: '山に住む犬たちが、腕を見せよと言う' },
+  { g: '河川', t: '諏訪の湖',     h: '武田家', n: 2, l: '氷の張った湖を渡る。割れる音がした' },
+  { g: '草原', t: '騎馬の群れ',   h: '武田家', n: 3, l: '地鳴りが近づいてくる' },
+  { g: '山岳', t: '甲斐の隠し湯', h: '武田家', n: 1, l: '湯けむりの奥で、誰かが刀を研いでいる' },
+  { g: '草原', t: '風林火山の陣', h: '武田家', n: 3, l: '旗が四つ。どれも動かぬ山のよう' },
+  { g: '城郭', t: '甲斐の虎',     h: '武田家', n: 2, boss: 28, l: '山の主が、ゆっくりと立ち上がる' },
+  { g: '海', t: '駿河の浜',     h: '今川家', n: 1, l: '海が見えた。帰り道は近い……はずだった' },
+  { g: '草原', t: '富士の裾野',   h: '今川家', n: 2, l: '裾野は広く、隠れる場所が無い' },
+  { g: '山岳', t: '箱根の山道',   h: '北条家', n: 2, l: '関の手前で、待ち伏せの声' },
+  { g: '城郭', t: '小田原の堀',   h: '北条家', n: 3, l: '城の堀ばたで、物見に見つかった' },
+  { g: '草原', t: '相模の夜',     h: '北条家', n: 2, l: '月の無い夜。鼻だけがたよりになる' },
+  { g: '草原', t: '越後の雪原',   h: '上杉家', n: 2, l: '一面の白。足もとから冷えてくる' },
+  { g: '城郭', t: '春日山の麓',   h: '上杉家', n: 3, l: '毘の旗が、風に鳴っている' },
+  { g: '山岳', t: '最後の関',     h: '上杉家', n: 2, l: 'この関を越えれば、本国の匂いがする' },
+  { g: '草原', t: '夜明けの追撃', h: '上杉家', n: 3, l: '夜が明ける。追っ手も最後の力をふりしぼる' },
+  { g: '城郭', t: '越後の龍',     h: '上杉家', n: 2, boss: 15, l: '龍が、道のまん中で待っていた' },
 ];
 const TR_MAX = TR_STORY.length;
 /* 初めて抜けたときの褒美（2026-10-08・「簡単な報酬」）。
@@ -14288,7 +14368,9 @@ function trReward(i) {
   const big = n % 5 === 0;
   return { koban: (300 + n * 40) * (big ? 3 : 1), soul: (big ? 20 : 5) + Math.floor(n / 3) };
 }
-/* 敵の強さ。話が進むほど素の値に掛ける倍を大きくする */
+/* 敵の強さ。話が進むほど素の値に掛ける倍を大きくする。
+   これにプレイヤーレベルの倍（trLvMul）を掛ける（2026-10-09・悠さんの指図「敵が雑魚すぎる」） */
+const trLvMul = lv => 1 + 0.005 * Math.max(0, (lv || 1) - 1);
 const trFoeMul = i => 0.8 + 0.15 * i;
 
 /* ================= 札 =================
@@ -14331,8 +14413,10 @@ function trBase(attr, st, v) {
   const o = { dmg: 0, blk: 0, heal: 0, draw: 0 };
   if (attr === '猛将') o.dmg = trS(st['火力']) * 0.72 * v;
   else if (attr === '智将') o.dmg = trS(st['賢さ']) * 0.64 * v;
-  else if (attr === '守将') { o.dmg = trS(st['火力']) * 0.32 * v; o.blk = trS(st['防御']) * 0.6 * v; }
-  else if (attr === '仁将') { o.dmg = trS(trMain(st)) * 0.3 * v; o.heal = trS(st['回復']) * 0.5 * v; }
+  /* 守将・仁将は一人旅だと打つ手が細すぎた（2026-10-09・悠さんの実機で「打つ 28」）。
+     守将は防御の重みでも打ち、仁将は回復の気でも打つ */
+  else if (attr === '守将') { o.dmg = trS(trMain(st)) * 0.3 * v + trS(st['防御']) * 0.22 * v; o.blk = trS(st['防御']) * 0.6 * v; }
+  else if (attr === '仁将') { o.dmg = trS(trMain(st)) * 0.3 * v + trS(st['回復']) * 0.2 * v; o.heal = trS(st['回復']) * 0.5 * v; }
   else { o.dmg = trS(st['速さ']) * 0.58 * v; if (v >= 2) o.draw = 1; }
   return o;
 }
@@ -14501,20 +14585,24 @@ function trFoeCards(ch, starOf) {
 function trFoe(ch, mul, boss, ph, starOf) {
   const st = {};
   for (const k of ['火力', '賢さ', '防御', '回復', '速さ']) st[k] = (ch.stats[k] || 0) * mul;
-  const hp = trR((trS(st['防御']) + trS(st['回復'])) * (boss ? 4.2 : 1.55));
+  /* 敵の兵量は 2026-10-09 に厚くした（悠さんの実測「敵が雑魚すぎる」・一枚で二体とも倒れていた） */
+  const hp = trR((trS(st['防御']) + trS(st['回復'])) * (boss ? 4.8 : 2.3));
   return { no: ch.no, name: ch.name, attr: ch.attr, rarity: ch.rarity, st, hp, mx: hp, blk: 0,
            boss: !!boss, weakT: 0, vuln: 0, stun: 0, burn: 0, burnT: 0, seal: 0, mom: 0, pump: 0,
            t: 0, ph: ph || 0, it: null, ult: 0, cards: trFoeCards(ch, starOf) };
 }
-function trFoes(i, all, meNo, starOf) {
-  const s = TR_STORY[i];
-  const F = { rs: (i + 1) * 7919 + (meNo || 0) * 104729 };      // 顔ぶれは話と武将で決め打ち
+/* o.n＝頭数（国主のほか）／o.boss＝国主を出すか／o.elite＝手練れ（強め）／o.seed＝顔ぶれの種 */
+function trFoes(i, all, meNo, starOf, k = 1, o = {}) {
+  const s0 = TR_STORY[i];
+  const s = { ...s0, n: o.n != null ? o.n : s0.n, boss: o.boss === false ? 0 : s0.boss };
+  if (o.elite) k *= 1.25;
+  const F = { rs: (o.seed != null ? o.seed : (i + 1) * 7919) + (meNo || 0) * 104729 };
   const me = all.find(c => c.no === meNo);
   const away = c => c.no !== meNo && (!me || c.origin !== me.origin) && c.no !== s.boss;
   const rar = TR_POOL_RAR(i);
   let pool = all.filter(c => c.clan === s.h && rar.includes(c.rarity) && away(c));
   if (pool.length < s.n + 1) pool = pool.concat(all.filter(c => c.clan !== s.h && rar.includes(c.rarity) && away(c)));
-  const mul = trFoeMul(i);
+  const mul = trFoeMul(i) * k;
   const out = [];
   if (s.boss) {
     const b = all.find(c => c.no === s.boss);
@@ -14574,26 +14662,107 @@ function trIntent(F, f) {
   return it;
 }
 
+/* 自分の兵量の上限。道中のあいだは戦をまたいで減ったままになる */
+const trMaxHp = who => { const st = who.stats || {}; return trR(trS(st['防御']) * 2.6 + trS(st['回復']) * 1.6 + 120); };
+
+/* ================= 道（2026-10-09・悠さんの指図）=================
+   一本道では単調なので、札で戦う外国の名作のように **分かれ道** を選ばせる。
+   三つの部それぞれが一枚の道。下から上へ9段、10段目は国主（どの道を通っても必ず通る）。
+   段の番号がそのまま「階」になる（一の部の1段目＝1階 … 国主＝10階）。
+   節の種類：
+     戦 … 敵（1〜2体）     強 … 手練れ（2〜3体・強め・褒美が厚い）
+     ？ … 何が起きるか分からない   宿 … 休む（兵量が戻る）
+     商 … 商人（小判で薬や護符）   宝 … 宝箱
+     将 … 国主（10階ごと） */
+const TR_ROWS = 9;                 // 国主の手前までの段
+const TR_COLS = 4;
+const TR_NODE = {
+  戦: { mark: '敵', name: '敵' }, 強: { mark: '強', name: '手練れ' }, '？': { mark: '？', name: '未知' },
+  宿: { mark: '宿', name: '休憩' }, 商: { mark: '商', name: '商人' }, 宝: { mark: '宝', name: '宝箱' },
+  将: { mark: '将', name: '国主' },
+};
+function trMap(part, seed) {
+  const R = { rs: (seed >>> 0) || 1 };
+  const rows = [...Array(TR_ROWS)].map(() => Array(TR_COLS).fill(null));
+  const put = (r, c) => rows[r][c] || (rows[r][c] = { t: null, nx: [] });
+  /* 道を4本ひく。出だしの列はなるべく散らす。隣の列へ斜めに移るか、まっすぐ上がる */
+  const starts = trShuffle(R, [0, 1, 2, 3]);
+  for (let k = 0; k < 4; k++) {
+    let c = k < 3 ? starts[k] : starts[trInt(R, 3)];
+    for (let r = 0; r < TR_ROWS; r++) {
+      const n = put(r, c);
+      if (r === TR_ROWS - 1) break;
+      const nc = Math.max(0, Math.min(TR_COLS - 1, c + [-1, 0, 1][trInt(R, 3)]));
+      if (!n.nx.includes(nc)) n.nx.push(nc);
+      c = nc;
+    }
+  }
+  /* 種類をきめる。1段目は必ず敵、9段目は必ず宿（国主の前に一息つかせる）、5段目は宝か商 */
+  const roll = r => {
+    const w = [['戦', 44], ['？', 22], ['商', 9]];
+    if (r >= 2) w.push(['強', 13]);
+    if (r >= 2 && r !== TR_ROWS - 2) w.push(['宿', 9]);
+    w.push(['宝', 3]);
+    let x = trRand(R) * w.reduce((a, b) => a + b[1], 0);
+    for (const [t, v] of w) { if ((x -= v) < 0) return t; }
+    return '戦';
+  };
+  for (let r = 0; r < TR_ROWS; r++) for (let c = 0; c < TR_COLS; c++) {
+    const n = rows[r][c]; if (!n) continue;
+    if (r === 0) n.t = '戦';
+    else if (r === TR_ROWS - 1) n.t = '宿';
+    else if (r === 4) n.t = trRand(R) < 0.6 ? '宝' : '商';
+    else {
+      let t = roll(r);
+      /* 強・宿・商は続けて並ばないようにする（下の段とおなじなら敵に替える） */
+      const below = r > 0 ? rows[r - 1].filter(x => x && x.nx.includes(c)).map(x => x.t) : [];
+      if (['強', '宿', '商'].includes(t) && below.includes(t)) t = '戦';
+      n.t = t;
+    }
+    n.nx.sort((a, b) => a - b);
+  }
+  return { part, rows };
+}
+/* いま進める節。at が null なら1段目ぜんぶ、9段目にいれば国主 */
+function trNext(run) {
+  if (!run || !run.map) return [];
+  if (!run.at) return run.map.rows[0].map((n, c) => n ? { r: 0, c } : null).filter(Boolean);
+  if (run.at.r === 'boss') return [];
+  if (run.at.r >= TR_ROWS - 1) return [{ r: 'boss', c: 0 }];
+  const n = run.map.rows[run.at.r][run.at.c];
+  return (n ? n.nx : []).map(c => ({ r: run.at.r + 1, c }));
+}
+/* 新しい部の道を敷く。兵量は満たす */
+function trRunNew(part, mx, seed) {
+  return { part, map: trMap(part, seed), at: null, path: [], hp: mx, seed, ki: 0, guard: 0 };
+}
+/* 節から階へ（0 から数える）。国主は各部の10階 */
+const trFloorOf = (part, r) => part * 10 + (r === 'boss' ? 9 : r);
+
 /* ================= 戦 ================= */
 /* deck は { key: 枚数 }。kinds は trKinds の並び。seed は戦ごとに変える */
-function trBattle(i, who, kinds, deck, all, seed, starOf) {
+function trBattle(i, who, kinds, deck, all, seed, starOf, lv, o = {}) {
   const pile = [];
   let u = 0;
   for (const k of kinds) for (let n = 0; n < (deck[k.key] || 0); n++) pile.push({ u: u++, key: k.key });
   const st = who.stats || {};
-  const mx = trR(trS(st['防御']) * 2.6 + trS(st['回復']) * 1.6 + 120);
+  const mx = trMaxHp(who);
   const F = {
     i, no: who.no, rs: (seed >>> 0) || 1, turn: 0, over: null,
-    pl: { hp: mx, mx, blk: 0, might: 0, guardUp: 0, healUp: 0, drawUp: 0, weak: 0, dodge: 0,
+    pl: { hp: Math.max(1, Math.min(mx, o.hp != null ? o.hp : mx)), mx, blk: 0, might: 0, guardUp: 0, healUp: 0, drawUp: 0, weak: 0, dodge: 0,
           thorns: 0, crit: 0, charge: 0, revive: 0,
           /* 敵の札から受けるもの（2026-10-09）。daze＝次の手番の気が1減る／burn＝手番のはじめに焼ける
              ／crack＝受けが重くなる／seal＝癒せない */
           daze: 0, burn: 0, burnT: 0, crack: 0, seal: 0 },
-    foes: trFoes(i, all, who.no, starOf),
+    lv: lv || 1,
+    foes: trFoes(i, all, who.no, starOf, trLvMul(lv), o),
     draw: [], hand: [], disc: [], gone: [], ki: TR_KI,
   };
   F.draw = trShuffle(F, pile);
   trTurn(F);
+  /* 商人の品（2026-10-09）。気の巻＝はじめの手番の気＋1／護符＝はじめから構える */
+  if (o.ki) F.ki += o.ki;
+  if (o.guard) F.pl.blk += o.guard;
   return F;
 }
 function trDraw(F, n) {
@@ -28990,7 +29159,7 @@ const HOME_MENU = [
      69角に「落ち延び道中」は収まらないので「道中」にしてある。
      ui/home_trail.png を置けば、名札そのものが消える */
   { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, label: '道中',
-    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
+    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; S.trScroll = true; } },
   { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
@@ -38276,7 +38445,7 @@ document.addEventListener('click', e => {
 
 const PAGE_TALK = {
   /* 落ち延び道中（2026-10-08） */
-  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、三十の話を抜けるワン。十話ごとに、その子の上限が開くワン'],
+  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、分かれ道を選びながら三十階を抜けるワン。十階ごとの国主を討てば、その子の上限が開くワン'],
   /* はじまりの一騎（2026-09-30）。持ち武将がまだ無いので、語り手は信わんに落ちる */
   tutorial: ['はじまりの一騎だワン！！',
     '天下は乱れ、犬たちが旗を掲げたワン。まずは旗下に加える武将を、ひとり選ぶワン'],
@@ -38340,19 +38509,30 @@ function trDeckOf(who, kinds) {
 const trFace = no => faceUrl(no, '通常') || faceUrl(no, '笑顔') || pawnUrl(no);
 const TR_ATTR_COL = { 猛将: '#d9544d', 智将: '#7a7ee0', 守将: '#4fa36b', 仁将: '#d98fc0', 神速: '#e0c04a' };
 
-/* 札一枚。o は trSpec の返り。sel＝選んでいる／dim＝気が足りない */
+/* 札一枚（2026-10-09 作り直し）。
+   技名は上に。絵は種類ごとに今ある素材から替える：
+     特技 … cutin/<番号>_特技 ／ 固有 … cutin/<番号>_固有 ／ 奥義 … cutin/<番号>_奥義
+     大将特性 … hero/<番号>（横長の一枚絵）。無ければ cutin の攻撃 → 顔 → コマ絵に落ちる
+   o は trSpec の返り。sel＝選んでいる／dim＝気が足りない */
+const TR_ART_KIND = { sk: '特技', u: '固有', ult: '奥義' };
+function trArtOf(no, kind) {
+  return (kind === 'gen' ? heroUrl(no) : cutinArt(no, TR_ART_KIND[kind]))
+      || cutinArt(no, '攻撃') || trFace(no);
+}
 function trCardEl(who, kd, o, opt = {}) {
   const w = trWords(o);
   return el('button', {
-    class: 'trc k-' + kd.kind + (opt.sel ? ' sel' : '') + (opt.dim ? ' dim' : '') + (opt.small ? ' sm' : ''),
-    style: `--ac:${TR_ATTR_COL[who.attr] || '#d8a94a'}`,
+    class: 'trc k-' + kd.kind + (opt.sel ? ' sel' : '') + (opt.dim ? ' dim' : '') + (opt.small ? ' sm' : '') + (opt.cls ? ' ' + opt.cls : ''),
+    style: `--ac:${TR_ATTR_COL[who.attr] || '#d8a94a'};${opt.style || ''}`,
+    'data-h': opt.h != null ? String(opt.h) : null,
     onclick: opt.on || null,
   },
     el('span', { class: 'trcost' }, String(o.cost)),
-    el('span', { class: 'trkind' }, TR_KIND_NAME[kd.kind]),
-    keepImg({ class: 'trcimg', src: trFace(who.no), alt: '' }),
     el('b', { class: 'trcname' }, trName(kd.sk.name)),
-    el('span', { class: 'trcw' }, w.slice(0, 2).join('\n')));
+    el('span', { class: 'trcart' },
+      keepImg({ class: 'trcimg', src: trArtOf(who.no, kd.kind), alt: '' }),
+      el('i', { class: 'trkind' }, TR_KIND_NAME[kd.kind])),
+    el('span', { class: 'trcw' }, (opt.full ? w : w.slice(0, 3)).join('\n')));
 }
 
 function screenTrail() {
@@ -38362,45 +38542,175 @@ function screenTrail() {
   const kinds = trKindsOf(who);
   if (S.trView === 'deck') return trDeckScreen(who, kinds);
   const prog = trProg(no);
-  const stat = i => i < prog ? 'done' : i === prog ? 'next' : 'lock';
-  const go = i => trStart(no, i);
-  const b = trBonus(no);
+  const run = trRunOf(no);
+  const mx = trMaxHp(who);
+  const can = trNext(run);
+  const isCan = (r, c) => can.some(x => x.r === r && x.c === c);
+  const onPath = (r, c) => (run.path || []).some(x => x.r === r && x.c === c);
+  /* 道の絵。行は上ほど奥（国主が上、出だしが下）。列は少しずらして手描きらしくする */
+  const ROW_H = 70, TOP = 92, W = 100;
+  const jx = (r, c) => { let h = (r * 7 + c * 13 + run.part * 5) % 9; return (h - 4) * 1.4; };
+  const X = (r, c) => r === 'boss' ? 50 : ((c + 0.5) / TR_COLS) * W + jx(r, c);
+  const Y = r => r === 'boss' ? 46 : TOP + (TR_ROWS - 1 - r) * ROW_H + 40;
+  const H = TOP + TR_ROWS * ROW_H + 50;
+  const lines = [];
+  run.map.rows.forEach((row, r) => row.forEach((n, c) => {
+    if (!n) return;
+    const tgt = r === TR_ROWS - 1 ? [['boss', 0]] : n.nx.map(c2 => [r + 1, c2]);
+    for (const [r2, c2] of tgt) {
+      const walked = onPath(r, c) && (r2 === 'boss' ? (run.at && run.at.r === 'boss') : onPath(r2, c2));
+      lines.push(`<line x1="${X(r, c)}%" y1="${Y(r)}" x2="${X(r2, c2)}%" y2="${Y(r2)}" class="${walked ? 'walk' : ''}"/>`);
+    }
+  }));
+  const node = (r, c, t) => {
+    const here = run.at && run.at.r === r && run.at.c === c;
+    const ok = isCan(r, c);
+    const done = onPath(r, c);
+    return el('button', {
+      class: 'trnode t-' + t + (ok ? ' can' : '') + (done ? ' done' : '') + (here ? ' here' : '') + (r === 'boss' ? ' boss' : ''),
+      style: `left:${X(r, c)}%;top:${Y(r)}px`,
+      disabled: ok ? null : true,
+      onclick: ok ? () => trGo(no, r, c) : null,
+    }, r === 'boss' ? keepImg({ class: 'trbossimg', src: pawnUrl((TR_STORY[trFloorOf(run.part, 'boss')] || {}).boss) || '', alt: '' }) : null,
+       el('i', {}, TR_NODE[t].mark));
+  };
+  const nodes = [];
+  run.map.rows.forEach((row, r) => row.forEach((n, c) => { if (n) nodes.push(node(r, c, n.t)); }));
+  nodes.push(node('boss', 0, '将'));
+  const floorNow = run.at ? trFloorOf(run.part, run.at.r) + 1 : run.part * 10;
+  /* 道に入ってきたときだけ、いまいる段まで巻く（押すたびに巻き戻らないように） */
+  if (S.trScroll) { S.trScroll = false; setTimeout(() => { const n = document.querySelector('.trnode.can'); if (n) n.scrollIntoView({ block: 'center' }); }, 30); }
   return {
     body: el('div', { class: 'trpage' },
       el('div', { class: 'trhero', style: `--ac:${TR_ATTR_COL[who.attr]}` },
         keepImg({ class: 'trheroimg', src: pawnUrl(no), alt: who.name }),
         el('div', { class: 'trheroin' },
           el('b', {}, who.name),
-          el('span', { class: 'trprog' }, el('em', {}, String(prog)), ` / ${TR_MAX} 話`),
+          el('span', { class: 'trprog' }, '到達 ', el('em', {}, String(prog)), ` / ${TR_MAX} 階`),
           el('div', { class: 'trmiles' }, TR_MILE.map(m =>
             el('span', { class: 'trmile' + (prog >= m.at ? ' on' : '') },
-              `${m.at}話　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
+              `${m.at}階　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
           el('div', { class: 'trbtns' },
             el('button', { class: 'ghost', onclick: () => { S.trPick = true; SFX.pick(); draw(); } }, '武将をかえる'),
             el('button', { class: 'ghost', onclick: () => { S.trView = 'deck'; S.trDraft = { ...trDeckOf(who, kinds) }; SFX.pick(); draw(); } },
               `山札（${TR_DECK}枚）`)))),
-      ...TR_PARTS.map((part, pi) => el('div', { class: 'trpart' },
-        el('b', { class: 'trparth' }, `${['一', '二', '三'][pi]}の部　${part}`),
-        TR_STORY.slice(pi * 10, pi * 10 + 10).map((s, k) => {
-          const i = pi * 10 + k, st2 = stat(i);
-          return el('button', { class: 'trrow ' + st2 + (s.boss ? ' boss' : ''), disabled: st2 === 'lock' ? true : null, onclick: () => go(i) },
-            el('span', { class: 'trno' }, String(i + 1)),
-            el('span', { class: 'trt' }, el('b', {}, st2 === 'lock' ? '？？？' : s.t),
-              st2 === 'next' ? el('small', {}, s.l) : null),
-            el('span', { class: 'trst' }, st2 === 'done' ? '済' : st2 === 'next' ? '挑む' : ''));
-        })))),
+      el('div', { class: 'trrun' },
+        el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
+        el('span', {}, `${floorNow ? floorNow + '階' : '出立前'}`),
+        el('div', { class: 'trmebar' }, trBar(run.hp, mx, 0)),
+        (run.ki || run.guard) ? el('small', {}, [run.ki ? '気の巻' : '', run.guard ? '護符' : ''].filter(Boolean).join('・') + 'を持っている') : null),
+      el('div', { class: 'trlegend' }, ['戦', '強', '？', '宿', '商', '宝'].map(t =>
+        el('span', {}, el('i', { class: 't-' + t }, TR_NODE[t].mark), TR_NODE[t].name))),
+      el('div', { class: 'trmap', style: `height:${H}px` },
+        /* 線は SVG の名前空間で作らないと描かれないので、文字から起こす */
+        el('div', { class: 'trlines', html: `<svg width="100%" height="${H}">${lines.join('')}</svg>` }),
+        ...nodes)),
     nav: true,
   };
 }
+/* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
+function trRunOf(no) {
+  const who = trWho(no); const mx = trMaxHp(who);
+  let r = P.trail.runs[no];
+  if (!r || !r.map) {
+    const part = Math.min(2, Math.floor(trProg(no) / 10));
+    r = P.trail.runs[no] = trRunNew(part, mx, (Date.now() ^ (no * 40503)) >>> 0);
+  }
+  if (r.hp > mx) r.hp = mx;
+  return r;
+}
+/* 節へ進む */
+function trGo(no, r, c) {
+  const run = trRunOf(no);
+  if (!trNext(run).some(x => x.r === r && x.c === c)) return;
+  const t = r === 'boss' ? '将' : run.map.rows[r][c].t;
+  const floor = trFloorOf(run.part, r);
+  const step = () => { run.at = { r, c }; run.path = [...(run.path || []), { r, c }]; trFloorDone(no, floor); };
+  const R = { rs: (run.seed ^ (floor * 2654435761)) >>> 0 };
+  const roll = () => trRand(R);
+  if (t === '戦' || t === '強' || t === '将' || (t === '？' && roll() < 0.4)) {
+    const o = t === '将' ? {}
+      : t === '強' ? { n: floor >= 15 ? 3 : 2, elite: true, boss: false }
+      : { n: floor < 3 ? 1 : (roll() < 0.55 ? 2 : 1), boss: false };
+    return trStart(no, floor, { ...o, node: { r, c, t } });
+  }
+  step();
+  const mx = trMaxHp(trWho(no));
+  const k = run.part + 1;
+  if (t === '宿') {
+    S.trEv = { t: '宿場', p: 'ほっと一息。兵量がいくらか戻った', act: [] };
+    run.hp = Math.min(mx, run.hp + Math.round(mx * 0.35)); SFX.heal();
+  } else if (t === '宝') {
+    const kb = Math.round((200 + roll() * 500) * k), sl = Math.round((4 + roll() * 10) * k);
+    P.koban += kb; P.soul += sl; SFX.get();
+    S.trEv = { t: '宝箱', p: `小判 ${num(kb)}・武士の魂 ${num(sl)} を見つけた`, act: [] };
+  } else if (t === '商') {
+    S.trEv = { t: '商人', p: '「よい品がございますワン」', shop: true };
+  } else {
+    const ev = [
+      () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.25)); return { t: '湯けむり', p: '山あいの湯に浸かった。兵量が戻った', act: [] }; },
+      () => { const kb = 150 * k; P.koban += kb; return { t: '落とし物', p: `道ばたに小判 ${num(kb)} が落ちていた`, act: [] }; },
+      () => ({ t: '古寺の鐘', p: '荒れた寺に、鐘がひとつ残っている', act: [
+        { l: '祈る', f: () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.15)); return '心が静まった。兵量が少し戻った'; } },
+        { l: '賽銭を投げる', f: () => { if (P.koban < 100 * k) return '小判が足りなかった'; P.koban -= 100 * k; P.soul += 10 * k; return '鐘が鳴った。武士の魂が湧いてきた'; } },
+      ] }),
+      () => ({ t: '怪しい行者', p: '「血をひとしずく くれれば、力をやろう」', act: [
+        { l: '差し出す', f: () => { run.hp = Math.max(1, run.hp - Math.round(mx * 0.12)); P.soul += 15 * k; return '武士の魂を授かった。少し目まいがする'; } },
+        { l: '断る', f: () => '行者は霧の中へ消えた' },
+      ] }),
+    ];
+    S.trEv = ev[Math.floor(roll() * ev.length)]();
+  }
+  savePlayer(); draw();
+}
+/* 階を抜けた。初めてなら褒美、10階ごとに上限が開く */
+function trFloorDone(no, floor) {
+  if (floor + 1 <= trProg(no)) return null;
+  const before = trBonus(no);
+  P.trail.prog[no] = floor + 1;
+  const rw = trReward(floor);
+  P.koban += rw.koban; P.soul += rw.soul;
+  const after = trBonus(no);
+  const mile = (after.lv !== before.lv || after.sp !== before.sp) ? { lv: after.lv - before.lv, sp: after.sp - before.sp } : null;
+  return { rw, mile };
+}
+/* 道の出来事・宿・宝・商人の札 */
+function trEvSheet() {
+  const e = S.trEv; if (!e) return null;
+  const no = trCur(); const run = trRunOf(no); const k = run.part + 1;
+  const mx = trMaxHp(trWho(no));
+  const close = () => { S.trEv = null; SFX.pick(); draw(); };
+  const goods = [
+    { l: '兵量の薬', d: '兵量がたっぷり戻る', p: 400 * k, f: () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.5)); } },
+    { l: '気の巻', d: '次の戦、はじめの気が増える', p: 300 * k, f: () => { run.ki = 1; } },
+    { l: '護符', d: '次の戦、はじめから構えている', p: 300 * k, f: () => { run.guard = Math.round(mx * 0.2); } },
+  ];
+  return el('div', { class: 'sheet' },
+    el('div', { class: 'card2 trres' },
+      el('b', { class: 'trresh' }, e.t),
+      el('p', {}, e.msg || e.p),
+      e.shop ? el('div', { class: 'trshop' }, goods.map(g => el('button', {
+        class: 'trgood', disabled: P.koban < g.p ? true : null,
+        onclick: () => { if (P.koban < g.p) return; P.koban -= g.p; g.f(); SFX.coin(); e.msg = `${g.l}を買った`; savePlayer(); draw(); },
+      }, el('b', {}, g.l), el('small', {}, g.d), el('em', {}, `小判 ${num(g.p)}`)))) : null,
+      (e.act && e.act.length && !e.msg) ? el('div', { class: 'mgrow' }, e.act.map(a => el('button', { class: 'go',
+        onclick: () => { e.msg = a.f(); e.act = []; savePlayer(); SFX.pick(); draw(); } }, a.l))) : null,
+      (!e.act || !e.act.length || e.msg) ? el('button', { class: 'go wide', onclick: close }, e.shop ? '立ち去る' : '先へ') : null));
+}
 
-/* 話を始める。i は話の番号（0 から）。抜けていない話の先へは行けない */
-function trStart(no, i) {
-  if (i > trProg(no)) return;
+/* 戦を始める（2026-10-09 作り直し）。i は階（0 から）。o は頭数・手練れ・節の印。
+   道の兵量（減ったまま）と商人の品を持ち込む */
+function trStart(no, i, o = {}) {
   const who = trWho(no); if (!who) return;
   const kinds = trKindsOf(who);
+  const run = trRunOf(no);
   P.trail.cur = no;
-  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf);
-  S.trSel = null; S.trTgt = 0; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
+  const F = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf, P.lv,
+    { ...o, hp: run.hp, ki: run.ki, guard: run.guard, seed: (run.seed ^ (i * 977)) >>> 0 });
+  run.ki = 0; run.guard = 0;
+  F.node = o.node || null;
+  P.trail.fight = F;
+  S.trSel = null; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
   S.screen = 'trfight'; SFX.start(); draw();
 }
 /* 山札を組む。種類ごとに −／＋ で枚数を決め、ちょうど10枚で決まる */
@@ -38451,38 +38761,118 @@ function trPickSheet() {
       el('b', { class: 'sqttl' }, '道中に連れていく武将'),
       el('div', { class: 'trpgrid' }, list.map(c => el('button', {
         class: 'trpc' + (c.no === trCur() ? ' on' : ''), style: `--ac:${TR_ATTR_COL[c.attr]}`,
-        onclick: () => { P.trail.cur = c.no; S.trPick = false; SFX.pick(); draw(); },
+        onclick: () => { P.trail.cur = c.no; S.trPick = false; S.trScroll = true; SFX.pick(); draw(); },
       },
         keepImg({ src: pawnUrl(c.no), alt: c.name }),
         el('span', {}, c.name),
-        el('em', {}, `${trProg(c.no)}話`)))),
+        el('em', {}, `${trProg(c.no)}階`)))),
       closeX(close)));
 }
 
-/* ---- 戦のさなか ---- */
-/* 敵の次の一手（2026-10-09）。どの札を切るかは裏で決めるので、
-   見せるのは 攻める／守る／昂る の別と、攻めるときの重さだけ */
+/* ---- 戦のさなか（2026-10-09 作り直し）----
+   悠さんの指図：見本の絵（札で戦う外国の名作）のように、戦の地を大きく敷いて
+   **自分は左・敵は右**に立たせる。札は**敵へ引きずって**使う。
+   狙いの要らない札（構え・癒しなど）は、戦の地のどこかへ放せば使える。
+   押すだけなら札が大きく開いて中身が読める（使いはしない） */
 const TR_IT_MARK = { atk: '攻', guard: '守', buff: '昂' };
 function trIntentEl(f) {
   const it = f.it; if (!it || f.hp <= 0) return el('span', { class: 'trit none' });
   if (f.stun) return el('span', { class: 'trit stun' }, 'ひるみ');
   return el('span', { class: 'trit ' + it.k + (it.ult ? ' ult' : '') },
     el('i', {}, it.ult ? '奥' : TR_IT_MARK[it.k] || '？'),
-    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.k === 'guard' ? '守る' : '昂る');
+    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : null);
 }
 function trBar(hp, mx, blk) {
   return el('div', { class: 'trbar' },
     el('i', { style: `width:${Math.max(0, Math.min(100, hp / mx * 100))}%` }),
-    el('span', {}, `${num(hp)} / ${num(mx)}`),
+    el('span', {}, `${num(hp)}/${num(mx)}`),
     blk ? el('em', { class: 'trblk' }, String(blk)) : null);
 }
-const trFxOf = (who, i) => (S.trFx || []).filter(e => who === 'pl' ? (e.t === 'hurt' || e.t === 'heal' || e.t === 'blk' || e.t === 'dodge' || e.t === 'revive') : e.f === i);
+const trFxOf = (who, i) => (S.trFx || []).filter(e => who === 'pl'
+  ? (e.t === 'hurt' || e.t === 'heal' || e.t === 'blk' || e.t === 'dodge' || e.t === 'revive') : e.f === i);
 function trFloat(list) {
   return list.length ? el('div', { class: 'trfx' }, list.map(e =>
-    el('b', { class: 'fx-' + e.t }, e.t === 'hit' ? (e.n ? `-${e.n}` : '防') : e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
+    el('b', { class: 'fx-' + e.t }, e.t === 'hit' || e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
       : e.t === 'heal' || e.t === 'fheal' ? `+${e.n}` : e.t === 'blk' || e.t === 'fblk' ? `構${e.n}`
       : e.t === 'ko' ? '討' : e.t === 'stun' ? 'ひるみ' : e.t === 'dodge' ? 'かわした' : e.t === 'skip' ? '…'
       : e.t === 'revive' ? '踏みとどまった' : e.t === 'fbuff' ? '昂る' : ''))) : null;
+}
+/* 敵の立ち位置（左からの%と、奥行き）。三体なら一体を奥に下げる */
+const TR_FOE_POS = { 1: [[68, 0]], 2: [[56, 0], [82, 1]], 3: [[50, 0], [70, 1], [88, 0]] };
+
+/* 札を使う（引きずって放したところで決める）。ti は狙う敵、なければ -1 */
+function trUse(h, ti) {
+  const F = P.trail.fight; if (!F || F.over || S.trBusy) return false;
+  const who = trWho(F.no), kinds = trKindsOf(who);
+  const card = F.hand[h]; if (!card) return false;
+  const kd = kinds.find(k => k.key === card.key);
+  const o = trSpec(who, kd, F);
+  if (o.cost > F.ki) { SFX.ng && SFX.ng(); return false; }
+  if (o.need && ti < 0) {
+    const live = trLive(F);
+    if (live.length !== 1) return false;          // 敵がひとりなら、どこへ放してもその敵へ
+    ti = F.foes.indexOf(live[0]);
+  }
+  const ev = trPlay(F, h, ti < 0 ? 0 : ti, who, kinds);
+  if (!ev) return false;
+  S.trSel = null; S.trFx = ev;
+  setTimeout(() => { if (S.trFx === ev) S.trFx = null; }, 700);
+  if (ev.some(e => e.t === 'ko')) SFX.ko(); else if (kd.kind === 'ult') SFX.ult();
+  else if (ev.some(e => e.t === 'hit')) SFX.hit(); else if (ev.some(e => e.t === 'heal')) SFX.heal(); else SFX.pick();
+  draw();
+  if (F.over) trFinish();
+  return true;
+}
+/* 手札の一枚に、引きずる手ざわりを付ける。
+   描き直すと札が作り直されるので、引いているあいだは draw() を呼ばない */
+function trDrag(node, h, need) {
+  node.addEventListener('pointerdown', e => {
+    if (S.trBusy || !P.trail.fight || P.trail.fight.over) return;
+    if (e.button != null && e.button !== 0) return;
+    const sx = e.clientX, sy = e.clientY;
+    const base = node.style.transform;
+    let moved = false, hov = null;
+    try { node.setPointerCapture(e.pointerId); } catch (_) {}
+    const field = document.querySelector('.trfield');
+    const hit = (x, y) => {
+      const foe = document.elementsFromPoint(x, y).map(n => n.closest && n.closest('.trfoe')).find(n => n && !n.classList.contains('dead'));
+      return foe || null;
+    };
+    const mv = ev => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!moved && Math.hypot(dx, dy) < 10) return;
+      if (!moved) { moved = true; node.classList.add('drag'); document.body.classList.add('trdragging'); }
+      node.style.transform = `translate(${dx}px, ${dy}px) scale(1.12) rotate(0deg)`;
+      const f = need ? hit(ev.clientX, ev.clientY) : null;
+      if (hov !== f) { if (hov) hov.classList.remove('hov'); hov = f; if (hov) hov.classList.add('hov'); }
+      if (field) {
+        const fr = field.getBoundingClientRect();
+        field.classList.toggle('drop', !need && ev.clientY < fr.bottom - 10);
+      }
+    };
+    const up = ev => {
+      node.removeEventListener('pointermove', mv);
+      node.removeEventListener('pointerup', up);
+      node.removeEventListener('pointercancel', up);
+      document.body.classList.remove('trdragging');
+      if (hov) hov.classList.remove('hov');
+      if (field) field.classList.remove('drop');
+      if (!moved) { S.trSel = S.trSel === h ? null : h; SFX.pick(); draw(); return; }
+      node.classList.remove('drag');
+      const fr = field ? field.getBoundingClientRect() : null;
+      const inField = fr && ev.clientY < fr.bottom - 10;
+      let ok = false;
+      if (need) {
+        const f = hit(ev.clientX, ev.clientY);
+        if (f) ok = trUse(h, +f.dataset.i);
+        else if (inField) ok = trUse(h, -1);
+      } else if (inField) ok = trUse(h, -1);
+      if (!ok) { node.style.transform = base; }
+    };
+    node.addEventListener('pointermove', mv);
+    node.addEventListener('pointerup', up);
+    node.addEventListener('pointercancel', up);
+  });
 }
 function screenTrFight() {
   const F = P.trail.fight;
@@ -38491,74 +38881,75 @@ function screenTrFight() {
   const kinds = trKindsOf(who);
   const s = TR_STORY[F.i];
   const busy = !!S.trBusy;
-  const live = trLive(F);
-  if (!(F.foes[S.trTgt] && F.foes[S.trTgt].hp > 0)) S.trTgt = live.length ? F.foes.indexOf(live[0]) : 0;
-  const play = h => {
-    if (busy || F.over) return;
-    if (S.trSel !== h) { S.trSel = h; SFX.pick(); draw(); return; }
-    const card = F.hand[h];
-    const kd = kinds.find(k => k.key === card.key);
-    const o = trSpec(who, kd, F);
-    if (o.cost > F.ki) { SFX.ng && SFX.ng(); return; }
-    const ev = trPlay(F, h, S.trTgt, who, kinds);
-    S.trSel = null; S.trFx = ev;
-    /* 浮く数は一度きり。次の描き直しで二度浮かないよう、少ししたら控えを消す */
-    setTimeout(() => { if (S.trFx === ev) S.trFx = null; }, 700);
-    if (ev && ev.some(e => e.t === 'ko')) SFX.ko(); else if (kd.kind === 'ult') SFX.ult();
-    else if (ev && ev.some(e => e.t === 'hit')) SFX.hit(); else if (ev && ev.some(e => e.t === 'heal')) SFX.heal(); else SFX.pick();
-    draw();
-    if (F.over) trFinish();
-  };
-  const sel = S.trSel != null ? F.hand[S.trSel] : null;
-  const selKd = sel ? kinds.find(k => k.key === sel.key) : null;
   const pl = F.pl;
+  const bg = stageUrl((s.g || '草原') + '_背景') || stageUrl(s.g || '草原') || bgUrl('battle');
   const tags = [
     pl.might ? '勢い' : null, pl.weak ? '削がれ' : null, pl.dodge ? 'かわし' : null, pl.crit ? '冴え' : null,
     pl.thorns ? '返し' : null, pl.revive ? '踏ん張り' : null, pl.charge ? '奥義が軽い' : null,
     pl.crack ? '崩れ' : null, pl.burnT > 0 ? '炎' : null, pl.seal ? '封' : null, pl.daze ? 'ひるみ' : null,
   ].filter(Boolean);
+  const pos = TR_FOE_POS[Math.min(3, F.foes.length)] || TR_FOE_POS[3];
+  const n = F.hand.length;
+  const sel = S.trSel != null ? F.hand[S.trSel] : null;
+  const selKd = sel ? kinds.find(k => k.key === sel.key) : null;
+  const hand = el('div', { class: 'trhand' }, F.hand.map((cd, h) => {
+    const kd = kinds.find(k => k.key === cd.key);
+    const o = trSpec(who, kd, F);
+    const off = h - (n - 1) / 2;
+    const node = trCardEl(who, kd, o, {
+      h, sel: S.trSel === h, dim: o.cost > F.ki,
+      style: `--r:${off * 5}deg;--y:${Math.abs(off) * Math.abs(off) * 4}px;z-index:${10 + h}`,
+    });
+    trDrag(node, h, o.need);
+    return node;
+  }));
   return {
+    bare: true,
     body: el('div', { class: 'trfight' },
-      el('div', { class: 'trfhd' },
-        el('span', {}, el('em', {}, `第${F.i + 1}話`), s.t),
-        el('span', { class: 'trturn' }, `${F.turn}手め`),
-        el('button', { class: 'trquit' + (S.trQuit ? ' on' : ''), onclick: () => {
-          if (busy) return;
-          if (!S.trQuit) { S.trQuit = true; draw(); return; }
-          P.trail.fight = null; S.trQuit = false; S.screen = 'trail'; SFX.pick(); draw();
-        } }, S.trQuit ? 'もう一度で退く' : '退く')),
-      el('div', { class: 'trfoes' }, F.foes.map((f, i) => el('button', {
-        class: 'trfoe' + (f.hp <= 0 ? ' dead' : '') + (i === S.trTgt && f.hp > 0 ? ' tgt' : '') + (S.trActing === i ? ' acting' : '') + (f.boss ? ' boss' : ''),
-        style: `--ac:${TR_ATTR_COL[f.attr]}`,
-        onclick: () => { if (f.hp > 0) { S.trTgt = i; SFX.pick(); draw(); } },
-      },
-        trIntentEl(f),
-        keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
-        el('b', { class: 'trfn' }, f.name),
-        trBar(f.hp, f.mx, f.blk),
-        el('div', { class: 'trtags' }, [f.mom > 0 ? '昂り' : null, f.pump ? '溜め' : null, f.thorns ? '返し' : null, f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
-        trFloat(trFxOf('foe', i))))),
-      el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
-        keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),
-        el('div', { class: 'trmein' },
-          el('b', {}, who.name),
+      el('div', { class: 'trfield', style: bg ? `background-image:url("${bg}")` : '' },
+        el('div', { class: 'trfhd' },
+          el('span', {}, el('em', {}, `${F.i + 1}階`), s.t),
+          el('span', { class: 'trturn' }, `${F.turn}手め`),
+          el('button', { class: 'trquit' + (S.trQuit ? ' on' : ''), onclick: () => {
+            if (busy) return;
+            if (!S.trQuit) { S.trQuit = true; draw(); return; }
+            P.trail.fight = null; S.trQuit = false; S.screen = 'trail'; SFX.pick(); draw();
+          } }, S.trQuit ? 'もう一度で退く' : '退く')),
+        /* 自分（左） */
+        el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
+          keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),
           trBar(pl.hp, pl.mx, pl.blk),
-          el('div', { class: 'trtags' }, tags.map(t => el('i', {}, t)))),
-        trFloat(trFxOf('pl'))),
+          el('b', { class: 'trnm' }, who.name),
+          el('div', { class: 'trtags' }, tags.map(t => el('i', {}, t))),
+          trFloat(trFxOf('pl'))),
+        /* 敵（右） */
+        ...F.foes.map((f, i) => {
+          const [x, back] = pos[i] || [80, 0];
+          return el('div', {
+            class: 'trfoe' + (f.hp <= 0 ? ' dead' : '') + (S.trActing === i ? ' acting' : '') + (f.boss ? ' boss' : '') + (back ? ' back' : ''),
+            'data-i': String(i),
+            style: `--ac:${TR_ATTR_COL[f.attr]};left:${x}%`,
+          },
+            trIntentEl(f),
+            keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
+            trBar(f.hp, f.mx, f.blk),
+            el('b', { class: 'trnm' }, f.name),
+            el('div', { class: 'trtags' }, [f.mom > 0 ? '昂り' : null, f.pump ? '溜め' : null, f.thorns ? '返し' : null, f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
+            trFloat(trFxOf('foe', i)));
+        })),
       el('div', { class: 'trdesk' },
-        el('div', { class: 'trki' }, [...Array(TR_KI)].map((_, k) => el('i', { class: k < F.ki ? 'on' : '' })), el('b', {}, `${F.ki}`)),
-        el('span', { class: 'trpile' }, `山 ${F.draw.length}・捨 ${F.disc.length}`),
-        el('button', { class: 'go trendb', disabled: (busy || F.over) ? true : null, onclick: () => trFoeTurn() }, '手番を終える')),
-      selKd ? el('div', { class: 'trdetail' },
-        el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}`),
-        el('p', {}, trWords(trSpec(who, selKd, F)).join('・')),
-        el('small', {}, 'もう一度押すと使う')) : el('div', { class: 'trdetail hint' }, el('small', {}, '札を押すと中身が見える。もう一度押すと使う。敵を押すと狙いが変わる')),
-      el('div', { class: 'trhand' }, F.hand.map((cd, h) => {
-        const kd = kinds.find(k => k.key === cd.key);
-        const o = trSpec(who, kd, F);
-        return trCardEl(who, kd, o, { sel: S.trSel === h, dim: o.cost > F.ki, on: () => play(h) });
-      }))),
-    nav: false,
+        el('div', { class: 'trki' }, el('b', {}, `${F.ki}/${TR_KI}`)),
+        el('span', { class: 'trpile' }, el('i', {}, '山'), String(F.draw.length)),
+        selKd ? el('div', { class: 'trdetail' },
+          el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}`),
+          el('p', {}, trWords(trSpec(who, selKd, F)).join('・')))
+          : el('div', { class: 'trdetail hint' }, el('small', {}, '札を敵へ引きずって使う')),
+        el('span', { class: 'trpile' }, el('i', {}, '捨'), String(F.disc.length)),
+        el('button', { class: 'trendb', disabled: (busy || F.over) ? true : null, onclick: () => trFoeTurn() }, 'ターン終了')),
+      hand),
+    /* 下の帯は戦のさなかも出す（2026-10-09・悠さんの指図「ホームに戻れない」）。
+       抜けても戦は P.trail.fight に残るので、ホームの座から続きへ戻れる */
+    nav: true,
   };
 }
 /* 敵の手番。一匹ずつ間をおいて動かす */
@@ -38585,40 +38976,50 @@ async function trFoeTurn() {
 function trFinish() {
   const F = P.trail.fight; if (!F || !F.over) return;
   const win = F.over === 'win';
-  const res = { win, i: F.i, no: F.no, rw: null, mile: null };
-  if (win && F.i === trProg(F.no)) {
-    const before = trBonus(F.no);
-    P.trail.prog[F.no] = F.i + 1;
-    const rw = trReward(F.i);
-    P.koban += rw.koban; P.soul += rw.soul;
-    res.rw = rw;
-    const after = trBonus(F.no);
-    if (after.lv !== before.lv || after.sp !== before.sp) res.mile = { lv: after.lv - before.lv, sp: after.sp - before.sp };
+  const no = F.no, run = trRunOf(no);
+  const res = { win, i: F.i, no, rw: null, mile: null, boss: false, part: run.part };
+  if (win) {
+    run.hp = Math.max(1, F.pl.hp);
+    const nd = F.node;      // 前の作り（話の一覧）の途中の戦には節が無い。そのときは道を動かさない
+    if (nd) { run.at = { r: nd.r, c: nd.c }; run.path = [...(run.path || []), { r: nd.r, c: nd.c }]; }
+    const got = trFloorDone(no, F.i);
+    if (got) { res.rw = got.rw; res.mile = got.mile; }
+    /* 国主を倒したら次の部の道を敷く。三の部を抜けたら踏破 */
+    if (nd && nd.r === 'boss') {
+      res.boss = true;
+      const mx = trMaxHp(trWho(no));
+      if (run.part < 2) P.trail.runs[no] = trRunNew(run.part + 1, mx, (Date.now() ^ no) >>> 0);
+      else { P.trail.runs[no] = trRunNew(0, mx, (Date.now() ^ no) >>> 0); res.end = true; }
+    }
+  } else {
+    /* 倒れたら その部のはじめから。道は敷き直し、兵量は満たす（抜けた階と褒美は残る） */
+    P.trail.runs[no] = trRunNew(run.part, trMaxHp(trWho(no)), (Date.now() ^ no) >>> 0);
   }
   P.trail.fight = null;
-  S.trRes = res;
+  S.trRes = res; S.trScroll = true;
   setTimeout(() => { (win ? SFX.win : SFX.lose)(); draw(); }, 350);
   savePlayer();
 }
 function trResSheet() {
   const r = S.trRes; if (!r) return null;
   const c = charOf(r.no);
-  const close = () => { S.trRes = null; S.screen = 'trail'; SFX.pick(); draw(); };
-  const next = r.win && r.i + 1 < TR_MAX && r.i + 1 <= trProg(r.no);
+  const close = () => { S.trRes = null; S.screen = 'trail'; S.trView = 'list'; SFX.pick(); draw(); };
+  const head = !r.win ? '道半ばで倒れた' : r.end ? '道を踏破した' : r.boss ? '国主を討った' : '道は開けた';
+  const msg = !r.win ? `${['一', '二', '三'][r.part]}の部のはじめから、もう一度`
+    : r.end ? '三つの部をすべて抜けた。また一の部から歩める'
+    : r.boss ? `${['二', '三'][r.part]}の部「${TR_PARTS[r.part + 1]}」へ`
+    : `${r.i + 1}階を抜けた`;
   return el('div', { class: 'sheet' },
     el('div', { class: 'card2 trres ' + (r.win ? 'win' : 'lose') },
-      el('b', { class: 'trresh' }, r.win ? '道は開けた' : '道半ばで倒れた'),
+      el('b', { class: 'trresh' }, head),
       c ? keepImg({ class: 'trresimg', src: trFace(c.no), alt: c.name }) : null,
-      el('p', {}, r.win ? `第${r.i + 1}話「${TR_STORY[r.i].t}」を抜けた` : 'もう一度、山札を組み直して挑むワン'),
+      el('p', {}, msg),
       r.rw ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.rw.koban)}`), el('span', {}, `武士の魂 ${num(r.rw.soul)}`)) : null,
       r.mile ? el('div', { class: 'trmileup' },
         el('b', {}, `${c ? c.name : ''}の殻が破れた`),
         r.mile.sp ? el('span', {}, `武士の魂の上限 ＋${r.mile.sp}`) : null,
         r.mile.lv ? el('span', {}, `レベルの上限 ＋${r.mile.lv}`) : null) : null,
-      el('div', { class: 'mgrow' },
-        next ? el('button', { class: 'go', onclick: () => { S.trRes = null; trStart(r.no, r.i + 1); } }, '次の話へ')
-          : !r.win ? el('button', { class: 'go', onclick: () => { S.trRes = null; trStart(r.no, r.i); } }, 'もう一度挑む') : null,
-        el('button', { class: (next || !r.win) ? 'ghost' : 'go', onclick: close }, '話の一覧へ'))));
+      el('button', { class: 'go wide', onclick: close }, '道へ戻る')));
 }
 
 /* 出陣も題の帯を出さない（2026-09-29）。
@@ -38798,6 +39199,7 @@ function draw() {
     S.spAsk != null ? sparAskSheet() : null,
     S.trPick ? trPickSheet() : null,
     S.trRes ? trResSheet() : null,
+    S.trEv ? trEvSheet() : null,
     S.sqp ? sqSheet() : null,
     S.food ? foodSheet() : null,
     S.cp ? pickSheet() : null,

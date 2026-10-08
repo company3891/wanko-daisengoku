@@ -15,7 +15,7 @@ import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, m
 import { pityOf } from './player.js';
 import { TR_KI, TR_DECK, TR_DUP, TR_ULT_MAX, TR_KIND_NAME, TR_STORY, TR_PARTS, TR_MAX, trReward, trKinds, trName,
          trSpec, trWords, trDefaultDeck, trDeckCount, trDupMax, trDeckOk, trBattle, trPlay, trEnd, trFoeAct,
-         trRound, trLive } from './trail.js';
+         trRound, trLive, TR_ROWS, TR_COLS, TR_NODE, trNext, trRunNew, trFloorOf, trMaxHp, trRand } from './trail.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          STONE_PACKS, STONE_FREE_FROM, STONE_FREE_PCT, stonePack, addFreeStones,
@@ -1728,7 +1728,7 @@ const HOME_MENU = [
      69角に「落ち延び道中」は収まらないので「道中」にしてある。
      ui/home_trail.png を置けば、名札そのものが消える */
   { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, label: '道中',
-    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
+    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; S.trScroll = true; } },
   { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
@@ -11014,7 +11014,7 @@ document.addEventListener('click', e => {
 
 const PAGE_TALK = {
   /* 落ち延び道中（2026-10-08） */
-  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、三十の話を抜けるワン。十話ごとに、その子の上限が開くワン'],
+  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、分かれ道を選びながら三十階を抜けるワン。十階ごとの国主を討てば、その子の上限が開くワン'],
   /* はじまりの一騎（2026-09-30）。持ち武将がまだ無いので、語り手は信わんに落ちる */
   tutorial: ['はじまりの一騎だワン！！',
     '天下は乱れ、犬たちが旗を掲げたワン。まずは旗下に加える武将を、ひとり選ぶワン'],
@@ -11078,19 +11078,30 @@ function trDeckOf(who, kinds) {
 const trFace = no => faceUrl(no, '通常') || faceUrl(no, '笑顔') || pawnUrl(no);
 const TR_ATTR_COL = { 猛将: '#d9544d', 智将: '#7a7ee0', 守将: '#4fa36b', 仁将: '#d98fc0', 神速: '#e0c04a' };
 
-/* 札一枚。o は trSpec の返り。sel＝選んでいる／dim＝気が足りない */
+/* 札一枚（2026-10-09 作り直し）。
+   技名は上に。絵は種類ごとに今ある素材から替える：
+     特技 … cutin/<番号>_特技 ／ 固有 … cutin/<番号>_固有 ／ 奥義 … cutin/<番号>_奥義
+     大将特性 … hero/<番号>（横長の一枚絵）。無ければ cutin の攻撃 → 顔 → コマ絵に落ちる
+   o は trSpec の返り。sel＝選んでいる／dim＝気が足りない */
+const TR_ART_KIND = { sk: '特技', u: '固有', ult: '奥義' };
+function trArtOf(no, kind) {
+  return (kind === 'gen' ? heroUrl(no) : cutinArt(no, TR_ART_KIND[kind]))
+      || cutinArt(no, '攻撃') || trFace(no);
+}
 function trCardEl(who, kd, o, opt = {}) {
   const w = trWords(o);
   return el('button', {
-    class: 'trc k-' + kd.kind + (opt.sel ? ' sel' : '') + (opt.dim ? ' dim' : '') + (opt.small ? ' sm' : ''),
-    style: `--ac:${TR_ATTR_COL[who.attr] || '#d8a94a'}`,
+    class: 'trc k-' + kd.kind + (opt.sel ? ' sel' : '') + (opt.dim ? ' dim' : '') + (opt.small ? ' sm' : '') + (opt.cls ? ' ' + opt.cls : ''),
+    style: `--ac:${TR_ATTR_COL[who.attr] || '#d8a94a'};${opt.style || ''}`,
+    'data-h': opt.h != null ? String(opt.h) : null,
     onclick: opt.on || null,
   },
     el('span', { class: 'trcost' }, String(o.cost)),
-    el('span', { class: 'trkind' }, TR_KIND_NAME[kd.kind]),
-    keepImg({ class: 'trcimg', src: trFace(who.no), alt: '' }),
     el('b', { class: 'trcname' }, trName(kd.sk.name)),
-    el('span', { class: 'trcw' }, w.slice(0, 2).join('\n')));
+    el('span', { class: 'trcart' },
+      keepImg({ class: 'trcimg', src: trArtOf(who.no, kd.kind), alt: '' }),
+      el('i', { class: 'trkind' }, TR_KIND_NAME[kd.kind])),
+    el('span', { class: 'trcw' }, (opt.full ? w : w.slice(0, 3)).join('\n')));
 }
 
 function screenTrail() {
@@ -11100,45 +11111,175 @@ function screenTrail() {
   const kinds = trKindsOf(who);
   if (S.trView === 'deck') return trDeckScreen(who, kinds);
   const prog = trProg(no);
-  const stat = i => i < prog ? 'done' : i === prog ? 'next' : 'lock';
-  const go = i => trStart(no, i);
-  const b = trBonus(no);
+  const run = trRunOf(no);
+  const mx = trMaxHp(who);
+  const can = trNext(run);
+  const isCan = (r, c) => can.some(x => x.r === r && x.c === c);
+  const onPath = (r, c) => (run.path || []).some(x => x.r === r && x.c === c);
+  /* 道の絵。行は上ほど奥（国主が上、出だしが下）。列は少しずらして手描きらしくする */
+  const ROW_H = 70, TOP = 92, W = 100;
+  const jx = (r, c) => { let h = (r * 7 + c * 13 + run.part * 5) % 9; return (h - 4) * 1.4; };
+  const X = (r, c) => r === 'boss' ? 50 : ((c + 0.5) / TR_COLS) * W + jx(r, c);
+  const Y = r => r === 'boss' ? 46 : TOP + (TR_ROWS - 1 - r) * ROW_H + 40;
+  const H = TOP + TR_ROWS * ROW_H + 50;
+  const lines = [];
+  run.map.rows.forEach((row, r) => row.forEach((n, c) => {
+    if (!n) return;
+    const tgt = r === TR_ROWS - 1 ? [['boss', 0]] : n.nx.map(c2 => [r + 1, c2]);
+    for (const [r2, c2] of tgt) {
+      const walked = onPath(r, c) && (r2 === 'boss' ? (run.at && run.at.r === 'boss') : onPath(r2, c2));
+      lines.push(`<line x1="${X(r, c)}%" y1="${Y(r)}" x2="${X(r2, c2)}%" y2="${Y(r2)}" class="${walked ? 'walk' : ''}"/>`);
+    }
+  }));
+  const node = (r, c, t) => {
+    const here = run.at && run.at.r === r && run.at.c === c;
+    const ok = isCan(r, c);
+    const done = onPath(r, c);
+    return el('button', {
+      class: 'trnode t-' + t + (ok ? ' can' : '') + (done ? ' done' : '') + (here ? ' here' : '') + (r === 'boss' ? ' boss' : ''),
+      style: `left:${X(r, c)}%;top:${Y(r)}px`,
+      disabled: ok ? null : true,
+      onclick: ok ? () => trGo(no, r, c) : null,
+    }, r === 'boss' ? keepImg({ class: 'trbossimg', src: pawnUrl((TR_STORY[trFloorOf(run.part, 'boss')] || {}).boss) || '', alt: '' }) : null,
+       el('i', {}, TR_NODE[t].mark));
+  };
+  const nodes = [];
+  run.map.rows.forEach((row, r) => row.forEach((n, c) => { if (n) nodes.push(node(r, c, n.t)); }));
+  nodes.push(node('boss', 0, '将'));
+  const floorNow = run.at ? trFloorOf(run.part, run.at.r) + 1 : run.part * 10;
+  /* 道に入ってきたときだけ、いまいる段まで巻く（押すたびに巻き戻らないように） */
+  if (S.trScroll) { S.trScroll = false; setTimeout(() => { const n = document.querySelector('.trnode.can'); if (n) n.scrollIntoView({ block: 'center' }); }, 30); }
   return {
     body: el('div', { class: 'trpage' },
       el('div', { class: 'trhero', style: `--ac:${TR_ATTR_COL[who.attr]}` },
         keepImg({ class: 'trheroimg', src: pawnUrl(no), alt: who.name }),
         el('div', { class: 'trheroin' },
           el('b', {}, who.name),
-          el('span', { class: 'trprog' }, el('em', {}, String(prog)), ` / ${TR_MAX} 話`),
+          el('span', { class: 'trprog' }, '到達 ', el('em', {}, String(prog)), ` / ${TR_MAX} 階`),
           el('div', { class: 'trmiles' }, TR_MILE.map(m =>
             el('span', { class: 'trmile' + (prog >= m.at ? ' on' : '') },
-              `${m.at}話　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
+              `${m.at}階　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
           el('div', { class: 'trbtns' },
             el('button', { class: 'ghost', onclick: () => { S.trPick = true; SFX.pick(); draw(); } }, '武将をかえる'),
             el('button', { class: 'ghost', onclick: () => { S.trView = 'deck'; S.trDraft = { ...trDeckOf(who, kinds) }; SFX.pick(); draw(); } },
               `山札（${TR_DECK}枚）`)))),
-      ...TR_PARTS.map((part, pi) => el('div', { class: 'trpart' },
-        el('b', { class: 'trparth' }, `${['一', '二', '三'][pi]}の部　${part}`),
-        TR_STORY.slice(pi * 10, pi * 10 + 10).map((s, k) => {
-          const i = pi * 10 + k, st2 = stat(i);
-          return el('button', { class: 'trrow ' + st2 + (s.boss ? ' boss' : ''), disabled: st2 === 'lock' ? true : null, onclick: () => go(i) },
-            el('span', { class: 'trno' }, String(i + 1)),
-            el('span', { class: 'trt' }, el('b', {}, st2 === 'lock' ? '？？？' : s.t),
-              st2 === 'next' ? el('small', {}, s.l) : null),
-            el('span', { class: 'trst' }, st2 === 'done' ? '済' : st2 === 'next' ? '挑む' : ''));
-        })))),
+      el('div', { class: 'trrun' },
+        el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
+        el('span', {}, `${floorNow ? floorNow + '階' : '出立前'}`),
+        el('div', { class: 'trmebar' }, trBar(run.hp, mx, 0)),
+        (run.ki || run.guard) ? el('small', {}, [run.ki ? '気の巻' : '', run.guard ? '護符' : ''].filter(Boolean).join('・') + 'を持っている') : null),
+      el('div', { class: 'trlegend' }, ['戦', '強', '？', '宿', '商', '宝'].map(t =>
+        el('span', {}, el('i', { class: 't-' + t }, TR_NODE[t].mark), TR_NODE[t].name))),
+      el('div', { class: 'trmap', style: `height:${H}px` },
+        /* 線は SVG の名前空間で作らないと描かれないので、文字から起こす */
+        el('div', { class: 'trlines', html: `<svg width="100%" height="${H}">${lines.join('')}</svg>` }),
+        ...nodes)),
     nav: true,
   };
 }
+/* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
+function trRunOf(no) {
+  const who = trWho(no); const mx = trMaxHp(who);
+  let r = P.trail.runs[no];
+  if (!r || !r.map) {
+    const part = Math.min(2, Math.floor(trProg(no) / 10));
+    r = P.trail.runs[no] = trRunNew(part, mx, (Date.now() ^ (no * 40503)) >>> 0);
+  }
+  if (r.hp > mx) r.hp = mx;
+  return r;
+}
+/* 節へ進む */
+function trGo(no, r, c) {
+  const run = trRunOf(no);
+  if (!trNext(run).some(x => x.r === r && x.c === c)) return;
+  const t = r === 'boss' ? '将' : run.map.rows[r][c].t;
+  const floor = trFloorOf(run.part, r);
+  const step = () => { run.at = { r, c }; run.path = [...(run.path || []), { r, c }]; trFloorDone(no, floor); };
+  const R = { rs: (run.seed ^ (floor * 2654435761)) >>> 0 };
+  const roll = () => trRand(R);
+  if (t === '戦' || t === '強' || t === '将' || (t === '？' && roll() < 0.4)) {
+    const o = t === '将' ? {}
+      : t === '強' ? { n: floor >= 15 ? 3 : 2, elite: true, boss: false }
+      : { n: floor < 3 ? 1 : (roll() < 0.55 ? 2 : 1), boss: false };
+    return trStart(no, floor, { ...o, node: { r, c, t } });
+  }
+  step();
+  const mx = trMaxHp(trWho(no));
+  const k = run.part + 1;
+  if (t === '宿') {
+    S.trEv = { t: '宿場', p: 'ほっと一息。兵量がいくらか戻った', act: [] };
+    run.hp = Math.min(mx, run.hp + Math.round(mx * 0.35)); SFX.heal();
+  } else if (t === '宝') {
+    const kb = Math.round((200 + roll() * 500) * k), sl = Math.round((4 + roll() * 10) * k);
+    P.koban += kb; P.soul += sl; SFX.get();
+    S.trEv = { t: '宝箱', p: `小判 ${num(kb)}・武士の魂 ${num(sl)} を見つけた`, act: [] };
+  } else if (t === '商') {
+    S.trEv = { t: '商人', p: '「よい品がございますワン」', shop: true };
+  } else {
+    const ev = [
+      () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.25)); return { t: '湯けむり', p: '山あいの湯に浸かった。兵量が戻った', act: [] }; },
+      () => { const kb = 150 * k; P.koban += kb; return { t: '落とし物', p: `道ばたに小判 ${num(kb)} が落ちていた`, act: [] }; },
+      () => ({ t: '古寺の鐘', p: '荒れた寺に、鐘がひとつ残っている', act: [
+        { l: '祈る', f: () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.15)); return '心が静まった。兵量が少し戻った'; } },
+        { l: '賽銭を投げる', f: () => { if (P.koban < 100 * k) return '小判が足りなかった'; P.koban -= 100 * k; P.soul += 10 * k; return '鐘が鳴った。武士の魂が湧いてきた'; } },
+      ] }),
+      () => ({ t: '怪しい行者', p: '「血をひとしずく くれれば、力をやろう」', act: [
+        { l: '差し出す', f: () => { run.hp = Math.max(1, run.hp - Math.round(mx * 0.12)); P.soul += 15 * k; return '武士の魂を授かった。少し目まいがする'; } },
+        { l: '断る', f: () => '行者は霧の中へ消えた' },
+      ] }),
+    ];
+    S.trEv = ev[Math.floor(roll() * ev.length)]();
+  }
+  savePlayer(); draw();
+}
+/* 階を抜けた。初めてなら褒美、10階ごとに上限が開く */
+function trFloorDone(no, floor) {
+  if (floor + 1 <= trProg(no)) return null;
+  const before = trBonus(no);
+  P.trail.prog[no] = floor + 1;
+  const rw = trReward(floor);
+  P.koban += rw.koban; P.soul += rw.soul;
+  const after = trBonus(no);
+  const mile = (after.lv !== before.lv || after.sp !== before.sp) ? { lv: after.lv - before.lv, sp: after.sp - before.sp } : null;
+  return { rw, mile };
+}
+/* 道の出来事・宿・宝・商人の札 */
+function trEvSheet() {
+  const e = S.trEv; if (!e) return null;
+  const no = trCur(); const run = trRunOf(no); const k = run.part + 1;
+  const mx = trMaxHp(trWho(no));
+  const close = () => { S.trEv = null; SFX.pick(); draw(); };
+  const goods = [
+    { l: '兵量の薬', d: '兵量がたっぷり戻る', p: 400 * k, f: () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.5)); } },
+    { l: '気の巻', d: '次の戦、はじめの気が増える', p: 300 * k, f: () => { run.ki = 1; } },
+    { l: '護符', d: '次の戦、はじめから構えている', p: 300 * k, f: () => { run.guard = Math.round(mx * 0.2); } },
+  ];
+  return el('div', { class: 'sheet' },
+    el('div', { class: 'card2 trres' },
+      el('b', { class: 'trresh' }, e.t),
+      el('p', {}, e.msg || e.p),
+      e.shop ? el('div', { class: 'trshop' }, goods.map(g => el('button', {
+        class: 'trgood', disabled: P.koban < g.p ? true : null,
+        onclick: () => { if (P.koban < g.p) return; P.koban -= g.p; g.f(); SFX.coin(); e.msg = `${g.l}を買った`; savePlayer(); draw(); },
+      }, el('b', {}, g.l), el('small', {}, g.d), el('em', {}, `小判 ${num(g.p)}`)))) : null,
+      (e.act && e.act.length && !e.msg) ? el('div', { class: 'mgrow' }, e.act.map(a => el('button', { class: 'go',
+        onclick: () => { e.msg = a.f(); e.act = []; savePlayer(); SFX.pick(); draw(); } }, a.l))) : null,
+      (!e.act || !e.act.length || e.msg) ? el('button', { class: 'go wide', onclick: close }, e.shop ? '立ち去る' : '先へ') : null));
+}
 
-/* 話を始める。i は話の番号（0 から）。抜けていない話の先へは行けない */
-function trStart(no, i) {
-  if (i > trProg(no)) return;
+/* 戦を始める（2026-10-09 作り直し）。i は階（0 から）。o は頭数・手練れ・節の印。
+   道の兵量（減ったまま）と商人の品を持ち込む */
+function trStart(no, i, o = {}) {
   const who = trWho(no); if (!who) return;
   const kinds = trKindsOf(who);
+  const run = trRunOf(no);
   P.trail.cur = no;
-  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf);
-  S.trSel = null; S.trTgt = 0; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
+  const F = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf, P.lv,
+    { ...o, hp: run.hp, ki: run.ki, guard: run.guard, seed: (run.seed ^ (i * 977)) >>> 0 });
+  run.ki = 0; run.guard = 0;
+  F.node = o.node || null;
+  P.trail.fight = F;
+  S.trSel = null; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
   S.screen = 'trfight'; SFX.start(); draw();
 }
 /* 山札を組む。種類ごとに −／＋ で枚数を決め、ちょうど10枚で決まる */
@@ -11189,38 +11330,118 @@ function trPickSheet() {
       el('b', { class: 'sqttl' }, '道中に連れていく武将'),
       el('div', { class: 'trpgrid' }, list.map(c => el('button', {
         class: 'trpc' + (c.no === trCur() ? ' on' : ''), style: `--ac:${TR_ATTR_COL[c.attr]}`,
-        onclick: () => { P.trail.cur = c.no; S.trPick = false; SFX.pick(); draw(); },
+        onclick: () => { P.trail.cur = c.no; S.trPick = false; S.trScroll = true; SFX.pick(); draw(); },
       },
         keepImg({ src: pawnUrl(c.no), alt: c.name }),
         el('span', {}, c.name),
-        el('em', {}, `${trProg(c.no)}話`)))),
+        el('em', {}, `${trProg(c.no)}階`)))),
       closeX(close)));
 }
 
-/* ---- 戦のさなか ---- */
-/* 敵の次の一手（2026-10-09）。どの札を切るかは裏で決めるので、
-   見せるのは 攻める／守る／昂る の別と、攻めるときの重さだけ */
+/* ---- 戦のさなか（2026-10-09 作り直し）----
+   悠さんの指図：見本の絵（札で戦う外国の名作）のように、戦の地を大きく敷いて
+   **自分は左・敵は右**に立たせる。札は**敵へ引きずって**使う。
+   狙いの要らない札（構え・癒しなど）は、戦の地のどこかへ放せば使える。
+   押すだけなら札が大きく開いて中身が読める（使いはしない） */
 const TR_IT_MARK = { atk: '攻', guard: '守', buff: '昂' };
 function trIntentEl(f) {
   const it = f.it; if (!it || f.hp <= 0) return el('span', { class: 'trit none' });
   if (f.stun) return el('span', { class: 'trit stun' }, 'ひるみ');
   return el('span', { class: 'trit ' + it.k + (it.ult ? ' ult' : '') },
     el('i', {}, it.ult ? '奥' : TR_IT_MARK[it.k] || '？'),
-    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.k === 'guard' ? '守る' : '昂る');
+    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : null);
 }
 function trBar(hp, mx, blk) {
   return el('div', { class: 'trbar' },
     el('i', { style: `width:${Math.max(0, Math.min(100, hp / mx * 100))}%` }),
-    el('span', {}, `${num(hp)} / ${num(mx)}`),
+    el('span', {}, `${num(hp)}/${num(mx)}`),
     blk ? el('em', { class: 'trblk' }, String(blk)) : null);
 }
-const trFxOf = (who, i) => (S.trFx || []).filter(e => who === 'pl' ? (e.t === 'hurt' || e.t === 'heal' || e.t === 'blk' || e.t === 'dodge' || e.t === 'revive') : e.f === i);
+const trFxOf = (who, i) => (S.trFx || []).filter(e => who === 'pl'
+  ? (e.t === 'hurt' || e.t === 'heal' || e.t === 'blk' || e.t === 'dodge' || e.t === 'revive') : e.f === i);
 function trFloat(list) {
   return list.length ? el('div', { class: 'trfx' }, list.map(e =>
-    el('b', { class: 'fx-' + e.t }, e.t === 'hit' ? (e.n ? `-${e.n}` : '防') : e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
+    el('b', { class: 'fx-' + e.t }, e.t === 'hit' || e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
       : e.t === 'heal' || e.t === 'fheal' ? `+${e.n}` : e.t === 'blk' || e.t === 'fblk' ? `構${e.n}`
       : e.t === 'ko' ? '討' : e.t === 'stun' ? 'ひるみ' : e.t === 'dodge' ? 'かわした' : e.t === 'skip' ? '…'
       : e.t === 'revive' ? '踏みとどまった' : e.t === 'fbuff' ? '昂る' : ''))) : null;
+}
+/* 敵の立ち位置（左からの%と、奥行き）。三体なら一体を奥に下げる */
+const TR_FOE_POS = { 1: [[68, 0]], 2: [[56, 0], [82, 1]], 3: [[50, 0], [70, 1], [88, 0]] };
+
+/* 札を使う（引きずって放したところで決める）。ti は狙う敵、なければ -1 */
+function trUse(h, ti) {
+  const F = P.trail.fight; if (!F || F.over || S.trBusy) return false;
+  const who = trWho(F.no), kinds = trKindsOf(who);
+  const card = F.hand[h]; if (!card) return false;
+  const kd = kinds.find(k => k.key === card.key);
+  const o = trSpec(who, kd, F);
+  if (o.cost > F.ki) { SFX.ng && SFX.ng(); return false; }
+  if (o.need && ti < 0) {
+    const live = trLive(F);
+    if (live.length !== 1) return false;          // 敵がひとりなら、どこへ放してもその敵へ
+    ti = F.foes.indexOf(live[0]);
+  }
+  const ev = trPlay(F, h, ti < 0 ? 0 : ti, who, kinds);
+  if (!ev) return false;
+  S.trSel = null; S.trFx = ev;
+  setTimeout(() => { if (S.trFx === ev) S.trFx = null; }, 700);
+  if (ev.some(e => e.t === 'ko')) SFX.ko(); else if (kd.kind === 'ult') SFX.ult();
+  else if (ev.some(e => e.t === 'hit')) SFX.hit(); else if (ev.some(e => e.t === 'heal')) SFX.heal(); else SFX.pick();
+  draw();
+  if (F.over) trFinish();
+  return true;
+}
+/* 手札の一枚に、引きずる手ざわりを付ける。
+   描き直すと札が作り直されるので、引いているあいだは draw() を呼ばない */
+function trDrag(node, h, need) {
+  node.addEventListener('pointerdown', e => {
+    if (S.trBusy || !P.trail.fight || P.trail.fight.over) return;
+    if (e.button != null && e.button !== 0) return;
+    const sx = e.clientX, sy = e.clientY;
+    const base = node.style.transform;
+    let moved = false, hov = null;
+    try { node.setPointerCapture(e.pointerId); } catch (_) {}
+    const field = document.querySelector('.trfield');
+    const hit = (x, y) => {
+      const foe = document.elementsFromPoint(x, y).map(n => n.closest && n.closest('.trfoe')).find(n => n && !n.classList.contains('dead'));
+      return foe || null;
+    };
+    const mv = ev => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!moved && Math.hypot(dx, dy) < 10) return;
+      if (!moved) { moved = true; node.classList.add('drag'); document.body.classList.add('trdragging'); }
+      node.style.transform = `translate(${dx}px, ${dy}px) scale(1.12) rotate(0deg)`;
+      const f = need ? hit(ev.clientX, ev.clientY) : null;
+      if (hov !== f) { if (hov) hov.classList.remove('hov'); hov = f; if (hov) hov.classList.add('hov'); }
+      if (field) {
+        const fr = field.getBoundingClientRect();
+        field.classList.toggle('drop', !need && ev.clientY < fr.bottom - 10);
+      }
+    };
+    const up = ev => {
+      node.removeEventListener('pointermove', mv);
+      node.removeEventListener('pointerup', up);
+      node.removeEventListener('pointercancel', up);
+      document.body.classList.remove('trdragging');
+      if (hov) hov.classList.remove('hov');
+      if (field) field.classList.remove('drop');
+      if (!moved) { S.trSel = S.trSel === h ? null : h; SFX.pick(); draw(); return; }
+      node.classList.remove('drag');
+      const fr = field ? field.getBoundingClientRect() : null;
+      const inField = fr && ev.clientY < fr.bottom - 10;
+      let ok = false;
+      if (need) {
+        const f = hit(ev.clientX, ev.clientY);
+        if (f) ok = trUse(h, +f.dataset.i);
+        else if (inField) ok = trUse(h, -1);
+      } else if (inField) ok = trUse(h, -1);
+      if (!ok) { node.style.transform = base; }
+    };
+    node.addEventListener('pointermove', mv);
+    node.addEventListener('pointerup', up);
+    node.addEventListener('pointercancel', up);
+  });
 }
 function screenTrFight() {
   const F = P.trail.fight;
@@ -11229,74 +11450,75 @@ function screenTrFight() {
   const kinds = trKindsOf(who);
   const s = TR_STORY[F.i];
   const busy = !!S.trBusy;
-  const live = trLive(F);
-  if (!(F.foes[S.trTgt] && F.foes[S.trTgt].hp > 0)) S.trTgt = live.length ? F.foes.indexOf(live[0]) : 0;
-  const play = h => {
-    if (busy || F.over) return;
-    if (S.trSel !== h) { S.trSel = h; SFX.pick(); draw(); return; }
-    const card = F.hand[h];
-    const kd = kinds.find(k => k.key === card.key);
-    const o = trSpec(who, kd, F);
-    if (o.cost > F.ki) { SFX.ng && SFX.ng(); return; }
-    const ev = trPlay(F, h, S.trTgt, who, kinds);
-    S.trSel = null; S.trFx = ev;
-    /* 浮く数は一度きり。次の描き直しで二度浮かないよう、少ししたら控えを消す */
-    setTimeout(() => { if (S.trFx === ev) S.trFx = null; }, 700);
-    if (ev && ev.some(e => e.t === 'ko')) SFX.ko(); else if (kd.kind === 'ult') SFX.ult();
-    else if (ev && ev.some(e => e.t === 'hit')) SFX.hit(); else if (ev && ev.some(e => e.t === 'heal')) SFX.heal(); else SFX.pick();
-    draw();
-    if (F.over) trFinish();
-  };
-  const sel = S.trSel != null ? F.hand[S.trSel] : null;
-  const selKd = sel ? kinds.find(k => k.key === sel.key) : null;
   const pl = F.pl;
+  const bg = stageUrl((s.g || '草原') + '_背景') || stageUrl(s.g || '草原') || bgUrl('battle');
   const tags = [
     pl.might ? '勢い' : null, pl.weak ? '削がれ' : null, pl.dodge ? 'かわし' : null, pl.crit ? '冴え' : null,
     pl.thorns ? '返し' : null, pl.revive ? '踏ん張り' : null, pl.charge ? '奥義が軽い' : null,
     pl.crack ? '崩れ' : null, pl.burnT > 0 ? '炎' : null, pl.seal ? '封' : null, pl.daze ? 'ひるみ' : null,
   ].filter(Boolean);
+  const pos = TR_FOE_POS[Math.min(3, F.foes.length)] || TR_FOE_POS[3];
+  const n = F.hand.length;
+  const sel = S.trSel != null ? F.hand[S.trSel] : null;
+  const selKd = sel ? kinds.find(k => k.key === sel.key) : null;
+  const hand = el('div', { class: 'trhand' }, F.hand.map((cd, h) => {
+    const kd = kinds.find(k => k.key === cd.key);
+    const o = trSpec(who, kd, F);
+    const off = h - (n - 1) / 2;
+    const node = trCardEl(who, kd, o, {
+      h, sel: S.trSel === h, dim: o.cost > F.ki,
+      style: `--r:${off * 5}deg;--y:${Math.abs(off) * Math.abs(off) * 4}px;z-index:${10 + h}`,
+    });
+    trDrag(node, h, o.need);
+    return node;
+  }));
   return {
+    bare: true,
     body: el('div', { class: 'trfight' },
-      el('div', { class: 'trfhd' },
-        el('span', {}, el('em', {}, `第${F.i + 1}話`), s.t),
-        el('span', { class: 'trturn' }, `${F.turn}手め`),
-        el('button', { class: 'trquit' + (S.trQuit ? ' on' : ''), onclick: () => {
-          if (busy) return;
-          if (!S.trQuit) { S.trQuit = true; draw(); return; }
-          P.trail.fight = null; S.trQuit = false; S.screen = 'trail'; SFX.pick(); draw();
-        } }, S.trQuit ? 'もう一度で退く' : '退く')),
-      el('div', { class: 'trfoes' }, F.foes.map((f, i) => el('button', {
-        class: 'trfoe' + (f.hp <= 0 ? ' dead' : '') + (i === S.trTgt && f.hp > 0 ? ' tgt' : '') + (S.trActing === i ? ' acting' : '') + (f.boss ? ' boss' : ''),
-        style: `--ac:${TR_ATTR_COL[f.attr]}`,
-        onclick: () => { if (f.hp > 0) { S.trTgt = i; SFX.pick(); draw(); } },
-      },
-        trIntentEl(f),
-        keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
-        el('b', { class: 'trfn' }, f.name),
-        trBar(f.hp, f.mx, f.blk),
-        el('div', { class: 'trtags' }, [f.mom > 0 ? '昂り' : null, f.pump ? '溜め' : null, f.thorns ? '返し' : null, f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
-        trFloat(trFxOf('foe', i))))),
-      el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
-        keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),
-        el('div', { class: 'trmein' },
-          el('b', {}, who.name),
+      el('div', { class: 'trfield', style: bg ? `background-image:url("${bg}")` : '' },
+        el('div', { class: 'trfhd' },
+          el('span', {}, el('em', {}, `${F.i + 1}階`), s.t),
+          el('span', { class: 'trturn' }, `${F.turn}手め`),
+          el('button', { class: 'trquit' + (S.trQuit ? ' on' : ''), onclick: () => {
+            if (busy) return;
+            if (!S.trQuit) { S.trQuit = true; draw(); return; }
+            P.trail.fight = null; S.trQuit = false; S.screen = 'trail'; SFX.pick(); draw();
+          } }, S.trQuit ? 'もう一度で退く' : '退く')),
+        /* 自分（左） */
+        el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
+          keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),
           trBar(pl.hp, pl.mx, pl.blk),
-          el('div', { class: 'trtags' }, tags.map(t => el('i', {}, t)))),
-        trFloat(trFxOf('pl'))),
+          el('b', { class: 'trnm' }, who.name),
+          el('div', { class: 'trtags' }, tags.map(t => el('i', {}, t))),
+          trFloat(trFxOf('pl'))),
+        /* 敵（右） */
+        ...F.foes.map((f, i) => {
+          const [x, back] = pos[i] || [80, 0];
+          return el('div', {
+            class: 'trfoe' + (f.hp <= 0 ? ' dead' : '') + (S.trActing === i ? ' acting' : '') + (f.boss ? ' boss' : '') + (back ? ' back' : ''),
+            'data-i': String(i),
+            style: `--ac:${TR_ATTR_COL[f.attr]};left:${x}%`,
+          },
+            trIntentEl(f),
+            keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
+            trBar(f.hp, f.mx, f.blk),
+            el('b', { class: 'trnm' }, f.name),
+            el('div', { class: 'trtags' }, [f.mom > 0 ? '昂り' : null, f.pump ? '溜め' : null, f.thorns ? '返し' : null, f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
+            trFloat(trFxOf('foe', i)));
+        })),
       el('div', { class: 'trdesk' },
-        el('div', { class: 'trki' }, [...Array(TR_KI)].map((_, k) => el('i', { class: k < F.ki ? 'on' : '' })), el('b', {}, `${F.ki}`)),
-        el('span', { class: 'trpile' }, `山 ${F.draw.length}・捨 ${F.disc.length}`),
-        el('button', { class: 'go trendb', disabled: (busy || F.over) ? true : null, onclick: () => trFoeTurn() }, '手番を終える')),
-      selKd ? el('div', { class: 'trdetail' },
-        el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}`),
-        el('p', {}, trWords(trSpec(who, selKd, F)).join('・')),
-        el('small', {}, 'もう一度押すと使う')) : el('div', { class: 'trdetail hint' }, el('small', {}, '札を押すと中身が見える。もう一度押すと使う。敵を押すと狙いが変わる')),
-      el('div', { class: 'trhand' }, F.hand.map((cd, h) => {
-        const kd = kinds.find(k => k.key === cd.key);
-        const o = trSpec(who, kd, F);
-        return trCardEl(who, kd, o, { sel: S.trSel === h, dim: o.cost > F.ki, on: () => play(h) });
-      }))),
-    nav: false,
+        el('div', { class: 'trki' }, el('b', {}, `${F.ki}/${TR_KI}`)),
+        el('span', { class: 'trpile' }, el('i', {}, '山'), String(F.draw.length)),
+        selKd ? el('div', { class: 'trdetail' },
+          el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}`),
+          el('p', {}, trWords(trSpec(who, selKd, F)).join('・')))
+          : el('div', { class: 'trdetail hint' }, el('small', {}, '札を敵へ引きずって使う')),
+        el('span', { class: 'trpile' }, el('i', {}, '捨'), String(F.disc.length)),
+        el('button', { class: 'trendb', disabled: (busy || F.over) ? true : null, onclick: () => trFoeTurn() }, 'ターン終了')),
+      hand),
+    /* 下の帯は戦のさなかも出す（2026-10-09・悠さんの指図「ホームに戻れない」）。
+       抜けても戦は P.trail.fight に残るので、ホームの座から続きへ戻れる */
+    nav: true,
   };
 }
 /* 敵の手番。一匹ずつ間をおいて動かす */
@@ -11323,40 +11545,50 @@ async function trFoeTurn() {
 function trFinish() {
   const F = P.trail.fight; if (!F || !F.over) return;
   const win = F.over === 'win';
-  const res = { win, i: F.i, no: F.no, rw: null, mile: null };
-  if (win && F.i === trProg(F.no)) {
-    const before = trBonus(F.no);
-    P.trail.prog[F.no] = F.i + 1;
-    const rw = trReward(F.i);
-    P.koban += rw.koban; P.soul += rw.soul;
-    res.rw = rw;
-    const after = trBonus(F.no);
-    if (after.lv !== before.lv || after.sp !== before.sp) res.mile = { lv: after.lv - before.lv, sp: after.sp - before.sp };
+  const no = F.no, run = trRunOf(no);
+  const res = { win, i: F.i, no, rw: null, mile: null, boss: false, part: run.part };
+  if (win) {
+    run.hp = Math.max(1, F.pl.hp);
+    const nd = F.node;      // 前の作り（話の一覧）の途中の戦には節が無い。そのときは道を動かさない
+    if (nd) { run.at = { r: nd.r, c: nd.c }; run.path = [...(run.path || []), { r: nd.r, c: nd.c }]; }
+    const got = trFloorDone(no, F.i);
+    if (got) { res.rw = got.rw; res.mile = got.mile; }
+    /* 国主を倒したら次の部の道を敷く。三の部を抜けたら踏破 */
+    if (nd && nd.r === 'boss') {
+      res.boss = true;
+      const mx = trMaxHp(trWho(no));
+      if (run.part < 2) P.trail.runs[no] = trRunNew(run.part + 1, mx, (Date.now() ^ no) >>> 0);
+      else { P.trail.runs[no] = trRunNew(0, mx, (Date.now() ^ no) >>> 0); res.end = true; }
+    }
+  } else {
+    /* 倒れたら その部のはじめから。道は敷き直し、兵量は満たす（抜けた階と褒美は残る） */
+    P.trail.runs[no] = trRunNew(run.part, trMaxHp(trWho(no)), (Date.now() ^ no) >>> 0);
   }
   P.trail.fight = null;
-  S.trRes = res;
+  S.trRes = res; S.trScroll = true;
   setTimeout(() => { (win ? SFX.win : SFX.lose)(); draw(); }, 350);
   savePlayer();
 }
 function trResSheet() {
   const r = S.trRes; if (!r) return null;
   const c = charOf(r.no);
-  const close = () => { S.trRes = null; S.screen = 'trail'; SFX.pick(); draw(); };
-  const next = r.win && r.i + 1 < TR_MAX && r.i + 1 <= trProg(r.no);
+  const close = () => { S.trRes = null; S.screen = 'trail'; S.trView = 'list'; SFX.pick(); draw(); };
+  const head = !r.win ? '道半ばで倒れた' : r.end ? '道を踏破した' : r.boss ? '国主を討った' : '道は開けた';
+  const msg = !r.win ? `${['一', '二', '三'][r.part]}の部のはじめから、もう一度`
+    : r.end ? '三つの部をすべて抜けた。また一の部から歩める'
+    : r.boss ? `${['二', '三'][r.part]}の部「${TR_PARTS[r.part + 1]}」へ`
+    : `${r.i + 1}階を抜けた`;
   return el('div', { class: 'sheet' },
     el('div', { class: 'card2 trres ' + (r.win ? 'win' : 'lose') },
-      el('b', { class: 'trresh' }, r.win ? '道は開けた' : '道半ばで倒れた'),
+      el('b', { class: 'trresh' }, head),
       c ? keepImg({ class: 'trresimg', src: trFace(c.no), alt: c.name }) : null,
-      el('p', {}, r.win ? `第${r.i + 1}話「${TR_STORY[r.i].t}」を抜けた` : 'もう一度、山札を組み直して挑むワン'),
+      el('p', {}, msg),
       r.rw ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.rw.koban)}`), el('span', {}, `武士の魂 ${num(r.rw.soul)}`)) : null,
       r.mile ? el('div', { class: 'trmileup' },
         el('b', {}, `${c ? c.name : ''}の殻が破れた`),
         r.mile.sp ? el('span', {}, `武士の魂の上限 ＋${r.mile.sp}`) : null,
         r.mile.lv ? el('span', {}, `レベルの上限 ＋${r.mile.lv}`) : null) : null,
-      el('div', { class: 'mgrow' },
-        next ? el('button', { class: 'go', onclick: () => { S.trRes = null; trStart(r.no, r.i + 1); } }, '次の話へ')
-          : !r.win ? el('button', { class: 'go', onclick: () => { S.trRes = null; trStart(r.no, r.i); } }, 'もう一度挑む') : null,
-        el('button', { class: (next || !r.win) ? 'ghost' : 'go', onclick: close }, '話の一覧へ'))));
+      el('button', { class: 'go wide', onclick: close }, '道へ戻る')));
 }
 
 /* 出陣も題の帯を出さない（2026-09-29）。
@@ -11536,6 +11768,7 @@ function draw() {
     S.spAsk != null ? sparAskSheet() : null,
     S.trPick ? trPickSheet() : null,
     S.trRes ? trResSheet() : null,
+    S.trEv ? trEvSheet() : null,
     S.sqp ? sqSheet() : null,
     S.food ? foodSheet() : null,
     S.cp ? pickSheet() : null,

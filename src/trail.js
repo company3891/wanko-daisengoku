@@ -36,39 +36,40 @@ const trR = v => Math.max(0, Math.round(v));
 
 /* ================= 30話 =================
    一の部「都落ち」→ 二の部「山越え」→ 三の部「帰り道」。10・20・30話は国主が出る。
-   h は家の名（campaign.js と同じ書き方）。n は国主のほかの頭数、boss は国主の No. */
+   h は家の名（campaign.js と同じ書き方）。n は国主のほかの頭数、boss は国主の No.
+   g は戦の地（2026-10-09）。app/assets/stage/<地>_背景.jpg を戦の背に敷く */
 export const TR_PARTS = ['都落ち', '山越え', '帰り道'];
 export const TR_STORY = [
-  { t: '燃える御殿',   h: '明智家', n: 1, l: '火の粉の舞う廊下。まずは目の前の一匹を退けよ' },
-  { t: '裏門の番犬',   h: '明智家', n: 1, l: '門を守る犬が、低くうなっている' },
-  { t: '鴨川の渡し',   h: '明智家', n: 2, l: '浅瀬に追っ手がふたり。水音で気づかれた' },
-  { t: '竹藪の伏兵',   h: '筒井家', n: 1, l: '笹がざわめく。風ではない' },
-  { t: '近江の峠',     h: '浅井家', n: 2, l: '峠の茶屋は、もう敵の手に落ちていた' },
-  { t: '湖畔の夜襲',   h: '浅井家', n: 2, l: '湖を背に、夜目のきく犬どもが囲む' },
-  { t: '伊賀の抜け道', h: '藤堂家', n: 1, l: '道案内を名乗る者の目が笑っていない' },
-  { t: '霧の山寺',     h: '筒井家', n: 2, l: '鐘が鳴るたび、霧の向こうに影がふえる' },
-  { t: '追っ手の大将', h: '明智家', n: 3, l: '名のある将が、ついに自ら出てきた' },
-  { t: '惟任の執念',   h: '明智家', n: 2, boss: 38, l: '追っ手の主が、道をふさいで待っていた' },
-  { t: '美濃の関所',   h: '斎藤家', n: 1, l: '通行の札は無い。押し通るしかない' },
-  { t: '長良の河原',   h: '斎藤家', n: 2, l: '川霧にまぎれて、槍の穂先が光る' },
-  { t: '木曽の吊り橋', h: '真田家', n: 1, l: '揺れる橋の向こうに、一匹が立ちはだかる' },
-  { t: '雪の峠越え',   h: '真田家', n: 2, l: '足跡を追ってくる者がいる' },
-  { t: '山の民の試し', h: '真田家', n: 2, l: '山に住む犬たちが、腕を見せよと言う' },
-  { t: '諏訪の湖',     h: '武田家', n: 2, l: '氷の張った湖を渡る。割れる音がした' },
-  { t: '騎馬の群れ',   h: '武田家', n: 3, l: '地鳴りが近づいてくる' },
-  { t: '甲斐の隠し湯', h: '武田家', n: 1, l: '湯けむりの奥で、誰かが刀を研いでいる' },
-  { t: '風林火山の陣', h: '武田家', n: 3, l: '旗が四つ。どれも動かぬ山のよう' },
-  { t: '甲斐の虎',     h: '武田家', n: 2, boss: 28, l: '山の主が、ゆっくりと立ち上がる' },
-  { t: '駿河の浜',     h: '今川家', n: 1, l: '海が見えた。帰り道は近い……はずだった' },
-  { t: '富士の裾野',   h: '今川家', n: 2, l: '裾野は広く、隠れる場所が無い' },
-  { t: '箱根の山道',   h: '北条家', n: 2, l: '関の手前で、待ち伏せの声' },
-  { t: '小田原の堀',   h: '北条家', n: 3, l: '城の堀ばたで、物見に見つかった' },
-  { t: '相模の夜',     h: '北条家', n: 2, l: '月の無い夜。鼻だけがたよりになる' },
-  { t: '越後の雪原',   h: '上杉家', n: 2, l: '一面の白。足もとから冷えてくる' },
-  { t: '春日山の麓',   h: '上杉家', n: 3, l: '毘の旗が、風に鳴っている' },
-  { t: '最後の関',     h: '上杉家', n: 2, l: 'この関を越えれば、本国の匂いがする' },
-  { t: '夜明けの追撃', h: '上杉家', n: 3, l: '夜が明ける。追っ手も最後の力をふりしぼる' },
-  { t: '越後の龍',     h: '上杉家', n: 2, boss: 15, l: '龍が、道のまん中で待っていた' },
+  { g: '城郭', t: '燃える御殿',   h: '明智家', n: 1, l: '火の粉の舞う廊下。まずは目の前の一匹を退けよ' },
+  { g: '城郭', t: '裏門の番犬',   h: '明智家', n: 1, l: '門を守る犬が、低くうなっている' },
+  { g: '河川', t: '鴨川の渡し',   h: '明智家', n: 2, l: '浅瀬に追っ手がふたり。水音で気づかれた' },
+  { g: '草原', t: '竹藪の伏兵',   h: '筒井家', n: 1, l: '笹がざわめく。風ではない' },
+  { g: '山岳', t: '近江の峠',     h: '浅井家', n: 2, l: '峠の茶屋は、もう敵の手に落ちていた' },
+  { g: '河川', t: '湖畔の夜襲',   h: '浅井家', n: 2, l: '湖を背に、夜目のきく犬どもが囲む' },
+  { g: '山岳', t: '伊賀の抜け道', h: '藤堂家', n: 1, l: '道案内を名乗る者の目が笑っていない' },
+  { g: '山岳', t: '霧の山寺',     h: '筒井家', n: 2, l: '鐘が鳴るたび、霧の向こうに影がふえる' },
+  { g: '草原', t: '追っ手の大将', h: '明智家', n: 3, l: '名のある将が、ついに自ら出てきた' },
+  { g: '城郭', t: '惟任の執念',   h: '明智家', n: 2, boss: 38, l: '追っ手の主が、道をふさいで待っていた' },
+  { g: '城郭', t: '美濃の関所',   h: '斎藤家', n: 1, l: '通行の札は無い。押し通るしかない' },
+  { g: '河川', t: '長良の河原',   h: '斎藤家', n: 2, l: '川霧にまぎれて、槍の穂先が光る' },
+  { g: '山岳', t: '木曽の吊り橋', h: '真田家', n: 1, l: '揺れる橋の向こうに、一匹が立ちはだかる' },
+  { g: '山岳', t: '雪の峠越え',   h: '真田家', n: 2, l: '足跡を追ってくる者がいる' },
+  { g: '山岳', t: '山の民の試し', h: '真田家', n: 2, l: '山に住む犬たちが、腕を見せよと言う' },
+  { g: '河川', t: '諏訪の湖',     h: '武田家', n: 2, l: '氷の張った湖を渡る。割れる音がした' },
+  { g: '草原', t: '騎馬の群れ',   h: '武田家', n: 3, l: '地鳴りが近づいてくる' },
+  { g: '山岳', t: '甲斐の隠し湯', h: '武田家', n: 1, l: '湯けむりの奥で、誰かが刀を研いでいる' },
+  { g: '草原', t: '風林火山の陣', h: '武田家', n: 3, l: '旗が四つ。どれも動かぬ山のよう' },
+  { g: '城郭', t: '甲斐の虎',     h: '武田家', n: 2, boss: 28, l: '山の主が、ゆっくりと立ち上がる' },
+  { g: '海', t: '駿河の浜',     h: '今川家', n: 1, l: '海が見えた。帰り道は近い……はずだった' },
+  { g: '草原', t: '富士の裾野',   h: '今川家', n: 2, l: '裾野は広く、隠れる場所が無い' },
+  { g: '山岳', t: '箱根の山道',   h: '北条家', n: 2, l: '関の手前で、待ち伏せの声' },
+  { g: '城郭', t: '小田原の堀',   h: '北条家', n: 3, l: '城の堀ばたで、物見に見つかった' },
+  { g: '草原', t: '相模の夜',     h: '北条家', n: 2, l: '月の無い夜。鼻だけがたよりになる' },
+  { g: '草原', t: '越後の雪原',   h: '上杉家', n: 2, l: '一面の白。足もとから冷えてくる' },
+  { g: '城郭', t: '春日山の麓',   h: '上杉家', n: 3, l: '毘の旗が、風に鳴っている' },
+  { g: '山岳', t: '最後の関',     h: '上杉家', n: 2, l: 'この関を越えれば、本国の匂いがする' },
+  { g: '草原', t: '夜明けの追撃', h: '上杉家', n: 3, l: '夜が明ける。追っ手も最後の力をふりしぼる' },
+  { g: '城郭', t: '越後の龍',     h: '上杉家', n: 2, boss: 15, l: '龍が、道のまん中で待っていた' },
 ];
 export const TR_MAX = TR_STORY.length;
 /* 初めて抜けたときの褒美（2026-10-08・「簡単な報酬」）。
@@ -78,7 +79,9 @@ export function trReward(i) {
   const big = n % 5 === 0;
   return { koban: (300 + n * 40) * (big ? 3 : 1), soul: (big ? 20 : 5) + Math.floor(n / 3) };
 }
-/* 敵の強さ。話が進むほど素の値に掛ける倍を大きくする */
+/* 敵の強さ。話が進むほど素の値に掛ける倍を大きくする。
+   これにプレイヤーレベルの倍（trLvMul）を掛ける（2026-10-09・悠さんの指図「敵が雑魚すぎる」） */
+export const trLvMul = lv => 1 + 0.005 * Math.max(0, (lv || 1) - 1);
 export const trFoeMul = i => 0.8 + 0.15 * i;
 
 /* ================= 札 =================
@@ -121,8 +124,10 @@ function trBase(attr, st, v) {
   const o = { dmg: 0, blk: 0, heal: 0, draw: 0 };
   if (attr === '猛将') o.dmg = trS(st['火力']) * 0.72 * v;
   else if (attr === '智将') o.dmg = trS(st['賢さ']) * 0.64 * v;
-  else if (attr === '守将') { o.dmg = trS(st['火力']) * 0.32 * v; o.blk = trS(st['防御']) * 0.6 * v; }
-  else if (attr === '仁将') { o.dmg = trS(trMain(st)) * 0.3 * v; o.heal = trS(st['回復']) * 0.5 * v; }
+  /* 守将・仁将は一人旅だと打つ手が細すぎた（2026-10-09・悠さんの実機で「打つ 28」）。
+     守将は防御の重みでも打ち、仁将は回復の気でも打つ */
+  else if (attr === '守将') { o.dmg = trS(trMain(st)) * 0.3 * v + trS(st['防御']) * 0.22 * v; o.blk = trS(st['防御']) * 0.6 * v; }
+  else if (attr === '仁将') { o.dmg = trS(trMain(st)) * 0.3 * v + trS(st['回復']) * 0.2 * v; o.heal = trS(st['回復']) * 0.5 * v; }
   else { o.dmg = trS(st['速さ']) * 0.58 * v; if (v >= 2) o.draw = 1; }
   return o;
 }
@@ -291,20 +296,24 @@ function trFoeCards(ch, starOf) {
 function trFoe(ch, mul, boss, ph, starOf) {
   const st = {};
   for (const k of ['火力', '賢さ', '防御', '回復', '速さ']) st[k] = (ch.stats[k] || 0) * mul;
-  const hp = trR((trS(st['防御']) + trS(st['回復'])) * (boss ? 4.2 : 1.55));
+  /* 敵の兵量は 2026-10-09 に厚くした（悠さんの実測「敵が雑魚すぎる」・一枚で二体とも倒れていた） */
+  const hp = trR((trS(st['防御']) + trS(st['回復'])) * (boss ? 4.8 : 2.3));
   return { no: ch.no, name: ch.name, attr: ch.attr, rarity: ch.rarity, st, hp, mx: hp, blk: 0,
            boss: !!boss, weakT: 0, vuln: 0, stun: 0, burn: 0, burnT: 0, seal: 0, mom: 0, pump: 0,
            t: 0, ph: ph || 0, it: null, ult: 0, cards: trFoeCards(ch, starOf) };
 }
-export function trFoes(i, all, meNo, starOf) {
-  const s = TR_STORY[i];
-  const F = { rs: (i + 1) * 7919 + (meNo || 0) * 104729 };      // 顔ぶれは話と武将で決め打ち
+/* o.n＝頭数（国主のほか）／o.boss＝国主を出すか／o.elite＝手練れ（強め）／o.seed＝顔ぶれの種 */
+export function trFoes(i, all, meNo, starOf, k = 1, o = {}) {
+  const s0 = TR_STORY[i];
+  const s = { ...s0, n: o.n != null ? o.n : s0.n, boss: o.boss === false ? 0 : s0.boss };
+  if (o.elite) k *= 1.25;
+  const F = { rs: (o.seed != null ? o.seed : (i + 1) * 7919) + (meNo || 0) * 104729 };
   const me = all.find(c => c.no === meNo);
   const away = c => c.no !== meNo && (!me || c.origin !== me.origin) && c.no !== s.boss;
   const rar = TR_POOL_RAR(i);
   let pool = all.filter(c => c.clan === s.h && rar.includes(c.rarity) && away(c));
   if (pool.length < s.n + 1) pool = pool.concat(all.filter(c => c.clan !== s.h && rar.includes(c.rarity) && away(c)));
-  const mul = trFoeMul(i);
+  const mul = trFoeMul(i) * k;
   const out = [];
   if (s.boss) {
     const b = all.find(c => c.no === s.boss);
@@ -364,26 +373,107 @@ function trIntent(F, f) {
   return it;
 }
 
+/* 自分の兵量の上限。道中のあいだは戦をまたいで減ったままになる */
+export const trMaxHp = who => { const st = who.stats || {}; return trR(trS(st['防御']) * 2.6 + trS(st['回復']) * 1.6 + 120); };
+
+/* ================= 道（2026-10-09・悠さんの指図）=================
+   一本道では単調なので、札で戦う外国の名作のように **分かれ道** を選ばせる。
+   三つの部それぞれが一枚の道。下から上へ9段、10段目は国主（どの道を通っても必ず通る）。
+   段の番号がそのまま「階」になる（一の部の1段目＝1階 … 国主＝10階）。
+   節の種類：
+     戦 … 敵（1〜2体）     強 … 手練れ（2〜3体・強め・褒美が厚い）
+     ？ … 何が起きるか分からない   宿 … 休む（兵量が戻る）
+     商 … 商人（小判で薬や護符）   宝 … 宝箱
+     将 … 国主（10階ごと） */
+export const TR_ROWS = 9;                 // 国主の手前までの段
+export const TR_COLS = 4;
+export const TR_NODE = {
+  戦: { mark: '敵', name: '敵' }, 強: { mark: '強', name: '手練れ' }, '？': { mark: '？', name: '未知' },
+  宿: { mark: '宿', name: '休憩' }, 商: { mark: '商', name: '商人' }, 宝: { mark: '宝', name: '宝箱' },
+  将: { mark: '将', name: '国主' },
+};
+export function trMap(part, seed) {
+  const R = { rs: (seed >>> 0) || 1 };
+  const rows = [...Array(TR_ROWS)].map(() => Array(TR_COLS).fill(null));
+  const put = (r, c) => rows[r][c] || (rows[r][c] = { t: null, nx: [] });
+  /* 道を4本ひく。出だしの列はなるべく散らす。隣の列へ斜めに移るか、まっすぐ上がる */
+  const starts = trShuffle(R, [0, 1, 2, 3]);
+  for (let k = 0; k < 4; k++) {
+    let c = k < 3 ? starts[k] : starts[trInt(R, 3)];
+    for (let r = 0; r < TR_ROWS; r++) {
+      const n = put(r, c);
+      if (r === TR_ROWS - 1) break;
+      const nc = Math.max(0, Math.min(TR_COLS - 1, c + [-1, 0, 1][trInt(R, 3)]));
+      if (!n.nx.includes(nc)) n.nx.push(nc);
+      c = nc;
+    }
+  }
+  /* 種類をきめる。1段目は必ず敵、9段目は必ず宿（国主の前に一息つかせる）、5段目は宝か商 */
+  const roll = r => {
+    const w = [['戦', 44], ['？', 22], ['商', 9]];
+    if (r >= 2) w.push(['強', 13]);
+    if (r >= 2 && r !== TR_ROWS - 2) w.push(['宿', 9]);
+    w.push(['宝', 3]);
+    let x = trRand(R) * w.reduce((a, b) => a + b[1], 0);
+    for (const [t, v] of w) { if ((x -= v) < 0) return t; }
+    return '戦';
+  };
+  for (let r = 0; r < TR_ROWS; r++) for (let c = 0; c < TR_COLS; c++) {
+    const n = rows[r][c]; if (!n) continue;
+    if (r === 0) n.t = '戦';
+    else if (r === TR_ROWS - 1) n.t = '宿';
+    else if (r === 4) n.t = trRand(R) < 0.6 ? '宝' : '商';
+    else {
+      let t = roll(r);
+      /* 強・宿・商は続けて並ばないようにする（下の段とおなじなら敵に替える） */
+      const below = r > 0 ? rows[r - 1].filter(x => x && x.nx.includes(c)).map(x => x.t) : [];
+      if (['強', '宿', '商'].includes(t) && below.includes(t)) t = '戦';
+      n.t = t;
+    }
+    n.nx.sort((a, b) => a - b);
+  }
+  return { part, rows };
+}
+/* いま進める節。at が null なら1段目ぜんぶ、9段目にいれば国主 */
+export function trNext(run) {
+  if (!run || !run.map) return [];
+  if (!run.at) return run.map.rows[0].map((n, c) => n ? { r: 0, c } : null).filter(Boolean);
+  if (run.at.r === 'boss') return [];
+  if (run.at.r >= TR_ROWS - 1) return [{ r: 'boss', c: 0 }];
+  const n = run.map.rows[run.at.r][run.at.c];
+  return (n ? n.nx : []).map(c => ({ r: run.at.r + 1, c }));
+}
+/* 新しい部の道を敷く。兵量は満たす */
+export function trRunNew(part, mx, seed) {
+  return { part, map: trMap(part, seed), at: null, path: [], hp: mx, seed, ki: 0, guard: 0 };
+}
+/* 節から階へ（0 から数える）。国主は各部の10階 */
+export const trFloorOf = (part, r) => part * 10 + (r === 'boss' ? 9 : r);
+
 /* ================= 戦 ================= */
 /* deck は { key: 枚数 }。kinds は trKinds の並び。seed は戦ごとに変える */
-export function trBattle(i, who, kinds, deck, all, seed, starOf) {
+export function trBattle(i, who, kinds, deck, all, seed, starOf, lv, o = {}) {
   const pile = [];
   let u = 0;
   for (const k of kinds) for (let n = 0; n < (deck[k.key] || 0); n++) pile.push({ u: u++, key: k.key });
   const st = who.stats || {};
-  const mx = trR(trS(st['防御']) * 2.6 + trS(st['回復']) * 1.6 + 120);
+  const mx = trMaxHp(who);
   const F = {
     i, no: who.no, rs: (seed >>> 0) || 1, turn: 0, over: null,
-    pl: { hp: mx, mx, blk: 0, might: 0, guardUp: 0, healUp: 0, drawUp: 0, weak: 0, dodge: 0,
+    pl: { hp: Math.max(1, Math.min(mx, o.hp != null ? o.hp : mx)), mx, blk: 0, might: 0, guardUp: 0, healUp: 0, drawUp: 0, weak: 0, dodge: 0,
           thorns: 0, crit: 0, charge: 0, revive: 0,
           /* 敵の札から受けるもの（2026-10-09）。daze＝次の手番の気が1減る／burn＝手番のはじめに焼ける
              ／crack＝受けが重くなる／seal＝癒せない */
           daze: 0, burn: 0, burnT: 0, crack: 0, seal: 0 },
-    foes: trFoes(i, all, who.no, starOf),
+    lv: lv || 1,
+    foes: trFoes(i, all, who.no, starOf, trLvMul(lv), o),
     draw: [], hand: [], disc: [], gone: [], ki: TR_KI,
   };
   F.draw = trShuffle(F, pile);
   trTurn(F);
+  /* 商人の品（2026-10-09）。気の巻＝はじめの手番の気＋1／護符＝はじめから構える */
+  if (o.ki) F.ki += o.ki;
+  if (o.guard) F.pl.blk += o.guard;
   return F;
 }
 function trDraw(F, n) {

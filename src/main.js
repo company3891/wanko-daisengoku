@@ -13,13 +13,16 @@ import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, m
          mkNext, mkRefresh, mkCollect, mkMyList, mkMyCount, mkKuraOn,
          mkFee, mkNet } from './market.js';
 import { pityOf } from './player.js';
+import { TR_KI, TR_DECK, TR_DUP, TR_ULT_MAX, TR_KIND_NAME, TR_STORY, TR_PARTS, TR_MAX, trReward, trKinds, trName,
+         trSpec, trWords, trDefaultDeck, trDeckCount, trDupMax, trDeckOk, trBattle, trPlay, trEnd, trFoeAct,
+         trRound, trLive } from './trail.js';
 import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          STONE_PACKS, STONE_FREE_FROM, STONE_FREE_PCT, stonePack, addFreeStones,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
-         LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS,
+         LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS, spMaxOf, trBonus, trProg, TR_MILE,
          dailyDeals, dealBought, buyItem, buyDeal, useFood,
          ATTRS, AWAKE_TIERS, BADGES, badgeMat, freeMat, awakeNeed, awakeCheck,
          BATTLE_STATS, WEATHERS, WEATHER_ITEM, useItem,
@@ -199,6 +202,9 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
      （＋はどこからでも押せるので、戻り先を預かる）／stAsk＝確かめている口／stMsg＝その場の一言 */
   stoneBack: null, stAsk: null, stMsg: '',
   detailRO: false, detailBase: false, nmMsg: '', rwi: null,
+  /* 城に入るたびのお知らせ札（2026-10-08・悠さんの指図）。
+     いま何枚目を出しているか。null なら出していない */
+  ad: null,
   /* 戦のさなかに札を開いたときだけ入る（2026-10-08）。
      { 火力: +120, 防御: -30 } のように、素からの差だけを持つ */
   detailMod: null,
@@ -1726,6 +1732,9 @@ const HOME_MENU = [
     /* すでに間にいるなら、そのまま間へ返す（2026-10-05）。
        部隊を組み直しに抜けても、ここから戻ってこられる */
     go: () => { S.dl = DUEL ? 'room' : 'menu'; S.dlMsg = ''; S.dlCode = ''; } },
+  /* 落ち延び道中（2026-10-08）。戦の途中なら、そのまま戦へ戻す */
+  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail',
+    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
   { side: 'BR', name: '番付',     mark: '番', file: 'home_ranking',
     go: () => { S.rk = true; S.rkSel = null; S.rkPz = false; S.rkPzT = null; S.rkMsg = ''; },
     badge: () => (rkState().last ? 1 : 0) },
@@ -1780,6 +1789,9 @@ const homeMenu = side => {
 };
 
 function screenHome() {
+  /* 城に着いたら、まずお知らせ札を出す（2026-10-08・悠さんの指図）。
+     一度の立ち上げにつき一度だけ。開き直せばまた出る */
+  adOpen();
   /* 取引所の取引履歴は、城にいるあいだも確かめる（2026-10-01）。
      座の赤丸は「売れた覚えのうち、まだ見ていない数」なので、
      取引所を開くまで検めないと、売れたことに気づけない */
@@ -3006,18 +3018,20 @@ const palOn = () => linked();
      ・果たし合い・陣中見舞も同じ釦から
 
    マイフレンドに出るのは **双方が頷いた相手だけ**。
-   平定しただけでは出ない（前は出ていた）。
-   ただし、これまで平定ぶんが並んでいた人の一覧がいきなり空になると驚くので、
-   新しい作りに移るときに一度だけ そのまま引き継ぐ（palMoved の印）。 */
+   平定しただけでは出ない。
+
+   2026-10-08（悠さんの指図）：**引き継ぎをやめ、引き継いだぶんも片づけた**。
+   2026-10-06 に「一覧がいきなり空になると驚くので」と、平定ぶんを
+   そのままマイフレンドへ流し込む仕掛け（palMoved）を入れていた。
+   その結果、**願いを出してもいない主が48人も並んでいた**（悠さんの実測）。
+   頷き合っていない相手が友の一覧に居るのは、そもそもおかしい。
+   一度だけ `P.palNpc` を空にして、これからは願い→受けるを通った相手だけにする。
+   外れた主は「友を探す」に戻るので、また願いを出せばよい */
 function npcMigrate() {
-  if (P.palMoved) return;
-  P.palMoved = 1;
-  if (!Array.isArray(P.palNpc)) P.palNpc = [];
-  for (const x of PREFS) {
-    if (!prefTaken(x.id)) continue;
-    if (x.id === (P.camp.start || 'aichi')) continue;
-    if (!P.palNpc.includes(x.id)) P.palNpc.push(x.id);
-  }
+  if (P.palNpcV2) return;
+  P.palNpcV2 = 1;
+  P.palNpc = [];          // 平定だけで並んでいたぶんを片づける（一度きり）
+  P.palMoved = 1;         // 古い引き継ぎが二度と走らないよう印は立てたままにする
   savePlayer();
 }
 /* 国の主の主番号。国の印から決め打ちで作るので、いつ見ても同じ番号になる */
@@ -3281,7 +3295,11 @@ function palRow(c, kind) {
   }
   const row = el('div', { class: 'frrow real' + (kind === 'pal' ? ' swipe' : '') },
     el('div', { class: 'frslide' },
-      frFace(c.face),
+      /* 顔を押すと、その人が主役に据えている武将の札が開く（2026-10-08・悠さんの指図）。
+         強さが分かるので、願いを出すかどうかの目安になる。
+         friend でも find でも同じ ── どちらが人かで手ざわりを変えない */
+      el('button', { class: 'frfaceb', title: `${c.name} の主役を見る`,
+        onclick: e => { e.stopPropagation(); frPeek(c); } }, frFace(c.face)),
       el('span', { class: 'frn' },
         /* 留守の印は 名の右（2026-10-06）。
            位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */
@@ -3382,6 +3400,59 @@ function palInvite(c) {
    同じ陣には一日一度しか入れない（稽古と同じ勘定）。
    戦ったあと、相手の机に置き手紙を残す ── 相手は次に城を開いたとき、
    誰に攻められ、陣が守り切ったかを知る。そこが置き部隊の値打ち。 */
+/* ---- 友の主役を覗く（2026-10-08・悠さんの指図）----
+   顔を押すと、その人がいま主役に据えている武将の札を、**その人の育ちで**出す。
+   願いを出す前に強さが分かるので、結ぶかどうかの目安になる。
+
+   預かっているのは「育ち終わった五つの数」だけ。相手の lv も振った魂も分からないので、
+   札には数だけ重ね、**特技の位は書かない**（S.detailSt.abs の道）。
+   2026-10-07 の留守の陣と同じで、**黙って帰る道は作らない**。どの枝でも一言は出す */
+function frPeek(c) {
+  const open = (no, abs) => {
+    const ch = charOf(no);
+    if (!ch) { S.frMsg = `${c.name} の主役が引けなかった`; SFX.pick(); draw(); return; }
+    S.detail = ch.no; S.side = null; S.detailRO = true; S.detailBase = false;
+    S.detailMod = null; S.detailBuy = null;
+    S.detailSt = abs ? { abs } : null;
+    SFX.pick(); draw();
+  };
+  if (c.npc) {
+    const fr = frOf(c.id);
+    const gen = fr && fr.general;
+    if (!gen) { S.frMsg = `${c.name} の主役が引けなかった`; SFX.pick(); draw(); return; }
+    open(gen.no, gen.stats || null);
+    return;
+  }
+  /* 本物の主。陣を預かっていれば、その総大将を覗ける */
+  if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; SFX.pick(); draw(); return; }
+  if (c.face == null) { S.frMsg = `${c.name} はまだ主役を立てておらぬ`; SFX.pick(); draw(); return; }
+  frBusySet(true); S.frMsg = `${c.name} の主役をうかがっています…`; draw();
+  let done = false;
+  const giveUp = setTimeout(() => {
+    if (done) return;
+    done = true; frBusySet(false);
+    /* 返事が来なくても、素の札だけは開く。押して何も起きないのがいちばん悪い */
+    S.frMsg = '育ちは分からなかった。素の札を出す';
+    open(c.face, null);
+  }, 12000);
+  (async () => {
+    try {
+      const r = await palTeam(c.id);
+      if (done) return;
+      done = true; clearTimeout(giveUp); frBusySet(false);
+      const mem = ((r && r.team && r.team.members) || []);
+      const no = (r && r.team && r.team.generalNo) != null ? r.team.generalNo : c.face;
+      const m = mem.find(x => x && x.no === no) || mem[0] || null;
+      S.frMsg = m ? '' : '育ちは分からなかった。素の札を出す';
+      open(m ? m.no : c.face, (m && m.stats) || null);
+    } catch (e) {
+      if (done) return;
+      done = true; clearTimeout(giveUp); frBusySet(false);
+      S.frMsg = '繋がらなかった。素の札を出す';
+      open(c.face, null);
+    }
+  })();
+}
 /* 留守の陣（2026-10-06）。
    2026-10-07：**押しても何も出ない**という報せを受けて、
    黙って帰る道を全部ふさいだ（悠さんの実測）。どの枝でも必ず一言は出す。
@@ -3451,7 +3522,19 @@ function awayGo(c) {
 
 /* 「友を探す」に並ぶぶんだけを組む（2026-10-06）。
    さがす一行から、ここだけを入れ替える。入れ物ごと作り直さないので、
-   かな漢字の変換が途中で消えない */
+   かな漢字の変換が途中で消えない。
+
+   2026-10-08（悠さんの指図）：**探す場から「見せてもらう場」に変えた。**
+   番号を知らない相手は探しようがないので、まだ結んでいない主を
+   こちらから **混ぜて八人ずつ** 差し出す。顔を見て、強そうなら願いを出す。
+   「ほかの主を見る」でいつでも顔ぶれが入れ替わる。
+   さがす一行は残してある（番号を聞いた相手を名指しで呼べるように）。
+
+   本物と国の主は **混ぜて並べる**。どちらが人か分からないほうがよい、の決まり通り。
+   並びは種で決まるので、描き直しのたびに入れ替わったりはしない */
+const FR_PICK = 8;
+let FR_SEED = (Date.now() >>> 0);
+const frShuffle = () => { FR_SEED = (Math.imul(FR_SEED ^ 0x9e3779b9, 2654435761) >>> 0) || 1; };
 function frFindEl() {
   const npcIds = npcPalIds();
   const askIds = new Set(npcAsks());
@@ -3459,11 +3542,26 @@ function frFindEl() {
                                  && x.id !== (P.camp.start || 'aichi')).map(npcCard);
   const q = (S.frQ || '').trim();
   const QU = q.toUpperCase();
-  const hit = (c) => !q || String(c.name).includes(q) || (c.tag || '').includes(QU);
-  /* 本物のプレイヤーを先に出す（2026-10-06）。探すときも人が先 */
-  const find = [...PAL_FIND, ...npcFind].filter(hit).slice(0, 60);
-  return find.length ? find.map(c => palRow(c, 'find'))
-                     : [el('p', { class: 'frnote' }, 'その字で見つかる主はおらぬわん')];
+  const all = [...PAL_FIND, ...npcFind];
+  /* 名や番号を打ったときは、探し場として振る舞う（これまでどおり） */
+  if (q) {
+    const find = all.filter(c => String(c.name).includes(q) || (c.tag || '').includes(QU)).slice(0, 60);
+    return find.length ? find.map(c => palRow(c, 'find'))
+                       : [el('p', { class: 'frnote' }, 'その字で見つかる主はおらぬわん')];
+  }
+  if (!all.length) return [el('p', { class: 'frnote' }, 'いまは結べる主がおらぬわん')];
+  /* 打っていないときは、種から決まる並びで八人だけ差し出す。
+     種は「ほかの主を見る」を押したときだけ動くので、描き直しでは揺れない */
+  let h = FR_SEED >>> 0;
+  const rnd = () => { h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0; return h / 4294967296; };
+  const pool = all.slice();
+  const pick = [];
+  while (pick.length < FR_PICK && pool.length) pick.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+  return [
+    ...pick.map(c => palRow(c, 'find')),
+    el('button', { class: 'ghost wide frmore',
+      onclick: () => { frShuffle(); palTick(true); SFX.pick(); draw(); } }, 'ほかの主を見る'),
+  ];
 }
 
 function frSheet() {
@@ -3538,7 +3636,7 @@ function frSheet() {
 
         : el('div', {},
           el('b', { class: 'frhd' }, '友を探す'),
-          el('p', { class: 'frnote' }, 'まだ結んでいない主たち。主番号か名でも探せる'),
+          el('p', { class: 'frnote' }, 'まだ結んでいない主たち。顔を押すと主役の札が見られる'),
           el('div', { class: 'frlist', id: 'frbody' }, ...frFindEl())),
       closeX(close)));
 }
@@ -4027,7 +4125,7 @@ function screenPower() {
   /* ---- 三つの札（2026-09-26）---- */
   const BOOKS = ['稽古の書', '大稽古の書', '皆伝の書'];
   const canFeed = st.lv < cap && BOOKS.some(k => item(k) > 0);
-  const canSoul = P.soul > 0 && spUsed(c.no) < SP_MAX;
+  const canSoul = P.soul > 0 && spUsed(c.no) < spMaxOf(c.no);
   const pwClose = () => { S.pw = null; S.sp = null; S.spEdit = null; SFX.pick(); draw(); };
   /* 押すと札が開く釦。絵（ui/power_<名>）があれば絵に、無ければ一字に落ちる */
   function pwBtn(key, name, mark, lit) {
@@ -4087,7 +4185,7 @@ function screenPower() {
   const awakeBody = () => st.awake >= AWAKE_MAX
     ? el('p', { class: 'note' }, 'これ以上は覚醒できない')
     : el('div', {},
-        el('p', { class: 'note' }, `つぎの覚醒で、レベルの上限が ${LV_CAP[st.awake + 1]} まで開く`),
+        el('p', { class: 'note' }, `つぎの覚醒で、レベルの上限が ${LV_CAP[st.awake + 1] + (st.awake + 1 >= AWAKE_MAX ? trBonus(c.no).lv : 0)} まで開く`),
         /* 品は絵だけを横に並べ、数は絵の下に置く（2026-09-25） */
         el('div', { class: 'akmats' }, ak.rows.map(x =>
           el('div', { class: 'akm' + (x.ok ? ' ok' : '') },
@@ -4253,7 +4351,7 @@ const spDraftTotal = no => SP_STATS.reduce((a, k) => a + spDraft(no)[k], 0);
 function spBump(no, k, n) {
   const d = spDraft(no);
   if (n > 0) {
-    const room = Math.min(n, P.soul - spDraftTotal(no), SP_MAX - spUsed(no) - spDraftTotal(no));
+    const room = Math.min(n, P.soul - spDraftTotal(no), spMaxOf(no) - spUsed(no) - spDraftTotal(no));
     if (room <= 0) return false;
     d[k] += room;
   } else {
@@ -4269,10 +4367,10 @@ function spPanel(c) {
   const total = spDraftTotal(c.no);
   const left = P.soul - total;
   const used = spUsed(c.no);
-  const room = SP_MAX - used - total;
+  const room = spMaxOf(c.no) - used - total;
   return el('div', { class: 'sppan' },
     el('p', { class: 'note sphd' },
-      `振った ${num(used)}${total ? ` → ${num(used + total)}` : ''} / ${num(SP_MAX)}　　`
+      `振った ${num(used)}${total ? ` → ${num(used + total)}` : ''} / ${num(spMaxOf(c.no))}　　`
       + `のこる魂 ${num(left)}${total ? `（${num(P.soul)} − ${num(total)}）` : ''}`),
     el('div', { class: 'splist' }, SP_STATS.map(k => spRow(c, k))),
     el('div', { class: 'spfoot' },
@@ -4302,7 +4400,7 @@ function spRow(c, k) {
   const st = charState(c.no);
   const d = spDraft(c.no);
   const total = spDraftTotal(c.no);
-  const room = Math.min(P.soul - total, SP_MAX - spUsed(c.no) - total);
+  const room = Math.min(P.soul - total, spMaxOf(c.no) - spUsed(c.no) - total);
   const minus = el('button', { class: 'sq minus', disabled: d[k] < 1 ? true : null }, '−');
   const plus  = el('button', { class: 'sq plus',  disabled: room < 1 ? true : null }, '＋');
   spHold(minus, c, k, -1);
@@ -4333,7 +4431,7 @@ function spRow(c, k) {
 /* 数値を直接入れる */
 function spSet(c, k, v) {
   const d = spDraft(c.no);
-  const room = Math.min(P.soul - spDraftTotal(c.no), SP_MAX - spUsed(c.no) - spDraftTotal(c.no));
+  const room = Math.min(P.soul - spDraftTotal(c.no), spMaxOf(c.no) - spUsed(c.no) - spDraftTotal(c.no));
   const want = Math.max(0, Math.min(v, d[k] + Math.max(0, room)));
   d[k] = want;
   SFX.pick();
@@ -4364,7 +4462,7 @@ function spHold(btn, c, k, dir) {
 function spRefresh(c) {
   const st = charState(c.no), d = spDraft(c.no);
   const total = spDraftTotal(c.no), used = spUsed(c.no);
-  const left = P.soul - total, room = Math.min(left, SP_MAX - used - total);
+  const left = P.soul - total, room = Math.min(left, spMaxOf(c.no) - used - total);
   for (const k of SP_STATS) {
     const row = document.querySelector(`.sprow[data-k="${k}"]`); if (!row) continue;
     row.classList.toggle('on', !!d[k]);
@@ -4376,7 +4474,7 @@ function spRefresh(c) {
     row.querySelector('.sq.max').disabled = room < 1;
   }
   const hd = document.querySelector('.sppan .sphd');
-  if (hd) hd.textContent = `振った ${num(used)}${total ? ` → ${num(used + total)}` : ''} / ${num(SP_MAX)}　　`
+  if (hd) hd.textContent = `振った ${num(used)}${total ? ` → ${num(used + total)}` : ''} / ${num(spMaxOf(c.no))}　　`
     + `のこる魂 ${num(left)}${total ? `（${num(P.soul)} − ${num(total)}）` : ''}`;
   const go = document.querySelector('.spfoot .go');
   if (go) { go.disabled = !total; go.textContent = total ? `強化を確定する（魂 ${num(total)}）` : '強化を確定する'; }
@@ -5612,7 +5710,12 @@ function cardStatOverlay(c, ro, mod) {
   /* 取引所の品は、売り主が育てた値で出す（2026-10-01）。
      持ち物ではないので grownStats は使えない。式は grownStats と同じ */
   const ds = S.detailSt;
-  const g = ds ? (() => {
+  /* abs ＝ 育った値そのもの（2026-10-08）。
+     友の主役を覗くときに使う。相手の lv や振った魂は手元に無く、
+     預かっているのは「育ち終わった五つの数」だけなので、そのまま出す。
+     取引所の品はこれまでどおり lv と魂から組み立てる（ds.lv / ds.sp） */
+  const g = (ds && ds.abs) ? ds.abs
+    : ds ? (() => {
         const base = c.stats || {}, mul = 1 + ((ds.lv || 1) - 1) * 0.02, o = {};
         for (const s of SP_STATS) o[s] = Math.round((base[s] || 0) * mul) + ((ds.sp || {})[s] || 0);
         return o;
@@ -5685,7 +5788,11 @@ function cardSheet(c) {
          一の枠（固有◆）に位は無く、空いている枠にも出さない */
       const sl = slotsOf(c);
       const ds2 = S.detailSt;
-      const sk = ds2 ? (ds2.sk || [1, 1, 1])
+      /* 位が分からないときは **書かない**（2026-10-08）。
+         友の主役を覗くときは、預かっているのが数だけで 特技の位は分からない。
+         それを Lv.1/3 と書いてしまうと嘘になる。null なら下で飛ばす */
+      const sk = (ds2 && ds2.abs && !ds2.sk) ? null
+        : ds2 ? (ds2.sk || [1, 1, 1])
         : (!cardRaw() && P.own.includes(c.no)) ? skillLvOf(c.no) : [1, 1, 1];
       const k = lay.sk, patch = k ? cardPatchUrl(c.no) : null;
       /* 取引所の品は 焼いた技のまま見せる（2026-10-01）。
@@ -5707,7 +5814,7 @@ function cardSheet(c) {
            これなら持っていない武将の札でも同じ判定で通る */
         const cur = moved ? now : sl[t.slot];
         const nmNow = (cur && cur.sk && cur.sk.name) || t.baked || '';
-        if (t.slot && cur && !nmNow.includes('◆')) out.push(el('b', {
+        if (sk && t.slot && cur && !nmNow.includes('◆')) out.push(el('b', {
           class: 'clv lv',
           style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};font-size:${fs(t.size)}`,
         }, `Lv.${sk[t.slot] || 1}/3`));
@@ -6262,9 +6369,60 @@ const HELP = [
 
 /* 帯の絵。app/assets/news/<art>.png（1080×300）。無ければ帯は出ない */
 const newsUrl = n => {
-  const f = (n.art || '') + '.png';
-  return n.art && (MANIFEST.news || []).includes(f) ? `assets/news/${f}` : null;
+  if (!n.art) return null;
+  /* 2026-10-08：ウェブ版は webp に焼き直すので、両方の尻尾を見る。
+     .png だけを見ていたので、ウェブでは記事の帯が一枚も出ていなかった */
+  for (const ext of ['.webp', '.png'])
+    if ((MANIFEST.news || []).includes(n.art + ext)) return `assets/news/${n.art}${ext}`;
+  return null;
 };
+/* ---- 城に入るたびのお知らせ札（2026-10-08・悠さんの指図）----
+   開くたび、まだ知らせたい一枚絵を順に出す。**画面のどこを押しても次へ、最後で消える。**
+   「今日は出さない」の釦は置かない（悠さんの指図で、毎回出すことにした）。
+   絵が無ければ一枚も出さない ── 「絵が無くても動く」を崩さない。
+   押したらその場へ飛ぶ道も付けない。見て、閉じて、遊びに戻るだけ */
+const AD_CARDS = [
+  { art: 'login_duel',  name: '友人対戦' },
+  { art: 'login_tower', name: '試練の塔' },
+];
+/* ウェブ版は絵を webp に焼き直すので、両方の尻尾を見る（2026-10-08）。
+   .png だけを見ていると、ウェブでは札が一枚も出ない */
+const adUrl = a => {
+  for (const ext of ['.webp', '.png'])
+    if ((MANIFEST.news || []).includes(a + ext)) return `assets/news/${a}${ext}`;
+  return null;
+};
+const adList = () => AD_CARDS.filter(x => adUrl(x.art));
+/* 一度の立ち上げにつき一度だけ（2026-10-08）。
+   覚えは残さない ── 開き直せばまた出る、が「毎回ログインのたび」の意味 */
+let AD_DONE = false;
+function adOpen() {
+  if (AD_DONE) return;
+  AD_DONE = true;
+  /* 手引きのさなかと はじまりの物語のあいだは出さない。
+     釦が止まっている上に札を重ねると、どこを押せばよいか分からなくなる */
+  if (guideOn() || S.opening || !P.name) return;
+  if (!adList().length) return;
+  S.ad = 0;
+}
+function adSheet() {
+  const list = adList();
+  const i = S.ad || 0;
+  const c = list[i];
+  if (!c) { S.ad = null; return null; }
+  const next = () => {
+    if (i + 1 < list.length) { S.ad = i + 1; SFX.pick(); }
+    else { S.ad = null; SFX.pick(); }
+    draw();
+  };
+  return el('div', { class: 'sheet adsheet', onclick: next },
+    el('div', { class: 'adbox' },
+      keepImg({ class: 'adart', src: adUrl(c.art), alt: c.name }),
+      /* 何枚あって今どれかを、小さな丸で出す（二枚目があると分かる） */
+      list.length > 1 ? el('div', { class: 'addots' },
+        list.map((_, j) => el('i', { class: j === i ? 'on' : '' }))) : null,
+      el('p', { class: 'adhint' }, i + 1 < list.length ? '画面を押すと次へ' : '画面を押すと閉じる')));
+}
 const newsOf = id => NEWS.find(n => n.id === id) || null;
 const newsRead = n => (P.newsRead || []).includes(n.id);
 const newsUnread = () => NEWS.filter(n => !newsRead(n)).length;
@@ -10716,6 +10874,8 @@ document.addEventListener('click', e => {
 }, true);
 
 const PAGE_TALK = {
+  /* 落ち延び道中（2026-10-08） */
+  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、三十の話を抜けるワン。十話ごとに、その子の上限が開くワン'],
   /* はじまりの一騎（2026-09-30）。持ち武将がまだ無いので、語り手は信わんに落ちる */
   tutorial: ['はじまりの一騎だワン！！',
     '天下は乱れ、犬たちが旗を掲げたワン。まずは旗下に加える武将を、ひとり選ぶワン'],
@@ -10757,10 +10917,310 @@ function pageTalk(screen) {
       el('b', {}, c ? c.name : 'わんこ'),
       el('p', {}, el('em', {}, t[0]), t[1])));
 }
+/* ================= 落ち延び道中（2026-10-08）=================
+   札で戦う一人旅。しくみは trail.js、ここは画面だけ。
+     trail   … 話の一覧と山札（S.trView＝'list'｜'deck'）
+     trfight … 戦のさなか
+   P.trail.fight に戦の途中を丸ごと置くので、閉じても続きから戻れる */
+const trCur = () => {
+  const has = no => no && hasCard(no) && charOf(no);
+  if (has(P.trail.cur)) return P.trail.cur;
+  const q = P.squads[P.active] || { nos: [] };
+  const g = has(q.general) ? q.general : (q.nos || []).find(has);
+  return g || (P.own || []).find(has) || 0;
+};
+/* 連れている武将を、育った値と継いだ技のせた形で */
+const trWho = no => { const c = charOf(no); return c ? grownFor(c) : null; };
+const trKindsOf = who => trKinds(who, starOf);
+function trDeckOf(who, kinds) {
+  const d = P.trail.deck[who.no];
+  return (d && trDeckOk(d, kinds)) ? d : trDefaultDeck(kinds);
+}
+const trFace = no => faceUrl(no, '通常') || faceUrl(no, '笑顔') || pawnUrl(no);
+const TR_ATTR_COL = { 猛将: '#d9544d', 智将: '#7a7ee0', 守将: '#4fa36b', 仁将: '#d98fc0', 神速: '#e0c04a' };
+
+/* 札一枚。o は trSpec の返り。sel＝選んでいる／dim＝気が足りない */
+function trCardEl(who, kd, o, opt = {}) {
+  const w = trWords(o);
+  return el('button', {
+    class: 'trc k-' + kd.kind + (opt.sel ? ' sel' : '') + (opt.dim ? ' dim' : '') + (opt.small ? ' sm' : ''),
+    style: `--ac:${TR_ATTR_COL[who.attr] || '#d8a94a'}`,
+    onclick: opt.on || null,
+  },
+    el('span', { class: 'trcost' }, String(o.cost)),
+    el('span', { class: 'trkind' }, TR_KIND_NAME[kd.kind]),
+    keepImg({ class: 'trcimg', src: trFace(who.no), alt: '' }),
+    el('b', { class: 'trcname' }, trName(kd.sk.name)),
+    el('span', { class: 'trcw' }, w.slice(0, 2).join('\n')));
+}
+
+function screenTrail() {
+  const no = trCur();
+  if (!no) return { body: el('div', { class: 'trpage' }, el('p', { class: 'note' }, 'まだ武将がおらぬ。わんこみくじで武将を集めよ')), nav: true };
+  const who = trWho(no);
+  const kinds = trKindsOf(who);
+  if (S.trView === 'deck') return trDeckScreen(who, kinds);
+  const prog = trProg(no);
+  const stat = i => i < prog ? 'done' : i === prog ? 'next' : 'lock';
+  const go = i => trStart(no, i);
+  const b = trBonus(no);
+  return {
+    body: el('div', { class: 'trpage' },
+      el('div', { class: 'trhero', style: `--ac:${TR_ATTR_COL[who.attr]}` },
+        keepImg({ class: 'trheroimg', src: pawnUrl(no), alt: who.name }),
+        el('div', { class: 'trheroin' },
+          el('b', {}, who.name),
+          el('span', { class: 'trprog' }, el('em', {}, String(prog)), ` / ${TR_MAX} 話`),
+          el('div', { class: 'trmiles' }, TR_MILE.map(m =>
+            el('span', { class: 'trmile' + (prog >= m.at ? ' on' : '') },
+              `${m.at}話　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
+          el('div', { class: 'trbtns' },
+            el('button', { class: 'ghost', onclick: () => { S.trPick = true; SFX.pick(); draw(); } }, '武将をかえる'),
+            el('button', { class: 'ghost', onclick: () => { S.trView = 'deck'; S.trDraft = { ...trDeckOf(who, kinds) }; SFX.pick(); draw(); } },
+              `山札（${TR_DECK}枚）`)))),
+      ...TR_PARTS.map((part, pi) => el('div', { class: 'trpart' },
+        el('b', { class: 'trparth' }, `${['一', '二', '三'][pi]}の部　${part}`),
+        TR_STORY.slice(pi * 10, pi * 10 + 10).map((s, k) => {
+          const i = pi * 10 + k, st2 = stat(i);
+          return el('button', { class: 'trrow ' + st2 + (s.boss ? ' boss' : ''), disabled: st2 === 'lock' ? true : null, onclick: () => go(i) },
+            el('span', { class: 'trno' }, String(i + 1)),
+            el('span', { class: 'trt' }, el('b', {}, st2 === 'lock' ? '？？？' : s.t),
+              st2 === 'next' ? el('small', {}, s.l) : null),
+            el('span', { class: 'trst' }, st2 === 'done' ? '済' : st2 === 'next' ? '挑む' : ''));
+        })))),
+    nav: true,
+  };
+}
+
+/* 話を始める。i は話の番号（0 から）。抜けていない話の先へは行けない */
+function trStart(no, i) {
+  if (i > trProg(no)) return;
+  const who = trWho(no); if (!who) return;
+  const kinds = trKindsOf(who);
+  P.trail.cur = no;
+  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0);
+  S.trSel = null; S.trTgt = 0; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
+  S.screen = 'trfight'; SFX.start(); draw();
+}
+/* 山札を組む。種類ごとに −／＋ で枚数を決め、ちょうど10枚で決まる */
+function trDeckScreen(who, kinds) {
+  const d = S.trDraft || (S.trDraft = { ...trDeckOf(who, kinds) });
+  const n = trDeckCount(d);
+  const bump = (k, v) => {
+    const now = d[k] || 0, nx = now + v;
+    if (nx < 0 || nx > trDupMax(k)) return;
+    if (v > 0 && n >= TR_DECK) return;
+    d[k] = nx; SFX.pick(); draw();
+  };
+  return {
+    body: el('div', { class: 'trpage' },
+      el('div', { class: 'trdeckhd' },
+        el('b', {}, `${who.name}の山札`),
+        el('span', { class: 'trdn' + (n === TR_DECK ? ' ok' : '') }, `${n} / ${TR_DECK}`)),
+      el('p', { class: 'note' }, `一ターンの気は${TR_KI}。札の左上の数が使う気。同じ札は${TR_DUP}枚まで、奥義と大将特性は${TR_ULT_MAX}枚まで重ねられる`),
+      el('div', { class: 'trdeck' }, kinds.map(kd => {
+        const o = trSpec(who, kd);
+        return el('div', { class: 'trdrow' },
+          trCardEl(who, kd, o, { small: true }),
+          el('div', { class: 'trdtx' },
+            el('b', {}, trName(kd.sk.name)),
+            el('p', {}, trWords(o).join('・')),
+            el('small', {}, String(kd.sk.text || '').replace(/【[^】]*】/, ''))),
+          el('div', { class: 'trdct' },
+            el('button', { class: 'sq minus', disabled: (d[kd.key] || 0) < 1 ? true : null, onclick: () => bump(kd.key, -1) }, '−'),
+            el('b', {}, String(d[kd.key] || 0)),
+            el('button', { class: 'sq plus', disabled: ((d[kd.key] || 0) >= trDupMax(kd.key) || n >= TR_DECK) ? true : null, onclick: () => bump(kd.key, 1) }, '＋')));
+      })),
+      el('div', { class: 'trdfoot' },
+        el('button', { class: 'ghost', onclick: () => { S.trDraft = trDefaultDeck(kinds); SFX.pick(); draw(); } }, 'おまかせ'),
+        el('button', { class: 'go', disabled: trDeckOk(d, kinds) ? null : true,
+          onclick: () => { P.trail.deck[who.no] = { ...d }; S.trView = 'list'; S.trDraft = null; SFX.get(); draw(); } }, 'この山札にする'),
+        el('button', { class: 'ghost', onclick: () => { S.trView = 'list'; S.trDraft = null; SFX.pick(); draw(); } }, 'やめる'))),
+    nav: true,
+  };
+}
+
+/* 連れていく武将をえらぶ札 */
+function trPickSheet() {
+  const close = () => { S.trPick = false; SFX.pick(); draw(); };
+  const list = (P.own || []).filter(hasCard).map(charOf).filter(Boolean)
+    .sort((a, b) => (trProg(b.no) - trProg(a.no)) || (a.no - b.no));
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 trpick' },
+      el('b', { class: 'sqttl' }, '道中に連れていく武将'),
+      el('div', { class: 'trpgrid' }, list.map(c => el('button', {
+        class: 'trpc' + (c.no === trCur() ? ' on' : ''), style: `--ac:${TR_ATTR_COL[c.attr]}`,
+        onclick: () => { P.trail.cur = c.no; S.trPick = false; SFX.pick(); draw(); },
+      },
+        keepImg({ src: pawnUrl(c.no), alt: c.name }),
+        el('span', {}, c.name),
+        el('em', {}, `${trProg(c.no)}話`)))),
+      closeX(close)));
+}
+
+/* ---- 戦のさなか ---- */
+const TR_IT_MARK = { atk: '斬', guard: '構', heal: '癒' };
+function trIntentEl(f) {
+  const it = f.it; if (!it || f.hp <= 0) return el('span', { class: 'trit none' });
+  if (f.stun) return el('span', { class: 'trit stun' }, 'ひるみ');
+  return el('span', { class: 'trit ' + it.k + (it.ult ? ' ult' : '') },
+    el('i', {}, it.ult ? '奥' : TR_IT_MARK[it.k] || '？'),
+    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.w);
+}
+function trBar(hp, mx, blk) {
+  return el('div', { class: 'trbar' },
+    el('i', { style: `width:${Math.max(0, Math.min(100, hp / mx * 100))}%` }),
+    el('span', {}, `${num(hp)} / ${num(mx)}`),
+    blk ? el('em', { class: 'trblk' }, String(blk)) : null);
+}
+const trFxOf = (who, i) => (S.trFx || []).filter(e => who === 'pl' ? (e.t === 'hurt' || e.t === 'heal' || e.t === 'blk' || e.t === 'dodge' || e.t === 'revive') : e.f === i);
+function trFloat(list) {
+  return list.length ? el('div', { class: 'trfx' }, list.map(e =>
+    el('b', { class: 'fx-' + e.t }, e.t === 'hit' ? (e.n ? `-${e.n}` : '防') : e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
+      : e.t === 'heal' || e.t === 'fheal' ? `+${e.n}` : e.t === 'blk' || e.t === 'fblk' ? `構${e.n}`
+      : e.t === 'ko' ? '討' : e.t === 'stun' ? 'ひるみ' : e.t === 'dodge' ? 'かわした' : e.t === 'skip' ? '…'
+      : e.t === 'revive' ? '踏みとどまった' : ''))) : null;
+}
+function screenTrFight() {
+  const F = P.trail.fight;
+  if (!F) { S.screen = 'trail'; return screenTrail(); }
+  const who = trWho(F.no);
+  const kinds = trKindsOf(who);
+  const s = TR_STORY[F.i];
+  const busy = !!S.trBusy;
+  const live = trLive(F);
+  if (!(F.foes[S.trTgt] && F.foes[S.trTgt].hp > 0)) S.trTgt = live.length ? F.foes.indexOf(live[0]) : 0;
+  const play = h => {
+    if (busy || F.over) return;
+    if (S.trSel !== h) { S.trSel = h; SFX.pick(); draw(); return; }
+    const card = F.hand[h];
+    const kd = kinds.find(k => k.key === card.key);
+    const o = trSpec(who, kd, F);
+    if (o.cost > F.ki) { SFX.ng && SFX.ng(); return; }
+    const ev = trPlay(F, h, S.trTgt, who, kinds);
+    S.trSel = null; S.trFx = ev;
+    /* 浮く数は一度きり。次の描き直しで二度浮かないよう、少ししたら控えを消す */
+    setTimeout(() => { if (S.trFx === ev) S.trFx = null; }, 700);
+    if (ev && ev.some(e => e.t === 'ko')) SFX.ko(); else if (kd.kind === 'ult') SFX.ult();
+    else if (ev && ev.some(e => e.t === 'hit')) SFX.hit(); else if (ev && ev.some(e => e.t === 'heal')) SFX.heal(); else SFX.pick();
+    draw();
+    if (F.over) trFinish();
+  };
+  const sel = S.trSel != null ? F.hand[S.trSel] : null;
+  const selKd = sel ? kinds.find(k => k.key === sel.key) : null;
+  const pl = F.pl;
+  const tags = [
+    pl.might ? '勢い' : null, pl.weak ? '削がれ' : null, pl.dodge ? 'かわし' : null, pl.crit ? '冴え' : null,
+    pl.thorns ? '返し' : null, pl.revive ? '踏ん張り' : null, pl.charge ? '奥義が軽い' : null,
+  ].filter(Boolean);
+  return {
+    body: el('div', { class: 'trfight' },
+      el('div', { class: 'trfhd' },
+        el('span', {}, el('em', {}, `第${F.i + 1}話`), s.t),
+        el('span', { class: 'trturn' }, `${F.turn}手め`),
+        el('button', { class: 'trquit' + (S.trQuit ? ' on' : ''), onclick: () => {
+          if (busy) return;
+          if (!S.trQuit) { S.trQuit = true; draw(); return; }
+          P.trail.fight = null; S.trQuit = false; S.screen = 'trail'; SFX.pick(); draw();
+        } }, S.trQuit ? 'もう一度で退く' : '退く')),
+      el('div', { class: 'trfoes' }, F.foes.map((f, i) => el('button', {
+        class: 'trfoe' + (f.hp <= 0 ? ' dead' : '') + (i === S.trTgt && f.hp > 0 ? ' tgt' : '') + (S.trActing === i ? ' acting' : '') + (f.boss ? ' boss' : ''),
+        style: `--ac:${TR_ATTR_COL[f.attr]}`,
+        onclick: () => { if (f.hp > 0) { S.trTgt = i; SFX.pick(); draw(); } },
+      },
+        trIntentEl(f),
+        keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
+        el('b', { class: 'trfn' }, f.name),
+        trBar(f.hp, f.mx, f.blk),
+        el('div', { class: 'trtags' }, [f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
+        trFloat(trFxOf('foe', i))))),
+      el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
+        keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),
+        el('div', { class: 'trmein' },
+          el('b', {}, who.name),
+          trBar(pl.hp, pl.mx, pl.blk),
+          el('div', { class: 'trtags' }, tags.map(t => el('i', {}, t)))),
+        trFloat(trFxOf('pl'))),
+      el('div', { class: 'trdesk' },
+        el('div', { class: 'trki' }, [...Array(TR_KI)].map((_, k) => el('i', { class: k < F.ki ? 'on' : '' })), el('b', {}, `${F.ki}`)),
+        el('span', { class: 'trpile' }, `山 ${F.draw.length}・捨 ${F.disc.length}`),
+        el('button', { class: 'go trendb', disabled: (busy || F.over) ? true : null, onclick: () => trFoeTurn() }, '手番を終える')),
+      selKd ? el('div', { class: 'trdetail' },
+        el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}`),
+        el('p', {}, trWords(trSpec(who, selKd, F)).join('・')),
+        el('small', {}, 'もう一度押すと使う')) : el('div', { class: 'trdetail hint' }, el('small', {}, '札を押すと中身が見える。もう一度押すと使う。敵を押すと狙いが変わる')),
+      el('div', { class: 'trhand' }, F.hand.map((cd, h) => {
+        const kd = kinds.find(k => k.key === cd.key);
+        const o = trSpec(who, kd, F);
+        return trCardEl(who, kd, o, { sel: S.trSel === h, dim: o.cost > F.ki, on: () => play(h) });
+      }))),
+    nav: false,
+  };
+}
+/* 敵の手番。一匹ずつ間をおいて動かす */
+async function trFoeTurn() {
+  const F = P.trail.fight; if (!F || S.trBusy || F.over) return;
+  S.trBusy = true; S.trSel = null; trEnd(F); S.trFx = null; draw();
+  for (let i = 0; i < F.foes.length; i++) {
+    if (F.over) break;
+    if (F.foes[i].hp <= 0) continue;
+    S.trActing = i;
+    const ev = trFoeAct(F, i);
+    S.trFx = ev;
+    if (ev.some(e => e.t === 'hurt' && e.n)) SFX.hit(); else if (ev.some(e => e.t === 'dodge')) SFX.eva(); else if (ev.some(e => e.t === 'fheal')) SFX.heal();
+    draw();
+    await sleep(520);
+  }
+  S.trActing = null;
+  if (!F.over) trRound(F);
+  S.trBusy = false; S.trFx = null;
+  draw();
+  if (F.over) trFinish();
+}
+/* 決着。初めて抜けた話なら褒美を配り、10話ごとの上限を開く */
+function trFinish() {
+  const F = P.trail.fight; if (!F || !F.over) return;
+  const win = F.over === 'win';
+  const res = { win, i: F.i, no: F.no, rw: null, mile: null };
+  if (win && F.i === trProg(F.no)) {
+    const before = trBonus(F.no);
+    P.trail.prog[F.no] = F.i + 1;
+    const rw = trReward(F.i);
+    P.koban += rw.koban; P.soul += rw.soul;
+    res.rw = rw;
+    const after = trBonus(F.no);
+    if (after.lv !== before.lv || after.sp !== before.sp) res.mile = { lv: after.lv - before.lv, sp: after.sp - before.sp };
+  }
+  P.trail.fight = null;
+  S.trRes = res;
+  setTimeout(() => { (win ? SFX.win : SFX.lose)(); draw(); }, 350);
+  savePlayer();
+}
+function trResSheet() {
+  const r = S.trRes; if (!r) return null;
+  const c = charOf(r.no);
+  const close = () => { S.trRes = null; S.screen = 'trail'; SFX.pick(); draw(); };
+  const next = r.win && r.i + 1 < TR_MAX && r.i + 1 <= trProg(r.no);
+  return el('div', { class: 'sheet' },
+    el('div', { class: 'card2 trres ' + (r.win ? 'win' : 'lose') },
+      el('b', { class: 'trresh' }, r.win ? '道は開けた' : '道半ばで倒れた'),
+      c ? keepImg({ class: 'trresimg', src: trFace(c.no), alt: c.name }) : null,
+      el('p', {}, r.win ? `第${r.i + 1}話「${TR_STORY[r.i].t}」を抜けた` : 'もう一度、山札を組み直して挑むワン'),
+      r.rw ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.rw.koban)}`), el('span', {}, `武士の魂 ${num(r.rw.soul)}`)) : null,
+      r.mile ? el('div', { class: 'trmileup' },
+        el('b', {}, `${c ? c.name : ''}の殻が破れた`),
+        r.mile.sp ? el('span', {}, `武士の魂の上限 ＋${r.mile.sp}`) : null,
+        r.mile.lv ? el('span', {}, `レベルの上限 ＋${r.mile.lv}`) : null) : null,
+      el('div', { class: 'mgrow' },
+        next ? el('button', { class: 'go', onclick: () => { S.trRes = null; trStart(r.no, r.i + 1); } }, '次の話へ')
+          : !r.win ? el('button', { class: 'go', onclick: () => { S.trRes = null; trStart(r.no, r.i); } }, 'もう一度挑む') : null,
+        el('button', { class: (next || !r.win) ? 'ghost' : 'go', onclick: close }, '話の一覧へ'))));
+}
+
 /* 出陣も題の帯を出さない（2026-09-29）。
    すぐ下に「← 全国へ」と敵の城の語りがあって、どこにいるかは分かる */
 /* 取引所も題の帯を出さない（2026-10-01）。語りの札がそのまま題になっている */
-const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading', 'tower', 'market']);
+const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading', 'tower', 'market', 'trfight']);
 
 const SCREENS = {
   title: screenTitle,
@@ -10773,11 +11233,12 @@ const SCREENS = {
   tower: screenTower,
   market: screenMarket,
   stoneshop: screenStone,          // ストーン販売所（2026-10-07）
+  trail: screenTrail, trfight: screenTrFight,   // 落ち延び道中（2026-10-08）
 };
 const SUB = { title: '', tutorial: 'はじまり', home: 'ホーム', map: '全国', march: '出陣', squads: '部隊', dex: '図鑑',
               gacha: 'わんこみくじ', gachalist: 'くじ選び', team: '編成', form: '陣形と配置', battle: '合戦', event: 'お祭り',
               grow: '育成', power: '武将強化', skillup: '特技強化', inherit: '特技継承', shop: 'ショップ',
-              tower: '試練の塔', market: '取引所', stoneshop: 'ストーン販売所' };
+              tower: '試練の塔', market: '取引所', stoneshop: 'ストーン販売所', trail: '落ち延び道中', trfight: '道中' };
 /* 画面は毎回まるごと組み直すので、そのままだと押すたびに先頭へ戻ってしまう。
    同じ画面のままなら、縦の位置を覚えておいて戻す（2026-09-21） */
 let LAST_SCREEN = null;
@@ -10922,12 +11383,17 @@ function draw() {
                            S.fr = !!h.fr; S.frId = h.frId != null ? h.frId : null; S.rk = !!h.rk;
                            SFX.pick(); draw(); } }, '← 戦へ')
       : null,
+    /* 城に入るたびのお知らせ札は いちばん上（2026-10-08）。
+       ほかの札より手前に出さないと、裏に隠れて押せない */
+    S.ad != null ? adSheet() : null,
     S.keepAsk ? keepAskSheet() : null,
     S.keepMsg ? el('div', { class: 'sheet', onclick: () => { S.keepMsg = ''; draw(); } },
       el('div', { class: 'card2 keepbox' },
         el('p', {}, S.keepMsg),
         closeX(() => { S.keepMsg = ''; draw(); }))) : null,
     S.spAsk != null ? sparAskSheet() : null,
+    S.trPick ? trPickSheet() : null,
+    S.trRes ? trResSheet() : null,
     S.sqp ? sqSheet() : null,
     S.food ? foodSheet() : null,
     S.cp ? pickSheet() : null,

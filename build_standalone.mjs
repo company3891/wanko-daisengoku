@@ -30,6 +30,11 @@ let net = strip('app/src/net.js');         // 蔵との遣り取り（2026-10-04
 let gachas = strip('app/src/gachas.js'); // くじの一覧（2026-09-28）
 let tower = strip('app/src/tower.js');   // 試練の塔（2026-10-01）
 let market = strip('app/src/market.js'); // 武将取引所（2026-10-01）
+/* 落ち延び道中（2026-10-08）。app 側の build_standalone.mjs には足してあったが
+   **こちらに足し忘れていた**ので、ウェブ版だけ trail* が定義されずに落ちていた。
+   新しいモジュールを足すときは、この一行と下の並びの二か所 ── それを
+   app と web の両方で（＝合わせて四か所）やること */
+let trail = strip('app/src/trail.js');   // 落ち延び道中（2026-10-08）
 let main = strip('app/src/main.js');
 // fetch で読んでいたデータを、直接埋め込んだ定数に置き換える
 main = main.replace(
@@ -65,6 +70,7 @@ const js = [
   gachas,
   tower,
   market,
+  trail,
   main,
 ].join('\n\n')
   .replace('__RULES__', () => read('sim/rules.json'))

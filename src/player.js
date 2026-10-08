@@ -146,8 +146,10 @@ export const P = {
      引き継ぎIDは乗っ取りの鍵なので別もの）／palNpc＝友になった国の主の印 */
   palTag: '', palNpc: [],
   /* palNpcAsk＝国の主に出した願い（印→受けてくれる時刻）／
-     palMoved＝平定ぶんを友へ引き継いだ印（一度きり・2026-10-06） */
-  palNpcAsk: null, palMoved: 0,
+     palMoved＝平定ぶんを友へ引き継いだ印（一度きり・2026-10-06。いまは使わない）／
+     palNpcV2＝その引き継ぎぶんを片づけた印（一度きり・2026-10-08）。
+     **P の既定値に並べないと loadPlayer が読み戻さず、開くたび片づけが走る** */
+  palNpcAsk: null, palMoved: 0, palNpcV2: 0,
   /* awayLog＝留守のあいだに攻められた覚え（2026-10-06）。
      サーバーの置き手紙は一度受け取ると消えるので、手元にも控えを残す。
      新しい保存の品は必ずここに並べる。並べないと localStorage から読み戻らない */
@@ -164,6 +166,10 @@ export const P = {
   ev: null,
   /* 武将ごとの育成（2026-09-21）。{ '8': { lv, exp, awake, sp:{火力,…} } } */
   chars: {},
+  /* 落ち延び道中（2026-10-08）。prog＝武将ごとに抜けた話の数／deck＝武将ごとの山札
+     ／cur＝いま連れている武将／fight＝戦の途中（閉じても続きから）。
+     P の既定値に並べておかないと loadPlayer が読み戻さない */
+  trail: { prog: {}, deck: {}, cur: 0, fight: null },
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
   shop: { day: '', bought: {} },
   /* 重ねて引いた同じ武将（2026-09-21）。{ '8': 2 }。旧形式。いまは cnt を使う */
@@ -368,7 +374,26 @@ export function charState(no) {
   if (!Array.isArray(c.inh)) c.inh = [null, null, null];
   return c;
 }
-export const lvCapOf = no => LV_CAP[Math.min(charState(no).awake, AWAKE_MAX)];
+/* ---- 落ち延び道中で開く上限（2026-10-08・悠さんの指図）----
+   その武将で10話ぬけるごとに、その武将だけ上限が開く。
+   数はここだけで決める（道中の画面もこの表を読む） */
+export const TR_MILE = [
+  { at: 10, sp: 50 },            // 武士の魂の上限 999 → 1049
+  { at: 20, lv: 5 },             // レベルの上限 +5（覚醒の段に上乗せ）
+  { at: 30, sp: 50, lv: 5 },     // もう一段ずつ
+];
+export const trProg = no => ((P.trail && P.trail.prog) || {})[no] || 0;
+export function trBonus(no) {
+  const p = trProg(no); let lv = 0, sp = 0;
+  for (const m of TR_MILE) if (p >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
+  return { lv, sp };
+}
+export const spMaxOf = no => SP_MAX + trBonus(no).sp;
+/* 道中で開くレベルの上限は、覚醒しきった上限（99）の上にだけ乗せる（2026-10-08・悠さんの指図：99 → 104） */
+export const lvCapOf = no => {
+  const a = Math.min(charState(no).awake, AWAKE_MAX);
+  return LV_CAP[a] + (a >= AWAKE_MAX ? trBonus(no).lv : 0);
+};
 export const spUsed = no => SP_STATS.reduce((a, s) => a + charState(no).sp[s], 0);
 
 /* 道具を食わせて経験を積む。上限に達したら余りは捨てずに貯めておく */
@@ -400,7 +425,7 @@ export function awaken(no, rarity, attr) {
 export function addSp(no, stat, n) {
   const c = charState(no);
   if (!SP_STATS.includes(stat)) return false;
-  const room = Math.min(n, SP_MAX - spUsed(no), P.soul);
+  const room = Math.min(n, spMaxOf(no) - spUsed(no), P.soul);
   if (room <= 0) return false;
   c.sp[stat] += room; P.soul -= room;
   savePlayer();
@@ -418,7 +443,7 @@ export function commitSp(no, draft) {
   }
   if (total <= 0) return null;
   if (total > P.soul) return null;
-  if (spUsed(no) + total > SP_MAX) return null;
+  if (spUsed(no) + total > spMaxOf(no)) return null;
   for (const s of SP_STATS) c.sp[s] += Math.max(0, Math.floor(draft[s] || 0));
   P.soul -= total;
   savePlayer();
@@ -858,6 +883,9 @@ export function loadPlayer(FORMS) {
   if (!P.camp || typeof P.camp !== 'object') P.camp = { start: null, done: {}, intro: false, clear: false };
   if (!P.camp.done || typeof P.camp.done !== 'object') P.camp.done = {};
   if (!P.items || typeof P.items !== 'object') P.items = {};
+  /* 道中の入れ物（2026-10-08）。入れ子は丸ごと差し替わるので形を整え直す */
+  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, ...(P.trail || {}) };
+  for (const k of ['prog', 'deck']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
   if (!P.shop || typeof P.shop !== 'object') P.shop = { day: '', bought: {} };
   if (!P.dup || typeof P.dup !== 'object') P.dup = {};
   if (!P.cnt || typeof P.cnt !== 'object') P.cnt = {};

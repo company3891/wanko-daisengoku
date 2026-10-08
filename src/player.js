@@ -277,15 +277,21 @@ export const badgeMat = (attr, rank) => `${BADGES[rank]}・${attr}`;
 /* 古い呼び名。まだ呼んでいるところがあるので、無銘に読み替えて残す */
 export const awakeMat = (attr, tier) => freeMat(tier);
 
+/* 覚醒の品は小判では買えない（2026-10-08・悠さんの指図）。
+   稽古の書・伝書・護符と同じ理由。小判は戦えば際限なく貯まるので、
+   具足と軍配が買えると 覚醒は「蔵に通うだけ」になり、
+   お祭り（具足くらべ）も塔も番付も、通う理由が消える。
+   手に入れ方は お祭り・お役目・塔・番付・くじの積みだけに絞った。
+   値は残してある（品の重さの目安と、いつか別の交換に使うため） */
 for (let t = 0; t < 3; t++) {
   ITEMS[freeMat(t)] = {
-    kind: '覚醒', free: true, tier: t, price: TIER_PRICE[t],
+    kind: '覚醒', free: true, tier: t, price: TIER_PRICE[t], noShop: true,
     desc: `覚醒に積む${AWAKE_TIERS[t]}（${t + 1}段め）。属性は問わない`,
   };
 }
 for (const attr of ATTRS) for (let r = 0; r < 3; r++) {
   ITEMS[badgeMat(attr, r)] = {
-    kind: '覚醒', attr, badge: r, price: BADGE_PRICE[r],
+    kind: '覚醒', attr, badge: r, price: BADGE_PRICE[r], noShop: true,
     desc: `${attr}の武将の覚醒に要る芯（${r + 1}段め）`,
   };
 }
@@ -670,8 +676,9 @@ function seedOf(str) {
   return h;
 }
 /* 振り売りの品。日付で決め打ち。[{ name, price, off }]
-   1品目は「今日の軍配」＝ある属性の芯（2026-09-23）。残り2品はそれ以外から選ぶ。
-   毎日ちがう属性が安くなるので、育てたい武将に合わせて通う理由になる */
+   2026-10-08（悠さんの指図）：覚醒の品を蔵から外したので、
+   **1品目の「今日の軍配」をやめ、三品とも同じ棚から選ぶ**ようにした。
+   買えない品を日替わりの安売りの先頭に据えておくわけにはいかない。 */
 export function dailyDeals() {
   let h = seedOf(today());
   const rnd = () => { h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0; return h / 4294967296; };
@@ -679,16 +686,13 @@ export function dailyDeals() {
     const off = [20, 30, 40][Math.floor(rnd() * 3)];
     return { name: k, off, price: Math.round(ITEMS[k].price * (100 - off) / 100 / 10) * 10 };
   };
-  const attr = ATTRS[Math.floor(rnd() * ATTRS.length)];
-  const rank = [0, 0, 1, 1, 2][Math.floor(rnd() * 5)];      // 下の段ほど出やすい
-  const out = [deal(badgeMat(attr, rank))];
-  /* 棚に出さない品（伝書・護符・祭の札）は 振り売りにも出さない（2026-10-02）。
-     蔵から外しても、日替わりの安売りに顔を出したら意味がない */
-  /* 石で買う品も 振り売りには出さない（2026-10-02）。
-     振り売りは小判の安売りなので、値が石の品を混ぜると値札が合わない */
+  /* 棚に出さない品（稽古の書・伝書・護符・覚醒の品・祭の札）は 振り売りにも出さない。
+     蔵から外しても、日替わりの安売りに顔を出したら意味がない（2026-10-02／2026-10-08）。
+     石で買う品も出さない。振り売りは小判の安売りなので、値が石の品を混ぜると値札が合わない */
   const pool = Object.keys(ITEMS).filter(k =>
-    ITEMS[k].kind !== '覚醒' && !ITEMS[k].noShop && !ITEMS[k].stone);
-  for (let i = 0; i < 2 && pool.length; i++) out.push(deal(pool.splice(Math.floor(rnd() * pool.length), 1)[0]));
+    !ITEMS[k].noShop && !ITEMS[k].stone && ITEMS[k].price > 0);
+  const out = [];
+  for (let i = 0; i < 3 && pool.length; i++) out.push(deal(pool.splice(Math.floor(rnd() * pool.length), 1)[0]));
   return out;
 }
 function shopState() {

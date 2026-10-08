@@ -1807,7 +1807,8 @@ function screenHome() {
         el('div', { class: 'castle' }),
         el('div', { class: 'flags' }, [...Array(5)].map(() => el('i', {})))),
       gen ? el('div', { class: 'lordstage' + (art ? '' : ' noart') },
-        el('div', { class: 'halo' }),
+        /* 足元の光だまり（halo）は外した（2026-10-08・悠さんの指図）。
+           ３D調のコマ絵は自前で陰影を持つので、下に光を敷くとかえって浮いて見えた */
         /* 立ち絵を押すと、その武将の札がひらく（2026-09-29）。
            ホームの主役はいま出している部隊の総大将なので、
            「この子は誰で、いまどれだけ強いのか」を見るのに図鑑まで回らせない。
@@ -3092,10 +3093,28 @@ function npcBackTick() {
    前に送った包みと見くらべて、同じなら送らない（サーバーは前のぶんを残す）。
    半時ごとに一度は送り直す ── 蔵の側で何かあって落ちていても、そのうち戻る */
 let PAL_TEAM_SIG = '', PAL_TEAM_AT = 0;
+/* 部隊をまだ組んでいない人のための 間に合わせの陣（2026-10-08・悠さんの指図）。
+   **留守にしても陣は残る**を全員に通すため、組んだ覚えが無い人には
+   持ち駒のうち強い五騎で陣を立てて預ける。
+   これが無いと「留守」の札だけ出て、押す釦は果たし合い ── 相手は居ないので
+   いつまでも入ってこない、という嘘になっていた（悠さんの実測・「た」の行）。
+   国の主が team:1 で必ず戦えるのと、これでそろう。
+   手元の部隊は書き換えない。預ける包みを組み立てるだけ */
+function palTeamFallback() {
+  const mine = P.own.filter(hasCard).map(charOf).filter(Boolean);
+  if (!mine.length) return null;                        // 一騎も持っていない人は陣そのものが無い
+  const five = mine.slice().sort((a, b) => powerOf(b) - powerOf(a)).slice(0, 5);
+  return { members: five.map(grownFor), generalNo: five[0].no,
+           formation: FORMS[0], slots: five.map(c => c.no),
+           stage: { s: S.stage, v: S.stageV, flip: S.stageFlip } };
+}
 function palTeamNow() {
-  if (!S.picked || !S.picked.length) return null;
   let t = null, sig = '';
-  try { t = dlTeam(); sig = JSON.stringify(t); } catch (_) { return null; }
+  try {
+    t = (S.picked && S.picked.length) ? dlTeam() : palTeamFallback();
+    if (!t) return null;
+    sig = JSON.stringify(t);
+  } catch (_) { return null; }
   if (sig === PAL_TEAM_SIG && Date.now() - PAL_TEAM_AT < 1800000) return null;
   PAL_TEAM_SIG = sig; PAL_TEAM_AT = Date.now();
   return t;
@@ -3266,8 +3285,12 @@ function palRow(c, kind) {
       el('span', { class: 'frn' },
         /* 留守の印は 名の右（2026-10-06）。
            位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */
+        /* 2026-10-08（悠さんの指図）：**陣が預かってあるときだけ**「留守」と書く。
+           一騎も持っていない人には陣そのものが無く、攻めようがない。
+           それでも「留守」と出すと、釦は果たし合いなのに相手は居ない、という嘘になる。
+           釦の判定（c.away && c.team）とここをそろえた */
         el('b', {}, el('span', { class: 'frnm' }, c.name),
-          kind === 'pal' && c.away ? el('em', { class: 'frawy' }, '留守') : null),
+          kind === 'pal' && c.away && c.team ? el('em', { class: 'frawy' }, '留守') : null),
         el('i', {}, `位 ${num(c.lv || 1)}　${c.tag || ''}`)),
       el('span', { class: 'frr' }, ...acts)),
     kind === 'pal' ? frDelEl() : null);
@@ -4924,7 +4947,9 @@ const SHOP_TABS = [
   /* 石の蔵（2026-10-03）。兵糧を石で戻す品だけを別の棚にした。
      小判の品と同じ棚に並んでいると、どちらの財布から出るのか紛れていた */
   { key: 'stone', name: '石の蔵', note: '石で買う品。兵糧はここで戻す' },
-  { key: 'awake', name: '具足屋', note: '覚醒に要る具足と軍配。属性ごとに別の品が要る' },
+  /* 「具足屋」は外した（2026-10-08・悠さんの指図）。
+     覚醒の品を noShop にしたので、売るものが一つも無くなった。
+     手に入れ方は お祭り（具足くらべ）・お役目・塔・番付・くじの積み */
   { key: 'rank',  name: '番付の蔵', note: '軍功と引き換える。番付でしか手に入らぬ品' },
   /* 「持ち物」の棚は外した（2026-09-26）。三本線の「所持アイテム」（袋）で
      同じものが見られるうえ、買う棚と持ち物の棚が並ぶと どちらを見ているのか紛れる */
@@ -5140,33 +5165,7 @@ function screenShop() {
             '兵糧丸は満ちていても積める。上限を超えているあいだは、時では戻らぬ'));
       })() : null,
 
-      tab === 'awake' ? (() => {
-        const pick = S.shopAttr || ATTRS[0];
-        const names = pick === '共通'
-          ? [0, 1, 2].map(t => freeMat(t))
-          : [0, 1, 2].map(r => badgeMat(pick, r));
-        return el('div', {},
-          el('div', { class: 'row chapters attrpick' }, ATTRS.concat('共通').map(a => el('button', {
-            class: 'chip' + (pick === a ? ' on' : ''),
-            onclick: () => { S.shopAttr = a; S.shopMsg = ''; SFX.pick(); draw(); },
-          }, a))),
-          el('div', { class: 'shoplist' }, names.map(name => {
-            const it = ITEMS[name];
-            return el('div', { class: 'shoprow' },
-              itemIcon(name),
-              el('div', { class: 'sitm' },
-                el('b', {}, name, el('span', { class: 'have' }, `持 ${num(item(name))}`)),
-                el('span', { class: 'sd' }, it.desc),
-                el('span', { class: 'sp2' }, `小判 ${num(it.price)}`)),
-              el('div', { class: 'sbtns' },
-                buyBtn('koban', it.price, '×1', P.koban < it.price, shopBuy(name, it.price, 1)),
-                buyBtn('koban', it.price * 5, '×5', P.koban < it.price * 5, shopBuy(name, it.price, 5))));
-          })),
-          el('p', { class: 'note' },
-            pick === '共通'
-              ? '無銘の籠手・具足・兜は、どの武将の覚醒にも数を積む品。属性は問わない'
-              : `${pick}の武将の覚醒に要る芯。木 → 鉄 → 金 の順に、段が上がるほど少数で効く`));
-      })() : null,
+      /* 具足屋の棚は外した（2026-10-08）。SHOP_TABS からも消してある */
 
     ),
     nav: true,

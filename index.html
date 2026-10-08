@@ -761,12 +761,14 @@ main.hasnav:has(.home.art){padding-bottom:var(--nav,104px)}
 .home .homeempty:active{transform:translate(-50%,-50%) translateY(1px);filter:brightness(.94)}
 
 /* ---- 総大将を大きく立たせる（2026-09-21）----
-   背景の参道の上に立つように、画面幅の7割で置く。足元に光の輪を敷いて浮かせない。 */
+   背景の参道の上に立つように、画面幅の7割で置く。
+   2026-10-08（悠さんの指図）：**影も足元の光だまりも消した**。
+   コマ絵を３D調に描き直したら、絵が自前で陰影を持つようになり、
+   下に敷いた黒い影が二重になって 絵のまわりが汚れて見えた。 */
 .home .lordstage{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
   margin:0 0 9vh;pointer-events:none}
 .home .lordstage .lordart{position:relative;z-index:2;width:86%;max-width:360px;height:auto;
   display:block;
-  filter:drop-shadow(0 10px 18px #000a) drop-shadow(0 2px 4px #0006);
   animation:lordin .5s cubic-bezier(.2,.9,.3,1.15)}
 @keyframes lordin{from{transform:translateY(14px) scale(.94);opacity:0}to{transform:none;opacity:1}}
 .home .lordstage .lordart.chip{aspect-ratio:1;border-radius:24px;background-size:cover;
@@ -782,11 +784,9 @@ main.hasnav:has(.home.art){padding-bottom:var(--nav,104px)}
 .home .lordstage .lordtap .lordart{width:100%}
 .home .lordstage .lordtap .lordart.chip{width:56%;max-width:210px;margin:0 auto}
 .home .lordstage .lordtap:active{transform:translateY(1px) scale(.985)}
-/* 足元の光の輪。地面にいる感じを出す */
-.home .lordstage .halo{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
-  width:62%;max-width:250px;aspect-ratio:3/1;z-index:1;
-  background:radial-gradient(closest-side,#f7e9c066,#d8a94a22 55%,#0000 78%);
-  filter:blur(2px)}
+/* 足元の光の輪は消した（2026-10-08・悠さんの指図）。
+   箱そのものも main.js の screenHome から外してある。
+   .halo はここでしか使っていないので、決まりごと残さない */
 /* 名札。絵の裾に半分かぶせる */
 .home .lordstage .plate{position:relative;z-index:3;margin-top:-18px;
   display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -5134,7 +5134,12 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .home .hmenu.bottomleft{position:absolute;left:10px;right:auto;top:auto;bottom:6px;z-index:5}
 .hmb.big,.hmb.big .hmi{width:104px}
 .hmb.big .hmi{height:104px;border-radius:20px}
-.hmb.big.art .hmi{filter:drop-shadow(0 4px 12px #000b)}
+/* 大きい座（取引所・試練の塔）の影は消した（2026-10-08・悠さんの指図）。
+   この二枚の絵は四角いまま（まわりが透けていない）ので、影が絵の形ではなく
+   **四角い灰色の帯**として出ていた。しかも .hmb .hmi img の影と二重だった。
+   小さい座は絵の中に枠が描いてあるので、そちらの影はそのまま残す */
+.hmb.big.art .hmi{filter:none}
+.hmb.big.art .hmi img{filter:none}
 .hmb.big .hml{font-size:11px}
 @media (max-width:380px){ .hmb.big,.hmb.big .hmi{width:88px} .hmb.big .hmi{height:88px} }
 @media (max-height:760px){ .home .hmenu.bottomleft{bottom:4px} }
@@ -11003,15 +11008,21 @@ const badgeMat = (attr, rank) => `${BADGES[rank]}・${attr}`;
 /* 古い呼び名。まだ呼んでいるところがあるので、無銘に読み替えて残す */
 const awakeMat = (attr, tier) => freeMat(tier);
 
+/* 覚醒の品は小判では買えない（2026-10-08・悠さんの指図）。
+   稽古の書・伝書・護符と同じ理由。小判は戦えば際限なく貯まるので、
+   具足と軍配が買えると 覚醒は「蔵に通うだけ」になり、
+   お祭り（具足くらべ）も塔も番付も、通う理由が消える。
+   手に入れ方は お祭り・お役目・塔・番付・くじの積みだけに絞った。
+   値は残してある（品の重さの目安と、いつか別の交換に使うため） */
 for (let t = 0; t < 3; t++) {
   ITEMS[freeMat(t)] = {
-    kind: '覚醒', free: true, tier: t, price: TIER_PRICE[t],
+    kind: '覚醒', free: true, tier: t, price: TIER_PRICE[t], noShop: true,
     desc: `覚醒に積む${AWAKE_TIERS[t]}（${t + 1}段め）。属性は問わない`,
   };
 }
 for (const attr of ATTRS) for (let r = 0; r < 3; r++) {
   ITEMS[badgeMat(attr, r)] = {
-    kind: '覚醒', attr, badge: r, price: BADGE_PRICE[r],
+    kind: '覚醒', attr, badge: r, price: BADGE_PRICE[r], noShop: true,
     desc: `${attr}の武将の覚醒に要る芯（${r + 1}段め）`,
   };
 }
@@ -11396,8 +11407,9 @@ function seedOf(str) {
   return h;
 }
 /* 振り売りの品。日付で決め打ち。[{ name, price, off }]
-   1品目は「今日の軍配」＝ある属性の芯（2026-09-23）。残り2品はそれ以外から選ぶ。
-   毎日ちがう属性が安くなるので、育てたい武将に合わせて通う理由になる */
+   2026-10-08（悠さんの指図）：覚醒の品を蔵から外したので、
+   **1品目の「今日の軍配」をやめ、三品とも同じ棚から選ぶ**ようにした。
+   買えない品を日替わりの安売りの先頭に据えておくわけにはいかない。 */
 function dailyDeals() {
   let h = seedOf(today());
   const rnd = () => { h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0; return h / 4294967296; };
@@ -11405,16 +11417,13 @@ function dailyDeals() {
     const off = [20, 30, 40][Math.floor(rnd() * 3)];
     return { name: k, off, price: Math.round(ITEMS[k].price * (100 - off) / 100 / 10) * 10 };
   };
-  const attr = ATTRS[Math.floor(rnd() * ATTRS.length)];
-  const rank = [0, 0, 1, 1, 2][Math.floor(rnd() * 5)];      // 下の段ほど出やすい
-  const out = [deal(badgeMat(attr, rank))];
-  /* 棚に出さない品（伝書・護符・祭の札）は 振り売りにも出さない（2026-10-02）。
-     蔵から外しても、日替わりの安売りに顔を出したら意味がない */
-  /* 石で買う品も 振り売りには出さない（2026-10-02）。
-     振り売りは小判の安売りなので、値が石の品を混ぜると値札が合わない */
+  /* 棚に出さない品（稽古の書・伝書・護符・覚醒の品・祭の札）は 振り売りにも出さない。
+     蔵から外しても、日替わりの安売りに顔を出したら意味がない（2026-10-02／2026-10-08）。
+     石で買う品も出さない。振り売りは小判の安売りなので、値が石の品を混ぜると値札が合わない */
   const pool = Object.keys(ITEMS).filter(k =>
-    ITEMS[k].kind !== '覚醒' && !ITEMS[k].noShop && !ITEMS[k].stone);
-  for (let i = 0; i < 2 && pool.length; i++) out.push(deal(pool.splice(Math.floor(rnd() * pool.length), 1)[0]));
+    !ITEMS[k].noShop && !ITEMS[k].stone && ITEMS[k].price > 0);
+  const out = [];
+  for (let i = 0; i < 3 && pool.length; i++) out.push(deal(pool.splice(Math.floor(rnd() * pool.length), 1)[0]));
   return out;
 }
 function shopState() {
@@ -28309,7 +28318,8 @@ function screenHome() {
         el('div', { class: 'castle' }),
         el('div', { class: 'flags' }, [...Array(5)].map(() => el('i', {})))),
       gen ? el('div', { class: 'lordstage' + (art ? '' : ' noart') },
-        el('div', { class: 'halo' }),
+        /* 足元の光だまり（halo）は外した（2026-10-08・悠さんの指図）。
+           ３D調のコマ絵は自前で陰影を持つので、下に光を敷くとかえって浮いて見えた */
         /* 立ち絵を押すと、その武将の札がひらく（2026-09-29）。
            ホームの主役はいま出している部隊の総大将なので、
            「この子は誰で、いまどれだけ強いのか」を見るのに図鑑まで回らせない。
@@ -29594,10 +29604,28 @@ function npcBackTick() {
    前に送った包みと見くらべて、同じなら送らない（サーバーは前のぶんを残す）。
    半時ごとに一度は送り直す ── 蔵の側で何かあって落ちていても、そのうち戻る */
 let PAL_TEAM_SIG = '', PAL_TEAM_AT = 0;
+/* 部隊をまだ組んでいない人のための 間に合わせの陣（2026-10-08・悠さんの指図）。
+   **留守にしても陣は残る**を全員に通すため、組んだ覚えが無い人には
+   持ち駒のうち強い五騎で陣を立てて預ける。
+   これが無いと「留守」の札だけ出て、押す釦は果たし合い ── 相手は居ないので
+   いつまでも入ってこない、という嘘になっていた（悠さんの実測・「た」の行）。
+   国の主が team:1 で必ず戦えるのと、これでそろう。
+   手元の部隊は書き換えない。預ける包みを組み立てるだけ */
+function palTeamFallback() {
+  const mine = P.own.filter(hasCard).map(charOf).filter(Boolean);
+  if (!mine.length) return null;                        // 一騎も持っていない人は陣そのものが無い
+  const five = mine.slice().sort((a, b) => powerOf(b) - powerOf(a)).slice(0, 5);
+  return { members: five.map(grownFor), generalNo: five[0].no,
+           formation: FORMS[0], slots: five.map(c => c.no),
+           stage: { s: S.stage, v: S.stageV, flip: S.stageFlip } };
+}
 function palTeamNow() {
-  if (!S.picked || !S.picked.length) return null;
   let t = null, sig = '';
-  try { t = dlTeam(); sig = JSON.stringify(t); } catch (_) { return null; }
+  try {
+    t = (S.picked && S.picked.length) ? dlTeam() : palTeamFallback();
+    if (!t) return null;
+    sig = JSON.stringify(t);
+  } catch (_) { return null; }
   if (sig === PAL_TEAM_SIG && Date.now() - PAL_TEAM_AT < 1800000) return null;
   PAL_TEAM_SIG = sig; PAL_TEAM_AT = Date.now();
   return t;
@@ -29768,8 +29796,12 @@ function palRow(c, kind) {
       el('span', { class: 'frn' },
         /* 留守の印は 名の右（2026-10-06）。
            位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */
+        /* 2026-10-08（悠さんの指図）：**陣が預かってあるときだけ**「留守」と書く。
+           一騎も持っていない人には陣そのものが無く、攻めようがない。
+           それでも「留守」と出すと、釦は果たし合いなのに相手は居ない、という嘘になる。
+           釦の判定（c.away && c.team）とここをそろえた */
         el('b', {}, el('span', { class: 'frnm' }, c.name),
-          kind === 'pal' && c.away ? el('em', { class: 'frawy' }, '留守') : null),
+          kind === 'pal' && c.away && c.team ? el('em', { class: 'frawy' }, '留守') : null),
         el('i', {}, `位 ${num(c.lv || 1)}　${c.tag || ''}`)),
       el('span', { class: 'frr' }, ...acts)),
     kind === 'pal' ? frDelEl() : null);
@@ -31426,7 +31458,9 @@ const SHOP_TABS = [
   /* 石の蔵（2026-10-03）。兵糧を石で戻す品だけを別の棚にした。
      小判の品と同じ棚に並んでいると、どちらの財布から出るのか紛れていた */
   { key: 'stone', name: '石の蔵', note: '石で買う品。兵糧はここで戻す' },
-  { key: 'awake', name: '具足屋', note: '覚醒に要る具足と軍配。属性ごとに別の品が要る' },
+  /* 「具足屋」は外した（2026-10-08・悠さんの指図）。
+     覚醒の品を noShop にしたので、売るものが一つも無くなった。
+     手に入れ方は お祭り（具足くらべ）・お役目・塔・番付・くじの積み */
   { key: 'rank',  name: '番付の蔵', note: '軍功と引き換える。番付でしか手に入らぬ品' },
   /* 「持ち物」の棚は外した（2026-09-26）。三本線の「所持アイテム」（袋）で
      同じものが見られるうえ、買う棚と持ち物の棚が並ぶと どちらを見ているのか紛れる */
@@ -31642,33 +31676,7 @@ function screenShop() {
             '兵糧丸は満ちていても積める。上限を超えているあいだは、時では戻らぬ'));
       })() : null,
 
-      tab === 'awake' ? (() => {
-        const pick = S.shopAttr || ATTRS[0];
-        const names = pick === '共通'
-          ? [0, 1, 2].map(t => freeMat(t))
-          : [0, 1, 2].map(r => badgeMat(pick, r));
-        return el('div', {},
-          el('div', { class: 'row chapters attrpick' }, ATTRS.concat('共通').map(a => el('button', {
-            class: 'chip' + (pick === a ? ' on' : ''),
-            onclick: () => { S.shopAttr = a; S.shopMsg = ''; SFX.pick(); draw(); },
-          }, a))),
-          el('div', { class: 'shoplist' }, names.map(name => {
-            const it = ITEMS[name];
-            return el('div', { class: 'shoprow' },
-              itemIcon(name),
-              el('div', { class: 'sitm' },
-                el('b', {}, name, el('span', { class: 'have' }, `持 ${num(item(name))}`)),
-                el('span', { class: 'sd' }, it.desc),
-                el('span', { class: 'sp2' }, `小判 ${num(it.price)}`)),
-              el('div', { class: 'sbtns' },
-                buyBtn('koban', it.price, '×1', P.koban < it.price, shopBuy(name, it.price, 1)),
-                buyBtn('koban', it.price * 5, '×5', P.koban < it.price * 5, shopBuy(name, it.price, 5))));
-          })),
-          el('p', { class: 'note' },
-            pick === '共通'
-              ? '無銘の籠手・具足・兜は、どの武将の覚醒にも数を積む品。属性は問わない'
-              : `${pick}の武将の覚醒に要る芯。木 → 鉄 → 金 の順に、段が上がるほど少数で効く`));
-      })() : null,
+      /* 具足屋の棚は外した（2026-10-08）。SHOP_TABS からも消してある */
 
     ),
     nav: true,

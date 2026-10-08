@@ -746,12 +746,14 @@ main.hasnav:has(.home.art){padding-bottom:var(--nav,104px)}
 .home .homeempty:active{transform:translate(-50%,-50%) translateY(1px);filter:brightness(.94)}
 
 /* ---- 総大将を大きく立たせる（2026-09-21）----
-   背景の参道の上に立つように、画面幅の7割で置く。足元に光の輪を敷いて浮かせない。 */
+   背景の参道の上に立つように、画面幅の7割で置く。
+   2026-10-08（悠さんの指図）：**影も足元の光だまりも消した**。
+   コマ絵を３D調に描き直したら、絵が自前で陰影を持つようになり、
+   下に敷いた黒い影が二重になって 絵のまわりが汚れて見えた。 */
 .home .lordstage{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
   margin:0 0 9vh;pointer-events:none}
 .home .lordstage .lordart{position:relative;z-index:2;width:86%;max-width:360px;height:auto;
   display:block;
-  filter:drop-shadow(0 10px 18px #000a) drop-shadow(0 2px 4px #0006);
   animation:lordin .5s cubic-bezier(.2,.9,.3,1.15)}
 @keyframes lordin{from{transform:translateY(14px) scale(.94);opacity:0}to{transform:none;opacity:1}}
 .home .lordstage .lordart.chip{aspect-ratio:1;border-radius:24px;background-size:cover;
@@ -767,11 +769,9 @@ main.hasnav:has(.home.art){padding-bottom:var(--nav,104px)}
 .home .lordstage .lordtap .lordart{width:100%}
 .home .lordstage .lordtap .lordart.chip{width:56%;max-width:210px;margin:0 auto}
 .home .lordstage .lordtap:active{transform:translateY(1px) scale(.985)}
-/* 足元の光の輪。地面にいる感じを出す */
-.home .lordstage .halo{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
-  width:62%;max-width:250px;aspect-ratio:3/1;z-index:1;
-  background:radial-gradient(closest-side,#f7e9c066,#d8a94a22 55%,#0000 78%);
-  filter:blur(2px)}
+/* 足元の光の輪は消した（2026-10-08・悠さんの指図）。
+   箱そのものも main.js の screenHome から外してある。
+   .halo はここでしか使っていないので、決まりごと残さない */
 /* 名札。絵の裾に半分かぶせる */
 .home .lordstage .plate{position:relative;z-index:3;margin-top:-18px;
   display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -5119,7 +5119,12 @@ header{padding-top:calc(var(--safetop) + 8px)}
 .home .hmenu.bottomleft{position:absolute;left:10px;right:auto;top:auto;bottom:6px;z-index:5}
 .hmb.big,.hmb.big .hmi{width:104px}
 .hmb.big .hmi{height:104px;border-radius:20px}
-.hmb.big.art .hmi{filter:drop-shadow(0 4px 12px #000b)}
+/* 大きい座（取引所・試練の塔）の影は消した（2026-10-08・悠さんの指図）。
+   この二枚の絵は四角いまま（まわりが透けていない）ので、影が絵の形ではなく
+   **四角い灰色の帯**として出ていた。しかも .hmb .hmi img の影と二重だった。
+   小さい座は絵の中に枠が描いてあるので、そちらの影はそのまま残す */
+.hmb.big.art .hmi{filter:none}
+.hmb.big.art .hmi img{filter:none}
 .hmb.big .hml{font-size:11px}
 @media (max-width:380px){ .hmb.big,.hmb.big .hmi{width:88px} .hmb.big .hmi{height:88px} }
 @media (max-height:760px){ .home .hmenu.bottomleft{bottom:4px} }

@@ -34,7 +34,7 @@ import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TIC
          replacePlayer } from './player.js';
 import { REGIONS, REGION_ORDER, PREFS, PREF, prefsOf, INTRO, LORD_TALK, NO_LORD_NAME, STEP_NAME, FOOD_COST, chapterRank, mapX, mapY, stageOf } from './campaign.js';
 import { EVENTS, EV_RANKS, EV_FOOD, EV_POWER, EV_LV, EV_SOUL, EV_SKILL, EV_STAGE, evOf, evState, evCleared, evOpen, evDone, evWin, evRepeat,
-         awakeAttrsToday, WEEKLY_PICK, evShownToday, isWeekend } from './event.js';
+         awakeAttrsToday, WEEKLY_PICK, evShownToday } from './event.js';
 import { MI_TABS, MI_BOX, MISSIONS, miOf, KADODE } from './mission.js';
 import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPassRank,
          lkHash, lkSalt, lkTied } from './link.js';
@@ -202,9 +202,6 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
      （＋はどこからでも押せるので、戻り先を預かる）／stAsk＝確かめている口／stMsg＝その場の一言 */
   stoneBack: null, stAsk: null, stMsg: '',
   detailRO: false, detailBase: false, nmMsg: '', rwi: null,
-  /* 城に入るたびのお知らせ札（2026-10-08・悠さんの指図）。
-     いま何枚目を出しているか。null なら出していない */
-  ad: null,
   /* 戦のさなかに札を開いたときだけ入る（2026-10-08）。
      { 火力: +120, 防御: -30 } のように、素からの差だけを持つ */
   detailMod: null,
@@ -1721,30 +1718,20 @@ const HOME_MENU = [
   /* お役目は右下の列のいちばん上（2026-09-24）。
      右手の親指が届くところに置きたいので左上から移した。
      square を立てると、横長の札の列の中でも正方形のまま右端をそろえて並ぶ */
-  /* 落ち延び道中（ミニゲーム）は **お役目の横に、同じ大きさで**（2026-10-09・悠さんの指図）。
-     square を立てた座どうしは、右下の列の上で横一列に並ぶ。
-     先に書いたほうが左。お役目は右はしの定位置のままにしたいので、こちらを先に置く。
-     label ＝ 札に出す短い名（絵が無いあいだだけ出る）。
-     69角に「落ち延び道中」は収まらないので「道中」にしてある。
-     ui/home_trail.png を置けば、名札そのものが消える */
-  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, label: '道中',
-    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
   { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
   { side: 'BR', name: 'イベント', mark: '祭', file: 'home_event',   go: () => { S.screen = 'event'; S.evId = null; S.evMsg = ''; } },
   /* 果たし合い（2026-10-04）。合言葉で友と五対五。
      サーバーに繋いでいないと座に入れないので、繋ぐまでは灰色のまま */
-  /* 果たし合いの座は ふだん出さない（2026-10-09・悠さんの指図）。
-     友の行から直に挑めるようになったので、城に別の入口を置く意味が無くなった。
-
-     **ただし、間（ルーム）を開いているあいだだけは出す。**
-     部隊を組み直しに抜けたあと、ここから戻れないと
-     自分が立てた座に二度と入れず、相手をずっと待たせることになる
-     （2026-10-05 にそのために足した道。消すと詰む） */
   { side: 'BR', name: '果たし合い', mark: '果', file: 'home_duel',
-    off: () => !DUEL,
-    go: () => { S.dl = 'room'; S.dlMsg = ''; S.dlCode = ''; } },
+    lock: () => (KURA && linked()) ? null : 'バックアップ接続で解放',
+    /* すでに間にいるなら、そのまま間へ返す（2026-10-05）。
+       部隊を組み直しに抜けても、ここから戻ってこられる */
+    go: () => { S.dl = DUEL ? 'room' : 'menu'; S.dlMsg = ''; S.dlCode = ''; } },
+  /* 落ち延び道中（2026-10-08）。戦の途中なら、そのまま戦へ戻す */
+  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail',
+    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
   { side: 'BR', name: '番付',     mark: '番', file: 'home_ranking',
     go: () => { S.rk = true; S.rkSel = null; S.rkPz = false; S.rkPzT = null; S.rkMsg = ''; },
     badge: () => (rkState().last ? 1 : 0) },
@@ -1783,8 +1770,7 @@ function homeMenuBtn(m) {
     el('span', { class: 'hmi' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, m.mark)),
     /* 絵が無くて、名が一字の印とおなじなら、下の名札は出さない（2026-09-26）。
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
-    (art || m.noname || m.name === m.mark) ? null
-      : el('span', { class: 'hml' }, m.label || m.name),
+    (art || m.noname || m.name === m.mark) ? null : el('span', { class: 'hml' }, m.name),
     /* 未読の数を赤丸で出す（2026-09-24）。badge は数を返す関数。
        0 のときは丸そのものを出さない */
     (() => {
@@ -1793,29 +1779,13 @@ function homeMenuBtn(m) {
     })());
 }
 const homeMenu = side => {
-  /* off は決め打ちでも、その場で決める関数でもよい（2026-10-09）。
-     果たし合いの座は「間を開いているあいだだけ」出したいので関数にした */
-  const list = HOME_MENU.filter(m => m.side === side
-    && !(typeof m.off === 'function' ? m.off() : m.off));
+  const list = HOME_MENU.filter(m => m.side === side && !m.off);
   if (!list.length) return null;
   const cls = side === 'BR' ? 'bottom' : side === 'BL' ? 'bottomleft' : 'topleft';
-  /* 右下は 正方形の座を横一列、そのあとに横長の札を縦に積む（2026-10-09）。
-     これまでは全部を縦に積んでいたので、正方形が二つになると縦に伸びて
-     下の帯に潜っていた */
-  if (side === 'BR') {
-    const sq = list.filter(m => m.square);
-    const wide = list.filter(m => !m.square);
-    return el('div', { class: 'hmenu ' + cls },
-      sq.length ? el('div', { class: 'hmsq' }, sq.map(homeMenuBtn)) : null,
-      ...wide.map(homeMenuBtn));
-  }
   return el('div', { class: 'hmenu ' + cls }, list.map(homeMenuBtn));
 };
 
 function screenHome() {
-  /* 城に着いたら、まずお知らせ札を出す（2026-10-08・悠さんの指図）。
-     一度の立ち上げにつき一度だけ。開き直せばまた出る */
-  adOpen();
   /* 取引所の取引履歴は、城にいるあいだも確かめる（2026-10-01）。
      座の赤丸は「売れた覚えのうち、まだ見ていない数」なので、
      取引所を開くまで検めないと、売れたことに気づけない */
@@ -2145,9 +2115,6 @@ const miTabs = () => MI_TABS.filter(t => t !== KADODE || !kadodeOver());
 const miTab0 = () => miTabs()[0];
 /* 受け取れるお役目の数。ホームの札の赤丸と、タグの肩に出す */
 const miReadyCount = tab => (tab ? miOfTab(tab) : MISSIONS).filter(miReady).length;
-/* 「まとめて頂戴」で実際に取れる数（2026-10-09）。solo の札は数に入れない。
-   入れてしまうと、押しても何も起きない釦が灯る */
-const miBulkCount = tab => miOfTab(tab).filter(m => miReady(m) && !m.solo).length;
 
 /* 褒美の中身を一行の文にする */
 function miWords(rw) {
@@ -2213,10 +2180,7 @@ function miTake(m) {
 }
 /* まとめて受け取る。いま出ているタグのぶんだけ */
 function miTakeAll(tab) {
-  /* solo の札は まとめて頂戴では取らない（2026-10-09・悠さんの指図）。
-     手引きを抜けた褒美（門出の石3000）がほかに紛れて入ってくるのを止める。
-     その一つだけは、自分の手で「頂戴」を押してもらう */
-  const list = miOfTab(tab).filter(m => miReady(m) && !m.solo);
+  const list = miOfTab(tab).filter(miReady);
   if (!list.length) return 0;
   for (const m of list) miTake(m);
   return list.length;
@@ -2384,7 +2348,7 @@ function miSheet() {
      段の中の並びは mission.js に書いた順のまま（sort は安定なので崩れない） */
   const miSeat = m => (miReady(m) ? 0 : miGot(m) ? 2 : 1);
   const list = miOfTab(tab).slice().sort((a, b) => miSeat(a) - miSeat(b));
-  const ready = miBulkCount(tab);
+  const ready = miReadyCount(tab);
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 mibox' },
       el('b', { class: 'mittl' }, 'お役目'),
@@ -2400,8 +2364,7 @@ function miSheet() {
         const pct = Math.round(now / m.goal * 100);
         const got = miGot(m), can = miReady(m);
         const ic = miIcon(m.rw);
-        return el('div', { class: 'mirow' + (got ? ' got' : '') + (can ? ' can' : '')
-             + (ic ? ' hasic' : '') + (m.solo && can ? ' solo' : '') },
+        return el('div', { class: 'mirow' + (got ? ' got' : '') + (can ? ' can' : '') + (ic ? ' hasic' : '') },
           /* 褒美の絵を押すと、その品が何かを出す（2026-09-30）。
              絵だけでは「石」も「稽古の書」も何に使うのか分からなかった */
           ic ? el('button', { class: 'miic tapic', title: '何に使うか見る',
@@ -2763,21 +2726,12 @@ function rkFoeSheet(foe) {
         return `勝てば ${w > 0 ? '+' : ''}${w}　負ければ ${l}`;
       })()),
       S.rkMsg ? el('p', { class: 'frmsg' }, S.rkMsg) : null,
-      /* 2026-10-09（悠さんの指図）：番付の相手にも **友の願いを出せる**ようにした。
-         強い相手と出会える場は番付しかないので、ここで結べないのはもったいない。
-         結んだあとは マイフレンドに並び、果たし合いも留守の陣も見舞も通る。
-         番付の顔ぶれは月で組み替わるので、願いを出した時点の姿を控える */
-      (() => {
-        const mine = !!rkPalOf(foe.id);
-        const asked = !!((P.palRkAsk || {})[foe.id]);
-        return el('div', { class: 'frbtns' },
-          el('button', { class: 'go' + (ok ? '' : ' soon'), disabled: ok ? null : true,
-            onclick: () => rkStart(foe) },
-            r.tick < 1 ? '対戦札が無いわん' : '出陣'),
-          mine ? el('button', { class: 'ghost', disabled: true }, 'もう友である')
-          : asked ? el('button', { class: 'ghost', disabled: true }, '返事待ち')
-          : el('button', { class: 'ghost', onclick: () => rkAsk(foe) }, '友になる'));
-      })(),
+      /* 釦は一つだけなので、二列の枠から外して真ん中に置く（2026-09-25）。
+         友の札と同じ .frbtns を使っていたせいで、左の列に寄っていた */
+      el('div', { class: 'frbtns solo' },
+        el('button', { class: 'go' + (ok ? '' : ' soon'), disabled: ok ? null : true,
+          onclick: () => rkStart(foe) },
+          r.tick < 1 ? '対戦札が無いわん' : '出陣')),
       closeX(back, 'もどる')));
 }
 /* 褒美の一覧（2026-09-25）。番付の右上の小さな釦から開く。
@@ -2978,7 +2932,7 @@ function frTakeBack(id) {
    seed に日付を混ぜてあるので、毎日ちがう空と地形になる。 */
 const canSpar = id => frState(id).spar !== today();
 function sparStart(id) {
-  const fr = npcFriendOf(id);      // 国の主でも 番付の相手でも通る（2026-10-09）
+  const fr = frOf(id);
   if (!fr || !canSpar(id)) return;
   // どう手合わせするかを先にえらぶ（2026-09-30）
   S.spAsk = id; SFX.pick(); draw();
@@ -2989,7 +2943,7 @@ function sparStart(id) {
    どちらも「何が違うか」は字で並べず、語り手の吹き出しで言わせる */
 function sparAskSheet() {
   const id = S.spAsk; if (id == null) return null;
-  const fr = npcFriendOf(id); if (!fr) { S.spAsk = null; return null; }
+  const fr = frOf(id); if (!fr) { S.spAsk = null; return null; }
   const close = () => { S.spAsk = null; SFX.pick(); draw(); };
   const go = duel => {
     S.spAsk = null;
@@ -2997,11 +2951,7 @@ function sparAskSheet() {
       duel ? `${fr.name} との一騎打ち。出るのは総大将ひとりだけ` : `${fr.name} との総力戦`,
       () => {
         S.fr = false; S.frId = null; S.frMsg = '';
-        /* 番付で知り合った相手は、国を持たない。
-           盤も顔ぶれも「番付のときのその人」をそのまま借りる（2026-10-09）。
-           friendly を立ててあるので、点は動かないし 対戦札も減らない */
-        if (fr.rk) startBattle(null, null, null, { npc: fr.rk, friendly: true, duel: !!duel });
-        else startBattle(null, null, { id, pref: fr.pref, duel: !!duel });
+        startBattle(null, null, { id, pref: fr.pref, duel: !!duel });
       }, !!duel);
   };
   /* 絵と話は「読むもの」、えらぶのは下の二つの釦（2026-09-30）。
@@ -3062,20 +3012,18 @@ const palOn = () => linked();
      ・果たし合い・陣中見舞も同じ釦から
 
    マイフレンドに出るのは **双方が頷いた相手だけ**。
-   平定しただけでは出ない。
-
-   2026-10-08（悠さんの指図）：**引き継ぎをやめ、引き継いだぶんも片づけた**。
-   2026-10-06 に「一覧がいきなり空になると驚くので」と、平定ぶんを
-   そのままマイフレンドへ流し込む仕掛け（palMoved）を入れていた。
-   その結果、**願いを出してもいない主が48人も並んでいた**（悠さんの実測）。
-   頷き合っていない相手が友の一覧に居るのは、そもそもおかしい。
-   一度だけ `P.palNpc` を空にして、これからは願い→受けるを通った相手だけにする。
-   外れた主は「友を探す」に戻るので、また願いを出せばよい */
+   平定しただけでは出ない（前は出ていた）。
+   ただし、これまで平定ぶんが並んでいた人の一覧がいきなり空になると驚くので、
+   新しい作りに移るときに一度だけ そのまま引き継ぐ（palMoved の印）。 */
 function npcMigrate() {
-  if (P.palNpcV2) return;
-  P.palNpcV2 = 1;
-  P.palNpc = [];          // 平定だけで並んでいたぶんを片づける（一度きり）
-  P.palMoved = 1;         // 古い引き継ぎが二度と走らないよう印は立てたままにする
+  if (P.palMoved) return;
+  P.palMoved = 1;
+  if (!Array.isArray(P.palNpc)) P.palNpc = [];
+  for (const x of PREFS) {
+    if (!prefTaken(x.id)) continue;
+    if (x.id === (P.camp.start || 'aichi')) continue;
+    if (!P.palNpc.includes(x.id)) P.palNpc.push(x.id);
+  }
   savePlayer();
 }
 /* 国の主の主番号。国の印から決め打ちで作るので、いつ見ても同じ番号になる */
@@ -3114,62 +3062,6 @@ const npcPals = () => {
   return PREFS.filter(x => set.has(x.id));
 };
 const npcPalIds = () => new Set(npcPals().map(x => x.id));
-/* ---- 番付で知り合った相手（2026-10-09・悠さんの指図）----
-   番付の相手の札から「友になる」を押せるようにした。
-   番付の顔ぶれは月ごとに組み替わるので、**友になった時点の姿をまるごと控える**。
-   控えないと、来月には同じ番号（n0_12 など）が別の犬を指してしまう。
-   控えてあるぶんは番付とは切り離されて、ずっとその人のまま。
-
-   見た目も手ざわりも 国の主とまったく同じにする ── 願い、待ち、在／留守、
-   見舞、果たし合い、留守の陣。どれが人でどれが NPC か、遊ぶ人には分からない */
-const rkPals = () => (P.palRk || []);
-const rkPalOf = id => rkPals().find(x => x.id === id) || null;
-/* 位は総合力から。番付の組は lv を持たないので、強さから見立てる */
-const rkPalLv = x => Math.max(1, Math.min(200, Math.round((x.power || 0) / 110)));
-function rkFriendCard(x) {
-  const team = rkTeamOf(x);
-  const gen = team[0] || null;
-  return { id: x.id, npc: true, rk: x, tag: npcTag(x.id), name: x.name, lv: rkPalLv(x),
-           face: gen, gen, away: npcAway(x.id), team: 1 };
-}
-/* 友になっている NPC を番号で引く（2026-10-09）。
-   国の主（県）と 番付の相手（控え）の二種類があるので、ここで吸収する。
-   pref があれば国の主、rk があれば番付の相手 */
-function npcFriendOf(id) {
-  const x = rkPalOf(id);
-  if (x) return { rk: x, pref: null, name: x.name, team: rkTeamOf(x) };
-  const fr = frOf(id);
-  return fr ? { rk: null, pref: fr.pref, name: fr.name, team: fr.team } : null;
-}
-/* 番付の相手に出した願い。国の主と同じく 15〜45秒ほどで必ず受ける */
-const rkAsks = () => Object.keys(P.palRkAsk || {});
-function rkAskTick() {
-  const m = P.palRkAsk || {};
-  const now = Date.now();
-  let moved = false;
-  for (const id of Object.keys(m)) {
-    const a = m[id];
-    if (!a || now < (a.at || 0)) continue;
-    delete m[id];
-    if (!Array.isArray(P.palRk)) P.palRk = [];
-    if (a.x && !P.palRk.some(y => y.id === id)) P.palRk.push(a.x);
-    moved = true;
-  }
-  if (moved) { P.palRkAsk = m; savePlayer(); }
-  return moved;
-}
-/* 番付の相手に願いを出す。押した時点の姿を控える */
-function rkAsk(npc) {
-  if (rkPalOf(npc.id)) { S.rkMsg = 'もう友である'; SFX.pick(); draw(); return; }
-  const m = P.palRkAsk || (P.palRkAsk = {});
-  if (m[npc.id]) { S.rkMsg = 'すでに願いを出しておる。返事を待たれよ'; SFX.pick(); draw(); return; }
-  m[npc.id] = { at: Date.now() + 15000 + Math.floor(Math.random() * 30000),
-                x: { id: npc.id, name: npc.name, power: npc.power, pick: npc.pick,
-                     tier: rkState().tier, at: Date.now() } };
-  savePlayer();
-  S.rkMsg = `${npc.name} に願いを出した。相手の返事を待つ`;
-  SFX.pick(); draw();
-}
 /* 願いを出して、返事を待っている国の主（2026-10-06）。
    本物と同じく少し待たせる。15〜45秒ほどで必ず受ける */
 const npcAsks = () => Object.keys(P.palNpcAsk || {});
@@ -3395,11 +3287,7 @@ function palRow(c, kind) {
   }
   const row = el('div', { class: 'frrow real' + (kind === 'pal' ? ' swipe' : '') },
     el('div', { class: 'frslide' },
-      /* 顔を押すと、その人が主役に据えている武将の札が開く（2026-10-08・悠さんの指図）。
-         強さが分かるので、願いを出すかどうかの目安になる。
-         friend でも find でも同じ ── どちらが人かで手ざわりを変えない */
-      el('button', { class: 'frfaceb', title: `${c.name} の主役を見る`,
-        onclick: e => { e.stopPropagation(); frPeek(c); } }, frFace(c.face)),
+      frFace(c.face),
       el('span', { class: 'frn' },
         /* 留守の印は 名の右（2026-10-06）。
            位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */
@@ -3500,59 +3388,6 @@ function palInvite(c) {
    同じ陣には一日一度しか入れない（稽古と同じ勘定）。
    戦ったあと、相手の机に置き手紙を残す ── 相手は次に城を開いたとき、
    誰に攻められ、陣が守り切ったかを知る。そこが置き部隊の値打ち。 */
-/* ---- 友の主役を覗く（2026-10-08・悠さんの指図）----
-   顔を押すと、その人がいま主役に据えている武将の札を、**その人の育ちで**出す。
-   願いを出す前に強さが分かるので、結ぶかどうかの目安になる。
-
-   預かっているのは「育ち終わった五つの数」だけ。相手の lv も振った魂も分からないので、
-   札には数だけ重ね、**特技の位は書かない**（S.detailSt.abs の道）。
-   2026-10-07 の留守の陣と同じで、**黙って帰る道は作らない**。どの枝でも一言は出す */
-function frPeek(c) {
-  const open = (no, abs) => {
-    const ch = charOf(no);
-    if (!ch) { S.frMsg = `${c.name} の主役が引けなかった`; SFX.pick(); draw(); return; }
-    S.detail = ch.no; S.side = null; S.detailRO = true; S.detailBase = false;
-    S.detailMod = null; S.detailBuy = null;
-    S.detailSt = abs ? { abs } : null;
-    SFX.pick(); draw();
-  };
-  if (c.npc) {
-    const fr = npcFriendOf(c.id);
-    const gen = fr && (fr.team || [])[0];
-    if (!gen) { S.frMsg = `${c.name} の主役が引けなかった`; SFX.pick(); draw(); return; }
-    open(gen.no, gen.stats || null);
-    return;
-  }
-  /* 本物の主。陣を預かっていれば、その総大将を覗ける */
-  if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; SFX.pick(); draw(); return; }
-  if (c.face == null) { S.frMsg = `${c.name} はまだ主役を立てておらぬ`; SFX.pick(); draw(); return; }
-  frBusySet(true); S.frMsg = `${c.name} の主役をうかがっています…`; draw();
-  let done = false;
-  const giveUp = setTimeout(() => {
-    if (done) return;
-    done = true; frBusySet(false);
-    /* 返事が来なくても、素の札だけは開く。押して何も起きないのがいちばん悪い */
-    S.frMsg = '育ちは分からなかった。素の札を出す';
-    open(c.face, null);
-  }, 12000);
-  (async () => {
-    try {
-      const r = await palTeam(c.id);
-      if (done) return;
-      done = true; clearTimeout(giveUp); frBusySet(false);
-      const mem = ((r && r.team && r.team.members) || []);
-      const no = (r && r.team && r.team.generalNo) != null ? r.team.generalNo : c.face;
-      const m = mem.find(x => x && x.no === no) || mem[0] || null;
-      S.frMsg = m ? '' : '育ちは分からなかった。素の札を出す';
-      open(m ? m.no : c.face, (m && m.stats) || null);
-    } catch (e) {
-      if (done) return;
-      done = true; clearTimeout(giveUp); frBusySet(false);
-      S.frMsg = '繋がらなかった。素の札を出す';
-      open(c.face, null);
-    }
-  })();
-}
 /* 留守の陣（2026-10-06）。
    2026-10-07：**押しても何も出ない**という報せを受けて、
    黙って帰る道を全部ふさいだ（悠さんの実測）。どの枝でも必ず一言は出す。
@@ -3565,15 +3400,13 @@ function awayGo(c) {
   if (!canSpar(c.id)) { S.frMsg = '今日はもうその陣に入った'; SFX.pick(); draw(); return; }
   if (c.npc) {
     /* 国の主の留守。盤はこれまでの稽古とおなじものを使う（国主戦の顔ぶれ）。
-       留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る。
-       2026-10-09：番付で知り合った相手も同じ道を通す（国を持たないので盤は番付のもの） */
-    const fr = npcFriendOf(c.id);
+       留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る */
+    const fr = frOf(c.id);
     if (!fr || !(fr.team || []).length) {
       S.frMsg = `${c.name} の陣が引けなかった`; SFX.pick(); draw(); return;
     }
     S.fr = false; S.frId = null; S.frMsg = '';
-    if (fr.rk) startBattle(null, null, null, { npc: fr.rk, friendly: true, away: true });
-    else startBattle(null, null, { id: c.id, pref: fr.pref, duel: false, away: true });
+    startBattle(null, null, { id: c.id, pref: fr.pref, duel: false, away: true });
     return;
   }
   if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; SFX.pick(); draw(); return; }
@@ -3624,19 +3457,7 @@ function awayGo(c) {
 
 /* 「友を探す」に並ぶぶんだけを組む（2026-10-06）。
    さがす一行から、ここだけを入れ替える。入れ物ごと作り直さないので、
-   かな漢字の変換が途中で消えない。
-
-   2026-10-08（悠さんの指図）：**探す場から「見せてもらう場」に変えた。**
-   番号を知らない相手は探しようがないので、まだ結んでいない主を
-   こちらから **混ぜて八人ずつ** 差し出す。顔を見て、強そうなら願いを出す。
-   「ほかの主を見る」でいつでも顔ぶれが入れ替わる。
-   さがす一行は残してある（番号を聞いた相手を名指しで呼べるように）。
-
-   本物と国の主は **混ぜて並べる**。どちらが人か分からないほうがよい、の決まり通り。
-   並びは種で決まるので、描き直しのたびに入れ替わったりはしない */
-const FR_PICK = 8;
-let FR_SEED = (Date.now() >>> 0);
-const frShuffle = () => { FR_SEED = (Math.imul(FR_SEED ^ 0x9e3779b9, 2654435761) >>> 0) || 1; };
+   かな漢字の変換が途中で消えない */
 function frFindEl() {
   const npcIds = npcPalIds();
   const askIds = new Set(npcAsks());
@@ -3644,33 +3465,17 @@ function frFindEl() {
                                  && x.id !== (P.camp.start || 'aichi')).map(npcCard);
   const q = (S.frQ || '').trim();
   const QU = q.toUpperCase();
-  const all = [...PAL_FIND, ...npcFind];
-  /* 名や番号を打ったときは、探し場として振る舞う（これまでどおり） */
-  if (q) {
-    const find = all.filter(c => String(c.name).includes(q) || (c.tag || '').includes(QU)).slice(0, 60);
-    return find.length ? find.map(c => palRow(c, 'find'))
-                       : [el('p', { class: 'frnote' }, 'その字で見つかる主はおらぬわん')];
-  }
-  if (!all.length) return [el('p', { class: 'frnote' }, 'いまは結べる主がおらぬわん')];
-  /* 打っていないときは、種から決まる並びで八人だけ差し出す。
-     種は「ほかの主を見る」を押したときだけ動くので、描き直しでは揺れない */
-  let h = FR_SEED >>> 0;
-  const rnd = () => { h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0; return h / 4294967296; };
-  const pool = all.slice();
-  const pick = [];
-  while (pick.length < FR_PICK && pool.length) pick.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
-  return [
-    ...pick.map(c => palRow(c, 'find')),
-    el('button', { class: 'ghost wide frmore',
-      onclick: () => { frShuffle(); palTick(true); SFX.pick(); draw(); } }, 'ほかの主を見る'),
-  ];
+  const hit = (c) => !q || String(c.name).includes(q) || (c.tag || '').includes(QU);
+  /* 本物のプレイヤーを先に出す（2026-10-06）。探すときも人が先 */
+  const find = [...PAL_FIND, ...npcFind].filter(hit).slice(0, 60);
+  return find.length ? find.map(c => palRow(c, 'find'))
+                     : [el('p', { class: 'frnote' }, 'その字で見つかる主はおらぬわん')];
 }
 
 function frSheet() {
   const close = () => { S.fr = false; S.frMsg = ''; draw(); };
   palTick();
   npcAskTick();
-  rkAskTick();        // 番付で出した願いも、ここで受けてもらう（2026-10-09）
   npcBackTick();
   const my = S.frTab !== 'find';
   const t = frTotal();
@@ -3678,9 +3483,6 @@ function frSheet() {
   /* 国の主も本物と同じ形にそろえる（2026-10-06） */
   const npcMine = npcPals().map(npcCard);
   const npcSent = PREFS.filter(x => askIds.has(x.id)).map(npcCard);
-  /* 番付で知り合った相手も、まったく同じ形で並べる（2026-10-09） */
-  const rkMine = rkPals().map(rkFriendCard);
-  const rkSent = rkAsks().map(id => ((P.palRkAsk || {})[id] || {}).x).filter(Boolean).map(rkFriendCard);
   /* 「友を探す」の並びは frFindEl が組む（2026-10-06）。ここでは作らない */
   const asks = PAL.asks;
   const askN = asks.length;
@@ -3688,8 +3490,8 @@ function frSheet() {
      本物のプレイヤーが先、そのあと国の主。
      本物どうしは「最後にゲームを開いた刻」の新しい順 ── いま遊んでいる人が上に来る。
      果たし合いを申し込むなら、さっきまで居た人のほうが受けてもらえる */
-  const mine = [...[...PAL.pals].sort((x, y) => (y.seen || 0) - (x.seen || 0)), ...npcMine, ...rkMine];
-  const sent = [...PAL.sent, ...npcSent, ...rkSent];
+  const mine = [...[...PAL.pals].sort((x, y) => (y.seen || 0) - (x.seen || 0)), ...npcMine];
+  const sent = [...PAL.sent, ...npcSent];
   if (!my) softSet('frbody', frFindEl);   // さがす一行から入れ替える場所（2026-10-06）
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 frbox' },
@@ -3742,7 +3544,7 @@ function frSheet() {
 
         : el('div', {},
           el('b', { class: 'frhd' }, '友を探す'),
-          el('p', { class: 'frnote' }, 'まだ結んでいない主たち。顔を押すと主役の札が見られる'),
+          el('p', { class: 'frnote' }, 'まだ結んでいない主たち。主番号か名でも探せる'),
           el('div', { class: 'frlist', id: 'frbody' }, ...frFindEl())),
       closeX(close)));
 }
@@ -4291,7 +4093,7 @@ function screenPower() {
   const awakeBody = () => st.awake >= AWAKE_MAX
     ? el('p', { class: 'note' }, 'これ以上は覚醒できない')
     : el('div', {},
-        el('p', { class: 'note' }, `つぎの覚醒で、レベルの上限が ${LV_CAP[st.awake + 1] + (st.awake + 1 >= AWAKE_MAX ? trBonus(c.no).lv : 0)} まで開く`),
+        el('p', { class: 'note' }, `つぎの覚醒で、レベルの上限が ${LV_CAP[st.awake + 1] + trBonus(c.no).lv} まで開く`),
         /* 品は絵だけを横に並べ、数は絵の下に置く（2026-09-25） */
         el('div', { class: 'akmats' }, ak.rows.map(x =>
           el('div', { class: 'akm' + (x.ok ? ' ok' : '') },
@@ -5816,12 +5618,7 @@ function cardStatOverlay(c, ro, mod) {
   /* 取引所の品は、売り主が育てた値で出す（2026-10-01）。
      持ち物ではないので grownStats は使えない。式は grownStats と同じ */
   const ds = S.detailSt;
-  /* abs ＝ 育った値そのもの（2026-10-08）。
-     友の主役を覗くときに使う。相手の lv や振った魂は手元に無く、
-     預かっているのは「育ち終わった五つの数」だけなので、そのまま出す。
-     取引所の品はこれまでどおり lv と魂から組み立てる（ds.lv / ds.sp） */
-  const g = (ds && ds.abs) ? ds.abs
-    : ds ? (() => {
+  const g = ds ? (() => {
         const base = c.stats || {}, mul = 1 + ((ds.lv || 1) - 1) * 0.02, o = {};
         for (const s of SP_STATS) o[s] = Math.round((base[s] || 0) * mul) + ((ds.sp || {})[s] || 0);
         return o;
@@ -5894,11 +5691,7 @@ function cardSheet(c) {
          一の枠（固有◆）に位は無く、空いている枠にも出さない */
       const sl = slotsOf(c);
       const ds2 = S.detailSt;
-      /* 位が分からないときは **書かない**（2026-10-08）。
-         友の主役を覗くときは、預かっているのが数だけで 特技の位は分からない。
-         それを Lv.1/3 と書いてしまうと嘘になる。null なら下で飛ばす */
-      const sk = (ds2 && ds2.abs && !ds2.sk) ? null
-        : ds2 ? (ds2.sk || [1, 1, 1])
+      const sk = ds2 ? (ds2.sk || [1, 1, 1])
         : (!cardRaw() && P.own.includes(c.no)) ? skillLvOf(c.no) : [1, 1, 1];
       const k = lay.sk, patch = k ? cardPatchUrl(c.no) : null;
       /* 取引所の品は 焼いた技のまま見せる（2026-10-01）。
@@ -5920,7 +5713,7 @@ function cardSheet(c) {
            これなら持っていない武将の札でも同じ判定で通る */
         const cur = moved ? now : sl[t.slot];
         const nmNow = (cur && cur.sk && cur.sk.name) || t.baked || '';
-        if (sk && t.slot && cur && !nmNow.includes('◆')) out.push(el('b', {
+        if (t.slot && cur && !nmNow.includes('◆')) out.push(el('b', {
           class: 'clv lv',
           style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};font-size:${fs(t.size)}`,
         }, `Lv.${sk[t.slot] || 1}/3`));
@@ -6475,81 +6268,9 @@ const HELP = [
 
 /* 帯の絵。app/assets/news/<art>.png（1080×300）。無ければ帯は出ない */
 const newsUrl = n => {
-  if (!n.art) return null;
-  /* 2026-10-08：ウェブ版は webp に焼き直すので、両方の尻尾を見る。
-     .png だけを見ていたので、ウェブでは記事の帯が一枚も出ていなかった */
-  for (const ext of ['.webp', '.png'])
-    if ((MANIFEST.news || []).includes(n.art + ext)) return `assets/news/${n.art}${ext}`;
-  return null;
+  const f = (n.art || '') + '.png';
+  return n.art && (MANIFEST.news || []).includes(f) ? `assets/news/${f}` : null;
 };
-/* ---- 城に入るたびのお知らせ札（2026-10-08・悠さんの指図）----
-   開くたび、まだ知らせたい一枚絵を順に出す。**画面のどこを押しても次へ、最後で消える。**
-   「今日は出さない」の釦は置かない（悠さんの指図で、毎回出すことにした）。
-   絵が無ければ一枚も出さない ── 「絵が無くても動く」を崩さない。
-   押したらその場へ飛ぶ道も付けない。見て、閉じて、遊びに戻るだけ */
-const AD_CARDS = [
-  { art: 'login_duel',  name: '友人対戦' },
-  { art: 'login_tower', name: '試練の塔' },
-];
-/* ---- その日のお祭りの札（2026-10-09・悠さんの指図）----
-   「この画像を各イベントの日に合わせてログイン時のポップアップに表示して」。
-   平日は武将覚醒の属性ごとに一枚（月猛将／火智将／水守将／木仁将／金神速）、
-   土日は特技強化と武士の魂の二枚。曜日は event.js の AWAKE_DAY と
-   evShownToday が持っているので、**こちらで曜日を書かない**。
-   並びを変えたときに札だけ嘘をつくのを避けるため。
-   絵が無い日は札を出さない（adUrl が null を返すと adList が落とす）。
-   お祭りの札を先に、ふだんの知らせ（友人対戦・試練の塔）を後ろに置く。
-   その日だけのものを先に見せたい */
-function festCards() {
-  const out = [];
-  const aw = evOf('awake');
-  if (aw && evShownToday(aw))
-    for (const a of awakeAttrsToday()) out.push({ art: 'fest_awake_' + a, name: a + '覚醒の日' });
-  if (isWeekend()) {
-    const tr = evOf('train'), so = evOf('daily_soul');
-    if (tr && evShownToday(tr)) out.push({ art: 'fest_train', name: '特技強化の日' });
-    if (so && evShownToday(so)) out.push({ art: 'fest_soul', name: '武士の魂獲得の日' });
-  }
-  return out;
-}
-/* ウェブ版は絵を webp に焼き直すので、両方の尻尾を見る（2026-10-08）。
-   .png だけを見ていると、ウェブでは札が一枚も出ない */
-const adUrl = a => {
-  for (const ext of ['.webp', '.png'])
-    if ((MANIFEST.news || []).includes(a + ext)) return `assets/news/${a}${ext}`;
-  return null;
-};
-const adList = () => festCards().concat(AD_CARDS).filter(x => adUrl(x.art));
-/* 一度の立ち上げにつき一度だけ（2026-10-08）。
-   覚えは残さない ── 開き直せばまた出る、が「毎回ログインのたび」の意味 */
-let AD_DONE = false;
-function adOpen() {
-  if (AD_DONE) return;
-  AD_DONE = true;
-  /* 手引きのさなかと はじまりの物語のあいだは出さない。
-     釦が止まっている上に札を重ねると、どこを押せばよいか分からなくなる */
-  if (guideOn() || S.opening || !P.name) return;
-  if (!adList().length) return;
-  S.ad = 0;
-}
-function adSheet() {
-  const list = adList();
-  const i = S.ad || 0;
-  const c = list[i];
-  if (!c) { S.ad = null; return null; }
-  const next = () => {
-    if (i + 1 < list.length) { S.ad = i + 1; SFX.pick(); }
-    else { S.ad = null; SFX.pick(); }
-    draw();
-  };
-  return el('div', { class: 'sheet adsheet', onclick: next },
-    el('div', { class: 'adbox' },
-      keepImg({ class: 'adart', src: adUrl(c.art), alt: c.name }),
-      /* 何枚あって今どれかを、小さな丸で出す（二枚目があると分かる） */
-      list.length > 1 ? el('div', { class: 'addots' },
-        list.map((_, j) => el('i', { class: j === i ? 'on' : '' }))) : null,
-      el('p', { class: 'adhint' }, i + 1 < list.length ? '画面を押すと次へ' : '画面を押すと閉じる')));
-}
 const newsOf = id => NEWS.find(n => n.id === id) || null;
 const newsRead = n => (P.newsRead || []).includes(n.id);
 const newsUnread = () => NEWS.filter(n => !newsRead(n)).length;
@@ -8410,7 +8131,7 @@ function resolve() {
   const grown = grownFor;
   /* 一騎打ちは、たがいの総大将ひとりずつだけで解く（2026-09-30）。
      並び順の指定（slots）は一体には要らないので外す */
-  const duel = !!((b.spar && b.spar.duel) || (b.bout && b.bout.duel));
+  const duel = !!(b.spar && b.spar.duel);
   const mine = duel ? S.picked.filter(m => m.no === S.general).slice(0, 1) : S.picked;
   const foes = duel ? b.B.slice(0, 1) : b.B;
   b.res = runBattle(
@@ -8976,7 +8697,6 @@ function drawBattle() {
                  : BATTLE.ev ? EV_FOOD[BATTLE.ev.rank]
                  : FOOD_COST;
       BATTLE.reward = BATTLE.duel ? null       // 果たし合いに褒美は無い（2026-10-05）
-                    : (BATTLE.bout && BATTLE.bout.friendly) ? sparReward(won0)   // 友との手合わせ（2026-10-09）
                     : BATTLE.bout ? null
                     : BATTLE.tw ? null
                     : BATTLE.away ? sparReward(won0)
@@ -9016,16 +8736,7 @@ function drawBattle() {
         try { palRaid(BATTLE.away.id, won0); } catch (_) {}
       }
       // 番付の点はその場で動く（2026-09-25）。挑まれたぶんは日が変わってからまとめて
-      /* 友との手合わせ（friendly）は点を動かさない（2026-10-09）。
-         番付で知り合った相手と遊んでいるだけなので、番付の格には関わらせない。
-         勝敗は友ごとの戦績に積む ── 国の主との稽古とそろえる */
-      if (BATTLE.bout && !BATTLE.bout.friendly) BATTLE.boutPt = rkFinish(BATTLE.bout, res.winner === 'A');
-      if (BATTLE.bout && BATTLE.bout.friendly) {
-        const f = frState(BATTLE.bout.npc.id);
-        if (res.winner === 'A') f.win++; else f.lose++;
-        f.spar = today();
-        savePlayer();
-      }
+      if (BATTLE.bout) BATTLE.boutPt = rkFinish(BATTLE.bout, res.winner === 'A');
       if (!BATTLE.duel) miAfterWin(won0);    // お役目の数（2026-10-02／果たし合いは数えない）
       if (BATTLE.evWon) miEvMat(BATTLE.evWon);
       if (BATTLE.twWon) miBump('twOk');
@@ -9324,13 +9035,11 @@ function resSheet() {
     /* 褒美を受け取り終えたら閉じる（2026-09-23）。
        天下統一の道の一戦は、終わった盤面に戻っても何もできないので、そのまま全国へ返す。
        戦場を選んで戦う一戦（camp なし）は、もう一戦できるので盤面に残す */
-    const toMap = !!BATTLE.camp, toEv = !!BATTLE.ev;
-    /* 友との手合わせ（番付で知り合った相手）は、番付ではなく友へ戻す（2026-10-09） */
-    const toFr = (BATTLE.spar && BATTLE.spar.id) || (BATTLE.bout && BATTLE.bout.friendly);
+    const toMap = !!BATTLE.camp, toEv = !!BATTLE.ev, toFr = BATTLE.spar && BATTLE.spar.id;
     /* 留守の陣のあとは 友の一覧へ返す（2026-10-06）。
        本物の友には「家」が無いので、家ではなく一覧をそのまま開く */
     const toAway = !!(BATTLE.away && BATTLE.away.id);
-    const toRk = !!BATTLE.bout && !BATTLE.bout.friendly, rkD = BATTLE.boutPt;
+    const toRk = !!BATTLE.bout, rkD = BATTLE.boutPt;
     /* 塔は必ず塔へ返す（2026-10-01）。抜けたなら褒美を、届かなかったなら
        何が足りなかったかを、そのまま塔の画面に出す */
     const toTw = !!BATTLE.tw;
@@ -9430,7 +9139,7 @@ function resSheet() {
       el('p', { class: 'rsub' }, S.res.skip ? '早送りで決着' : `${S.res.reason}　残兵量 ${num(S.res.ta)} 対 ${num(S.res.tb)}`),
       rewardRow(rw, rw && rw.exp),
       /* 番付は褒美のかわりに、動いた点を出す（2026-09-25）*/
-      (BATTLE.bout && !BATTLE.bout.friendly) ? el('div', { class: 'rw' },
+      BATTLE.bout ? el('div', { class: 'rw' },
         el('span', {}, `番付　${BATTLE.boutPt > 0 ? '+' : ''}${BATTLE.boutPt} pt`)) : null,
       rw && rw.lvUp ? el('p', { class: 'rlv' }, `Lv.${P.lv} に上がった`) : null);
   } else if (kind === 'taken') {
@@ -11137,7 +10846,7 @@ function trStart(no, i) {
   const who = trWho(no); if (!who) return;
   const kinds = trKindsOf(who);
   P.trail.cur = no;
-  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf);
+  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0);
   S.trSel = null; S.trTgt = 0; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
   S.screen = 'trfight'; SFX.start(); draw();
 }
@@ -11198,15 +10907,13 @@ function trPickSheet() {
 }
 
 /* ---- 戦のさなか ---- */
-/* 敵の次の一手（2026-10-09）。どの札を切るかは裏で決めるので、
-   見せるのは 攻める／守る／昂る の別と、攻めるときの重さだけ */
-const TR_IT_MARK = { atk: '攻', guard: '守', buff: '昂' };
+const TR_IT_MARK = { atk: '斬', guard: '構', heal: '癒' };
 function trIntentEl(f) {
   const it = f.it; if (!it || f.hp <= 0) return el('span', { class: 'trit none' });
   if (f.stun) return el('span', { class: 'trit stun' }, 'ひるみ');
   return el('span', { class: 'trit ' + it.k + (it.ult ? ' ult' : '') },
     el('i', {}, it.ult ? '奥' : TR_IT_MARK[it.k] || '？'),
-    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.k === 'guard' ? '守る' : '昂る');
+    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.w);
 }
 function trBar(hp, mx, blk) {
   return el('div', { class: 'trbar' },
@@ -11220,7 +10927,7 @@ function trFloat(list) {
     el('b', { class: 'fx-' + e.t }, e.t === 'hit' ? (e.n ? `-${e.n}` : '防') : e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
       : e.t === 'heal' || e.t === 'fheal' ? `+${e.n}` : e.t === 'blk' || e.t === 'fblk' ? `構${e.n}`
       : e.t === 'ko' ? '討' : e.t === 'stun' ? 'ひるみ' : e.t === 'dodge' ? 'かわした' : e.t === 'skip' ? '…'
-      : e.t === 'revive' ? '踏みとどまった' : e.t === 'fbuff' ? '昂る' : ''))) : null;
+      : e.t === 'revive' ? '踏みとどまった' : ''))) : null;
 }
 function screenTrFight() {
   const F = P.trail.fight;
@@ -11253,7 +10960,6 @@ function screenTrFight() {
   const tags = [
     pl.might ? '勢い' : null, pl.weak ? '削がれ' : null, pl.dodge ? 'かわし' : null, pl.crit ? '冴え' : null,
     pl.thorns ? '返し' : null, pl.revive ? '踏ん張り' : null, pl.charge ? '奥義が軽い' : null,
-    pl.crack ? '崩れ' : null, pl.burnT > 0 ? '炎' : null, pl.seal ? '封' : null, pl.daze ? 'ひるみ' : null,
   ].filter(Boolean);
   return {
     body: el('div', { class: 'trfight' },
@@ -11274,7 +10980,7 @@ function screenTrFight() {
         keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
         el('b', { class: 'trfn' }, f.name),
         trBar(f.hp, f.mx, f.blk),
-        el('div', { class: 'trtags' }, [f.mom > 0 ? '昂り' : null, f.pump ? '溜め' : null, f.thorns ? '返し' : null, f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
+        el('div', { class: 'trtags' }, [f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
         trFloat(trFxOf('foe', i))))),
       el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
         keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),
@@ -11525,9 +11231,6 @@ function draw() {
                            S.fr = !!h.fr; S.frId = h.frId != null ? h.frId : null; S.rk = !!h.rk;
                            SFX.pick(); draw(); } }, '← 戦へ')
       : null,
-    /* 城に入るたびのお知らせ札は いちばん上（2026-10-08）。
-       ほかの札より手前に出さないと、裏に隠れて押せない */
-    S.ad != null ? adSheet() : null,
     S.keepAsk ? keepAskSheet() : null,
     S.keepMsg ? el('div', { class: 'sheet', onclick: () => { S.keepMsg = ''; draw(); } },
       el('div', { class: 'card2 keepbox' },

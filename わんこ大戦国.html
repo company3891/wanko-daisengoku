@@ -5937,6 +5937,25 @@ button.mkpv:active{transform:translateY(1px)}
 /* 「ほかの主を見る」（2026-10-08） */
 .frmore{margin-top:8px}
 
+/* 敵の一手は 攻・守・昂 の三つ（2026-10-09） */
+.trit.buff { background: #3a2f12; color: #f5e2a8; } .trit.buff i { background: #d8a94a; color: #12100e; }
+.trfx .fx-fbuff { text-shadow: 0 2px 3px #000, 0 0 6px #d8a94a; font-size: 15px; }
+
+/* 右下の正方形の座を横一列に（2026-10-09・悠さんの指図）。
+   お役目とミニゲーム（落ち延び道中）を同じ大きさで並べる。
+   .hmb 側が left:-8px / top:12px でずらしているので、
+   並びの箱のほうでは何も動かさない（二重にずれると右はしが合わない） */
+.home .hmenu.bottom .hmsq{display:flex;align-items:flex-end;gap:10px}
+@media (max-width:380px){ .home .hmenu.bottom .hmsq{gap:7px} }
+/* 絵がまだ無い座の名札は、正方形の幅に収める（置いたら消えるので仮の備え） */
+.home .hmenu.bottom .hmsq .hmb .hml{max-width:69px;overflow:hidden;text-overflow:ellipsis}
+
+/* 自分の手で受け取る一つ（2026-10-09）。門出の仕上げの褒美だけ。
+   「まとめて頂戴」では取れないので、そこに大きいものが残っていると気づける */
+.mirow.solo{border-color:#d8a94a99;background:linear-gradient(180deg,#d8a94a1f,#d8a94a0a)}
+.mirow.solo .mig.on{animation:miglow 1.6s ease-in-out infinite}
+@keyframes miglow{0%,100%{box-shadow:0 0 0 0 #d8a94a00}50%{box-shadow:0 0 0 4px #d8a94a3d}}
+
 </style>
 </head>
 <body>
@@ -12610,8 +12629,12 @@ const MISSIONS = [
   { id: 'f_up',    tab: '門出', key: 'up',    goal: 1, text: '特技を強くするワン！',       rw: { items: { '相伝の護符・中': 1 } } },
   { id: 'f_inh',   tab: '門出', key: 'inh',   goal: 1, text: '特技を継がせるワン！',       rw: { ticket: 3 } },
   { id: 'f_evOk',  tab: '門出', key: 'evOk',  goal: 1, text: '催しに勝つワン！',           rw: { stone: 300 } },
-  /* 上の八つが「済んだら」灯る。受け取りは待たない（まとめて頂戴で一度に取れる） */
-  { id: 'f_all',   tab: '門出', key: 'kadode', goal: 8, text: '門出のお役目をぜんぶ果たすワン！', rw: { stone: 3000 } },
+  /* 上の八つが「済んだら」灯る（受け取りは待たない）。
+     2026-10-09（悠さんの指図）：**ここの石3000だけは「まとめて頂戴」では取れない。**
+     手引きを抜けた褒美がいちばん大きいのに、ほかの八つに紛れて
+     黙って入ってくるのでは、もらった気がしない。solo を立てた札は
+     miTakeAll が飛ばすので、自分の手でこの一つを押すことになる */
+  { id: 'f_all',   tab: '門出', key: 'kadode', goal: 8, solo: true, text: '門出のお役目をぜんぶ果たすワン！', rw: { stone: 3000 } },
 
   /* ---- 日課（2026-10-02 に十に組み直した）----
      どれも「一日のうちに ひとまわり触れる」ところを一つずつ。
@@ -14447,16 +14470,37 @@ function trDeckOk(d, kinds) {
   return trDeckCount(d) === TR_DECK;
 }
 
-/* ================= 敵 ================= */
+/* ================= 敵 =================
+   敵も同じ武将の札を持つ（2026-10-09・悠さんの指図）。
+   どの札を切るかは裏で決め、こちらには「何をしてくるか」だけを見せる。
+   一手ごとに 攻める → 守る → 昂る を巡る。並びは敵ごとにずらして、そろって守らないようにする */
 const TR_POOL_RAR = i => i < 5 ? ['N', 'R'] : i < 15 ? ['N', 'R', 'SR'] : i < 25 ? ['R', 'SR', 'SSR'] : ['SR', 'SSR', 'UR'];
-function trFoe(ch, mul, boss) {
+const TR_FOE_CYCLE = ['atk', 'guard', 'buff'];
+/* 敵の札を三つの袋に分ける。札そのものの数ではなく「何をする札か」だけを覚える */
+function trFoeCards(ch, starOf) {
+  const bag = { atk: [], guard: [], buff: [] };
+  for (const kd of trKinds(ch, starOf)) {
+    const t = kd.sk.text || '';
+    const r = kd.kind === 'ult' ? trRider(t.replace(/ダメージ/g, '')) : trRider(t);
+    const c = { key: kd.key, kind: kd.kind, r, cost: kd.cost, all: /全体/.test(t) };
+    if (kd.kind === 'ult') {
+      if (/回復/.test(t) && !/ダメージ/.test(t)) bag.guard.push({ ...c, heal: true });
+      else bag.atk.push({ ...c, ult: true });
+    } else if (kd.kind === 'gen' || ['might', 'crit', 'charge', 'revive', 'draw'].includes(r)) bag.buff.push(c);
+    else if (['cover', 'thorns', 'dodge', 'wall', 'mend'].includes(r)) bag.guard.push({ ...c, heal: r === 'mend' });
+    else bag.atk.push(c);
+  }
+  return bag;
+}
+function trFoe(ch, mul, boss, ph, starOf) {
   const st = {};
   for (const k of ['火力', '賢さ', '防御', '回復', '速さ']) st[k] = (ch.stats[k] || 0) * mul;
   const hp = trR((trS(st['防御']) + trS(st['回復'])) * (boss ? 4.2 : 1.55));
   return { no: ch.no, name: ch.name, attr: ch.attr, rarity: ch.rarity, st, hp, mx: hp, blk: 0,
-           boss: !!boss, weakT: 0, vuln: 0, stun: 0, burn: 0, burnT: 0, seal: 0, mom: 0, t: 0, it: null };
+           boss: !!boss, weakT: 0, vuln: 0, stun: 0, burn: 0, burnT: 0, seal: 0, mom: 0, pump: 0,
+           t: 0, ph: ph || 0, it: null, ult: 0, cards: trFoeCards(ch, starOf) };
 }
-function trFoes(i, all, meNo) {
+function trFoes(i, all, meNo, starOf) {
   const s = TR_STORY[i];
   const F = { rs: (i + 1) * 7919 + (meNo || 0) * 104729 };      // 顔ぶれは話と武将で決め打ち
   const me = all.find(c => c.no === meNo);
@@ -14468,8 +14512,8 @@ function trFoes(i, all, meNo) {
   const out = [];
   if (s.boss) {
     const b = all.find(c => c.no === s.boss);
-    if (b && (!me || b.origin !== me.origin)) out.push(trFoe(b, mul * 1.15, true));
-    else { const alt = all.filter(c => c.rarity === 'UR' && away(c)); if (alt.length) out.push(trFoe(alt[trInt(F, alt.length)], mul * 1.15, true)); }
+    if (b && (!me || b.origin !== me.origin)) out.push(trFoe(b, mul * 1.15, true, 0, starOf));
+    else { const alt = all.filter(c => c.rarity === 'UR' && away(c)); if (alt.length) out.push(trFoe(alt[trInt(F, alt.length)], mul * 1.15, true, 0, starOf)); }
   }
   const want = s.n + out.length;
   const used = new Set(out.map(f => (all.find(c => c.no === f.no) || {}).origin));
@@ -14478,33 +14522,55 @@ function trFoes(i, all, meNo) {
     pool = pool.filter(x => x !== c);
     if (used.has(c.origin)) continue;
     used.add(c.origin);
-    out.push(trFoe(c, mul, false));
+    out.push(trFoe(c, mul, false, out.length, starOf));
   }
   return out;
 }
 
-/* 敵の構え（次に何をするか）。属性で癖を変え、手番ごとに巡らせる。
-   こちらには毎ターン見えている（何をしてくるかを読んで札を選ぶ遊びなので） */
+/* 次の一手。巡りの番に合う袋から、裏で札を一枚えらぶ。
+   袋が空なら、属性なりの素の動きに落ちる（絵や札が足りなくても動く、と同じ考え方） */
 function trIntent(F, f) {
-  const atk = trS(Math.max(f.st['火力'], f.st['賢さ'])) * 0.42;
-  const k = f.t % 3;
-  if (f.boss && k === 2) return { k: 'atk', n: trR(atk * 2.1), w: '奥義', ult: true };
-  switch (f.attr) {
-    case '猛将': return k === 1 ? { k: 'atk', n: trR(atk * 0.62), x: 2, w: '二連' } : { k: 'atk', n: trR(atk * 1.15), w: '斬る' };
-    case '智将': return k === 1 ? { k: 'atk', n: trR(atk * 0.7), weak: 2, w: '策' } : { k: 'atk', n: trR(atk * 0.95), w: '打つ' };
-    case '守将': return k === 0 ? { k: 'guard', n: trR(trS(f.st['防御']) * 1.1), w: '構える' } : { k: 'atk', n: trR(atk * 0.9), w: '打つ' };
-    case '仁将': {
-      const hurt = F.foes.some(x => x.hp > 0 && x.hp < x.mx * 0.7);
-      return (k === 1 && hurt && !f.seal) ? { k: 'heal', n: trR(trS(f.st['回復']) * 1.0), w: '手当' }
-                                          : { k: 'atk', n: trR(atk * 0.85), w: '打つ' };
-    }
-    default: return { k: 'atk', n: trR(atk * 0.4), x: 3, w: '三連' };
+  const want = TR_FOE_CYCLE[(f.t + f.ph) % 3];
+  const bag = (f.cards && f.cards[want]) || [];
+  const atk = trS(Math.max(f.st['火力'], f.st['賢さ'])) * 0.62;
+  let c = null;
+  if (bag.length) {
+    /* 国主の奥義は、攻めの番の二度に一度だけ（毎回撃つと手の打ちようが無い） */
+    const ults = bag.filter(x => x.ult), rest = bag.filter(x => !x.ult);
+    if (ults.length && (f.boss ? f.ult % 2 === 1 : f.ult % 3 === 2)) c = ults[trInt(F, ults.length)];
+    else if (rest.length) c = rest[trInt(F, rest.length)];
+    else c = ults[0];
   }
+  if (want === 'atk') {
+    f.ult++;
+    const k = c ? (1 + 0.08 * ((c.cost || 1) - 1)) : 1;
+    const it = { k: 'atk', n: trR(atk * k * (c && c.ult ? 2.1 : 1) * (f.pump ? 1.6 : 1)), ult: !!(c && c.ult) };
+    if (f.attr === '神速' && !it.ult) { it.x = 2; it.n = trR(it.n * 0.55); }
+    if (c) {
+      if (c.r === 'stun') it.daze = 1;
+      else if (c.r === 'burn') it.burn = trR(atk * 0.3);
+      else if (c.r === 'vuln') it.crack = 2;
+      else if (c.r === 'weak') it.weak = 2;
+      else if (c.r === 'seal') it.seal = 2;
+    }
+    return it;
+  }
+  if (want === 'guard') {
+    const it = { k: 'guard', n: trR(trS(f.st['防御']) * 1.1) };
+    if (c && (c.heal || f.attr === '仁将')) it.heal = trR(trS(f.st['回復']) * 0.9);
+    if (c && c.r === 'cover') it.cover = trR(trS(f.st['防御']) * 0.5);
+    if (c && c.r === 'thorns') it.thorns = trR(trS(f.st['防御']) * 0.3);
+    return it;
+  }
+  const it = { k: 'buff', mom: 0.2 };
+  if (c && (c.r === 'crit' || c.r === 'charge')) it.pump = 1;
+  if (c && c.kind === 'gen') it.mom = 0.3;
+  return it;
 }
 
 /* ================= 戦 ================= */
 /* deck は { key: 枚数 }。kinds は trKinds の並び。seed は戦ごとに変える */
-function trBattle(i, who, kinds, deck, all, seed) {
+function trBattle(i, who, kinds, deck, all, seed, starOf) {
   const pile = [];
   let u = 0;
   for (const k of kinds) for (let n = 0; n < (deck[k.key] || 0); n++) pile.push({ u: u++, key: k.key });
@@ -14513,8 +14579,11 @@ function trBattle(i, who, kinds, deck, all, seed) {
   const F = {
     i, no: who.no, rs: (seed >>> 0) || 1, turn: 0, over: null,
     pl: { hp: mx, mx, blk: 0, might: 0, guardUp: 0, healUp: 0, drawUp: 0, weak: 0, dodge: 0,
-          thorns: 0, crit: 0, charge: 0, revive: 0 },
-    foes: trFoes(i, all, who.no),
+          thorns: 0, crit: 0, charge: 0, revive: 0,
+          /* 敵の札から受けるもの（2026-10-09）。daze＝次の手番の気が1減る／burn＝手番のはじめに焼ける
+             ／crack＝受けが重くなる／seal＝癒せない */
+          daze: 0, burn: 0, burnT: 0, crack: 0, seal: 0 },
+    foes: trFoes(i, all, who.no, starOf),
     draw: [], hand: [], disc: [], gone: [], ki: TR_KI,
   };
   F.draw = trShuffle(F, pile);
@@ -14530,8 +14599,12 @@ function trDraw(F, n) {
 /* こちらの手番の始まり */
 function trTurn(F) {
   F.turn++;
-  F.ki = TR_KI;
+  F.ki = TR_KI - (F.pl.daze ? 1 : 0); F.pl.daze = 0;
   F.pl.blk = 0; F.pl.thorns = 0;
+  if (F.pl.burnT > 0) {
+    F.pl.hp = Math.max(F.pl.revive ? 1 : 0, F.pl.hp - F.pl.burn); F.pl.burnT--;
+    if (F.pl.hp <= 0) { F.over = 'lose'; return; }
+  }
   trDraw(F, TR_HAND + (F.pl.drawUp || 0));
   for (const f of F.foes) if (f.hp > 0) f.it = trIntent(F, f);
 }
@@ -14542,6 +14615,8 @@ function trHitFoe(F, f, n, ev) {
   f.hp = Math.max(0, f.hp - d);
   ev.push({ t: 'hit', f: F.foes.indexOf(f), n: d, b });
   if (f.hp <= 0) ev.push({ t: 'ko', f: F.foes.indexOf(f) });
+  /* 守りの番に「返し」の札を切った敵は、打たれると打ち返す（2026-10-09） */
+  if (f.thorns && F.pl.hp > 0) { const r = Math.min(F.pl.hp - 1, f.thorns); if (r > 0) { F.pl.hp -= r; ev.push({ t: 'hurt', n: r, b: 0 }); } }
 }
 /* 札を使う。h は手札の何枚目、ti は狙う敵の番号。返すのは出来事の並び（画面が光らせるのに使う） */
 function trPlay(F, h, ti, who, kinds) {
@@ -14573,7 +14648,7 @@ function trPlay(F, h, ti, who, kinds) {
   }
   if (o.blk) { const b = trR(o.blk * (1 + F.pl.guardUp)); F.pl.blk += b; ev.push({ t: 'blk', n: b }); }
   if (o.heal) {
-    const h2 = Math.min(F.pl.mx - F.pl.hp, trR(o.heal * (1 + F.pl.healUp)));
+    const h2 = F.pl.seal ? 0 : Math.min(F.pl.mx - F.pl.hp, trR(o.heal * (1 + F.pl.healUp)));
     F.pl.hp += h2; ev.push({ t: 'heal', n: h2 });
   }
   if (o.thorns) F.pl.thorns += o.thorns;
@@ -14593,7 +14668,7 @@ function trPlay(F, h, ti, who, kinds) {
 function trEnd(F) { F.disc.push(...F.hand); F.hand = []; }
 function trHitMe(F, f, n, ev) {
   if (F.pl.dodge > 0) { F.pl.dodge--; ev.push({ t: 'dodge' }); return; }
-  let d = trR(n * ((f.weakT || 0) > 0 ? 0.75 : 1) * (1 + f.mom));
+  let d = trR(n * ((f.weakT || 0) > 0 ? 0.75 : 1) * (1 + f.mom) * (F.pl.crack ? 1.25 : 1));
   const b = Math.min(F.pl.blk, d); F.pl.blk -= b; d -= b;
   F.pl.hp = Math.max(0, F.pl.hp - d);
   ev.push({ t: 'hurt', n: d, b, f: F.foes.indexOf(f) });
@@ -14608,7 +14683,7 @@ function trHitMe(F, f, n, ev) {
 function trFoeAct(F, fi) {
   const f = F.foes[fi]; const ev = [];
   if (!f || f.hp <= 0 || F.over) return ev;
-  f.blk = 0;
+  f.blk = 0; f.thorns = 0;
   if (f.burnT > 0) {
     const d = Math.min(f.hp, f.burn); f.hp -= d; f.burnT--;
     ev.push({ t: 'hit', f: fi, n: d, b: 0, burn: true });
@@ -14617,13 +14692,27 @@ function trFoeAct(F, fi) {
   if (f.stun) { f.stun = 0; ev.push({ t: 'skip', f: fi }); }
   else {
     const it = f.it || trIntent(F, f);
-    ev.push({ t: 'act', f: fi, w: it.w, ult: !!it.ult });
-    if (it.k === 'atk') for (let x = 0; x < (it.x || 1) && F.pl.hp > 0; x++) trHitMe(F, f, it.n, ev);
-    if (it.weak) F.pl.weak = Math.max(F.pl.weak, it.weak);
-    if (it.k === 'guard') { f.blk += it.n; ev.push({ t: 'fblk', f: fi, n: it.n }); }
-    if (it.k === 'heal') {
-      const tg = trLive(F).sort((a, b) => a.hp / a.mx - b.hp / b.mx)[0];
-      if (tg) { const h = Math.min(tg.mx - tg.hp, it.n); tg.hp += h; ev.push({ t: 'fheal', f: F.foes.indexOf(tg), n: h }); }
+    ev.push({ t: 'act', f: fi, k: it.k, ult: !!it.ult });
+    if (it.k === 'atk') {
+      for (let x = 0; x < (it.x || 1) && F.pl.hp > 0; x++) trHitMe(F, f, it.n, ev);
+      f.pump = 0;
+      if (it.daze) F.pl.daze = 1;
+      if (it.burn) { F.pl.burn = Math.max(F.pl.burn, it.burn); F.pl.burnT = 2; }
+      if (it.crack) F.pl.crack = Math.max(F.pl.crack, it.crack);
+      if (it.weak) F.pl.weak = Math.max(F.pl.weak, it.weak);
+      if (it.seal) F.pl.seal = Math.max(F.pl.seal, it.seal);
+    } else if (it.k === 'guard') {
+      f.blk += it.n; ev.push({ t: 'fblk', f: fi, n: it.n });
+      if (it.cover) for (const g of trLive(F)) if (g !== f) { g.blk += it.cover; ev.push({ t: 'fblk', f: F.foes.indexOf(g), n: it.cover }); }
+      if (it.thorns) f.thorns = it.thorns;
+      if (it.heal && !f.seal) {
+        const tg = trLive(F).sort((a, b) => a.hp / a.mx - b.hp / b.mx)[0];
+        if (tg) { const h = Math.min(tg.mx - tg.hp, it.heal); if (h) { tg.hp += h; ev.push({ t: 'fheal', f: F.foes.indexOf(tg), n: h }); } }
+      }
+    } else {
+      f.mom = Math.min(1, f.mom + it.mom);
+      if (it.pump) f.pump = 1;
+      ev.push({ t: 'fbuff', f: fi });
     }
   }
   f.t++;
@@ -14638,6 +14727,8 @@ function trFoeAct(F, fi) {
 function trRound(F) {
   if (F.over) return;
   if (F.pl.weak > 0) F.pl.weak--;
+  if (F.pl.crack > 0) F.pl.crack--;
+  if (F.pl.seal > 0) F.pl.seal--;
   trTurn(F);
 }
 
@@ -28886,6 +28977,14 @@ const HOME_MENU = [
   /* お役目は右下の列のいちばん上（2026-09-24）。
      右手の親指が届くところに置きたいので左上から移した。
      square を立てると、横長の札の列の中でも正方形のまま右端をそろえて並ぶ */
+  /* 落ち延び道中（ミニゲーム）は **お役目の横に、同じ大きさで**（2026-10-09・悠さんの指図）。
+     square を立てた座どうしは、右下の列の上で横一列に並ぶ。
+     先に書いたほうが左。お役目は右はしの定位置のままにしたいので、こちらを先に置く。
+     label ＝ 札に出す短い名（絵が無いあいだだけ出る）。
+     69角に「落ち延び道中」は収まらないので「道中」にしてある。
+     ui/home_trail.png を置けば、名札そのものが消える */
+  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, label: '道中',
+    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
   { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
@@ -28902,9 +29001,6 @@ const HOME_MENU = [
   { side: 'BR', name: '果たし合い', mark: '果', file: 'home_duel',
     off: () => !DUEL,
     go: () => { S.dl = 'room'; S.dlMsg = ''; S.dlCode = ''; } },
-  /* 落ち延び道中（2026-10-08）。戦の途中なら、そのまま戦へ戻す */
-  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail',
-    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
   { side: 'BR', name: '番付',     mark: '番', file: 'home_ranking',
     go: () => { S.rk = true; S.rkSel = null; S.rkPz = false; S.rkPzT = null; S.rkMsg = ''; },
     badge: () => (rkState().last ? 1 : 0) },
@@ -28943,7 +29039,8 @@ function homeMenuBtn(m) {
     el('span', { class: 'hmi' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, m.mark)),
     /* 絵が無くて、名が一字の印とおなじなら、下の名札は出さない（2026-09-26）。
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
-    (art || m.noname || m.name === m.mark) ? null : el('span', { class: 'hml' }, m.name),
+    (art || m.noname || m.name === m.mark) ? null
+      : el('span', { class: 'hml' }, m.label || m.name),
     /* 未読の数を赤丸で出す（2026-09-24）。badge は数を返す関数。
        0 のときは丸そのものを出さない */
     (() => {
@@ -28958,6 +29055,16 @@ const homeMenu = side => {
     && !(typeof m.off === 'function' ? m.off() : m.off));
   if (!list.length) return null;
   const cls = side === 'BR' ? 'bottom' : side === 'BL' ? 'bottomleft' : 'topleft';
+  /* 右下は 正方形の座を横一列、そのあとに横長の札を縦に積む（2026-10-09）。
+     これまでは全部を縦に積んでいたので、正方形が二つになると縦に伸びて
+     下の帯に潜っていた */
+  if (side === 'BR') {
+    const sq = list.filter(m => m.square);
+    const wide = list.filter(m => !m.square);
+    return el('div', { class: 'hmenu ' + cls },
+      sq.length ? el('div', { class: 'hmsq' }, sq.map(homeMenuBtn)) : null,
+      ...wide.map(homeMenuBtn));
+  }
   return el('div', { class: 'hmenu ' + cls }, list.map(homeMenuBtn));
 };
 
@@ -29294,6 +29401,9 @@ const miTabs = () => MI_TABS.filter(t => t !== KADODE || !kadodeOver());
 const miTab0 = () => miTabs()[0];
 /* 受け取れるお役目の数。ホームの札の赤丸と、タグの肩に出す */
 const miReadyCount = tab => (tab ? miOfTab(tab) : MISSIONS).filter(miReady).length;
+/* 「まとめて頂戴」で実際に取れる数（2026-10-09）。solo の札は数に入れない。
+   入れてしまうと、押しても何も起きない釦が灯る */
+const miBulkCount = tab => miOfTab(tab).filter(m => miReady(m) && !m.solo).length;
 
 /* 褒美の中身を一行の文にする */
 function miWords(rw) {
@@ -29359,7 +29469,10 @@ function miTake(m) {
 }
 /* まとめて受け取る。いま出ているタグのぶんだけ */
 function miTakeAll(tab) {
-  const list = miOfTab(tab).filter(miReady);
+  /* solo の札は まとめて頂戴では取らない（2026-10-09・悠さんの指図）。
+     手引きを抜けた褒美（門出の石3000）がほかに紛れて入ってくるのを止める。
+     その一つだけは、自分の手で「頂戴」を押してもらう */
+  const list = miOfTab(tab).filter(m => miReady(m) && !m.solo);
   if (!list.length) return 0;
   for (const m of list) miTake(m);
   return list.length;
@@ -29527,7 +29640,7 @@ function miSheet() {
      段の中の並びは mission.js に書いた順のまま（sort は安定なので崩れない） */
   const miSeat = m => (miReady(m) ? 0 : miGot(m) ? 2 : 1);
   const list = miOfTab(tab).slice().sort((a, b) => miSeat(a) - miSeat(b));
-  const ready = miReadyCount(tab);
+  const ready = miBulkCount(tab);
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 mibox' },
       el('b', { class: 'mittl' }, 'お役目'),
@@ -29543,7 +29656,8 @@ function miSheet() {
         const pct = Math.round(now / m.goal * 100);
         const got = miGot(m), can = miReady(m);
         const ic = miIcon(m.rw);
-        return el('div', { class: 'mirow' + (got ? ' got' : '') + (can ? ' can' : '') + (ic ? ' hasic' : '') },
+        return el('div', { class: 'mirow' + (got ? ' got' : '') + (can ? ' can' : '')
+             + (ic ? ' hasic' : '') + (m.solo && can ? ' solo' : '') },
           /* 褒美の絵を押すと、その品が何かを出す（2026-09-30）。
              絵だけでは「石」も「稽古の書」も何に使うのか分からなかった */
           ic ? el('button', { class: 'miic tapic', title: '何に使うか見る',
@@ -38171,7 +38285,7 @@ function trStart(no, i) {
   const who = trWho(no); if (!who) return;
   const kinds = trKindsOf(who);
   P.trail.cur = no;
-  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0);
+  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf);
   S.trSel = null; S.trTgt = 0; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
   S.screen = 'trfight'; SFX.start(); draw();
 }
@@ -38232,13 +38346,15 @@ function trPickSheet() {
 }
 
 /* ---- 戦のさなか ---- */
-const TR_IT_MARK = { atk: '斬', guard: '構', heal: '癒' };
+/* 敵の次の一手（2026-10-09）。どの札を切るかは裏で決めるので、
+   見せるのは 攻める／守る／昂る の別と、攻めるときの重さだけ */
+const TR_IT_MARK = { atk: '攻', guard: '守', buff: '昂' };
 function trIntentEl(f) {
   const it = f.it; if (!it || f.hp <= 0) return el('span', { class: 'trit none' });
   if (f.stun) return el('span', { class: 'trit stun' }, 'ひるみ');
   return el('span', { class: 'trit ' + it.k + (it.ult ? ' ult' : '') },
     el('i', {}, it.ult ? '奥' : TR_IT_MARK[it.k] || '？'),
-    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.w);
+    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.k === 'guard' ? '守る' : '昂る');
 }
 function trBar(hp, mx, blk) {
   return el('div', { class: 'trbar' },
@@ -38252,7 +38368,7 @@ function trFloat(list) {
     el('b', { class: 'fx-' + e.t }, e.t === 'hit' ? (e.n ? `-${e.n}` : '防') : e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
       : e.t === 'heal' || e.t === 'fheal' ? `+${e.n}` : e.t === 'blk' || e.t === 'fblk' ? `構${e.n}`
       : e.t === 'ko' ? '討' : e.t === 'stun' ? 'ひるみ' : e.t === 'dodge' ? 'かわした' : e.t === 'skip' ? '…'
-      : e.t === 'revive' ? '踏みとどまった' : ''))) : null;
+      : e.t === 'revive' ? '踏みとどまった' : e.t === 'fbuff' ? '昂る' : ''))) : null;
 }
 function screenTrFight() {
   const F = P.trail.fight;
@@ -38285,6 +38401,7 @@ function screenTrFight() {
   const tags = [
     pl.might ? '勢い' : null, pl.weak ? '削がれ' : null, pl.dodge ? 'かわし' : null, pl.crit ? '冴え' : null,
     pl.thorns ? '返し' : null, pl.revive ? '踏ん張り' : null, pl.charge ? '奥義が軽い' : null,
+    pl.crack ? '崩れ' : null, pl.burnT > 0 ? '炎' : null, pl.seal ? '封' : null, pl.daze ? 'ひるみ' : null,
   ].filter(Boolean);
   return {
     body: el('div', { class: 'trfight' },
@@ -38305,7 +38422,7 @@ function screenTrFight() {
         keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
         el('b', { class: 'trfn' }, f.name),
         trBar(f.hp, f.mx, f.blk),
-        el('div', { class: 'trtags' }, [f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
+        el('div', { class: 'trtags' }, [f.mom > 0 ? '昂り' : null, f.pump ? '溜め' : null, f.thorns ? '返し' : null, f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
         trFloat(trFxOf('foe', i))))),
       el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
         keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),

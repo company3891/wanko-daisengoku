@@ -266,16 +266,37 @@ export function trDeckOk(d, kinds) {
   return trDeckCount(d) === TR_DECK;
 }
 
-/* ================= 敵 ================= */
+/* ================= 敵 =================
+   敵も同じ武将の札を持つ（2026-10-09・悠さんの指図）。
+   どの札を切るかは裏で決め、こちらには「何をしてくるか」だけを見せる。
+   一手ごとに 攻める → 守る → 昂る を巡る。並びは敵ごとにずらして、そろって守らないようにする */
 const TR_POOL_RAR = i => i < 5 ? ['N', 'R'] : i < 15 ? ['N', 'R', 'SR'] : i < 25 ? ['R', 'SR', 'SSR'] : ['SR', 'SSR', 'UR'];
-function trFoe(ch, mul, boss) {
+export const TR_FOE_CYCLE = ['atk', 'guard', 'buff'];
+/* 敵の札を三つの袋に分ける。札そのものの数ではなく「何をする札か」だけを覚える */
+function trFoeCards(ch, starOf) {
+  const bag = { atk: [], guard: [], buff: [] };
+  for (const kd of trKinds(ch, starOf)) {
+    const t = kd.sk.text || '';
+    const r = kd.kind === 'ult' ? trRider(t.replace(/ダメージ/g, '')) : trRider(t);
+    const c = { key: kd.key, kind: kd.kind, r, cost: kd.cost, all: /全体/.test(t) };
+    if (kd.kind === 'ult') {
+      if (/回復/.test(t) && !/ダメージ/.test(t)) bag.guard.push({ ...c, heal: true });
+      else bag.atk.push({ ...c, ult: true });
+    } else if (kd.kind === 'gen' || ['might', 'crit', 'charge', 'revive', 'draw'].includes(r)) bag.buff.push(c);
+    else if (['cover', 'thorns', 'dodge', 'wall', 'mend'].includes(r)) bag.guard.push({ ...c, heal: r === 'mend' });
+    else bag.atk.push(c);
+  }
+  return bag;
+}
+function trFoe(ch, mul, boss, ph, starOf) {
   const st = {};
   for (const k of ['火力', '賢さ', '防御', '回復', '速さ']) st[k] = (ch.stats[k] || 0) * mul;
   const hp = trR((trS(st['防御']) + trS(st['回復'])) * (boss ? 4.2 : 1.55));
   return { no: ch.no, name: ch.name, attr: ch.attr, rarity: ch.rarity, st, hp, mx: hp, blk: 0,
-           boss: !!boss, weakT: 0, vuln: 0, stun: 0, burn: 0, burnT: 0, seal: 0, mom: 0, t: 0, it: null };
+           boss: !!boss, weakT: 0, vuln: 0, stun: 0, burn: 0, burnT: 0, seal: 0, mom: 0, pump: 0,
+           t: 0, ph: ph || 0, it: null, ult: 0, cards: trFoeCards(ch, starOf) };
 }
-export function trFoes(i, all, meNo) {
+export function trFoes(i, all, meNo, starOf) {
   const s = TR_STORY[i];
   const F = { rs: (i + 1) * 7919 + (meNo || 0) * 104729 };      // 顔ぶれは話と武将で決め打ち
   const me = all.find(c => c.no === meNo);
@@ -287,8 +308,8 @@ export function trFoes(i, all, meNo) {
   const out = [];
   if (s.boss) {
     const b = all.find(c => c.no === s.boss);
-    if (b && (!me || b.origin !== me.origin)) out.push(trFoe(b, mul * 1.15, true));
-    else { const alt = all.filter(c => c.rarity === 'UR' && away(c)); if (alt.length) out.push(trFoe(alt[trInt(F, alt.length)], mul * 1.15, true)); }
+    if (b && (!me || b.origin !== me.origin)) out.push(trFoe(b, mul * 1.15, true, 0, starOf));
+    else { const alt = all.filter(c => c.rarity === 'UR' && away(c)); if (alt.length) out.push(trFoe(alt[trInt(F, alt.length)], mul * 1.15, true, 0, starOf)); }
   }
   const want = s.n + out.length;
   const used = new Set(out.map(f => (all.find(c => c.no === f.no) || {}).origin));
@@ -297,33 +318,55 @@ export function trFoes(i, all, meNo) {
     pool = pool.filter(x => x !== c);
     if (used.has(c.origin)) continue;
     used.add(c.origin);
-    out.push(trFoe(c, mul, false));
+    out.push(trFoe(c, mul, false, out.length, starOf));
   }
   return out;
 }
 
-/* 敵の構え（次に何をするか）。属性で癖を変え、手番ごとに巡らせる。
-   こちらには毎ターン見えている（何をしてくるかを読んで札を選ぶ遊びなので） */
+/* 次の一手。巡りの番に合う袋から、裏で札を一枚えらぶ。
+   袋が空なら、属性なりの素の動きに落ちる（絵や札が足りなくても動く、と同じ考え方） */
 function trIntent(F, f) {
-  const atk = trS(Math.max(f.st['火力'], f.st['賢さ'])) * 0.42;
-  const k = f.t % 3;
-  if (f.boss && k === 2) return { k: 'atk', n: trR(atk * 2.1), w: '奥義', ult: true };
-  switch (f.attr) {
-    case '猛将': return k === 1 ? { k: 'atk', n: trR(atk * 0.62), x: 2, w: '二連' } : { k: 'atk', n: trR(atk * 1.15), w: '斬る' };
-    case '智将': return k === 1 ? { k: 'atk', n: trR(atk * 0.7), weak: 2, w: '策' } : { k: 'atk', n: trR(atk * 0.95), w: '打つ' };
-    case '守将': return k === 0 ? { k: 'guard', n: trR(trS(f.st['防御']) * 1.1), w: '構える' } : { k: 'atk', n: trR(atk * 0.9), w: '打つ' };
-    case '仁将': {
-      const hurt = F.foes.some(x => x.hp > 0 && x.hp < x.mx * 0.7);
-      return (k === 1 && hurt && !f.seal) ? { k: 'heal', n: trR(trS(f.st['回復']) * 1.0), w: '手当' }
-                                          : { k: 'atk', n: trR(atk * 0.85), w: '打つ' };
-    }
-    default: return { k: 'atk', n: trR(atk * 0.4), x: 3, w: '三連' };
+  const want = TR_FOE_CYCLE[(f.t + f.ph) % 3];
+  const bag = (f.cards && f.cards[want]) || [];
+  const atk = trS(Math.max(f.st['火力'], f.st['賢さ'])) * 0.62;
+  let c = null;
+  if (bag.length) {
+    /* 国主の奥義は、攻めの番の二度に一度だけ（毎回撃つと手の打ちようが無い） */
+    const ults = bag.filter(x => x.ult), rest = bag.filter(x => !x.ult);
+    if (ults.length && (f.boss ? f.ult % 2 === 1 : f.ult % 3 === 2)) c = ults[trInt(F, ults.length)];
+    else if (rest.length) c = rest[trInt(F, rest.length)];
+    else c = ults[0];
   }
+  if (want === 'atk') {
+    f.ult++;
+    const k = c ? (1 + 0.08 * ((c.cost || 1) - 1)) : 1;
+    const it = { k: 'atk', n: trR(atk * k * (c && c.ult ? 2.1 : 1) * (f.pump ? 1.6 : 1)), ult: !!(c && c.ult) };
+    if (f.attr === '神速' && !it.ult) { it.x = 2; it.n = trR(it.n * 0.55); }
+    if (c) {
+      if (c.r === 'stun') it.daze = 1;
+      else if (c.r === 'burn') it.burn = trR(atk * 0.3);
+      else if (c.r === 'vuln') it.crack = 2;
+      else if (c.r === 'weak') it.weak = 2;
+      else if (c.r === 'seal') it.seal = 2;
+    }
+    return it;
+  }
+  if (want === 'guard') {
+    const it = { k: 'guard', n: trR(trS(f.st['防御']) * 1.1) };
+    if (c && (c.heal || f.attr === '仁将')) it.heal = trR(trS(f.st['回復']) * 0.9);
+    if (c && c.r === 'cover') it.cover = trR(trS(f.st['防御']) * 0.5);
+    if (c && c.r === 'thorns') it.thorns = trR(trS(f.st['防御']) * 0.3);
+    return it;
+  }
+  const it = { k: 'buff', mom: 0.2 };
+  if (c && (c.r === 'crit' || c.r === 'charge')) it.pump = 1;
+  if (c && c.kind === 'gen') it.mom = 0.3;
+  return it;
 }
 
 /* ================= 戦 ================= */
 /* deck は { key: 枚数 }。kinds は trKinds の並び。seed は戦ごとに変える */
-export function trBattle(i, who, kinds, deck, all, seed) {
+export function trBattle(i, who, kinds, deck, all, seed, starOf) {
   const pile = [];
   let u = 0;
   for (const k of kinds) for (let n = 0; n < (deck[k.key] || 0); n++) pile.push({ u: u++, key: k.key });
@@ -332,8 +375,11 @@ export function trBattle(i, who, kinds, deck, all, seed) {
   const F = {
     i, no: who.no, rs: (seed >>> 0) || 1, turn: 0, over: null,
     pl: { hp: mx, mx, blk: 0, might: 0, guardUp: 0, healUp: 0, drawUp: 0, weak: 0, dodge: 0,
-          thorns: 0, crit: 0, charge: 0, revive: 0 },
-    foes: trFoes(i, all, who.no),
+          thorns: 0, crit: 0, charge: 0, revive: 0,
+          /* 敵の札から受けるもの（2026-10-09）。daze＝次の手番の気が1減る／burn＝手番のはじめに焼ける
+             ／crack＝受けが重くなる／seal＝癒せない */
+          daze: 0, burn: 0, burnT: 0, crack: 0, seal: 0 },
+    foes: trFoes(i, all, who.no, starOf),
     draw: [], hand: [], disc: [], gone: [], ki: TR_KI,
   };
   F.draw = trShuffle(F, pile);
@@ -349,8 +395,12 @@ function trDraw(F, n) {
 /* こちらの手番の始まり */
 export function trTurn(F) {
   F.turn++;
-  F.ki = TR_KI;
+  F.ki = TR_KI - (F.pl.daze ? 1 : 0); F.pl.daze = 0;
   F.pl.blk = 0; F.pl.thorns = 0;
+  if (F.pl.burnT > 0) {
+    F.pl.hp = Math.max(F.pl.revive ? 1 : 0, F.pl.hp - F.pl.burn); F.pl.burnT--;
+    if (F.pl.hp <= 0) { F.over = 'lose'; return; }
+  }
   trDraw(F, TR_HAND + (F.pl.drawUp || 0));
   for (const f of F.foes) if (f.hp > 0) f.it = trIntent(F, f);
 }
@@ -361,6 +411,8 @@ function trHitFoe(F, f, n, ev) {
   f.hp = Math.max(0, f.hp - d);
   ev.push({ t: 'hit', f: F.foes.indexOf(f), n: d, b });
   if (f.hp <= 0) ev.push({ t: 'ko', f: F.foes.indexOf(f) });
+  /* 守りの番に「返し」の札を切った敵は、打たれると打ち返す（2026-10-09） */
+  if (f.thorns && F.pl.hp > 0) { const r = Math.min(F.pl.hp - 1, f.thorns); if (r > 0) { F.pl.hp -= r; ev.push({ t: 'hurt', n: r, b: 0 }); } }
 }
 /* 札を使う。h は手札の何枚目、ti は狙う敵の番号。返すのは出来事の並び（画面が光らせるのに使う） */
 export function trPlay(F, h, ti, who, kinds) {
@@ -392,7 +444,7 @@ export function trPlay(F, h, ti, who, kinds) {
   }
   if (o.blk) { const b = trR(o.blk * (1 + F.pl.guardUp)); F.pl.blk += b; ev.push({ t: 'blk', n: b }); }
   if (o.heal) {
-    const h2 = Math.min(F.pl.mx - F.pl.hp, trR(o.heal * (1 + F.pl.healUp)));
+    const h2 = F.pl.seal ? 0 : Math.min(F.pl.mx - F.pl.hp, trR(o.heal * (1 + F.pl.healUp)));
     F.pl.hp += h2; ev.push({ t: 'heal', n: h2 });
   }
   if (o.thorns) F.pl.thorns += o.thorns;
@@ -412,7 +464,7 @@ export function trPlay(F, h, ti, who, kinds) {
 export function trEnd(F) { F.disc.push(...F.hand); F.hand = []; }
 function trHitMe(F, f, n, ev) {
   if (F.pl.dodge > 0) { F.pl.dodge--; ev.push({ t: 'dodge' }); return; }
-  let d = trR(n * ((f.weakT || 0) > 0 ? 0.75 : 1) * (1 + f.mom));
+  let d = trR(n * ((f.weakT || 0) > 0 ? 0.75 : 1) * (1 + f.mom) * (F.pl.crack ? 1.25 : 1));
   const b = Math.min(F.pl.blk, d); F.pl.blk -= b; d -= b;
   F.pl.hp = Math.max(0, F.pl.hp - d);
   ev.push({ t: 'hurt', n: d, b, f: F.foes.indexOf(f) });
@@ -427,7 +479,7 @@ function trHitMe(F, f, n, ev) {
 export function trFoeAct(F, fi) {
   const f = F.foes[fi]; const ev = [];
   if (!f || f.hp <= 0 || F.over) return ev;
-  f.blk = 0;
+  f.blk = 0; f.thorns = 0;
   if (f.burnT > 0) {
     const d = Math.min(f.hp, f.burn); f.hp -= d; f.burnT--;
     ev.push({ t: 'hit', f: fi, n: d, b: 0, burn: true });
@@ -436,13 +488,27 @@ export function trFoeAct(F, fi) {
   if (f.stun) { f.stun = 0; ev.push({ t: 'skip', f: fi }); }
   else {
     const it = f.it || trIntent(F, f);
-    ev.push({ t: 'act', f: fi, w: it.w, ult: !!it.ult });
-    if (it.k === 'atk') for (let x = 0; x < (it.x || 1) && F.pl.hp > 0; x++) trHitMe(F, f, it.n, ev);
-    if (it.weak) F.pl.weak = Math.max(F.pl.weak, it.weak);
-    if (it.k === 'guard') { f.blk += it.n; ev.push({ t: 'fblk', f: fi, n: it.n }); }
-    if (it.k === 'heal') {
-      const tg = trLive(F).sort((a, b) => a.hp / a.mx - b.hp / b.mx)[0];
-      if (tg) { const h = Math.min(tg.mx - tg.hp, it.n); tg.hp += h; ev.push({ t: 'fheal', f: F.foes.indexOf(tg), n: h }); }
+    ev.push({ t: 'act', f: fi, k: it.k, ult: !!it.ult });
+    if (it.k === 'atk') {
+      for (let x = 0; x < (it.x || 1) && F.pl.hp > 0; x++) trHitMe(F, f, it.n, ev);
+      f.pump = 0;
+      if (it.daze) F.pl.daze = 1;
+      if (it.burn) { F.pl.burn = Math.max(F.pl.burn, it.burn); F.pl.burnT = 2; }
+      if (it.crack) F.pl.crack = Math.max(F.pl.crack, it.crack);
+      if (it.weak) F.pl.weak = Math.max(F.pl.weak, it.weak);
+      if (it.seal) F.pl.seal = Math.max(F.pl.seal, it.seal);
+    } else if (it.k === 'guard') {
+      f.blk += it.n; ev.push({ t: 'fblk', f: fi, n: it.n });
+      if (it.cover) for (const g of trLive(F)) if (g !== f) { g.blk += it.cover; ev.push({ t: 'fblk', f: F.foes.indexOf(g), n: it.cover }); }
+      if (it.thorns) f.thorns = it.thorns;
+      if (it.heal && !f.seal) {
+        const tg = trLive(F).sort((a, b) => a.hp / a.mx - b.hp / b.mx)[0];
+        if (tg) { const h = Math.min(tg.mx - tg.hp, it.heal); if (h) { tg.hp += h; ev.push({ t: 'fheal', f: F.foes.indexOf(tg), n: h }); } }
+      }
+    } else {
+      f.mom = Math.min(1, f.mom + it.mom);
+      if (it.pump) f.pump = 1;
+      ev.push({ t: 'fbuff', f: fi });
     }
   }
   f.t++;
@@ -457,5 +523,7 @@ export function trFoeAct(F, fi) {
 export function trRound(F) {
   if (F.over) return;
   if (F.pl.weak > 0) F.pl.weak--;
+  if (F.pl.crack > 0) F.pl.crack--;
+  if (F.pl.seal > 0) F.pl.seal--;
   trTurn(F);
 }

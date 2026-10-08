@@ -1721,6 +1721,14 @@ const HOME_MENU = [
   /* お役目は右下の列のいちばん上（2026-09-24）。
      右手の親指が届くところに置きたいので左上から移した。
      square を立てると、横長の札の列の中でも正方形のまま右端をそろえて並ぶ */
+  /* 落ち延び道中（ミニゲーム）は **お役目の横に、同じ大きさで**（2026-10-09・悠さんの指図）。
+     square を立てた座どうしは、右下の列の上で横一列に並ぶ。
+     先に書いたほうが左。お役目は右はしの定位置のままにしたいので、こちらを先に置く。
+     label ＝ 札に出す短い名（絵が無いあいだだけ出る）。
+     69角に「落ち延び道中」は収まらないので「道中」にしてある。
+     ui/home_trail.png を置けば、名札そのものが消える */
+  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, label: '道中',
+    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
   { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
@@ -1737,9 +1745,6 @@ const HOME_MENU = [
   { side: 'BR', name: '果たし合い', mark: '果', file: 'home_duel',
     off: () => !DUEL,
     go: () => { S.dl = 'room'; S.dlMsg = ''; S.dlCode = ''; } },
-  /* 落ち延び道中（2026-10-08）。戦の途中なら、そのまま戦へ戻す */
-  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail',
-    go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; } },
   { side: 'BR', name: '番付',     mark: '番', file: 'home_ranking',
     go: () => { S.rk = true; S.rkSel = null; S.rkPz = false; S.rkPzT = null; S.rkMsg = ''; },
     badge: () => (rkState().last ? 1 : 0) },
@@ -1778,7 +1783,8 @@ function homeMenuBtn(m) {
     el('span', { class: 'hmi' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, m.mark)),
     /* 絵が無くて、名が一字の印とおなじなら、下の名札は出さない（2026-09-26）。
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
-    (art || m.noname || m.name === m.mark) ? null : el('span', { class: 'hml' }, m.name),
+    (art || m.noname || m.name === m.mark) ? null
+      : el('span', { class: 'hml' }, m.label || m.name),
     /* 未読の数を赤丸で出す（2026-09-24）。badge は数を返す関数。
        0 のときは丸そのものを出さない */
     (() => {
@@ -1793,6 +1799,16 @@ const homeMenu = side => {
     && !(typeof m.off === 'function' ? m.off() : m.off));
   if (!list.length) return null;
   const cls = side === 'BR' ? 'bottom' : side === 'BL' ? 'bottomleft' : 'topleft';
+  /* 右下は 正方形の座を横一列、そのあとに横長の札を縦に積む（2026-10-09）。
+     これまでは全部を縦に積んでいたので、正方形が二つになると縦に伸びて
+     下の帯に潜っていた */
+  if (side === 'BR') {
+    const sq = list.filter(m => m.square);
+    const wide = list.filter(m => !m.square);
+    return el('div', { class: 'hmenu ' + cls },
+      sq.length ? el('div', { class: 'hmsq' }, sq.map(homeMenuBtn)) : null,
+      ...wide.map(homeMenuBtn));
+  }
   return el('div', { class: 'hmenu ' + cls }, list.map(homeMenuBtn));
 };
 
@@ -2129,6 +2145,9 @@ const miTabs = () => MI_TABS.filter(t => t !== KADODE || !kadodeOver());
 const miTab0 = () => miTabs()[0];
 /* 受け取れるお役目の数。ホームの札の赤丸と、タグの肩に出す */
 const miReadyCount = tab => (tab ? miOfTab(tab) : MISSIONS).filter(miReady).length;
+/* 「まとめて頂戴」で実際に取れる数（2026-10-09）。solo の札は数に入れない。
+   入れてしまうと、押しても何も起きない釦が灯る */
+const miBulkCount = tab => miOfTab(tab).filter(m => miReady(m) && !m.solo).length;
 
 /* 褒美の中身を一行の文にする */
 function miWords(rw) {
@@ -2194,7 +2213,10 @@ function miTake(m) {
 }
 /* まとめて受け取る。いま出ているタグのぶんだけ */
 function miTakeAll(tab) {
-  const list = miOfTab(tab).filter(miReady);
+  /* solo の札は まとめて頂戴では取らない（2026-10-09・悠さんの指図）。
+     手引きを抜けた褒美（門出の石3000）がほかに紛れて入ってくるのを止める。
+     その一つだけは、自分の手で「頂戴」を押してもらう */
+  const list = miOfTab(tab).filter(m => miReady(m) && !m.solo);
   if (!list.length) return 0;
   for (const m of list) miTake(m);
   return list.length;
@@ -2362,7 +2384,7 @@ function miSheet() {
      段の中の並びは mission.js に書いた順のまま（sort は安定なので崩れない） */
   const miSeat = m => (miReady(m) ? 0 : miGot(m) ? 2 : 1);
   const list = miOfTab(tab).slice().sort((a, b) => miSeat(a) - miSeat(b));
-  const ready = miReadyCount(tab);
+  const ready = miBulkCount(tab);
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 mibox' },
       el('b', { class: 'mittl' }, 'お役目'),
@@ -2378,7 +2400,8 @@ function miSheet() {
         const pct = Math.round(now / m.goal * 100);
         const got = miGot(m), can = miReady(m);
         const ic = miIcon(m.rw);
-        return el('div', { class: 'mirow' + (got ? ' got' : '') + (can ? ' can' : '') + (ic ? ' hasic' : '') },
+        return el('div', { class: 'mirow' + (got ? ' got' : '') + (can ? ' can' : '')
+             + (ic ? ' hasic' : '') + (m.solo && can ? ' solo' : '') },
           /* 褒美の絵を押すと、その品が何かを出す（2026-09-30）。
              絵だけでは「石」も「稽古の書」も何に使うのか分からなかった */
           ic ? el('button', { class: 'miic tapic', title: '何に使うか見る',
@@ -11006,7 +11029,7 @@ function trStart(no, i) {
   const who = trWho(no); if (!who) return;
   const kinds = trKindsOf(who);
   P.trail.cur = no;
-  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0);
+  P.trail.fight = trBattle(i, who, kinds, trDeckOf(who, kinds), C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf);
   S.trSel = null; S.trTgt = 0; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
   S.screen = 'trfight'; SFX.start(); draw();
 }
@@ -11067,13 +11090,15 @@ function trPickSheet() {
 }
 
 /* ---- 戦のさなか ---- */
-const TR_IT_MARK = { atk: '斬', guard: '構', heal: '癒' };
+/* 敵の次の一手（2026-10-09）。どの札を切るかは裏で決めるので、
+   見せるのは 攻める／守る／昂る の別と、攻めるときの重さだけ */
+const TR_IT_MARK = { atk: '攻', guard: '守', buff: '昂' };
 function trIntentEl(f) {
   const it = f.it; if (!it || f.hp <= 0) return el('span', { class: 'trit none' });
   if (f.stun) return el('span', { class: 'trit stun' }, 'ひるみ');
   return el('span', { class: 'trit ' + it.k + (it.ult ? ' ult' : '') },
     el('i', {}, it.ult ? '奥' : TR_IT_MARK[it.k] || '？'),
-    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.w);
+    it.k === 'atk' ? `${it.n}${it.x ? '×' + it.x : ''}` : it.k === 'guard' ? '守る' : '昂る');
 }
 function trBar(hp, mx, blk) {
   return el('div', { class: 'trbar' },
@@ -11087,7 +11112,7 @@ function trFloat(list) {
     el('b', { class: 'fx-' + e.t }, e.t === 'hit' ? (e.n ? `-${e.n}` : '防') : e.t === 'hurt' ? (e.n ? `-${e.n}` : '防')
       : e.t === 'heal' || e.t === 'fheal' ? `+${e.n}` : e.t === 'blk' || e.t === 'fblk' ? `構${e.n}`
       : e.t === 'ko' ? '討' : e.t === 'stun' ? 'ひるみ' : e.t === 'dodge' ? 'かわした' : e.t === 'skip' ? '…'
-      : e.t === 'revive' ? '踏みとどまった' : ''))) : null;
+      : e.t === 'revive' ? '踏みとどまった' : e.t === 'fbuff' ? '昂る' : ''))) : null;
 }
 function screenTrFight() {
   const F = P.trail.fight;
@@ -11120,6 +11145,7 @@ function screenTrFight() {
   const tags = [
     pl.might ? '勢い' : null, pl.weak ? '削がれ' : null, pl.dodge ? 'かわし' : null, pl.crit ? '冴え' : null,
     pl.thorns ? '返し' : null, pl.revive ? '踏ん張り' : null, pl.charge ? '奥義が軽い' : null,
+    pl.crack ? '崩れ' : null, pl.burnT > 0 ? '炎' : null, pl.seal ? '封' : null, pl.daze ? 'ひるみ' : null,
   ].filter(Boolean);
   return {
     body: el('div', { class: 'trfight' },
@@ -11140,7 +11166,7 @@ function screenTrFight() {
         keepImg({ class: 'trfimg', src: pawnUrl(f.no), alt: f.name }),
         el('b', { class: 'trfn' }, f.name),
         trBar(f.hp, f.mx, f.blk),
-        el('div', { class: 'trtags' }, [f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
+        el('div', { class: 'trtags' }, [f.mom > 0 ? '昂り' : null, f.pump ? '溜め' : null, f.thorns ? '返し' : null, f.vuln ? '崩れ' : null, (f.weakT || 0) > 0 ? '削がれ' : null, f.burnT > 0 ? '炎' : null, f.seal ? '封' : null].filter(Boolean).map(t => el('i', {}, t))),
         trFloat(trFxOf('foe', i))))),
       el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
         keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),

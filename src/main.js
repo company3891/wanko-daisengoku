@@ -8746,19 +8746,26 @@ function command(c) {
   play();                       // 選んだ行動はその場で動く（ターンの終わりを待たない）
 }
 
-/* 奥義が撃てなかったときの一言（2026-10-09・悠さんの指図）。
-   ターンの札（#turnBox）と同じ盤の中、そのすぐ上に出して 1.6秒で消す。
-   続けて押したときは前の一言を差し替える（重ねて積まない） */
-const ULT_MISS_WORDS = { none: '奥義を向ける相手がおらぬ' };
-function ultMissNote(why) {
-  const tb = document.getElementById('turnBox');
-  const host = tb && tb.parentElement;
-  if (!host) return;
-  const old = host.querySelector('.ultmiss');
-  if (old) old.remove();
-  const n = el('div', { class: 'ultmiss' }, ULT_MISS_WORDS[why] || ULT_MISS_WORDS.none);
-  host.appendChild(n);
-  setTimeout(() => n.remove(), 1700);
+/* 奥義を押したら撃てるか、先に試す（2026-10-09・悠さんの指図）。
+   奥義の形の内に誰もいないと engine は撃たずに ふつうの攻撃へ落とす。
+   それだと「押したのに勝手に攻撃した」になるので、釦は押せても何も起きないようにした
+   （一言を出す案もあったが、悠さんの判断で「反応しない」ほうに）。
+   いまの指図に奥義を一つ足して解いてみて、engine が ultMiss の印を残したら撃てない。
+   解いた結果は捨てて、もとの BATTLE.res に戻す。同じ手番では一度だけ試す */
+function ultWouldMiss(a) {
+  const b = BATTLE;
+  const key = `${a.unit}:${a.turn}:${b.commands.length}`;
+  if (b._umKey === key) return b._umMiss;
+  const keep = b.res, from = keep.log.length;
+  b.commands.push({ unit: a.unit, turn: a.turn, type: 'ult' });
+  let miss = false;
+  try {
+    resolve();
+    miss = b.res.log.slice(from).some(e => e.type === 'ultMiss' && e.src === a.unit);
+  } catch (_) { miss = false; }
+  finally { b.commands.pop(); b.res = keep; }
+  b._umKey = key; b._umMiss = miss;
+  return miss;
 }
 
 /* ===== 盤面の現在値 =====
@@ -8957,18 +8964,6 @@ async function showEvent(e, my) {
       applyEvent(live, e); drawBattle();
       fxBurst(cellOf(e.src), 'impact', { scale: 1.25, ms: 460 }); await sleep(120); return;
 
-    /* 奥義を押したのに撃てなかった（2026-10-09・悠さんの指図）。
-       ターンの札のすぐ上に一言だけ出す。押した側にだけ見せる
-       （果たし合いで相手の空振りまで知らせると、手の内を覗いているようになる）。
-       ひと呼吸おいてから、engine が落とした ふつうの攻撃に進む */
-    case 'ultMiss': {
-      const mine = BATTLE.duel ? String(e.src).startsWith(BATTLE.duel.side + '-')
-                               : String(e.src).startsWith('A-');
-      if (!mine) return;
-      ultMissNote(e.why);
-      SFX.ng();
-      await sleep(520); return;
-    }
     // 奥義・固有・特技はすべてカットインで見せる（2026-09-20）
     case 'ult': {
       const no = noOf(e.src);
@@ -9115,6 +9110,9 @@ function drawBattle() {
     const snap = BATTLE.live.get(a.unit);
     const cost = (snap && snap.ultCost) ?? 5;
     const canUlt = snap && snap.ult >= cost;
+    /* ゲージは溜まっていても、届く相手がいなければ撃てない（2026-10-09）。
+       釦は溜まった見た目のまま押せる（押した動きも出る）が、指図は出さない */
+    const ultLive = !!canUlt && !ultWouldMiss(a);   // 溜まっていないときは試さない
     const pawn = pawnCache.get(a.unit);
     if (pawn) { pawn.style.outline = '2px dashed #fff'; pawn.style.outlineOffset = '2px'; }
     const W2 = BATTLE.rules.board.width, H2 = BATTLE.rules.board.height;
@@ -9147,7 +9145,7 @@ function drawBattle() {
     $('#ultBtn').style.display = '';
     $('#ultBtn').classList.toggle('ready', !!canUlt);   // art を消さないよう ready だけ切り替える
     $('#ultBtn').disabled = !canUlt;
-    $('#ultBtn').onclick = () => { if (canUlt) command({ type: 'ult' }); };
+    $('#ultBtn').onclick = () => { if (ultLive) command({ type: 'ult' }); };
     const have = snap ? Math.floor(snap.ult) : 0;
     $('#ultBtn').querySelector('.g').textContent = `${have}/${cost}`;
     const ring = $('#ultBtn').querySelector('.ring');
@@ -9204,7 +9202,9 @@ function drawBattle() {
         onclick: () => { SFX.pick(); command({ type: 'wait' }); } }));
     }
     // 攻撃も移動も奥義もできないときは、詰まないように自動で手番を送る
-    if (!moveCells && !inRange.length && !canUlt) setTimeout(() => command({ type: 'wait' }), 260);
+    /* 打てる手が一つも無ければ自動で待つ。撃てない奥義は「打てる手」に数えない（2026-10-09）。
+       数えると、溜まった釦だけが残って先へ進めなくなる */
+    if (!moveCells && !inRange.length && !ultLive) setTimeout(() => command({ type: 'wait' }), 260);
   }
   /* 果たし合いで相手が考えているあいだ（2026-10-04）。
      盤は触れないので、誰の番かだけ知らせる。

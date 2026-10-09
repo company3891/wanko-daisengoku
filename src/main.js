@@ -481,8 +481,8 @@ function coin(cls, mark, title, n, full, arts, plus) {
 /* 通貨の絵（2026-09-25）。名を並べて書けるようにした。
    軍功は虹の勾玉の絵が coin_勾玉 で来たので、そちらも見る。
    あとから coin_軍功 を置けば、そちらが勝つ */
-const CUR_ART = { koban: ['小判'], soul: ['魂'], stone: ['石'], food: ['兵糧'], gun: ['軍功', '勾玉'] };
-const CUR_MARK = { koban: '判', soul: '魂', stone: '勾', food: '糧', gun: '功' };
+const CUR_ART = { koban: ['小判'], soul: ['魂'], stone: ['石'], food: ['兵糧'], gun: ['軍功', '勾玉'], exp: ['経験'] };
+const CUR_MARK = { koban: '判', soul: '魂', stone: '勾', food: '糧', gun: '功', exp: '将' };
 function curIcon(kind) {
   let art = null;
   for (const n of CUR_ART[kind] || []) { art = uiUrl('coin_' + n); if (art) break; }
@@ -9206,7 +9206,7 @@ function rewardRow(o, exp) {
     o.koban ? el('span', {}, curIcon('koban'), `+${num(o.koban)}`) : null,
     o.soul ? el('span', {}, curIcon('soul'), `+${num(o.soul)}`) : null,
     o.book ? el('span', {}, el('i', { class: 'lv' }, '書'), `稽古の書 +${o.book}`) : null,
-    exp ? el('span', {}, el('i', { class: 'lv' }, '将'), `経験 +${exp}`) : null);
+    exp ? el('span', {}, curIcon('exp'), `経験 +${exp}`) : null);
 }
 /* 褒美をひとつの札にする（2026-09-29）。
    絵があれば絵、無ければ字。数は右下に重ねる。
@@ -9228,7 +9228,7 @@ function prizeRow(rw, ev) {
     add(uiUrl('coin_小判'), '判', '小判', rw.koban);
     add(uiUrl('coin_魂'), '魂', '魂', rw.soul);
     add(itemUrl('稽古の書'), '書', '稽古の書', rw.book);
-    add(null, '将', '経験', rw.exp);
+    add(uiUrl('coin_経験'), '将', '経験', rw.exp);
   }
   if (ev) {
     add(uiUrl('coin_石'), '勾', '勾玉', ev.stone);

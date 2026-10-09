@@ -66,7 +66,8 @@ export const MISSIONS = [
   { id: 'd_buy',   tab: '日課', key: 'buy',   goal: 1, text: '蔵で買い物をするワン！',          rw: { koban: 150 } },
   { id: 'd_lv',    tab: '日課', key: 'lv',    goal: 1, text: '武将を一度 強くするワン！',       rw: { koban: 200 } },
   { id: 'd_gacha', tab: '日課', key: 'gacha', goal: 1, text: 'わんこみくじを引くワン！',        rw: { koban: 200 } },
-  { id: 'd_login', tab: '日課', key: 'login', goal: 1, text: '城に戻るワン！',                  rw: { koban: 100 } },
+  /* 2026-10-09（悠さんの指図）：小判の日課を一つ、道中手形十枚に差し替えた。id はそのまま */
+  { id: 'd_login', tab: '日課', key: 'login', goal: 1, text: '城に戻るワン！',                  rw: { items: { '道中手形': 10 } } },
   { id: 'd_evOk',  tab: '日課', key: 'evOk',  goal: 1, text: '催しに一度 勝つワン！',           rw: { stone: 100 } },
   { id: 'd_spar',  tab: '日課', key: 'spar',  goal: 1, text: '友と一度 競うワン！',             rw: { koban: 200 } },
   { id: 'd_item',  tab: '日課', key: 'item',  goal: 1, text: '道具を一度 使うワン！',           rw: { koban: 150 } },

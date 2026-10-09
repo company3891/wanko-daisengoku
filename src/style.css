@@ -1909,8 +1909,8 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .gxmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;
   font-size:10px;color:var(--text3);margin-bottom:8px}
 /* 立ち絵と数は横に並べ、**重ねない**。立ち絵の高さは数の列に合わせて伸びる */
-.gxmain{display:flex;align-items:stretch;gap:10px;margin-bottom:4px}
-.gxfig{flex:0 0 48%;border:0;background:none;padding:0;cursor:pointer;
+.gxmain{display:flex;align-items:stretch;gap:6px;margin-bottom:4px}
+.gxfig{flex:0 0 60%;border:0;background:none;padding:0;cursor:pointer;
   display:flex;align-items:center;justify-content:center;min-height:168px}
 .gxfig:active{transform:scale(.97)}
 .gxpw{display:block;width:100%;height:100%;object-fit:contain;
@@ -1918,17 +1918,17 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 /* コマ絵が無い武将は、これまでの顔の切り抜きに落ちる */
 .gxfig .f{width:76%;aspect-ratio:1;border-radius:14px;background-size:cover;background-position:center;
   box-shadow:0 0 0 1px var(--gold),0 6px 16px #0000003d}
-.gxcol{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.gxcol{flex:1 1 40%;min-width:0;display:flex;flex-direction:column;justify-content:center}
 /* 金帯（経験のゲージ）。数の列の幅ぴったりなので、前より短い */
 .gxbox .expbar{height:14px;margin:0 0 7px;background:#00000016}
 .gxbox .expbar span{font-size:9px;color:#5f564a;text-shadow:none}
 /* 一行ぶん：［絵］名 …… 数 ／ そのすぐ下に ＋魂 */
 .gxbox .gxcol .sts{margin-bottom:0}
-.gxbox .gxcol .sts div{padding:4px 1px;flex-wrap:wrap}
-.gxbox .gxcol .sts span{font-size:11.5px;text-shadow:none}
+.gxbox .gxcol .sts div{padding:4px 0;gap:6px;flex-wrap:wrap}
+.gxbox .gxcol .sts span{font-size:11px;gap:5px;text-shadow:none}
 .gxbox .gxcol .sts span .si{width:16px;height:16px}
-.gxbox .gxcol .sts b{font-size:16px;text-shadow:none}
-.gxbox .gxcol .sts div::before{min-width:8px;border-bottom-color:#0000002e}
+.gxbox .gxcol .sts b{font-size:15px;text-shadow:none}
+.gxbox .gxcol .sts div::before{min-width:6px;border-bottom-color:#0000002e}
 /* 魂のぶんは数の真下へ。右端でそろえる。振っていない行は丸ごと消す（空の箱で
    行の高さが揃わなくなるため）。order:3 のまま flex-basis を 100% にして折り返す */
 .gxbox .gxcol .sts em.up{flex:0 0 100%;width:auto;font-size:10.5px;color:#3f8f5a;
@@ -1938,7 +1938,8 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .gxtot{display:block;margin-bottom:10px}
 /* 総合力の行は、あとに出てくる .growbox .sts .tot（黒漆むけ）に負けるので、
    .card2 を足して重みを上げる（2026-10-09） */
-.card2.gxbox .sts .tot{border-top-color:#a8802c4d}
+.card2.gxbox .sts .tot{border-top-color:#a8802c4d;justify-content:center;gap:14px}
+.card2.gxbox .sts .tot::before{display:none}
 .card2.gxbox .sts .tot span{color:var(--gold)}
 .card2.gxbox .sts .tot b{color:#8f6a1c}
 /* ---- 地をほかの札と同じクリームの紙に（2026-10-09・悠さんの指図）----
@@ -6048,6 +6049,9 @@ button.mkpv:active{transform:translateY(1px)}
 .trhand .trc.drag { transition: none; z-index: 50 !important; box-shadow: 0 0 0 2px #f5e2a8, 0 12px 24px rgba(0,0,0,.8); }
 body.trdragging { cursor: grabbing; }
 
+/* 道中手形の残り（2026-10-09） */
+.trtix { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f5e2a8; }
+.trtix .itic { width: 26px; height: 26px; font-size: 12px; }
 /* ================= 道（2026-10-09）=================
    分かれ道の地図。下から上へ歩き、上の国主は必ず通る */
 .trrun { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; padding: 8px 12px; border-radius: 12px;
@@ -6124,3 +6128,12 @@ body.trdragging { cursor: grabbing; }
 .trnode.art.done .trnart { opacity: .75; }
 .trlgart { width: 20px; height: 20px; object-fit: contain; }
 .trlgart.t-強 { background: #3a1f1a; border-radius: 50%; }
+
+/* 印の絵は丸の内に収める（2026-10-09・悠さん「アイコンが大きすぎる」） */
+.trnode.art { overflow: hidden; }
+.trnode.art .trnart { width: 74%; height: 74%; filter: none; }
+.trnode.art.t-宝 .trnart, .trnode.art.t-商 .trnart, .trnode.art.t-宿 .trnart { width: 70%; height: 70%; }
+.trnode.art.t-強 .trnart { width: 72%; height: 72%; }
+
+/* 褒美の札が四つ並んでも はみ出さないよう折り返す（2026-10-09） */
+.trrw { flex-wrap: wrap; justify-content: center; }

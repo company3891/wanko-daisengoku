@@ -1924,8 +1924,8 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .gxmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;
   font-size:10px;color:var(--text3);margin-bottom:8px}
 /* 立ち絵と数は横に並べ、**重ねない**。立ち絵の高さは数の列に合わせて伸びる */
-.gxmain{display:flex;align-items:stretch;gap:10px;margin-bottom:4px}
-.gxfig{flex:0 0 48%;border:0;background:none;padding:0;cursor:pointer;
+.gxmain{display:flex;align-items:stretch;gap:6px;margin-bottom:4px}
+.gxfig{flex:0 0 60%;border:0;background:none;padding:0;cursor:pointer;
   display:flex;align-items:center;justify-content:center;min-height:168px}
 .gxfig:active{transform:scale(.97)}
 .gxpw{display:block;width:100%;height:100%;object-fit:contain;
@@ -1933,17 +1933,17 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 /* コマ絵が無い武将は、これまでの顔の切り抜きに落ちる */
 .gxfig .f{width:76%;aspect-ratio:1;border-radius:14px;background-size:cover;background-position:center;
   box-shadow:0 0 0 1px var(--gold),0 6px 16px #0000003d}
-.gxcol{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.gxcol{flex:1 1 40%;min-width:0;display:flex;flex-direction:column;justify-content:center}
 /* 金帯（経験のゲージ）。数の列の幅ぴったりなので、前より短い */
 .gxbox .expbar{height:14px;margin:0 0 7px;background:#00000016}
 .gxbox .expbar span{font-size:9px;color:#5f564a;text-shadow:none}
 /* 一行ぶん：［絵］名 …… 数 ／ そのすぐ下に ＋魂 */
 .gxbox .gxcol .sts{margin-bottom:0}
-.gxbox .gxcol .sts div{padding:4px 1px;flex-wrap:wrap}
-.gxbox .gxcol .sts span{font-size:11.5px;text-shadow:none}
+.gxbox .gxcol .sts div{padding:4px 0;gap:6px;flex-wrap:wrap}
+.gxbox .gxcol .sts span{font-size:11px;gap:5px;text-shadow:none}
 .gxbox .gxcol .sts span .si{width:16px;height:16px}
-.gxbox .gxcol .sts b{font-size:16px;text-shadow:none}
-.gxbox .gxcol .sts div::before{min-width:8px;border-bottom-color:#0000002e}
+.gxbox .gxcol .sts b{font-size:15px;text-shadow:none}
+.gxbox .gxcol .sts div::before{min-width:6px;border-bottom-color:#0000002e}
 /* 魂のぶんは数の真下へ。右端でそろえる。振っていない行は丸ごと消す（空の箱で
    行の高さが揃わなくなるため）。order:3 のまま flex-basis を 100% にして折り返す */
 .gxbox .gxcol .sts em.up{flex:0 0 100%;width:auto;font-size:10.5px;color:#3f8f5a;
@@ -1953,7 +1953,8 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 .gxtot{display:block;margin-bottom:10px}
 /* 総合力の行は、あとに出てくる .growbox .sts .tot（黒漆むけ）に負けるので、
    .card2 を足して重みを上げる（2026-10-09） */
-.card2.gxbox .sts .tot{border-top-color:#a8802c4d}
+.card2.gxbox .sts .tot{border-top-color:#a8802c4d;justify-content:center;gap:14px}
+.card2.gxbox .sts .tot::before{display:none}
 .card2.gxbox .sts .tot span{color:var(--gold)}
 .card2.gxbox .sts .tot b{color:#8f6a1c}
 /* ---- 地をほかの札と同じクリームの紙に（2026-10-09・悠さんの指図）----
@@ -6063,6 +6064,9 @@ button.mkpv:active{transform:translateY(1px)}
 .trhand .trc.drag { transition: none; z-index: 50 !important; box-shadow: 0 0 0 2px #f5e2a8, 0 12px 24px rgba(0,0,0,.8); }
 body.trdragging { cursor: grabbing; }
 
+/* 道中手形の残り（2026-10-09） */
+.trtix { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f5e2a8; }
+.trtix .itic { width: 26px; height: 26px; font-size: 12px; }
 /* ================= 道（2026-10-09）=================
    分かれ道の地図。下から上へ歩き、上の国主は必ず通る */
 .trrun { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; padding: 8px 12px; border-radius: 12px;
@@ -6139,6 +6143,15 @@ body.trdragging { cursor: grabbing; }
 .trnode.art.done .trnart { opacity: .75; }
 .trlgart { width: 20px; height: 20px; object-fit: contain; }
 .trlgart.t-強 { background: #3a1f1a; border-radius: 50%; }
+
+/* 印の絵は丸の内に収める（2026-10-09・悠さん「アイコンが大きすぎる」） */
+.trnode.art { overflow: hidden; }
+.trnode.art .trnart { width: 74%; height: 74%; filter: none; }
+.trnode.art.t-宝 .trnart, .trnode.art.t-商 .trnart, .trnode.art.t-宿 .trnart { width: 70%; height: 70%; }
+.trnode.art.t-強 .trnart { width: 72%; height: 72%; }
+
+/* 褒美の札が四つ並んでも はみ出さないよう折り返す（2026-10-09） */
+.trrw { flex-wrap: wrap; justify-content: center; }
 
 </style>
 </head>
@@ -11337,6 +11350,10 @@ const ITEMS = {
   /* ---- 陣触れの品（2026-09-23）----
      出せる部隊のコスト上限を、決めた時間だけ 200 上げる。
      効いているあいだは重ねて飲んでも足し算にはならず、長いほうの刻限で上書きする。 */
+  /* 道中手形（2026-10-09・悠さんの指図「道中チケット」）。
+     落ち延び道中の戦に一枚ずつ使う。日課「城に戻る」で十枚もらえる。
+     店では売らない（毎日の日課だけが出どころ） */
+  '道中手形': { kind: '道中', trail: 1, price: 0, noShop: true, desc: '落ち延び道中の戦で一枚つかう' },
   '陣触れの狼煙': { kind: '編成', costUp: 200, hours: 1,  price: 600,  use: true,
     desc: 'コストの上限を 1時間 200 上げる' },
   '陣触れの太鼓': { kind: '編成', costUp: 200, hours: 6,  price: 2500, use: true,
@@ -12843,7 +12860,8 @@ const MISSIONS = [
   { id: 'd_buy',   tab: '日課', key: 'buy',   goal: 1, text: '蔵で買い物をするワン！',          rw: { koban: 150 } },
   { id: 'd_lv',    tab: '日課', key: 'lv',    goal: 1, text: '武将を一度 強くするワン！',       rw: { koban: 200 } },
   { id: 'd_gacha', tab: '日課', key: 'gacha', goal: 1, text: 'わんこみくじを引くワン！',        rw: { koban: 200 } },
-  { id: 'd_login', tab: '日課', key: 'login', goal: 1, text: '城に戻るワン！',                  rw: { koban: 100 } },
+  /* 2026-10-09（悠さんの指図）：小判の日課を一つ、道中手形十枚に差し替えた。id はそのまま */
+  { id: 'd_login', tab: '日課', key: 'login', goal: 1, text: '城に戻るワン！',                  rw: { items: { '道中手形': 10 } } },
   { id: 'd_evOk',  tab: '日課', key: 'evOk',  goal: 1, text: '催しに一度 勝つワン！',           rw: { stone: 100 } },
   { id: 'd_spar',  tab: '日課', key: 'spar',  goal: 1, text: '友と一度 競うワン！',             rw: { koban: 200 } },
   { id: 'd_item',  tab: '日課', key: 'item',  goal: 1, text: '道具を一度 使うワン！',           rw: { koban: 150 } },
@@ -14476,7 +14494,15 @@ const TR_MAX = TR_STORY.length;
 function trReward(i) {
   const n = i + 1;
   const big = n % 5 === 0;
-  return { koban: (300 + n * 40) * (big ? 3 : 1), soul: (big ? 20 : 5) + Math.floor(n / 3) };
+  /* 武士の魂は貴重にしたいので出さない（2026-10-09・悠さんの指図）。小判と稽古の書にした。
+     5の倍数の階は大稽古の書、10の倍数（国主）はさらに皆伝の書を一冊 */
+  const books = { '稽古の書': 1 + Math.floor(n / 10) };
+  if (big) books['大稽古の書'] = 1;
+  if (n % 10 === 0) books['皆伝の書'] = 1;
+  /* 国主（10・20・30階）を初めて討ったときだけ武士の魂も渡す（2026-10-09・悠さんの指図）。
+     ふだんの階からは出さないので、魂の重みは保たれる */
+  const soul = n % 10 === 0 ? [30, 60, 100][n / 10 - 1] || 100 : 0;
+  return { koban: (300 + n * 40) * (big ? 3 : 1), books, soul };
 }
 /* 敵の強さ。話が進むほど素の値に掛ける倍を大きくする。
    これにプレイヤーレベルの倍（trLvMul）を掛ける（2026-10-09・悠さんの指図「敵が雑魚すぎる」） */
@@ -32743,6 +32769,7 @@ function itemIcon(name) {
     : it.attr ? it.attr[0]                     // 猛・智・守・仁・神
     : it.free ? '無'
     : it.ticket ? '祭'
+    : it.trail ? '旅'
     : it.weather ? it.weather
     : it.inBattle ? '薬'
     : it.food ? '糧'
@@ -34346,6 +34373,7 @@ const BAG_TABS = [
   { key: '編成', name: '編成', note: 'コストの上限をしばらく上げる陣触れの品' },
   { key: '兵糧', name: '兵糧', note: 'ここで使って兵糧をもどす' },
   { key: 'お祭り', name: 'お祭り', note: 'お祭りで使う札' },
+  { key: '道中', name: '道中', note: '落ち延び道中の戦で一枚ずつ使う手形' },
 ];
 const bagCount = () => Object.keys(ITEMS).reduce((a, k) => a + item(k), 0);
 /* 覚醒の品は 属性(籠手→具足→兜) → 無銘 → 軍配 の順に並べる */
@@ -38776,6 +38804,7 @@ function screenTrail() {
       el('div', { class: 'trrun' },
         el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
         el('span', {}, `${floorNow ? floorNow + '階' : '出立前'}`),
+        el('span', { class: 'trtix' }, itemIcon(TR_TICKET), `×${num(item(TR_TICKET))}`),
         el('div', { class: 'trmebar' }, trBar(run.hp, mx, 0)),
         (run.ki || run.guard) ? el('small', {}, [run.ki ? '気の巻' : '', run.guard ? '護符' : ''].filter(Boolean).join('・') + 'を持っている') : null),
       el('div', { class: 'trlegend' }, ['戦', '強', '？', '宿', '商', '宝'].map(t =>
@@ -38790,10 +38819,11 @@ function screenTrail() {
 }
 /* 道の印の絵（2026-10-09・悠さんの指図）。
      敵・手練れ … ui/trail_enemy（悠さん作の紋）／宝 … ui/trail_treasure（くじの宝箱を切り出した）
-     商 … ui/home_items（道具袋）／宿 … ui/trail_rest（作成中。置けばそのまま出る）
+     商 … ui/btn_道具（道具の袋・2026-10-09 ホームの袋の座から差し替え）／宿 … ui/trail_rest（作成中。置けばそのまま出る）
    絵が無ければ一字の印に落ちる */
-const TR_NODE_ART = { 戦: 'trail_enemy', 強: 'trail_enemy', 宝: 'trail_treasure', 商: 'home_items', 宿: 'trail_rest', '？': 'trail_unknown' };
+const TR_NODE_ART = { 戦: 'trail_enemy', 強: 'trail_enemy', 宝: 'trail_treasure', 商: 'btn_道具', 宿: 'trail_rest', '？': 'trail_unknown' };
 const trNodeArt = t => (TR_NODE_ART[t] && uiUrl(TR_NODE_ART[t])) || null;
+const TR_TICKET = '道中手形';
 /* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
 function trRunOf(no) {
   const who = trWho(no); const mx = trMaxHp(who);
@@ -38814,7 +38844,14 @@ function trGo(no, r, c) {
   const step = () => { run.at = { r, c }; run.path = [...(run.path || []), { r, c }]; trFloorDone(no, floor); };
   const R = { rs: (run.seed ^ (floor * 2654435761)) >>> 0 };
   const roll = () => trRand(R);
-  if (t === '戦' || t === '強' || t === '将' || (t === '？' && roll() < 0.4)) {
+  const fight = t === '戦' || t === '強' || t === '将' || (t === '？' && roll() < 0.4);
+  /* 戦は道中手形を一枚使う（2026-10-09）。足りなければ進めない（未知の節も、戦になるときだけ止める） */
+  if (fight && item(TR_TICKET) < 1) {
+    S.trEv = { t: '手形が足りない', p: '道中手形が尽きたワン。日課「城に戻る」で手に入るワン', act: [] };
+    SFX.ng && SFX.ng(); draw(); return;
+  }
+  if (fight) {
+    useItem(TR_TICKET, 1);
     const o = t === '将' ? {}
       : t === '強' ? { n: floor >= 15 ? 3 : 2, elite: true, boss: false }
       : { n: floor < 3 ? 1 : (roll() < 0.55 ? 2 : 1), boss: false };
@@ -38827,9 +38864,10 @@ function trGo(no, r, c) {
     S.trEv = { t: '宿場', p: 'ほっと一息。兵量がいくらか戻った', act: [] };
     run.hp = Math.min(mx, run.hp + Math.round(mx * 0.35)); SFX.heal();
   } else if (t === '宝') {
-    const kb = Math.round((200 + roll() * 500) * k), sl = Math.round((4 + roll() * 10) * k);
-    P.koban += kb; P.soul += sl; SFX.get();
-    S.trEv = { t: '宝箱', p: `小判 ${num(kb)}・武士の魂 ${num(sl)} を見つけた`, act: [] };
+    /* 宝箱も魂は出さない（2026-10-09）。小判と稽古の書 */
+    const kb = Math.round((200 + roll() * 500) * k), bk = 1 + Math.floor(roll() * 2) + run.part;
+    P.koban += kb; addItem('稽古の書', bk); SFX.get();
+    S.trEv = { t: '宝箱', p: `小判 ${num(kb)}・稽古の書 ${bk}冊 を見つけた`, act: [] };
   } else if (t === '商') {
     S.trEv = { t: '商人', p: '「よい品がございますワン」', shop: true };
   } else {
@@ -38838,10 +38876,10 @@ function trGo(no, r, c) {
       () => { const kb = 150 * k; P.koban += kb; return { t: '落とし物', p: `道ばたに小判 ${num(kb)} が落ちていた`, act: [] }; },
       () => ({ t: '古寺の鐘', p: '荒れた寺に、鐘がひとつ残っている', act: [
         { l: '祈る', f: () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.15)); return '心が静まった。兵量が少し戻った'; } },
-        { l: '賽銭を投げる', f: () => { if (P.koban < 100 * k) return '小判が足りなかった'; P.koban -= 100 * k; P.soul += 10 * k; return '鐘が鳴った。武士の魂が湧いてきた'; } },
+        { l: '賽銭を投げる', f: () => { if (P.koban < 100 * k) return '小判が足りなかった'; P.koban -= 100 * k; addItem('稽古の書', 2 * k); return '鐘が鳴った。寺の書を分けてもらった'; } },
       ] }),
       () => ({ t: '怪しい行者', p: '「血をひとしずく くれれば、力をやろう」', act: [
-        { l: '差し出す', f: () => { run.hp = Math.max(1, run.hp - Math.round(mx * 0.12)); P.soul += 15 * k; return '武士の魂を授かった。少し目まいがする'; } },
+        { l: '差し出す', f: () => { run.hp = Math.max(1, run.hp - Math.round(mx * 0.12)); addItem('大稽古の書', k); return '古い巻物を授かった。少し目まいがする'; } },
         { l: '断る', f: () => '行者は霧の中へ消えた' },
       ] }),
     ];
@@ -38855,7 +38893,8 @@ function trFloorDone(no, floor) {
   const before = trBonus(no);
   P.trail.prog[no] = floor + 1;
   const rw = trReward(floor);
-  P.koban += rw.koban; P.soul += rw.soul;
+  P.koban += rw.koban; P.soul += rw.soul || 0;
+  for (const [nm, n] of Object.entries(rw.books || {})) addItem(nm, n);
   const after = trBonus(no);
   const mile = (after.lv !== before.lv || after.sp !== before.sp) ? { lv: after.lv - before.lv, sp: after.sp - before.sp } : null;
   return { rw, mile };
@@ -39291,7 +39330,9 @@ function trResSheet() {
       el('b', { class: 'trresh' }, head),
       c ? keepImg({ class: 'trresimg', src: trFace(c.no), alt: c.name }) : null,
       el('p', {}, msg),
-      r.rw ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.rw.koban)}`), el('span', {}, `武士の魂 ${num(r.rw.soul)}`)) : null,
+      r.rw ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.rw.koban)}`),
+        ...Object.entries(r.rw.books || {}).map(([nm, n]) => el('span', {}, `${nm} ${n}冊`)),
+        r.rw.soul ? el('span', {}, `武士の魂 ${num(r.rw.soul)}`) : null) : null,
       r.mile ? el('div', { class: 'trmileup' },
         el('b', {}, `${c ? c.name : ''}の殻が破れた`),
         r.mile.sp ? el('span', {}, `武士の魂の上限 ＋${r.mile.sp}`) : null,

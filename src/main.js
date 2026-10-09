@@ -5174,6 +5174,7 @@ function itemIcon(name) {
     : it.attr ? it.attr[0]                     // 猛・智・守・仁・神
     : it.free ? '無'
     : it.ticket ? '祭'
+    : it.trail ? '旅'
     : it.weather ? it.weather
     : it.inBattle ? '薬'
     : it.food ? '糧'
@@ -6777,6 +6778,7 @@ const BAG_TABS = [
   { key: '編成', name: '編成', note: 'コストの上限をしばらく上げる陣触れの品' },
   { key: '兵糧', name: '兵糧', note: 'ここで使って兵糧をもどす' },
   { key: 'お祭り', name: 'お祭り', note: 'お祭りで使う札' },
+  { key: '道中', name: '道中', note: '落ち延び道中の戦で一枚ずつ使う手形' },
 ];
 const bagCount = () => Object.keys(ITEMS).reduce((a, k) => a + item(k), 0);
 /* 覚醒の品は 属性(籠手→具足→兜) → 無銘 → 軍配 の順に並べる */
@@ -11207,6 +11209,7 @@ function screenTrail() {
       el('div', { class: 'trrun' },
         el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
         el('span', {}, `${floorNow ? floorNow + '階' : '出立前'}`),
+        el('span', { class: 'trtix' }, itemIcon(TR_TICKET), `×${num(item(TR_TICKET))}`),
         el('div', { class: 'trmebar' }, trBar(run.hp, mx, 0)),
         (run.ki || run.guard) ? el('small', {}, [run.ki ? '気の巻' : '', run.guard ? '護符' : ''].filter(Boolean).join('・') + 'を持っている') : null),
       el('div', { class: 'trlegend' }, ['戦', '強', '？', '宿', '商', '宝'].map(t =>
@@ -11221,10 +11224,11 @@ function screenTrail() {
 }
 /* 道の印の絵（2026-10-09・悠さんの指図）。
      敵・手練れ … ui/trail_enemy（悠さん作の紋）／宝 … ui/trail_treasure（くじの宝箱を切り出した）
-     商 … ui/home_items（道具袋）／宿 … ui/trail_rest（作成中。置けばそのまま出る）
+     商 … ui/btn_道具（道具の袋・2026-10-09 ホームの袋の座から差し替え）／宿 … ui/trail_rest（作成中。置けばそのまま出る）
    絵が無ければ一字の印に落ちる */
-const TR_NODE_ART = { 戦: 'trail_enemy', 強: 'trail_enemy', 宝: 'trail_treasure', 商: 'home_items', 宿: 'trail_rest', '？': 'trail_unknown' };
+const TR_NODE_ART = { 戦: 'trail_enemy', 強: 'trail_enemy', 宝: 'trail_treasure', 商: 'btn_道具', 宿: 'trail_rest', '？': 'trail_unknown' };
 const trNodeArt = t => (TR_NODE_ART[t] && uiUrl(TR_NODE_ART[t])) || null;
+const TR_TICKET = '道中手形';
 /* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
 function trRunOf(no) {
   const who = trWho(no); const mx = trMaxHp(who);
@@ -11245,7 +11249,14 @@ function trGo(no, r, c) {
   const step = () => { run.at = { r, c }; run.path = [...(run.path || []), { r, c }]; trFloorDone(no, floor); };
   const R = { rs: (run.seed ^ (floor * 2654435761)) >>> 0 };
   const roll = () => trRand(R);
-  if (t === '戦' || t === '強' || t === '将' || (t === '？' && roll() < 0.4)) {
+  const fight = t === '戦' || t === '強' || t === '将' || (t === '？' && roll() < 0.4);
+  /* 戦は道中手形を一枚使う（2026-10-09）。足りなければ進めない（未知の節も、戦になるときだけ止める） */
+  if (fight && item(TR_TICKET) < 1) {
+    S.trEv = { t: '手形が足りない', p: '道中手形が尽きたワン。日課「城に戻る」で手に入るワン', act: [] };
+    SFX.ng && SFX.ng(); draw(); return;
+  }
+  if (fight) {
+    useItem(TR_TICKET, 1);
     const o = t === '将' ? {}
       : t === '強' ? { n: floor >= 15 ? 3 : 2, elite: true, boss: false }
       : { n: floor < 3 ? 1 : (roll() < 0.55 ? 2 : 1), boss: false };
@@ -11258,9 +11269,10 @@ function trGo(no, r, c) {
     S.trEv = { t: '宿場', p: 'ほっと一息。兵量がいくらか戻った', act: [] };
     run.hp = Math.min(mx, run.hp + Math.round(mx * 0.35)); SFX.heal();
   } else if (t === '宝') {
-    const kb = Math.round((200 + roll() * 500) * k), sl = Math.round((4 + roll() * 10) * k);
-    P.koban += kb; P.soul += sl; SFX.get();
-    S.trEv = { t: '宝箱', p: `小判 ${num(kb)}・武士の魂 ${num(sl)} を見つけた`, act: [] };
+    /* 宝箱も魂は出さない（2026-10-09）。小判と稽古の書 */
+    const kb = Math.round((200 + roll() * 500) * k), bk = 1 + Math.floor(roll() * 2) + run.part;
+    P.koban += kb; addItem('稽古の書', bk); SFX.get();
+    S.trEv = { t: '宝箱', p: `小判 ${num(kb)}・稽古の書 ${bk}冊 を見つけた`, act: [] };
   } else if (t === '商') {
     S.trEv = { t: '商人', p: '「よい品がございますワン」', shop: true };
   } else {
@@ -11269,10 +11281,10 @@ function trGo(no, r, c) {
       () => { const kb = 150 * k; P.koban += kb; return { t: '落とし物', p: `道ばたに小判 ${num(kb)} が落ちていた`, act: [] }; },
       () => ({ t: '古寺の鐘', p: '荒れた寺に、鐘がひとつ残っている', act: [
         { l: '祈る', f: () => { run.hp = Math.min(mx, run.hp + Math.round(mx * 0.15)); return '心が静まった。兵量が少し戻った'; } },
-        { l: '賽銭を投げる', f: () => { if (P.koban < 100 * k) return '小判が足りなかった'; P.koban -= 100 * k; P.soul += 10 * k; return '鐘が鳴った。武士の魂が湧いてきた'; } },
+        { l: '賽銭を投げる', f: () => { if (P.koban < 100 * k) return '小判が足りなかった'; P.koban -= 100 * k; addItem('稽古の書', 2 * k); return '鐘が鳴った。寺の書を分けてもらった'; } },
       ] }),
       () => ({ t: '怪しい行者', p: '「血をひとしずく くれれば、力をやろう」', act: [
-        { l: '差し出す', f: () => { run.hp = Math.max(1, run.hp - Math.round(mx * 0.12)); P.soul += 15 * k; return '武士の魂を授かった。少し目まいがする'; } },
+        { l: '差し出す', f: () => { run.hp = Math.max(1, run.hp - Math.round(mx * 0.12)); addItem('大稽古の書', k); return '古い巻物を授かった。少し目まいがする'; } },
         { l: '断る', f: () => '行者は霧の中へ消えた' },
       ] }),
     ];
@@ -11286,7 +11298,8 @@ function trFloorDone(no, floor) {
   const before = trBonus(no);
   P.trail.prog[no] = floor + 1;
   const rw = trReward(floor);
-  P.koban += rw.koban; P.soul += rw.soul;
+  P.koban += rw.koban; P.soul += rw.soul || 0;
+  for (const [nm, n] of Object.entries(rw.books || {})) addItem(nm, n);
   const after = trBonus(no);
   const mile = (after.lv !== before.lv || after.sp !== before.sp) ? { lv: after.lv - before.lv, sp: after.sp - before.sp } : null;
   return { rw, mile };
@@ -11722,7 +11735,9 @@ function trResSheet() {
       el('b', { class: 'trresh' }, head),
       c ? keepImg({ class: 'trresimg', src: trFace(c.no), alt: c.name }) : null,
       el('p', {}, msg),
-      r.rw ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.rw.koban)}`), el('span', {}, `武士の魂 ${num(r.rw.soul)}`)) : null,
+      r.rw ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.rw.koban)}`),
+        ...Object.entries(r.rw.books || {}).map(([nm, n]) => el('span', {}, `${nm} ${n}冊`)),
+        r.rw.soul ? el('span', {}, `武士の魂 ${num(r.rw.soul)}`) : null) : null,
       r.mile ? el('div', { class: 'trmileup' },
         el('b', {}, `${c ? c.name : ''}の殻が破れた`),
         r.mile.sp ? el('span', {}, `武士の魂の上限 ＋${r.mile.sp}`) : null,

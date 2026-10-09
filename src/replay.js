@@ -1250,6 +1250,11 @@ const SYNTH = {
   coin: () => { [1180, 1560].forEach((f, i) => tone({ f, dur: .1, type: 'square', gain: .028, delay: i * .05 })); },
   ng:   () => tone({ f: 200, to: 150, dur: .16, type: 'square', gain: .035 }),
   march:() => { tone({ f: 330, to: 440, dur: .5, type: 'sawtooth', gain: .045 }); noise({ dur: .4, gain: .03, hp: 300, delay: .1 }); },
+  /* 判をつく音（2026-10-09・ログインボーナスの朱印）。
+     木の判が紙にドンと当たる音。se_hanko.mp3 を置けばそちらになる */
+  hanko:() => { noise({ dur: .11, gain: .07, hp: 260 });
+                tone({ f: 155, to: 68, dur: .17, type: 'square', gain: .06 });
+                tone({ f: 430, dur: .05, type: 'triangle', gain: .028 }); },
   /* 場面替わりのつなぎ（2026-09-28）。低い風が一度だけ吹き抜ける */
   tsunagi:() => { tone({ f: 140, to: 60, dur: .7, type: 'sine', gain: .05 });
                   noise({ dur: .5, gain: .018, hp: 200 }); },

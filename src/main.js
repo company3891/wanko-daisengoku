@@ -6641,6 +6641,14 @@ function lbBoard() {
   lbRoll();
   const now = lbDayNow(), last = lbLastDay(), got = P.lbGot || [];
   const stamp = uiUrl('stamp_sumi');
+  /* 判をつく音は、板が目の前に出た一度きり（2026-10-09・悠さんの指図
+     「この画面になったら押された様なアクションつけて」）。
+     lbBoard は板の札が表に来て初めて呼ばれるので、ここが「この画面になった」瞬間。
+     遅れは CSS の animation-delay（.5s）に合わせてある ── 判が落ちる刹那に鳴らす */
+  if (S.lbNew && !S.lbRang) {
+    S.lbRang = true;
+    setTimeout(() => SFX.hanko(), 500);
+  }
   return el('div', { class: 'lbwrap' }, LB_DAYS.map((rw, i) => {
     const d = i + 1;
     if (d > last) return null;             // 二十八日の月は 29〜31 を空のままにする
@@ -6649,7 +6657,8 @@ function lbBoard() {
     const on = got.includes(d);
     const fresh = on && d === now && S.lbNew;
     return el('div', {
-      class: 'lbc' + (on ? ' on' : '') + (d === now ? ' now' : '') + (LB_BIG.has(d) ? ' big' : ''),
+      class: 'lbc' + (on ? ' on' : '') + (d === now ? ' now' : '')
+             + (LB_BIG.has(d) ? ' big' : '') + (fresh ? ' fresh' : ''),
       style: `left:${LB_X[c]}%;top:${LB_Y[r]}%;width:${LB_W}%;height:${LB_H}%`,
       title: `${d}日　${miWords(rw)}`,
     }, el('i', { class: 'lbd' }, String(d)),
@@ -6752,12 +6761,9 @@ function adSheet() {
       el('div', { class: 'adwrap' },
         keepImg({ class: 'adart', src: adUrl(c.art), alt: c.name }),
         c.over ? c.over() : null),
-      /* 何枚あって今どれかを、小さな丸で出す（二枚目があると分かる） */
-      list.length > 1 ? el('div', { class: 'addots' },
-        list.map((_, j) => el('i', { class: j === i ? 'on' : '' }))) : null,
-      list.length > 1
-        ? el('p', { class: 'adhint' }, i + 1 < list.length ? '画面を押すと次へ' : '画面を押すと閉じる')
-        : null,
+      /* 2026-10-09（悠さんの指図）：枚数の丸と「画面を押すと次へ」の案内を外した。
+         絵を見せる場なので、札の下に小物が並ぶほど絵が小さく見える。
+         押せば次へ進むのは触れば分かる */
       /* 釦は札の下に二つ（2026-10-09・悠さんの指図）。
          stopPropagation を付けないと、上の adsheet の onclick（次へ）も一緒に走る */
       el('div', { class: 'adbtns' },

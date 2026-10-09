@@ -5952,6 +5952,25 @@ button.mkpv:active{transform:translateY(1px)}
    朱印に影を付けるより、下を灰に落としたほうが朱がはっきり残る。
    filter は中の img にも効くので、ここ一つで絵と紙の両方が灰になる */
 .lbc.on .itic,.lbc.on .ci,.lbc.on > i:not(.lbd){filter:grayscale(1) brightness(.88)}
+/* ---- 今日ぶんの判をつく見せ場（2026-10-09・悠さんの指図）----
+   「ただ押されてるだけだと、押されたかもわからない」。板が目の前に出てから 0.5秒ため、
+   判が大きく落ちてくる。その刹那に 升がへこみ、朱の輪が広がり、褒美の絵が灰に落ちる。
+   灰は animation で後がけ（both）── 静かに書いた filter より animation が勝つので、
+   落ちる前までは絵が色のまま残り、「いま押された」と分かる */
+.lbc.fresh .itic,.lbc.fresh .ci,.lbc.fresh > i:not(.lbd){animation:lbgray .22s .53s both}
+@keyframes lbgray{from{filter:none}to{filter:grayscale(1) brightness(.88)}}
+.lbc.fresh .lbd,.lbc.fresh .lbn{animation:lbfade .22s .53s both}
+@keyframes lbfade{from{opacity:1}to{opacity:.78}}
+/* 升が judge の重みでへこむ */
+.lbc.fresh{animation:lbpress .3s .5s cubic-bezier(.3,.9,.4,1.3) both}
+@keyframes lbpress{0%{transform:none}30%{transform:scale(.9)}100%{transform:none}}
+/* 朱の輪が外へ広がる。枡は overflow:visible なので外まで出られる */
+.lbc.fresh::after{content:'';position:absolute;inset:0;border-radius:4px;
+  border:2px solid #e0654f;pointer-events:none;z-index:4;
+  animation:lbring .5s .52s ease-out both}
+/* 0% を透明にしておく（both で遅れのあいだ 0% が保たれるため）。
+   ここを .95 にしておくと、判が落ちる前から朱の枠が見えてしまう */
+@keyframes lbring{0%{transform:scale(.72);opacity:0}12%{opacity:.95}100%{transform:scale(2.1);opacity:0}}
 .lbc.on .lbd,.lbc.on .lbn{opacity:.78;color:#3a352e;text-shadow:0 1px 0 #ffffffcc,0 -1px 0 #ffffffcc,1px 0 0 #ffffffcc,-1px 0 0 #ffffffcc}
 /* 今日の升は金の縁で灯す。まだ押していない日は無いので、だいたい朱印と重なる */
 .lbc.now{box-shadow:0 0 0 1.5px var(--gold),0 0 10px #d8a94a88}
@@ -5963,12 +5982,14 @@ button.mkpv:active{transform:translateY(1px)}
 .lbst.txt{display:flex;align-items:center;justify-content:center;width:100%;height:100%;
   font-family:var(--mincho);font-size:17px;font-weight:800;color:#e0654f;
   border:2px solid #e0654f;border-radius:5px;background:#e0654f22}
-/* 今日ぶんを配った升だけ、判をつく動き（2026-10-09） */
-.lbst.pop{animation:lbstamp .42s cubic-bezier(.2,.9,.3,1.25) both}
+/* 今日ぶんの判（2026-10-09）。板が出てから 0.5秒ためてから、高いところから落とす。
+   ためを置かないと、画面が出た刹那に終わってしまって気づけない */
+.lbst.pop{animation:lbstamp .46s .5s cubic-bezier(.2,.9,.3,1.25) both}
 @keyframes lbstamp{
-  0%{transform:translate(-50%,-50%) rotate(-30deg) scale(2.6);opacity:0}
-  55%{transform:translate(-50%,-50%) rotate(-11deg) scale(.9);opacity:1}
-  75%{transform:translate(-50%,-50%) rotate(-11deg) scale(1.08)}
+  0%{transform:translate(-50%,-50%) rotate(-34deg) scale(3.4);opacity:0}
+  25%{opacity:.5}
+  55%{transform:translate(-50%,-50%) rotate(-11deg) scale(.88);opacity:1}
+  78%{transform:translate(-50%,-50%) rotate(-11deg) scale(1.1)}
   100%{transform:translate(-50%,-50%) rotate(-11deg) scale(1);opacity:1}}
 .addots{display:flex;gap:7px}
 .addots i{width:7px;height:7px;border-radius:50%;background:#ffffff44}

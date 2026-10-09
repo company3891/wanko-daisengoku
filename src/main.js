@@ -10649,6 +10649,7 @@ function navBar() {
    ホーム・ガチャ・全国は画面の側で自前に出しているので、ここでは扱わない。
    絵の上に文字や札がびっしり乗るので、暗幕（.scrim）を重ねて読めるようにする。 */
 const SCREEN_BG = {
+  trail:   'kamon',    // 落ち延び道中の地図と山札（2026-10-09・真っ黒で寂しかった）
   march:   'march',    // 出陣
   squads:  'squads',   // 部隊
   team:    'team',     // 編成

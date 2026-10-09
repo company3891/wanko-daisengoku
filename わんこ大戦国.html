@@ -1920,9 +1920,15 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
    ・そのぶん数の列は**コマ絵に重ねない**（悠さんの指図）。負の余白をやめた
    ・金帯（経験のゲージ）も数の列の幅に合わせて短く
    ・地は黒漆をやめ、**ほかの札と同じクリームの紙**にそろえた */
-.gxname{display:block;text-align:center;font-size:19px;letter-spacing:.05em;margin:2px 0 5px}
-.gxmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;
-  font-size:10px;color:var(--text3);margin-bottom:8px}
+/* 名前の行。左に位の印、右に属性の印（2026-10-09・悠さんの指図）。
+   印は名前と同じ背丈（28px）。名前が長い武将でも折り返さないよう、
+   名前だけ縮むようにしてある */
+.gxhead{display:flex;align-items:center;justify-content:center;gap:9px;margin:2px 0 5px}
+.gxname{min-width:0;font-size:19px;letter-spacing:.05em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.gxhead .gxic{width:28px;height:28px;flex:0 0 auto;object-fit:contain;margin:0}
+.gxmeta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;
+  font-size:11px;color:var(--text3);margin-bottom:8px}
 /* 立ち絵と数は横に並べ、**重ねない**。立ち絵の高さは数の列に合わせて伸びる */
 .gxmain{display:flex;align-items:stretch;gap:6px;margin-bottom:4px}
 .gxfig{flex:0 0 60%;border:0;background:none;padding:0;cursor:pointer;
@@ -31941,8 +31947,14 @@ function screenPower() {
          金帯（経験のゲージ）は数の真上。線から下は今までどおり。
          ぜんぶ一画面に収める（393×852 で巻かない） */
       el('div', { class: 'card2 growbox gxbox' },
-        el('b', { class: 'gxname' }, c.name),
-        el('div', { class: 'gxmeta' }, rarTag(c.rarity, 'sm'), attrTag(c.attr, 'sm'),
+        /* 位と属性の印は名前の左右へ（2026-10-09・悠さんの指図）。
+           下の一行に小さく畳んでいたら寂しかったので、名前と同じ背丈に大きくして
+           左右へ据えた。'sm' は付けない（付けると小さいほうの見た目になる） */
+        el('div', { class: 'gxhead' },
+          rarTag(c.rarity, 'gxic'),
+          el('b', { class: 'gxname' }, c.name),
+          attrTag(c.attr, 'gxic')),
+        el('div', { class: 'gxmeta' },
           el('span', {}, `Lv.${st.lv} / ${cap}`),
           el('span', {}, '覚醒 ' + '◆'.repeat(st.awake) + '◇'.repeat(AWAKE_MAX - st.awake))),
         el('div', { class: 'gxmain' },

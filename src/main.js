@@ -4339,8 +4339,14 @@ function screenPower() {
          金帯（経験のゲージ）は数の真上。線から下は今までどおり。
          ぜんぶ一画面に収める（393×852 で巻かない） */
       el('div', { class: 'card2 growbox gxbox' },
-        el('b', { class: 'gxname' }, c.name),
-        el('div', { class: 'gxmeta' }, rarTag(c.rarity, 'sm'), attrTag(c.attr, 'sm'),
+        /* 位と属性の印は名前の左右へ（2026-10-09・悠さんの指図）。
+           下の一行に小さく畳んでいたら寂しかったので、名前と同じ背丈に大きくして
+           左右へ据えた。'sm' は付けない（付けると小さいほうの見た目になる） */
+        el('div', { class: 'gxhead' },
+          rarTag(c.rarity, 'gxic'),
+          el('b', { class: 'gxname' }, c.name),
+          attrTag(c.attr, 'gxic')),
+        el('div', { class: 'gxmeta' },
           el('span', {}, `Lv.${st.lv} / ${cap}`),
           el('span', {}, '覚醒 ' + '◆'.repeat(st.awake) + '◇'.repeat(AWAKE_MAX - st.awake))),
         el('div', { class: 'gxmain' },

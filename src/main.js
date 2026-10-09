@@ -11474,12 +11474,36 @@ function trDrag(node, h, need) {
     node.addEventListener('pointercancel', up);
   });
 }
+/* 戦の途中の札を、いまの札の印に直す（2026-10-09・悠さんの実機で「旅を押しても開かない」）。
+   札の印を u／n0／n1 から枠の番号 s0〜s2 に変えたので、その前から続いていた戦の札が
+   見つからず、画面を描くところで止まっていた。古い印は読み替え、読めない札は捨てる。
+   武将が持っていない（解雇した）ときは、その戦をあきらめて道へ戻す */
+const TR_OLD_KEY = { u: 's0', n0: 's1', n1: 's2', n2: 's2' };
+function trFixFight(F, kinds) {
+  const keys = new Set(kinds.map(k => k.key));
+  const fix = list => (list || []).map(c => {
+    if (!c || keys.has(c.key)) return c;
+    const k2 = TR_OLD_KEY[c.key];
+    return (k2 && keys.has(k2)) ? { ...c, key: k2 } : null;
+  }).filter(Boolean);
+  for (const k of ['draw', 'hand', 'disc', 'gone']) F[k] = fix(F[k]);
+  for (const f of F.foes || []) {
+    if (!f.cards) f.cards = { atk: [], guard: [], buff: [] };
+    for (const k of ['ph', 'ult', 'pump', 'mom', 'weakT', 'vuln', 'stun', 'burn', 'burnT', 'seal', 't'])
+      if (typeof f[k] !== 'number') f[k] = 0;
+  }
+  for (const k of ['daze', 'burn', 'burnT', 'crack', 'seal']) if (F.pl && typeof F.pl[k] !== 'number') F.pl[k] = 0;
+  if (!F.pl) return false;
+  return true;
+}
 function screenTrFight() {
   if (S.trAnim) setTimeout(trAnimate, 0);
   const F = P.trail.fight;
   if (!F) { S.screen = 'trail'; return screenTrail(); }
-  const who = trWho(F.no);
+  const who = charOf(F.no) && hasCard(F.no) ? trWho(F.no) : null;
+  if (!who) { P.trail.fight = null; S.screen = 'trail'; return screenTrail(); }
   const kinds = trKindsOf(who);
+  if (!trFixFight(F, kinds)) { P.trail.fight = null; S.screen = 'trail'; return screenTrail(); }
   const s = TR_STORY[F.i];
   const busy = !!S.trBusy;
   const pl = F.pl;

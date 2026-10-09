@@ -13456,8 +13456,10 @@ const mkPay   = () => call('/v1/market/claim',  { method: 'POST' });
 /* 名乗りのついでに **置き部隊** も預ける（2026-10-06）。
    部隊編成でいま選んでいる部隊をそのまま渡す。
    自分が留守のあいだ、この部隊が陣を守る */
-const palMe   = (name, lv, face, team) =>
-  call('/v1/pal/me', { method: 'POST', body: { name, lv, face, team } });
+/* 称号（title）も預ける（2026-10-09）。友の顔に額を出すため。
+   これが無いあいだ、サーバーは誰の称号も知らず、友の顔にだけ額が付かなかった */
+const palMe   = (name, lv, face, team, title) =>
+  call('/v1/pal/me', { method: 'POST', body: { name, lv, face, team, title } });
 const palList = () => call('/v1/pal');
 const palFind = (q) => call('/v1/pal/find?q=' + encodeURIComponent(q || ''));
 const palAsk  = (who) => call('/v1/pal/ask', { method: 'POST', body: who });
@@ -29953,6 +29955,23 @@ const TITLES = [
 ];
 const TITLE_ORDER = new Map(TITLES.map((x, i) => [x.n, i]));
 const titleOf = n => TITLES.find(x => x.n === n) || null;
+/* ---- NPCの称号（2026-10-09）----
+   本物の友の顔に額を出せるようにしたら、**NPCだけ額が無い**ことになってしまう。
+   それでは「どちらが人か分かってしまう」ので、NPCにも称号を持たせる。
+   強さに見合った位の中から、印から決め打ちで一つ選ぶ
+   ── その相手はいつ見ても同じ額を付けている。
+   強さの刻みは番付の称号（足軽頭8000／侍大将14000／鬼神22000／軍神30000／覇者38000）に合わせた */
+function npcTierOfPower(power) {
+  const p = power || 0;
+  return p >= 38000 ? 6 : p >= 30000 ? 5 : p >= 22000 ? 4 : p >= 14000 ? 3 : p >= 8000 ? 2 : 1;
+}
+function npcTitleOf(id, tier) {
+  const pool = TITLES.filter(x => x.t === tier);
+  if (!pool.length) return '';
+  let h = 2166136261 >>> 0;
+  for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return pool[(h >>> 3) % pool.length].n;
+}
 
 /* 手に入る条件を満たした称号を配る。一度取れば消えない。
    古い称号（国人・小名・大大名）は30個に入れ替えたので、持っていても落とす */
@@ -30355,7 +30374,10 @@ function rkSheet() {
       },
         el('span', { class: 'rkn' }, x.rank),
         /* 顔はヘッダーの自分の顔と同じ作り。NPCは総大将の顔を出す（2026-09-25）*/
-        frFace(x.me ? faceChar() : rkGenOf(x), 'rkf', x.me ? P.title : x.title),
+        /* NPCの称号は強さから決め打ち（2026-10-09）。自分だけ額が付いて
+           相手に付かないと、そこで人かどうか分かってしまう */
+        frFace(x.me ? faceChar() : rkGenOf(x), 'rkf',
+          x.me ? P.title : (x.title || npcTitleOf(x.id, npcTierOfPower(x.power)))),
         el('span', { class: 'rknm' },
           el('b', {}, x.name),
           el('i', {}, x.me ? (x.title || NONAME) : rkSide(r.pt, x.pt),
@@ -30726,6 +30748,8 @@ function npcCard(p) {
   const lv = Math.max(1, Math.round(team.reduce((a, c) => a + ((c.stats && c.stats.lv) || 0), 0) / Math.max(1, team.length))
                        || Math.min(200, 8 + team.length * 9 + (p.battles || 1) * 7));
   return { id: p.id, npc: true, tag: npcTag(p.id), name: lordName(p), lv,
+           /* 称号は位から（2026-10-09）。本物の友と同じく顔に額が付く */
+           title: npcTitleOf(p.id, lv >= 160 ? 6 : lv >= 120 ? 5 : lv >= 90 ? 4 : lv >= 60 ? 3 : lv >= 30 ? 2 : 1),
            face: fr && fr.general, gen: fr && fr.general,
            /* 国の主にも 在／留守 がある（2026-10-06）。
               いつ訪ねても必ず居るのは、それだけで人でないと分かってしまう。
@@ -30755,6 +30779,8 @@ function rkFriendCard(x) {
   const team = rkTeamOf(x);
   const gen = team[0] || null;
   return { id: x.id, npc: true, rk: x, tag: npcTag(x.id), name: x.name, lv: rkPalLv(x),
+           /* 番付で見ていたときと同じ額を、友になっても付けつづける（2026-10-09） */
+           title: npcTitleOf(x.id, npcTierOfPower(x.power)),
            face: gen, gen, away: npcAway(x.id), team: 1 };
 }
 /* 友になっている NPC を番号で引く（2026-10-09）。
@@ -30870,7 +30896,7 @@ function palTick(force) {
       /* 名乗りのついでに **置き部隊** を預ける（2026-10-06・悠さんの指図）。
          置き部隊は「部隊編成でいま選んでいる部隊」そのまま。
          別に組ませると、組み替えるのを忘れた弱い陣がいつまでも守ることになる */
-      const r0 = await palMe(P.name || '名無し', P.lv || 1, (q && q.general) ?? null, palTeamNow());
+      const r0 = await palMe(P.name || '名無し', P.lv || 1, (q && q.general) ?? null, palTeamNow(), P.title || '');
       if (r0 && r0.ok && r0.tag && r0.tag !== P.palTag) { P.palTag = r0.tag; savePlayer(); }
       const r1 = await palList();
       if (r1 && r1.ok) PAL = { pals: r1.pals || [], asks: r1.asks || [],
@@ -31023,8 +31049,10 @@ function palRow(c, kind) {
       /* 顔を押すと、その人が主役に据えている武将の札が開く（2026-10-08・悠さんの指図）。
          強さが分かるので、願いを出すかどうかの目安になる。
          friend でも find でも同じ ── どちらが人かで手ざわりを変えない */
+      /* 額は相手の称号のもの（2026-10-09）。第三引数を渡し忘れていたせいで、
+         本物の友の顔にだけ一生 額が付かなかった。称号が無い人は素の丸のまま */
       el('button', { class: 'frfaceb', title: `${c.name} の主役を見る`,
-        onclick: e => { e.stopPropagation(); frPeek(c); } }, frFace(c.face)),
+        onclick: e => { e.stopPropagation(); frPeek(c); } }, frFace(c.face, null, c.title)),
       el('span', { class: 'frn' },
         /* 留守の印は 名の右（2026-10-06）。
            位と主番号の行に足すと、主番号のほうが先に切れて読めなくなった（実測） */

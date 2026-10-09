@@ -131,8 +131,10 @@ export const mkPay   = () => call('/v1/market/claim',  { method: 'POST' });
 /* 名乗りのついでに **置き部隊** も預ける（2026-10-06）。
    部隊編成でいま選んでいる部隊をそのまま渡す。
    自分が留守のあいだ、この部隊が陣を守る */
-export const palMe   = (name, lv, face, team) =>
-  call('/v1/pal/me', { method: 'POST', body: { name, lv, face, team } });
+/* 称号（title）も預ける（2026-10-09）。友の顔に額を出すため。
+   これが無いあいだ、サーバーは誰の称号も知らず、友の顔にだけ額が付かなかった */
+export const palMe   = (name, lv, face, team, title) =>
+  call('/v1/pal/me', { method: 'POST', body: { name, lv, face, team, title } });
 export const palList = () => call('/v1/pal');
 export const palFind = (q) => call('/v1/pal/find?q=' + encodeURIComponent(q || ''));
 export const palAsk  = (who) => call('/v1/pal/ask', { method: 'POST', body: who });

@@ -157,8 +157,14 @@ export const P = {
      palRkAsk＝出した願い { 番号: { at: 受けてくれる時刻, x: 控え } } */
   palRk: [], palRkAsk: null,
   /* お知らせ札の「今日は表示しない」（2026-10-09・悠さんの指図）。
-     押した日の日付を控える。朝4時の変わり目でまた出る（today() が 4時ずらし） */
-  adHide: '',
+     2026-10-09 に **札ごと** に変えた（悠さんの指図「閉じるは全てのポップアップ毎に判定」）。
+     { 札の名前: 押した日 } を控える。朝4時の変わり目でまた出る（today() が 4時ずらし）。
+     以前は日付の文字列ひとつだった。古い保存は loadPlayer で空の箱に戻す */
+  adHide: {},
+  /* ログインボーナスの板（2026-10-09・悠さんの指図）。月ごとに真っ新に戻す。
+     lbMonth＝いま開いている板の月 '2026-10' ／ lbGot＝もう朱印を押した日（1〜31）。
+     休んだ日の升は押せないまま流れる ── 後追いで取り返せない */
+  lbMonth: '', lbGot: [],
   /* awayLog＝留守のあいだに攻められた覚え（2026-10-06）。
      サーバーの置き手紙は一度受け取ると消えるので、手元にも控えを残す。
      新しい保存の品は必ずここに並べる。並べないと localStorage から読み戻らない */
@@ -851,6 +857,10 @@ export function loadPlayer(FORMS) {
   if (raw && typeof raw === 'object') {
     for (const k of Object.keys(P)) if (raw[k] !== undefined) P[k] = raw[k];
     if (!Array.isArray(P.own)) P.own = [];
+    /* お知らせ札の覚えは 2026-10-09 に 文字列 → 箱 に変えた。
+       古い保存には日付の文字列が入っているので、箱でなければ空に戻す */
+    if (!P.adHide || typeof P.adHide !== 'object') P.adHide = {};
+    if (!Array.isArray(P.lbGot)) P.lbGot = [];
     /* 入れ子は丸ごと差し替わるので、足りない項目を埋め直す（2026-09-25）。
        古い保存には link がまだ無い */
     P.link = { code: '', pass: '', salt: '', at: 0, ties: {}, ...(P.link || {}) };

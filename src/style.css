@@ -5605,6 +5605,11 @@ main.hasnav:has(.twpage){padding-bottom:var(--nav,104px)}
 .mkclv{position:absolute;left:3px;bottom:3px;font-size:9px;font-weight:800;
   color:#bfe6ff;background:#000000cc;border:1px solid #5fb6ff66;border-radius:6px;
   padding:0 4px;line-height:1.6;text-shadow:0 1px 2px #000}
+/* 手持ちの枚数は札の右下（2026-10-09・悠さんの指図）。位と同じ作りで色だけ金に。
+   左が位・右が枚数と場所で読み分けられるようにした */
+.mkccn{position:absolute;right:3px;bottom:3px;font-size:9px;font-weight:800;
+  color:#f5e2a8;background:#000000cc;border:1px solid #d8a94a66;border-radius:6px;
+  padding:0 4px;line-height:1.6;text-shadow:0 1px 2px #000}
 /* 値段は札の下。魂の粒と数だけ */
 .mkcp{display:flex;align-items:center;justify-content:center;gap:3px;
   font-size:11.5px;font-weight:800;color:#f5e2a8;text-shadow:0 1px 2px #000}
@@ -5914,8 +5919,46 @@ button.mkpv:active{transform:translateY(1px)}
 .adbox{width:calc(100% - 36px);max-width:420px;display:flex;flex-direction:column;
   align-items:center;gap:10px;animation:adin .28s cubic-bezier(.2,.9,.3,1.1)}
 @keyframes adin{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
+.adwrap{position:relative;width:100%;line-height:0}
 .adart{display:block;width:100%;height:auto;border-radius:10px;
   box-shadow:0 14px 34px #000b,0 2px 6px #0008}
+/* ---- ログインボーナスの板の升（2026-10-09・悠さんの指図）----
+   絵の黒い枡のうえに、褒美の絵と数と日を重ねる。位は % なので、
+   絵がどんな幅で出ても枡からずれない（LB_X / LB_Y は main.js にある）。
+   枡は実機 393px 幅だと 34px 角ほど。字を入れる余地が無いので、
+   日は左上・数は右下の隅に小さく逃がし、まん中は絵だけにした */
+.lbwrap{position:absolute;inset:0;pointer-events:none;line-height:1}
+.lbc{position:absolute;display:flex;align-items:center;justify-content:center;
+  border-radius:3px;overflow:visible}
+.lbc .itic,.lbc .ci,.lbc > i:not(.lbd){width:76%;height:76%;margin:0;border:0;background:none;
+  display:flex;align-items:center;justify-content:center;font-size:12px}
+.lbc .itic img,.lbc img.ci{width:100%;height:100%;object-fit:contain}
+/* 日と数は朱印より上に置く（z-index 3）。判で隠れると、何の日の升か読めなくなる */
+.lbc .lbd{position:absolute;left:1px;top:0;z-index:3;font-style:normal;font-size:8.5px;font-weight:800;
+  color:#d8a94a;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:0}
+.lbc .lbn{position:absolute;right:1px;bottom:0;z-index:3;font-size:8.5px;font-weight:800;
+  color:#f2ead8;text-shadow:0 1px 2px #000,0 0 4px #000;letter-spacing:0}
+/* 節目（7・14・21・28・31）は絵をひと回り大きく。数字は出さず、見た目で「ここは重い」と分かる */
+.lbc.big .itic,.lbc.big .ci,.lbc.big > i:not(.lbd){width:92%;height:92%}
+/* 受け取った升はひとつ暗く落として、朱印を目立たせる */
+.lbc.on .itic,.lbc.on .ci,.lbc.on > i:not(.lbd){filter:grayscale(.55) brightness(.6)}
+.lbc.on .lbd,.lbc.on .lbn{opacity:.55}
+/* 今日の升は金の縁で灯す。まだ押していない日は無いので、だいたい朱印と重なる */
+.lbc.now{box-shadow:0 0 0 1.5px var(--gold),0 0 10px #d8a94a88}
+/* 朱印。枡より一回り大きく、少し傾けて押す */
+.lbst{position:absolute;left:50%;top:50%;z-index:2;width:108%;height:108%;opacity:.93;
+  transform:translate(-50%,-50%) rotate(-11deg);object-fit:contain;
+  filter:drop-shadow(0 1px 3px #0009)}
+.lbst.txt{display:flex;align-items:center;justify-content:center;width:100%;height:100%;
+  font-family:var(--mincho);font-size:17px;font-weight:800;color:#e0654f;
+  border:2px solid #e0654f;border-radius:5px;background:#e0654f22}
+/* 今日ぶんを配った升だけ、判をつく動き（2026-10-09） */
+.lbst.pop{animation:lbstamp .42s cubic-bezier(.2,.9,.3,1.25) both}
+@keyframes lbstamp{
+  0%{transform:translate(-50%,-50%) rotate(-30deg) scale(2.6);opacity:0}
+  55%{transform:translate(-50%,-50%) rotate(-11deg) scale(.9);opacity:.93}
+  75%{transform:translate(-50%,-50%) rotate(-11deg) scale(1.08)}
+  100%{transform:translate(-50%,-50%) rotate(-11deg) scale(1);opacity:.93}}
 .addots{display:flex;gap:7px}
 .addots i{width:7px;height:7px;border-radius:50%;background:#ffffff44}
 .addots i.on{background:var(--gold)}

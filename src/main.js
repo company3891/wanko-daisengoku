@@ -6545,7 +6545,127 @@ const newsUrl = n => {
    「今日は出さない」の釦は置かない（悠さんの指図で、毎回出すことにした）。
    絵が無ければ一枚も出さない ── 「絵が無くても動く」を崩さない。
    押したらその場へ飛ぶ道も付けない。見て、閉じて、遊びに戻るだけ */
+/* ================= ログインボーナスの板（2026-10-09・悠さんの指図）=================
+   「ログインボードのポップアップ作ったので、この中に報酬アイコン並べて
+     取得したら、印鑑を押すみたいにしよか！」
+
+   板は **月ごとに真っ新**（悠さんのえらび）。毎月一日からまた一番の升に戻る。
+   休んだ日の升は押せないまま流れる ── 後から取り返せないから、毎日のぞく値打ちが出る。
+   二十八日の月は 29〜31 の升が空のまま余る。
+
+   褒美は **城に戻ったその場で配る**（受け取り釦は置かない）。お詫びの品と同じ考えで、
+   押し忘れて褒美が宙に浮くのを避ける。「今日は表示しない」を押していても配る。
+   朱印は「もう受け取った印」── 悠さんの「印鑑を押すみたいに」。
+
+   升の place は絵（news/login_board.png・1024角）から測った。
+   絵を描き直したら、ここも測り直すこと。
+     内側の黒い枡 横 93/217/340/463/587/711/834（幅 97）
+                  縦 251/379/507/635/762（高さ 95）
+   五段目は左から三〜五番目の三つだけ */
+/* 節目の日（絵をひと回り大きく出す） */
+const LB_BIG = new Set([7, 14, 21, 28, 31]);
+const LB_X = [9.08, 21.19, 33.20, 45.21, 57.32, 69.43, 81.45];
+const LB_Y = [24.51, 37.01, 49.51, 62.01, 74.41];
+const LB_W = 9.47, LB_H = 9.28;
+/* 三十一日ぶんの褒美。節目は 7・14・21・28・31。
+   日ごとのお役目が石100〜小判200ほどなので、ふだんの升はそれと同じかやや軽く。
+   のぞくだけで貰えるぶん、手を動かすお役目より重くしない */
+const LB_DAYS = [
+  { stone: 100 },                        //  1
+  { koban: 500 },                        //  2
+  { items: { '稽古の書': 5 } },           //  3
+  { items: { '兵糧俵': 1 } },             //  4
+  { soul: 50 },                          //  5
+  { items: { '道中手形': 10 } },          //  6
+  { stone: 300 },                        //  7 節目
+  { koban: 800 },                        //  8
+  { items: { '特技の伝書': 3 } },         //  9
+  { stone: 150 },                        // 10
+  { soul: 60 },                          // 11
+  { items: { '稽古の書': 8 } },           // 12
+  { koban: 1000 },                       // 13
+  { ticket: 5 },                         // 14 節目
+  { stone: 150 },                        // 15
+  { items: { '道中手形': 15 } },          // 16
+  { koban: 1200 },                       // 17
+  { soul: 80 },                          // 18
+  { items: { '特技の伝書': 5 } },         // 19
+  { stone: 200 },                        // 20
+  { items: { '相伝の護符・中': 1 } },     // 21 節目
+  { koban: 1500 },                       // 22
+  { items: { '稽古の書': 10 } },          // 23
+  { stone: 200 },                        // 24
+  { soul: 100 },                         // 25
+  { items: { '道中手形': 20 } },          // 26
+  { koban: 2000 },                       // 27
+  { stone: 500 },                        // 28 節目
+  { items: { '特技の伝書': 8 } },         // 29
+  { soul: 150 },                         // 30
+  { stone: 1000 },                       // 31 節目（三十一日ある月だけ）
+];
+const lbMonthKey = () => today().slice(0, 7);
+const lbDayNow = () => +today().slice(8, 10);
+/* その月の日数。new Date(年, 月, 0) で前の月の末日＝その月の末日が出る */
+const lbLastDay = () => {
+  const [y, m] = lbMonthKey().split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+};
+/* 月が変わったら板を真っ新に */
+function lbRoll() {
+  const k = lbMonthKey();
+  if (P.lbMonth !== k) { P.lbMonth = k; P.lbGot = []; savePlayer(); }
+}
+/* 今日のぶんを配る。もう押してあれば null。配り方は miTake と同じ並び */
+function lbTake() {
+  lbRoll();
+  const d = lbDayNow();
+  if ((P.lbGot || []).includes(d)) return null;
+  const rw = LB_DAYS[d - 1];
+  if (!rw) return null;
+  if (rw.koban) P.koban += rw.koban;
+  if (rw.soul) P.soul += rw.soul;
+  if (rw.stone) addFreeStones(rw.stone);   // 褒美の石は必ず無料ストーン（2026-10-07）
+  if (rw.stamina) P.stamina = Math.min(P.staminaMax, P.stamina + rw.stamina);
+  if (rw.ticket) P.items[TICKET] = (P.items[TICKET] || 0) + rw.ticket;
+  for (const [k, v] of Object.entries(rw.items || {})) P.items[k] = (P.items[k] || 0) + v;
+  P.lbGot.push(d);
+  savePlayer();
+  return rw;
+}
+/* 升の隅に出す小さな数。品が先、なければ通貨。数は一つだけ出す */
+const lbNum = rw => num(Object.values(rw.items || {})[0] || rw.ticket || rw.koban
+                       || rw.soul || rw.stone || rw.stamina || 0);
+/* 板の中身。絵の上に升だけを重ねる。絵が無いときは adList が札ごと落とすので、
+   ここが呼ばれるときは必ず板の絵がある */
+function lbBoard() {
+  lbRoll();
+  const now = lbDayNow(), last = lbLastDay(), got = P.lbGot || [];
+  const stamp = uiUrl('stamp_sumi');
+  return el('div', { class: 'lbwrap' }, LB_DAYS.map((rw, i) => {
+    const d = i + 1;
+    if (d > last) return null;             // 二十八日の月は 29〜31 を空のままにする
+    const r = Math.floor((d - 1) / 7);
+    const c = r === 4 ? 2 + ((d - 1) % 7) : (d - 1) % 7;
+    const on = got.includes(d);
+    const fresh = on && d === now && S.lbNew;
+    return el('div', {
+      class: 'lbc' + (on ? ' on' : '') + (d === now ? ' now' : '') + (LB_BIG.has(d) ? ' big' : ''),
+      style: `left:${LB_X[c]}%;top:${LB_Y[r]}%;width:${LB_W}%;height:${LB_H}%`,
+      title: `${d}日　${miWords(rw)}`,
+    }, el('i', { class: 'lbd' }, String(d)),
+       miIcon(rw),
+       el('b', { class: 'lbn' }, lbNum(rw)),
+       on ? (stamp
+         ? keepImg({ class: 'lbst' + (fresh ? ' pop' : ''), src: stamp, alt: '済' })
+         : el('span', { class: 'lbst txt' + (fresh ? ' pop' : '') }, '済'))
+         : null);
+  }));
+}
+
 const AD_CARDS = [
+  /* ログインボーナスの板をいちばん先に（2026-10-09）。褒美は adOpen でもう配ってあるので、
+     ここは押された朱印を見せるだけ。over＝絵の上に重ねる中身 */
+  { art: 'login_board', name: 'ログインボーナス', over: lbBoard },
   { art: 'login_duel',  name: '友人対戦' },
   { art: 'login_tower', name: '試練の塔' },
   /* 落ち延び道中（2026-10-09・悠さんの指図）。絵を news/login_trail.png に
@@ -6581,19 +6701,25 @@ const adUrl = a => {
     if ((MANIFEST.news || []).includes(a + ext)) return `assets/news/${a}${ext}`;
   return null;
 };
-const adList = () => festCards().concat(AD_CARDS).filter(x => adUrl(x.art));
+/* 「今日は表示しない」は **札ごと**（2026-10-09・悠さんの指図）。
+   一枚ずつ別に覚えるので、押した札だけが今日は出ず、ほかの札は出る */
+const adHidden = a => (P.adHide || {})[a] === today();
+const adList = () => festCards().concat(AD_CARDS).filter(x => adUrl(x.art) && !adHidden(x.art));
 /* 一度の立ち上げにつき一度だけ（2026-10-08）。
    覚えは残さない ── 開き直せばまた出る、が「毎回ログインのたび」の意味 */
 let AD_DONE = false;
 function adOpen() {
   if (AD_DONE) return;
   AD_DONE = true;
-  /* 手引きのさなかと はじまりの物語のあいだは出さない。
-     釦が止まっている上に札を重ねると、どこを押せばよいか分からなくなる */
-  if (guideOn() || S.opening || !P.name) return;
-  /* 「今日は表示しない」を押した日は出さない（2026-10-09・悠さんの指図）。
-     毎回出るのが煩わしい、とのこと。朝4時の変わり目でまた出る */
-  if (P.adHide === today()) return;
+  /* 釦が止まっている上に札を重ねると、どこを押せばよいか分からなくなるので、
+     手引きのさなかは札を出さない（下で見る）。名を決める前は何もしない */
+  if (!P.name) return;
+  /* ログインボーナスは **札を出す前に配る**（2026-10-09）。
+     「今日は表示しない」を押していても、手引きの最中でも、褒美を取り逃がさない。
+     S.lbNew＝今日ぶんを今まさに配った印。朱印が落ちてくる演出に使う */
+  if (lbTake()) S.lbNew = true;
+  /* 手引きのさなかと はじまりの物語のあいだは札を出さない */
+  if (guideOn() || S.opening) return;
   if (!adList().length) return;
   S.ad = 0;
 }
@@ -6610,12 +6736,22 @@ function adSheet() {
     if (i + 1 < list.length) { S.ad = i + 1; SFX.pick(); draw(); }
     else close();
   };
-  /* 今日はもう出さない。日付を控えるだけで、札そのものは消さない。
-     朝4時の変わり目で today() が変わり、また出るようになる */
-  const hideToday = () => { P.adHide = today(); savePlayer(); close(); };
+  /* 今日はもう出さない。**押した一枚だけ**（2026-10-09・悠さんの指図
+     「閉じるは全てのポップアップ毎に判定して」）。日付を控えるだけなので、
+     朝4時の変わり目で today() が変わり、また出るようになる。
+     一枚消えると後ろが繰り上がる＝同じ番号のまま次の札が出る。
+     最後の一枚だったときは adSheet の頭で list[i] が無くなって閉じる */
+  const hideToday = () => {
+    P.adHide = { ...(P.adHide || {}), [c.art]: today() };
+    savePlayer(); SFX.pick(); draw();
+  };
   return el('div', { class: 'sheet adsheet', onclick: next },
     el('div', { class: 'adbox' },
-      keepImg({ class: 'adart', src: adUrl(c.art), alt: c.name }),
+      /* 絵と、その上に重ねる中身（ログインボーナスの升）をひと包みに。
+         包まないと、絵の高さが決まる前に升の % がずれる */
+      el('div', { class: 'adwrap' },
+        keepImg({ class: 'adart', src: adUrl(c.art), alt: c.name }),
+        c.over ? c.over() : null),
       /* 何枚あって今どれかを、小さな丸で出す（二枚目があると分かる） */
       list.length > 1 ? el('div', { class: 'addots' },
         list.map((_, j) => el('i', { class: j === i ? 'on' : '' }))) : null,
@@ -9910,7 +10046,10 @@ function mkPutSheet() {
           onclick: () => { S.mkPut = o.no; S.mkPrice = mkWorth(o, charState(o.no));
                            S.mkPEdit = false; SFX.pick(); draw(); },
         }, cardArt(o) ? cardImg(o) : el('i', { style: chipStyle(o) }),
-           el('span', { class: 'mkclv' }, `Lv.${num(charState(o.no).lv)}`))))
+           el('span', { class: 'mkclv' }, `Lv.${num(charState(o.no).lv)}`),
+           /* 手持ちの枚数を右下に（2026-10-09・悠さんの指図）。位と同じ見た目で、
+              左が位・右が枚数。重ねが何枚あるか見てから出す札を決められる */
+           el('span', { class: 'mkccn' }, `×${num(cntOf(o.no))}`))))
           : el('p', { class: 'note warn' }, '出せる武将がおらぬ'),
         closeX(close)));
   }

@@ -11087,7 +11087,8 @@ const trCur = () => {
 };
 /* 連れている武将を、育った値と継いだ技のせた形で */
 const trWho = no => { const c = charOf(no); return c ? grownFor(c) : null; };
-const trKindsOf = who => trKinds(who, starOf);
+/* 枠（継いだ技こみ）から札を作る（2026-10-09） */
+const trKindsOf = who => trKinds(who, starOf, slotsOf(charOf(who.no) || who));
 function trDeckOf(who, kinds) {
   const d = P.trail.deck[who.no];
   return (d && trDeckOk(d, kinds)) ? d : trDefaultDeck(kinds);
@@ -11305,7 +11306,7 @@ function trDeckScreen(who, kinds) {
   const n = trDeckCount(d);
   const bump = (k, v) => {
     const now = d[k] || 0, nx = now + v;
-    if (nx < 0 || nx > trDupMax(k)) return;
+    if (nx < 0 || nx > trDupMax(k, kinds)) return;
     if (v > 0 && n >= TR_DECK) return;
     d[k] = nx; SFX.pick(); draw();
   };
@@ -11314,7 +11315,7 @@ function trDeckScreen(who, kinds) {
       el('div', { class: 'trdeckhd' },
         el('b', {}, `${who.name}の山札`),
         el('span', { class: 'trdn' + (n === TR_DECK ? ' ok' : '') }, `${n} / ${TR_DECK}`)),
-      el('p', { class: 'note' }, `一ターンの気は${TR_KI}。札の左上の数が使う気。同じ札は${TR_DUP}枚まで、奥義と大将特性は${TR_ULT_MAX}枚まで重ねられる`),
+      el('p', { class: 'note' }, `一ターンの気は${TR_KI}。札の左上の数が使う気。同じ札を重ねて${TR_DECK}枚にする`),
       el('div', { class: 'trdeck' }, kinds.map(kd => {
         const o = trSpec(who, kd);
         return el('div', { class: 'trdrow' },
@@ -11326,7 +11327,7 @@ function trDeckScreen(who, kinds) {
           el('div', { class: 'trdct' },
             el('button', { class: 'sq minus', disabled: (d[kd.key] || 0) < 1 ? true : null, onclick: () => bump(kd.key, -1) }, '−'),
             el('b', {}, String(d[kd.key] || 0)),
-            el('button', { class: 'sq plus', disabled: ((d[kd.key] || 0) >= trDupMax(kd.key) || n >= TR_DECK) ? true : null, onclick: () => bump(kd.key, 1) }, '＋')));
+            el('button', { class: 'sq plus', disabled: ((d[kd.key] || 0) >= trDupMax(kd.key, kinds) || n >= TR_DECK) ? true : null, onclick: () => bump(kd.key, 1) }, '＋')));
       })),
       el('div', { class: 'trdfoot' },
         el('button', { class: 'ghost', onclick: () => { S.trDraft = trDefaultDeck(kinds); SFX.pick(); draw(); } }, 'おまかせ'),

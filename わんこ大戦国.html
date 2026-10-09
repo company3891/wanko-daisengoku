@@ -14479,8 +14479,22 @@ const trPct = text => {
 
 /* 武将ひとりの札の種類。who は grownFor を通した武将（育った値・継いだ技が入っている）。
    starOf は特技の★を返す関数（player.js） */
-function trKinds(who, starOf) {
+function trKinds(who, starOf, slots) {
   const out = [];
+  /* 自分の武将は特技の枠（slotsOf）から作る（2026-10-09・悠さんの実機で「技が5つない」）。
+     grownFor の normals は継いだ固有◆を落としているので、継いだ◆が札にならなかった。
+     枠ごとに s0〜s2 の印を付ける。継いだ◆も固有として扱う */
+  if (slots) {
+    for (const x of slots) {
+      if (!x || !x.sk || !x.sk.name) continue;
+      const uq = !!x.uniq;
+      const cost = uq ? (TR_UNIQ_COST[who.rarity] || 2) : Math.max(1, Math.min(5, (starOf && starOf(x.sk.name)) || 1));
+      out.push({ key: 's' + x.slot, kind: uq ? 'u' : 'sk', sk: x.sk, cost });
+    }
+    if (who.ultimate && who.ultimate.name) out.push({ key: 'ult', kind: 'ult', sk: who.ultimate, cost: TR_COST.ult });
+    if (who.generalTrait && who.generalTrait.name) out.push({ key: 'gen', kind: 'gen', sk: who.generalTrait, cost: TR_COST.gen });
+    return out;
+  }
   if (who.unique && who.unique.name)
     out.push({ key: 'u', kind: 'u', sk: who.unique, cost: TR_UNIQ_COST[who.rarity] || 2 });
   (who.normals || []).forEach((sk, i) => {
@@ -14575,17 +14589,31 @@ function trDefaultDeck(kinds) {
   const order = kinds.filter(k => k.kind === 'sk' || k.kind === 'u').sort((a, b) => a.cost - b.cost);
   for (let i = 0; left > 0 && order.length && i < 200; i++) {
     const k = order[i % order.length];
-    if (d[k.key] < TR_DUP) { d[k.key]++; left--; }
+    if (d[k.key] < trDupMax(k.key, kinds)) { d[k.key]++; left--; }
   }
+  /* 技が少なくて届かないときは、奥義・大将特性も重ねて10枚にする */
+  for (const k of ['gen', 'ult']) while (left > 0 && d[k] != null && d[k] < trDupMax(k, kinds)) { d[k]++; left--; }
   return d;
 }
 const trDeckCount = d => Object.values(d || {}).reduce((a, b) => a + (b || 0), 0);
-const trDupMax = key => (key === 'ult' || key === 'gen') ? TR_ULT_MAX : TR_DUP;
+/* 同じ札を何枚まで重ねられるか（2026-10-09）。
+   ふだんは技4枚・奥義と大将特性2枚。ただし技の枠が空いていて10枚に届かない武将は、
+   届くぶんだけ技の上限を上げる（悠さん「札はできるだけ多いほうがいい」） */
+function trDupMax(key, kinds) {
+  const big = key === 'ult' || key === 'gen';
+  if (!kinds) return big ? TR_ULT_MAX : TR_DUP;
+  const sk = kinds.filter(k => k.kind === 'sk' || k.kind === 'u').length;
+  const bigN = kinds.filter(k => k.key === 'ult' || k.key === 'gen').length;
+  const room = TR_DECK - bigN * TR_ULT_MAX;
+  const skMax = sk ? Math.max(TR_DUP, Math.ceil(room / sk)) : TR_DUP;
+  if (big) return sk ? TR_ULT_MAX : Math.max(TR_ULT_MAX, Math.ceil(TR_DECK / Math.max(1, bigN)));
+  return skMax;
+}
 function trDeckOk(d, kinds) {
   const keys = new Set(kinds.map(k => k.key));
   for (const [k, v] of Object.entries(d || {})) {
     if (!keys.has(k) && v) return false;
-    if (v < 0 || v > trDupMax(k)) return false;
+    if (v < 0 || v > trDupMax(k, kinds)) return false;
   }
   return trDeckCount(d) === TR_DECK;
 }
@@ -38548,7 +38576,8 @@ const trCur = () => {
 };
 /* 連れている武将を、育った値と継いだ技のせた形で */
 const trWho = no => { const c = charOf(no); return c ? grownFor(c) : null; };
-const trKindsOf = who => trKinds(who, starOf);
+/* 枠（継いだ技こみ）から札を作る（2026-10-09） */
+const trKindsOf = who => trKinds(who, starOf, slotsOf(charOf(who.no) || who));
 function trDeckOf(who, kinds) {
   const d = P.trail.deck[who.no];
   return (d && trDeckOk(d, kinds)) ? d : trDefaultDeck(kinds);
@@ -38766,7 +38795,7 @@ function trDeckScreen(who, kinds) {
   const n = trDeckCount(d);
   const bump = (k, v) => {
     const now = d[k] || 0, nx = now + v;
-    if (nx < 0 || nx > trDupMax(k)) return;
+    if (nx < 0 || nx > trDupMax(k, kinds)) return;
     if (v > 0 && n >= TR_DECK) return;
     d[k] = nx; SFX.pick(); draw();
   };
@@ -38775,7 +38804,7 @@ function trDeckScreen(who, kinds) {
       el('div', { class: 'trdeckhd' },
         el('b', {}, `${who.name}の山札`),
         el('span', { class: 'trdn' + (n === TR_DECK ? ' ok' : '') }, `${n} / ${TR_DECK}`)),
-      el('p', { class: 'note' }, `一ターンの気は${TR_KI}。札の左上の数が使う気。同じ札は${TR_DUP}枚まで、奥義と大将特性は${TR_ULT_MAX}枚まで重ねられる`),
+      el('p', { class: 'note' }, `一ターンの気は${TR_KI}。札の左上の数が使う気。同じ札を重ねて${TR_DECK}枚にする`),
       el('div', { class: 'trdeck' }, kinds.map(kd => {
         const o = trSpec(who, kd);
         return el('div', { class: 'trdrow' },
@@ -38787,7 +38816,7 @@ function trDeckScreen(who, kinds) {
           el('div', { class: 'trdct' },
             el('button', { class: 'sq minus', disabled: (d[kd.key] || 0) < 1 ? true : null, onclick: () => bump(kd.key, -1) }, '−'),
             el('b', {}, String(d[kd.key] || 0)),
-            el('button', { class: 'sq plus', disabled: ((d[kd.key] || 0) >= trDupMax(kd.key) || n >= TR_DECK) ? true : null, onclick: () => bump(kd.key, 1) }, '＋')));
+            el('button', { class: 'sq plus', disabled: ((d[kd.key] || 0) >= trDupMax(kd.key, kinds) || n >= TR_DECK) ? true : null, onclick: () => bump(kd.key, 1) }, '＋')));
       })),
       el('div', { class: 'trdfoot' },
         el('button', { class: 'ghost', onclick: () => { S.trDraft = trDefaultDeck(kinds); SFX.pick(); draw(); } }, 'おまかせ'),

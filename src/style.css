@@ -5948,14 +5948,18 @@ button.mkpv:active{transform:translateY(1px)}
 .lbc .lbn{position:absolute;right:1.5px;bottom:0;z-index:3;font-size:8.5px;font-weight:800;
   color:#2a241c;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff;letter-spacing:0}
 /* 受け取った升はひとつ暗く落として、朱印を目立たせる */
-.lbc.on .itic,.lbc.on .ci,.lbc.on > i:not(.lbd){filter:grayscale(.5) brightness(.82)}
-.lbc.on .lbd,.lbc.on .lbn{opacity:.6}
+/* 受け取った升は 褒美の絵も紙もまるごと灰にする（2026-10-09・悠さんの指図）。
+   朱印に影を付けるより、下を灰に落としたほうが朱がはっきり残る。
+   filter は中の img にも効くので、ここ一つで絵と紙の両方が灰になる */
+.lbc.on .itic,.lbc.on .ci,.lbc.on > i:not(.lbd){filter:grayscale(1) brightness(.88)}
+.lbc.on .lbd,.lbc.on .lbn{opacity:.78;color:#3a352e;text-shadow:0 1px 0 #ffffffcc,0 -1px 0 #ffffffcc,1px 0 0 #ffffffcc,-1px 0 0 #ffffffcc}
 /* 今日の升は金の縁で灯す。まだ押していない日は無いので、だいたい朱印と重なる */
 .lbc.now{box-shadow:0 0 0 1.5px var(--gold),0 0 10px #d8a94a88}
 /* 朱印。枡より一回り大きく、少し傾けて押す */
-.lbst{position:absolute;left:50%;top:50%;z-index:2;width:108%;height:108%;opacity:.93;
-  transform:translate(-50%,-50%) rotate(-11deg);object-fit:contain;
-  filter:drop-shadow(0 1px 3px #0009)}
+/* 朱印に影は付けない（2026-10-09・悠さんの指図）。下の升を灰に落としてあるので、
+   影で浮かせなくても朱が立つ。影を重ねると朱がにごって見えた */
+.lbst{position:absolute;left:50%;top:50%;z-index:2;width:108%;height:108%;
+  transform:translate(-50%,-50%) rotate(-11deg);object-fit:contain}
 .lbst.txt{display:flex;align-items:center;justify-content:center;width:100%;height:100%;
   font-family:var(--mincho);font-size:17px;font-weight:800;color:#e0654f;
   border:2px solid #e0654f;border-radius:5px;background:#e0654f22}
@@ -5963,9 +5967,9 @@ button.mkpv:active{transform:translateY(1px)}
 .lbst.pop{animation:lbstamp .42s cubic-bezier(.2,.9,.3,1.25) both}
 @keyframes lbstamp{
   0%{transform:translate(-50%,-50%) rotate(-30deg) scale(2.6);opacity:0}
-  55%{transform:translate(-50%,-50%) rotate(-11deg) scale(.9);opacity:.93}
+  55%{transform:translate(-50%,-50%) rotate(-11deg) scale(.9);opacity:1}
   75%{transform:translate(-50%,-50%) rotate(-11deg) scale(1.08)}
-  100%{transform:translate(-50%,-50%) rotate(-11deg) scale(1);opacity:.93}}
+  100%{transform:translate(-50%,-50%) rotate(-11deg) scale(1);opacity:1}}
 .addots{display:flex;gap:7px}
 .addots i{width:7px;height:7px;border-radius:50%;background:#ffffff44}
 .addots i.on{background:var(--gold)}

@@ -29728,7 +29728,8 @@ function squadCard(q, i, onPick, toEdit) {
 /* 横に長い紋（州浜など）は、座の中で小さく見えるので少し広げる（2026-09-21） */
 /* 横に広い紋は丸いっぱいまで広げる（ふつうは丸の76%）。
    雑賀衆の八咫烏は翼をひろげていて縦が短く、26pxだと他より小さく見えた（2026-09-28） */
-const WIDE_KAMON = new Set(['里見家', '雑賀衆']);
+/* 里見家は 2026-10-09 に史実の「丸に二つ引両」へ描き替えて丸くなったので外した */
+const WIDE_KAMON = new Set(['雑賀衆']);
 function kamon(house, cls) {
   const u = kamonUrl(house);
   return el('span', { class: 'kam' + (cls ? ' ' + cls : '') + (WIDE_KAMON.has(house) ? ' wide' : '') },

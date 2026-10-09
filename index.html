@@ -1955,6 +1955,9 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
    .card2 を足して重みを上げる（2026-10-09） */
 .card2.gxbox .sts .tot{border-top-color:#a8802c4d;justify-content:center;gap:14px}
 .card2.gxbox .sts .tot::before{display:none}
+/* 魂の欄（空）は 3.6em の場所を取ったままなので、総合力の行では丸ごと消す。
+   残すと「総合力 16,095」が中央より左へずれる（2026-10-09） */
+.card2.gxbox .sts .tot em.up{display:none}
 .card2.gxbox .sts .tot span{color:var(--gold)}
 .card2.gxbox .sts .tot b{color:#8f6a1c}
 /* ---- 地をほかの札と同じクリームの紙に（2026-10-09・悠さんの指図）----

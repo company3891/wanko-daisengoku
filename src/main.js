@@ -6615,6 +6615,23 @@ function lbRoll() {
   const k = lbMonthKey();
   if (P.lbMonth !== k) { P.lbMonth = k; P.lbGot = []; savePlayer(); }
 }
+/* URL の末尾に ?lbagain を付けて開くと、判が落ちるところをもう一度見られる（2026-10-09・悠さんの指図）。
+   ・今日の朱印を一つ戻す（P.lbGot から今日の日を外す）
+   ・お知らせ札の「今日は表示しない」の覚え（P.adHide）を空にする
+   毎月一日の見え方の確かめにも使うので本番に残す。URL は消さない ── 開き直すたびに何度でも試せる */
+function lbAgain() {
+  let q = '';
+  try { q = location.search || ''; } catch (e) { return; }
+  if (!/[?&]lbagain(?:[=&]|$)/.test(q)) return;
+  lbRoll();
+  const d = lbDayNow(), got = P.lbGot || [];
+  /* 今日ぶんをもう受け取っていたときだけ「褒美なしで押し直す」印を立てる。
+     まだ受け取っていない日に開いたなら、ふつうに配る */
+  S.lbFree = got.includes(d);
+  P.lbGot = got.filter(x => x !== d);
+  P.adHide = {};
+  savePlayer();
+}
 /* 今日のぶんを配る。もう押してあれば null。配り方は miTake と同じ並び */
 function lbTake() {
   lbRoll();
@@ -6622,6 +6639,9 @@ function lbTake() {
   if ((P.lbGot || []).includes(d)) return null;
   const rw = LB_DAYS[d - 1];
   if (!rw) return null;
+  /* ?lbagain で戻した朱印は、判だけ押し直して褒美は配らない（2026-10-09）。
+     本番に残す仕掛けなので、開き直すたびに褒美が増える抜け道にしない */
+  if (S.lbFree) { S.lbFree = false; P.lbGot.push(d); savePlayer(); return rw; }
   if (rw.koban) P.koban += rw.koban;
   if (rw.soul) P.soul += rw.soul;
   if (rw.stone) addFreeStones(rw.stone);   // 褒美の石は必ず無料ストーン（2026-10-07）
@@ -6723,6 +6743,7 @@ function adOpen() {
   /* 釦が止まっている上に札を重ねると、どこを押せばよいか分からなくなるので、
      手引きのさなかは札を出さない（下で見る）。名を決める前は何もしない */
   if (!P.name) return;
+  lbAgain();
   /* ログインボーナスは **札を出す前に配る**（2026-10-09）。
      「今日は表示しない」を押していても、手引きの最中でも、褒美を取り逃がさない。
      S.lbNew＝今日ぶんを今まさに配った印。朱印が落ちてくる演出に使う */

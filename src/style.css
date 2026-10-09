@@ -5774,7 +5774,7 @@ button.mkpv:active{transform:translateY(1px)}
 .frbtn.go.sm{padding:6px 10px;font-size:11px;letter-spacing:0}
 .frbtn.go.take{background:linear-gradient(180deg,#8fd0ff,#4b92d6);color:#07243d}
 .frbtn:disabled{opacity:.45;cursor:default}
-.frwait{font-size:11px;color:#8f8368;letter-spacing:.06em}
+.frwait{font-size:11px;color:#8f8368;letter-spacing:.06em;white-space:nowrap}
 /* 位と主番号は一行に収める（2026-10-06）。釦が二つ並ぶと折れていた */
 .frrow.real .frn i{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
@@ -5805,9 +5805,16 @@ button.mkpv:active{transform:translateY(1px)}
 
    行そのものは枠と背景だけ持ち、中身は .frslide が持って横へ滑る。
    削除は行の外（右）に置いてあり、滑ったぶんだけ姿を見せる */
+/* 中身の並びは **なぞれる行かどうかに関わらず** 横一列（2026-10-09）。
+   前は .frrow.swipe の中だけに display:flex を書いていたので、
+   なぞらない行（出した願い・届いた願い・さがす）では .frslide が
+   ただの箱のままになり、顔・名・返事待ち が縦に積まれて
+   行の背が三倍に伸びていた（悠さんの「無駄なスペースが気になる」）。
+   横一列は共通、滑る仕掛けだけ .swipe が持つ、に分けた */
+.frrow .frslide{display:flex;align-items:center;gap:7px;width:100%;
+  min-width:0;box-sizing:border-box}
 .frrow.swipe{position:relative;overflow:hidden;padding:0}
-.frrow.swipe .frslide{display:flex;align-items:center;gap:7px;width:100%;
-  padding:8px;box-sizing:border-box;background:inherit;
+.frrow.swipe .frslide{padding:8px;background:inherit;
   transition:transform .18s ease;will-change:transform}
 .frrow.swipe.open .frslide{transform:translateX(-84px)}
 .frdel{position:absolute;right:0;top:0;bottom:0;width:80px;border:0;padding:0;

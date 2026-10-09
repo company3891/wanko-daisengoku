@@ -6047,3 +6047,14 @@ body.trdragging { cursor: grabbing; }
 
 /* 旅の座は丸い絵なので、四角い「任」と並ぶと小さく見える。少しだけ大きく（2026-10-09） */
 .hmb img[src*="home_trail"] { transform: scale(1.14); }
+
+/* 道の印を絵にした（2026-10-09）。丸い台紙の上に絵をのせる */
+.trnode.art { width: 46px; height: 46px; background: radial-gradient(circle, #f3ead2 55%, #d9c9a2); overflow: visible; }
+.trnode.art .trnart { width: 118%; height: 118%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+.trnode.art.t-強 { width: 58px; height: 58px; background: radial-gradient(circle, #3a1f1a 55%, #12100e); border-color: #e0654f; box-shadow: 0 0 10px rgba(224,101,79,.6); }
+.trnode.art.t-宝 .trnart, .trnode.art.t-商 .trnart { width: 105%; height: 105%; }
+/* 通った印は台紙を朱に染める代わりに、太い朱の輪で示す（絵がつぶれないように） */
+.trnode.art.done { background: radial-gradient(circle, #f6d8cc 55%, #d99a86); border: 3px solid #a33b2c; }
+.trnode.art.done .trnart { opacity: .75; }
+.trlgart { width: 20px; height: 20px; object-fit: contain; }
+.trlgart.t-強 { background: #3a1f1a; border-radius: 50%; }

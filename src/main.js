@@ -11155,12 +11155,12 @@ function screenTrail() {
     const ok = isCan(r, c);
     const done = onPath(r, c);
     return el('button', {
-      class: 'trnode t-' + t + (ok ? ' can' : '') + (done ? ' done' : '') + (here ? ' here' : '') + (r === 'boss' ? ' boss' : ''),
+      class: 'trnode t-' + t + (trNodeArt(t) && r !== 'boss' ? ' art' : '') + (ok ? ' can' : '') + (done ? ' done' : '') + (here ? ' here' : '') + (r === 'boss' ? ' boss' : ''),
       style: `left:${X(r, c)}%;top:${Y(r)}px`,
       disabled: ok ? null : true,
       onclick: ok ? () => trGo(no, r, c) : null,
     }, r === 'boss' ? keepImg({ class: 'trbossimg', src: pawnUrl((TR_STORY[trFloorOf(run.part, 'boss')] || {}).boss) || '', alt: '' }) : null,
-       el('i', {}, TR_NODE[t].mark));
+       trNodeArt(t) ? keepImg({ class: 'trnart', src: trNodeArt(t), alt: TR_NODE[t].name }) : el('i', {}, TR_NODE[t].mark));
   };
   const nodes = [];
   run.map.rows.forEach((row, r) => row.forEach((n, c) => { if (n) nodes.push(node(r, c, n.t)); }));
@@ -11188,7 +11188,8 @@ function screenTrail() {
         el('div', { class: 'trmebar' }, trBar(run.hp, mx, 0)),
         (run.ki || run.guard) ? el('small', {}, [run.ki ? '気の巻' : '', run.guard ? '護符' : ''].filter(Boolean).join('・') + 'を持っている') : null),
       el('div', { class: 'trlegend' }, ['戦', '強', '？', '宿', '商', '宝'].map(t =>
-        el('span', {}, el('i', { class: 't-' + t }, TR_NODE[t].mark), TR_NODE[t].name))),
+        el('span', {}, trNodeArt(t) ? keepImg({ class: 'trlgart t-' + t, src: trNodeArt(t), alt: '' })
+                                    : el('i', { class: 't-' + t }, TR_NODE[t].mark), TR_NODE[t].name))),
       el('div', { class: 'trmap', style: `height:${H}px` },
         /* 線は SVG の名前空間で作らないと描かれないので、文字から起こす */
         el('div', { class: 'trlines', html: `<svg width="100%" height="${H}">${lines.join('')}</svg>` }),
@@ -11196,6 +11197,12 @@ function screenTrail() {
     nav: true,
   };
 }
+/* 道の印の絵（2026-10-09・悠さんの指図）。
+     敵・手練れ … ui/trail_enemy（悠さん作の紋）／宝 … ui/trail_treasure（くじの宝箱を切り出した）
+     商 … ui/home_items（道具袋）／宿 … ui/trail_rest（作成中。置けばそのまま出る）
+   絵が無ければ一字の印に落ちる */
+const TR_NODE_ART = { 戦: 'trail_enemy', 強: 'trail_enemy', 宝: 'trail_treasure', 商: 'home_items', 宿: 'trail_rest', '？': 'trail_unknown' };
+const trNodeArt = t => (TR_NODE_ART[t] && uiUrl(TR_NODE_ART[t])) || null;
 /* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
 function trRunOf(no) {
   const who = trWho(no); const mx = trMaxHp(who);

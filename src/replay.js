@@ -775,6 +775,7 @@ export function describe(e, initial) {
     case 'dmg': return { cls:'', s:`${n(e.src)} → ${n(e.tgt)} に ${e.v}${e.crit ? '（会心）' : ''}` };
     case 'ko': return { cls:'ko', s:`${n(e.tgt)} 戦闘不能` };
     case 'ult': return { cls:'ult', s:`${n(e.src)} 奥義！` };
+    case 'ultMiss': return { cls:'', s:`${n(e.src)} 奥義を向ける相手がおらぬ` };   // 2026-10-09
     /* 控えにも固有の名を出す（2026-10-01）。継承した◆はマスタに無いので、
        エンジンが log に残した名を使う。頭の（属性）と末尾の◆は落とす */
     case 'unique': {

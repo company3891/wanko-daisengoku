@@ -3005,6 +3005,23 @@ main.hasnav{padding-bottom:124px}
 .turnbox b{font-size:17px;font-weight:700;line-height:1.15;color:var(--gold);
   font-family:var(--mincho)}
 
+/* 奥義が撃てなかったときの一言（2026-10-09・悠さんの指図）。
+   ターンの札（下ぎわから 8px・高さ 42px ほど）のすぐ上に出す。
+   札と同じ黒漆の地にして、朱の細い縁で「できなかった」を伝える */
+.ultmiss{position:absolute;left:50%;bottom:58px;z-index:51;transform:translateX(-50%);
+  padding:5px 12px;border-radius:8px;white-space:nowrap;pointer-events:none;
+  font-size:12px;font-weight:700;letter-spacing:.06em;color:#f2ead8;
+  background:#12100eee;border:1px solid #e0654f;box-shadow:0 2px 10px #000b;
+  animation:ultmiss 1.6s ease both}
+@keyframes ultmiss{
+  0%{opacity:0;transform:translate(-50%,6px)}
+  12%{opacity:1;transform:translate(-50%,0)}
+  20%{transform:translate(calc(-50% - 3px),0)}
+  28%{transform:translate(calc(-50% + 3px),0)}
+  36%{transform:translate(-50%,0)}
+  80%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-4px)}}
+
 /* ---- 開戦のカットイン（2026-09-24 作り直し）----
    箱をやめ、奥義と同じ帯にした。上段＝国名と家紋と戦の段、
    中央＝「いざ！出陣じゃー！」の絵、下段＝天候と相手。1.2秒で消える。 */
@@ -8426,13 +8443,19 @@ function runCommand(u, cmd, allies, enemies, ctx) {
     const cost = u.ultCost ?? rules.ultimate.defaultCost ?? rules.ultimate.maxGauge;
     const tg0 = byId(cmd.tgt) || pickTarget(u, allies, enemies, rules, ctx.rng);
     // 形の内に誰も居ないなら撃たない。ゲージは取っておいて、下の攻撃に落とす（2026-10-04）
-    if (u.ult >= cost && u.compiled.ultimate.length
-        && !hitsNobody(u.compiled.ultimate, u, allies, enemies, tg0, ctx)) {
-      const tg = tg0;
-      u.ult = 0;
-      if (log) log.push({ t: +t.toFixed(1), type: 'ult', src: u.id, name: u.name, manual: true });
-      withVia(ctx, 'ult', () => applyEffects(u.compiled.ultimate, u, allies, enemies, tg, ctx));
-      return;
+    if (u.ult >= cost && u.compiled.ultimate.length) {
+      if (!hitsNobody(u.compiled.ultimate, u, allies, enemies, tg0, ctx)) {
+        const tg = tg0;
+        u.ult = 0;
+        if (log) log.push({ t: +t.toFixed(1), type: 'ult', src: u.id, name: u.name, manual: true });
+        withVia(ctx, 'ult', () => applyEffects(u.compiled.ultimate, u, allies, enemies, tg, ctx));
+        return;
+      }
+      /* 撃てなかったことを記録に残す（2026-10-09・悠さんの指図）。
+         押したのに何も起きず、ふつうの攻撃に落ちるので「壊れた」と見えていた。
+         印を残すだけで、戦の中身（ゲージ・乱数・手番）は何も変えない。
+         画面はこの印を見て「奥義を向ける相手がおらぬ」と出す */
+      if (log) log.push({ t: +t.toFixed(1), type: 'ultMiss', src: u.id, name: u.name, why: 'none' });
     }
     // ゲージが足りなければ攻撃に落とす
   }
@@ -10281,6 +10304,7 @@ function describe(e, initial) {
     case 'dmg': return { cls:'', s:`${n(e.src)} → ${n(e.tgt)} に ${e.v}${e.crit ? '（会心）' : ''}` };
     case 'ko': return { cls:'ko', s:`${n(e.tgt)} 戦闘不能` };
     case 'ult': return { cls:'ult', s:`${n(e.src)} 奥義！` };
+    case 'ultMiss': return { cls:'', s:`${n(e.src)} 奥義を向ける相手がおらぬ` };   // 2026-10-09
     /* 控えにも固有の名を出す（2026-10-01）。継承した◆はマスタに無いので、
        エンジンが log に残した名を使う。頭の（属性）と末尾の◆は落とす */
     case 'unique': {
@@ -36453,6 +36477,21 @@ function command(c) {
   play();                       // 選んだ行動はその場で動く（ターンの終わりを待たない）
 }
 
+/* 奥義が撃てなかったときの一言（2026-10-09・悠さんの指図）。
+   ターンの札（#turnBox）と同じ盤の中、そのすぐ上に出して 1.6秒で消す。
+   続けて押したときは前の一言を差し替える（重ねて積まない） */
+const ULT_MISS_WORDS = { none: '奥義を向ける相手がおらぬ' };
+function ultMissNote(why) {
+  const tb = document.getElementById('turnBox');
+  const host = tb && tb.parentElement;
+  if (!host) return;
+  const old = host.querySelector('.ultmiss');
+  if (old) old.remove();
+  const n = el('div', { class: 'ultmiss' }, ULT_MISS_WORDS[why] || ULT_MISS_WORDS.none);
+  host.appendChild(n);
+  setTimeout(() => n.remove(), 1700);
+}
+
 /* ===== 盤面の現在値 =====
    スナップショットを土台に、イベントで座標と兵量を動かす。
    次のスナップショットで必ず補正されるので、回復や各種補正がずれたままにならない。 */
@@ -36649,6 +36688,18 @@ async function showEvent(e, my) {
       applyEvent(live, e); drawBattle();
       fxBurst(cellOf(e.src), 'impact', { scale: 1.25, ms: 460 }); await sleep(120); return;
 
+    /* 奥義を押したのに撃てなかった（2026-10-09・悠さんの指図）。
+       ターンの札のすぐ上に一言だけ出す。押した側にだけ見せる
+       （果たし合いで相手の空振りまで知らせると、手の内を覗いているようになる）。
+       ひと呼吸おいてから、engine が落とした ふつうの攻撃に進む */
+    case 'ultMiss': {
+      const mine = BATTLE.duel ? String(e.src).startsWith(BATTLE.duel.side + '-')
+                               : String(e.src).startsWith('A-');
+      if (!mine) return;
+      ultMissNote(e.why);
+      SFX.ng();
+      await sleep(520); return;
+    }
     // 奥義・固有・特技はすべてカットインで見せる（2026-09-20）
     case 'ult': {
       const no = noOf(e.src);

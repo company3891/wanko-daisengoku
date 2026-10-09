@@ -8746,6 +8746,21 @@ function command(c) {
   play();                       // 選んだ行動はその場で動く（ターンの終わりを待たない）
 }
 
+/* 奥義が撃てなかったときの一言（2026-10-09・悠さんの指図）。
+   ターンの札（#turnBox）と同じ盤の中、そのすぐ上に出して 1.6秒で消す。
+   続けて押したときは前の一言を差し替える（重ねて積まない） */
+const ULT_MISS_WORDS = { none: '奥義を向ける相手がおらぬ' };
+function ultMissNote(why) {
+  const tb = document.getElementById('turnBox');
+  const host = tb && tb.parentElement;
+  if (!host) return;
+  const old = host.querySelector('.ultmiss');
+  if (old) old.remove();
+  const n = el('div', { class: 'ultmiss' }, ULT_MISS_WORDS[why] || ULT_MISS_WORDS.none);
+  host.appendChild(n);
+  setTimeout(() => n.remove(), 1700);
+}
+
 /* ===== 盤面の現在値 =====
    スナップショットを土台に、イベントで座標と兵量を動かす。
    次のスナップショットで必ず補正されるので、回復や各種補正がずれたままにならない。 */
@@ -8942,6 +8957,18 @@ async function showEvent(e, my) {
       applyEvent(live, e); drawBattle();
       fxBurst(cellOf(e.src), 'impact', { scale: 1.25, ms: 460 }); await sleep(120); return;
 
+    /* 奥義を押したのに撃てなかった（2026-10-09・悠さんの指図）。
+       ターンの札のすぐ上に一言だけ出す。押した側にだけ見せる
+       （果たし合いで相手の空振りまで知らせると、手の内を覗いているようになる）。
+       ひと呼吸おいてから、engine が落とした ふつうの攻撃に進む */
+    case 'ultMiss': {
+      const mine = BATTLE.duel ? String(e.src).startsWith(BATTLE.duel.side + '-')
+                               : String(e.src).startsWith('A-');
+      if (!mine) return;
+      ultMissNote(e.why);
+      SFX.ng();
+      await sleep(520); return;
+    }
     // 奥義・固有・特技はすべてカットインで見せる（2026-09-20）
     case 'ult': {
       const no = noOf(e.src);

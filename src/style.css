@@ -6055,6 +6055,10 @@ body.trdragging { cursor: grabbing; }
 /* 道中手形の残り（2026-10-09） */
 .trtix { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f5e2a8; }
 .trtix .itic { width: 26px; height: 26px; font-size: 12px; }
+/* 手形の絵が来たので大きく見せる。袋の枠は要らない（2026-10-09） */
+.trtix .itic.art { width: 38px; height: 38px; background: none; border: 0; box-shadow: none; }
+.trtix .itic.art img { width: 100%; height: 100%; object-fit: contain; }
+.trtix { font-size: 15px; font-weight: 700; }
 /* ================= 道（2026-10-09）=================
    分かれ道の地図。下から上へ歩き、上の国主は必ず通る */
 .trrun { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; padding: 8px 12px; border-radius: 12px;

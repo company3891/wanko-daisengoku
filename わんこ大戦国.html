@@ -33640,8 +33640,34 @@ function cardStatOverlay(c, ro, mod) {
     ];
     out.push(...put(ROLE_BOX.lb, '役割 ／ 射程'), ...put(ROLE_BOX.vl, `${c.role} ／ ${c.range}`));
   }
+  /* 所属の欄を書き直す（2026-10-10・悠さんの指摘「まだ浪人のままやね！」）。
+     2026-10-09 に 浪人だった6体を史実の家に移した（characters.json の clan）が、
+     札の「所属」は絵に焼き込んであるので「浪人」のまま残っていた。
+     焼き直すまでのあいだ、この6体だけ クリームの紙を当てて今の家を書く。
+     ほかの子は焼いた字が正しいので触らない（全員に重ねると字の太さが揃わず目立つ） */
+  if (CLAN_REBAKE.has(+c.no) && c.clan) {
+    const t = CLAN_BOX;
+    out.push(
+      el('i', { class: 'crolebg',
+        style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};`
+             + `width:${pc(t.w, 864)};height:${pc(t.h, 1280)};background:${t.bg};`
+             + `-webkit-mask-image:${t.mask};mask-image:${t.mask}` }),
+      el('b', { class: 'clv crole',
+        style: `left:${pc(t.x + t.w / 2, 864)};top:${pc(t.y + t.h / 2, 1280)};`
+             + `font-size:${fs(t.size)};color:${t.fg}` }, c.clan));
+  }
   return out;
 }
+/* 焼いた札では「浪人」なのに、いまは家に属している子（2026-10-10）。
+   豊臣ヒデヨシバ・濃姫・浅井ながワン・加藤キヨマサ犬・直江カネつぐる・ガラシャわん。
+   札を焼き直したら、ここから外す */
+const CLAN_REBAKE = new Set([30, 31, 47, 64, 67, 68]);
+/* 所属のクリームの欄（864×1280 の目盛りで実測・2026-10-10）。
+   紙は x 586-819 / y 1154-1193。縁ぎわは金がにじんで黄ばむので、
+   真ん中だけ塗り、左右の端は mask でぼかして継ぎ目を消す */
+const CLAN_BOX = { x: 598, y: 1155, w: 210, h: 39, fg: '#241e18', size: 29,
+  bg: 'linear-gradient(#fbf4e3,#fbf7ea)',
+  mask: 'linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)' };
 function cardSheet(c) {
   const un = c.no === '未奉公';
   const fr = un ? unknownCardUrl('front') : cardUrl(c.no, 'front');

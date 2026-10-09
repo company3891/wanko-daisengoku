@@ -1895,6 +1895,39 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 /* 魂のぶんは「+939」。左の数は魂を抜いた元の数で、足すと札の数になる（2026-10-06） */
 .growbox .sts em.up{order:3;font-size:11px;color:#8fd08f;font-style:normal;
   flex:none;width:3.6em;text-align:right;white-space:nowrap}
+/* ---- 武将強化の配置（2026-10-09・悠さんの指図）----
+   「寂しいから」── 顔の切り抜きを小さく置くだけだった上半分に、
+   立ち絵（コマ絵・全身）を大きく立たせた。
+   名前は上の中央、位と属性はその下。立ち絵は中央より左。
+   右の数は立ち絵に少し重ねてよい（悠さんの指図）ので、負の余白で寄せる。
+   数が絵に乗っても読めるよう、影を強めに敷く */
+.gxname{display:block;text-align:center;font-size:19px;letter-spacing:.05em;
+  margin:2px 0 5px;text-shadow:0 2px 6px #000}
+.gxmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;
+  font-size:10px;color:var(--text3);margin-bottom:8px}
+.gxmain{display:flex;align-items:center;margin-bottom:4px}
+/* 立ち絵。押すとカードがひらくので釦にしてある */
+.gxfig{flex:0 0 62%;aspect-ratio:1;border:0;background:none;padding:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;position:relative;z-index:0}
+.gxfig:active{transform:scale(.97)}
+.gxpw{display:block;width:100%;height:100%;object-fit:contain;
+  filter:drop-shadow(0 8px 18px #000a)}
+/* コマ絵が無い武将は、これまでの顔の切り抜きに落ちる */
+.gxfig .f{width:76%;height:76%;border-radius:14px;background-size:cover;background-position:center;
+  box-shadow:0 0 0 1px var(--gold),0 6px 16px #000a}
+.gxcol{flex:1 1 auto;min-width:0;margin-left:-46px;position:relative;z-index:1}
+/* 一画面に収めるため、金帯と数を少し詰める */
+.gxbox .expbar{height:14px;margin:0 0 6px}
+.gxbox .expbar span{font-size:9px}
+.gxbox .gxcol .sts{margin-bottom:0}
+.gxbox .gxcol .sts div{padding:5px 1px}
+.gxbox .gxcol .sts span{font-size:11.5px;text-shadow:0 1px 4px #000,0 0 8px #000}
+.gxbox .gxcol .sts span .si{width:16px;height:16px}
+.gxbox .gxcol .sts b{font-size:15.5px;text-shadow:0 1px 4px #000,0 0 8px #000}
+.gxbox .gxcol .sts em.up{font-size:10px;width:3.2em;text-shadow:0 1px 4px #000}
+.gxbox .gxcol .sts div::before{min-width:8px}
+/* 線から下（総合力・三つの釦・閉じる）は今までどおり */
+.gxtot{display:block;margin-bottom:10px}
 .acts2{display:flex;flex-wrap:wrap;gap:6px}
 .go.sm{padding:8px 12px;font-size:11.5px;flex:1 1 auto;min-width:120px}
 /* 魂を振る（下書き式・2026-09-21）

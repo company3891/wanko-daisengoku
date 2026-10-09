@@ -4316,27 +4316,35 @@ function screenPower() {
       growPickPage('lv', no => { S.grow = no; S.sp = null; S.spEdit = null; S.pw = null; }),
       !S.gpop ? null : growPop(() => { S.pw = null; S.gpop = false; SFX.pick(); draw(); },
       // いまの姿
-      el('div', { class: 'card2 growbox' },
-        el('div', { class: 'top' },
-          faceBtn(c),
-          el('div', {},
-            el('b', {}, c.name),
-            el('div', { class: 'meta' }, rarTag(c.rarity, 'sm'), attrTag(c.attr, 'sm'),
-              el('span', {}, `Lv.${st.lv} / ${cap}`),
-              el('span', {}, '覚醒 ' + '◆'.repeat(st.awake) + '◇'.repeat(AWAKE_MAX - st.awake))))),
-        // 経験のゲージ
-        el('div', { class: 'expbar' },
-          el('i', { style: `width:${Math.min(100, st.exp / need * 100)}%` }),
-          el('span', {}, st.lv >= cap ? '限界' : `次まで ${num(need - st.exp)}`)),
-        // ステータス
-        /* 絵も並べる（2026-09-25）。ここだけ字だけで、ほかの画面と揃っていなかった */
-        el('div', { class: 'sts' }, SP_STATS.map(k =>
-          /* ＋の欄は振っていなくても空で置く（2026-09-25）。
-             無いと その行だけ数が右へずれて、縦の線がそろわなかった。
-             2026-10-06：左の数から魂を抜き「元の数 ＋ 魂」の形にした（悠さんの指図）。
-             足したあとの合計は札のほうに出る。総合力の行だけは合計のまま */
-          el('div', {}, statLabel(k), el('b', {}, num(g[k] - (st.sp[k] || 0))),
-            el('em', { class: 'up' }, st.sp[k] ? `+${num(st.sp[k])}` : ''))), totRow(g)),
+      /* ---- 配置を組み替えた（2026-10-09・悠さんの指図）----
+         前は顔の切り抜きを左上に小さく置くだけで、画面の上半分が寂しかった。
+         名前を上の中央に、位・属性・レベル・覚醒をその下に。
+         立ち絵（コマ絵・全身）を中央より左に大きく立たせ、右に数を並べる。
+         金帯（経験のゲージ）は数の真上。線から下は今までどおり。
+         ぜんぶ一画面に収める（393×852 で巻かない） */
+      el('div', { class: 'card2 growbox gxbox' },
+        el('b', { class: 'gxname' }, c.name),
+        el('div', { class: 'gxmeta' }, rarTag(c.rarity, 'sm'), attrTag(c.attr, 'sm'),
+          el('span', {}, `Lv.${st.lv} / ${cap}`),
+          el('span', {}, '覚醒 ' + '◆'.repeat(st.awake) + '◇'.repeat(AWAKE_MAX - st.awake))),
+        el('div', { class: 'gxmain' },
+          growFigure(c),
+          el('div', { class: 'gxcol' },
+            // 金帯（経験のゲージ）
+            el('div', { class: 'expbar' },
+              el('i', { style: `width:${Math.min(100, st.exp / need * 100)}%` }),
+              el('span', {}, st.lv >= cap ? '限界' : `次まで ${num(need - st.exp)}`)),
+            // ステータス
+            /* 絵も並べる（2026-09-25）。ここだけ字だけで、ほかの画面と揃っていなかった */
+            el('div', { class: 'sts' }, SP_STATS.map(k =>
+              /* ＋の欄は振っていなくても空で置く（2026-09-25）。
+                 無いと その行だけ数が右へずれて、縦の線がそろわなかった。
+                 2026-10-06：左の数から魂を抜き「元の数 ＋ 魂」の形にした（悠さんの指図）。
+                 足したあとの合計は札のほうに出る。総合力の行だけは合計のまま */
+              el('div', {}, statLabel(k), el('b', {}, num(g[k] - (st.sp[k] || 0))),
+                el('em', { class: 'up' }, st.sp[k] ? `+${num(st.sp[k])}` : '')))))),
+        /* 総合力は線の下。.sts の中に置かないと 線と金の色が当たらないので包む */
+        el('div', { class: 'sts gxtot' }, totRow(g)),
         /* 三つの育てかたを、ステータスの下に横並びの釦でまとめた（2026-09-26）。
            一枚の画面に稽古・覚醒・魂を縦に積むと、どこからどこまでが
            どの話なのか分からなくなっていた。押すとそれぞれの札が開く。
@@ -7759,6 +7767,19 @@ function openCard(c, ro, base, mod) {
    継承した◆も、上げた特技の位も出ていなかった（戦っているのは育った姿なのに） */
 const cardRaw = () => S.detailBase;
 /* 育成の画面の顔を押すと、その武将のカードが開く（2026-09-23） */
+/* 武将強化の立ち絵（2026-10-09・悠さんの指図）。
+   コマ絵（assets/pawn/<番号>.png・512四方の透かし絵）は全身が入っているので、
+   そのまま大きく立たせられる。**押すとその武将のカードがひらく**（悠さんの指図）。
+   コマ絵が無い武将は、これまでの顔の切り抜きに落ちる
+   ── 「絵が無くても動く」を崩さないため */
+function growFigure(c) {
+  const pw = pawnUrl(c.no);
+  return el('button', {
+    class: 'gxfig' + (pw ? ' art' : ''), title: `${c.name} のカードを見る`,
+    onclick: e => { e.stopPropagation(); SFX.pick(); openCard(c); },
+  }, pw ? keepImg({ class: 'gxpw', src: pw, alt: c.name, decoding: 'async' })
+        : el('span', { class: 'f', style: chipStyle(c) }));
+}
 function faceBtn(c) {
   return el('button', {
     class: 'f faceb', style: chipStyle(c), title: `${c.name} のカードを見る`,

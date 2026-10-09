@@ -5945,19 +5945,26 @@ button.mkpv:active{transform:translateY(1px)}
 .lbwrap{position:absolute;inset:0;pointer-events:none;line-height:1}
 .lbc{position:absolute;display:flex;align-items:center;justify-content:center;
   border-radius:3px;overflow:visible}
-.lbc .itic,.lbc .ci,.lbc > i:not(.lbd){width:76%;height:76%;margin:0;border:0;background:none;
-  display:flex;align-items:center;justify-content:center;font-size:12px}
+/* 褒美の絵の地はクリーム紙（2026-10-09・悠さんの指図「報酬暗いから背景色ベージュ」）。
+   板の枡が黒漆なので、暗い絵（巻物・俵）が枡に沈んで何か読めなかった。
+   絵ごとに小さな紙を敷く形にして、枡の黒は縁として残している。
+   色は他のポップアップの紙と同じ #f7f1e3 */
+.lbc .itic,.lbc .ci,.lbc > i:not(.lbd){width:100%;height:100%;margin:0;border:0;
+  background:#f7f1e3;border-radius:3px;padding:14% 16%;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:#2a241c}
+/* 節目は紙いっぱいまで絵を広げる */
+.lbc.big .itic,.lbc.big .ci,.lbc.big > i:not(.lbd){padding:8% 10%}
 .lbc .itic img,.lbc img.ci{width:100%;height:100%;object-fit:contain}
 /* 日と数は朱印より上に置く（z-index 3）。判で隠れると、何の日の升か読めなくなる */
-.lbc .lbd{position:absolute;left:1px;top:0;z-index:3;font-style:normal;font-size:8.5px;font-weight:800;
-  color:#d8a94a;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:0}
-.lbc .lbn{position:absolute;right:1px;bottom:0;z-index:3;font-size:8.5px;font-weight:800;
-  color:#f2ead8;text-shadow:0 1px 2px #000,0 0 4px #000;letter-spacing:0}
-/* 節目（7・14・21・28・31）は絵をひと回り大きく。数字は出さず、見た目で「ここは重い」と分かる */
-.lbc.big .itic,.lbc.big .ci,.lbc.big > i:not(.lbd){width:92%;height:92%}
+/* 日と数は クリーム紙のうえに濃い字で（2026-10-09）。
+   地をベージュにしたので、白抜きだと沈む。白のふちどりで絵とも分ける */
+.lbc .lbd{position:absolute;left:1.5px;top:0;z-index:3;font-style:normal;font-size:8.5px;font-weight:800;
+  color:#a8802c;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff;letter-spacing:0}
+.lbc .lbn{position:absolute;right:1.5px;bottom:0;z-index:3;font-size:8.5px;font-weight:800;
+  color:#2a241c;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff;letter-spacing:0}
 /* 受け取った升はひとつ暗く落として、朱印を目立たせる */
-.lbc.on .itic,.lbc.on .ci,.lbc.on > i:not(.lbd){filter:grayscale(.55) brightness(.6)}
-.lbc.on .lbd,.lbc.on .lbn{opacity:.55}
+.lbc.on .itic,.lbc.on .ci,.lbc.on > i:not(.lbd){filter:grayscale(.5) brightness(.82)}
+.lbc.on .lbd,.lbc.on .lbn{opacity:.6}
 /* 今日の升は金の縁で灯す。まだ押していない日は無いので、だいたい朱印と重なる */
 .lbc.now{box-shadow:0 0 0 1.5px var(--gold),0 0 10px #d8a94a88}
 /* 朱印。枡より一回り大きく、少し傾けて押す */

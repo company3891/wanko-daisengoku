@@ -6529,6 +6529,9 @@ function adOpen() {
   /* 手引きのさなかと はじまりの物語のあいだは出さない。
      釦が止まっている上に札を重ねると、どこを押せばよいか分からなくなる */
   if (guideOn() || S.opening || !P.name) return;
+  /* 「今日は表示しない」を押した日は出さない（2026-10-09・悠さんの指図）。
+     毎回出るのが煩わしい、とのこと。朝4時の変わり目でまた出る */
+  if (P.adHide === today()) return;
   if (!adList().length) return;
   S.ad = 0;
 }
@@ -6537,18 +6540,32 @@ function adSheet() {
   const i = S.ad || 0;
   const c = list[i];
   if (!c) { S.ad = null; return null; }
+  /* ふつうの閉じ方（2026-10-09）。画面を触ったときも、「閉じる」を押したときも、
+     これを通る＝**次に開けばまた出る**。悠さんの指図で、触って閉じたぶんは
+     「今日は表示しない」と同じ扱いにはしない */
+  const close = () => { S.ad = null; SFX.pick(); draw(); };
   const next = () => {
-    if (i + 1 < list.length) { S.ad = i + 1; SFX.pick(); }
-    else { S.ad = null; SFX.pick(); }
-    draw();
+    if (i + 1 < list.length) { S.ad = i + 1; SFX.pick(); draw(); }
+    else close();
   };
+  /* 今日はもう出さない。日付を控えるだけで、札そのものは消さない。
+     朝4時の変わり目で today() が変わり、また出るようになる */
+  const hideToday = () => { P.adHide = today(); savePlayer(); close(); };
   return el('div', { class: 'sheet adsheet', onclick: next },
     el('div', { class: 'adbox' },
       keepImg({ class: 'adart', src: adUrl(c.art), alt: c.name }),
       /* 何枚あって今どれかを、小さな丸で出す（二枚目があると分かる） */
       list.length > 1 ? el('div', { class: 'addots' },
         list.map((_, j) => el('i', { class: j === i ? 'on' : '' }))) : null,
-      el('p', { class: 'adhint' }, i + 1 < list.length ? '画面を押すと次へ' : '画面を押すと閉じる')));
+      list.length > 1
+        ? el('p', { class: 'adhint' }, i + 1 < list.length ? '画面を押すと次へ' : '画面を押すと閉じる')
+        : null,
+      /* 釦は札の下に二つ（2026-10-09・悠さんの指図）。
+         stopPropagation を付けないと、上の adsheet の onclick（次へ）も一緒に走る */
+      el('div', { class: 'adbtns' },
+        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); hideToday(); } },
+          el('span', {}, '今日は'), el('span', {}, '表示しない')),
+        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); close(); } }, 'とじる'))));
 }
 const newsOf = id => NEWS.find(n => n.id === id) || null;
 const newsRead = n => (P.newsRead || []).includes(n.id);
@@ -11385,6 +11402,10 @@ function trUse(h, ti) {
   const ev = trPlay(F, h, ti < 0 ? 0 : ti, who, kinds);
   if (!ev) return false;
   S.trSel = null; S.trFx = ev;
+  /* 動きの控え（2026-10-09・悠さんの指図「攻撃にアクションを」）。描き直したあと trAnimate が拾う */
+  const hits = [...new Set(ev.filter(e => e.t === 'hit').map(e => e.f))];
+  S.trAnim = { who: 'pl', no: F.no, kind: kd.kind, name: trName(kd.sk.name), hits,
+               ult: kd.kind === 'ult', atk: hits.length > 0, ko: ev.some(e => e.t === 'ko') };
   setTimeout(() => { if (S.trFx === ev) S.trFx = null; }, 700);
   if (ev.some(e => e.t === 'ko')) SFX.ko(); else if (kd.kind === 'ult') SFX.ult();
   else if (ev.some(e => e.t === 'hit')) SFX.hit(); else if (ev.some(e => e.t === 'heal')) SFX.heal(); else SFX.pick();
@@ -11444,6 +11465,7 @@ function trDrag(node, h, need) {
   });
 }
 function screenTrFight() {
+  if (S.trAnim) setTimeout(trAnimate, 0);
   const F = P.trail.fight;
   if (!F) { S.screen = 'trail'; return screenTrail(); }
   const who = trWho(F.no);
@@ -11512,7 +11534,7 @@ function screenTrFight() {
         selKd ? el('div', { class: 'trdetail' },
           el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}`),
           el('p', {}, trWords(trSpec(who, selKd, F)).join('・')))
-          : el('div', { class: 'trdetail hint' }, el('small', {}, '札を敵へ引きずって使う')),
+          : el('div', { class: 'trdetail hint' }),
         el('span', { class: 'trpile' }, el('i', {}, '捨'), String(F.disc.length)),
         el('button', { class: 'trendb', disabled: (busy || F.over) ? true : null, onclick: () => trFoeTurn() }, 'ターン終了')),
       hand),
@@ -11522,6 +11544,63 @@ function screenTrFight() {
   };
 }
 /* 敵の手番。一匹ずつ間をおいて動かす */
+/* ---- 攻めの動き（2026-10-09）----
+   描き直したばかりの盤に、控えておいた動きをのせる。
+   ・打つ側が相手のほうへ踏み込む
+   ・技の一枚絵（cutin/<番号>_攻撃・_特技・_固有・_奥義）が帯で横切る。奥義は大きく長く
+   ・打たれた側に斬撃（fx/slash・奥義は ult_burst・討ち取りは impact）が走り、白く光ってのけぞる
+   絵が無ければ、その部分だけ出ない（動きは残る） */
+const TR_CUT_ART = { sk: '特技', u: '固有', ult: '奥義', gen: '固有' };
+function trAnimate() {
+  const a = S.trAnim; if (!a) return;
+  S.trAnim = null;
+  const field = document.querySelector('.trfield'); if (!field) return;
+  const me = field.querySelector('.trme');
+  const foes = [...field.querySelectorAll('.trfoe')];
+  const actor = a.who === 'pl' ? me : foes[a.fi];
+  const dir = a.who === 'pl' ? 1 : -1;
+  const pimg = actor && actor.querySelector(a.who === 'pl' ? '.trmeimg' : '.trfimg');
+  const flip = a.who === 'pl' ? '' : ' scaleX(-1)';
+  if (pimg && (a.atk || a.who === 'pl')) {
+    const d = a.atk ? 46 : 14;
+    pimg.animate([{ transform: 'translateX(0)' + flip },
+                  { transform: `translateX(${dir * -8}px)` + flip, offset: .2 },
+                  { transform: `translateX(${dir * d}px) scale(1.08)` + flip, offset: .45 },
+                  { transform: 'translateX(0)' + flip }],
+                 { duration: a.ult ? 620 : 420, easing: 'cubic-bezier(.2,.9,.3,1)' });
+  }
+  /* 帯の一枚絵。攻める技は「攻撃」の絵を先に探し、無ければ技の種類の絵 */
+  const kindArt = a.who === 'pl' ? TR_CUT_ART[a.kind] : (a.ult ? '奥義' : null);
+  const art = a.ult ? cutinArt(a.no, '奥義')
+            : (a.atk ? (cutinArt(a.no, '攻撃') || (kindArt && cutinArt(a.no, kindArt)))
+                     : (kindArt && cutinArt(a.no, kindArt)));
+  if (art && (a.atk || a.who === 'pl')) {
+    const cut = el('div', { class: 'trcut ' + (a.who === 'pl' ? 'from-l' : 'from-r') + (a.ult ? ' ult' : '') },
+      el('img', { src: art, alt: '' }),
+      el('b', {}, a.who === 'pl' ? (a.name || '') : (a.ult ? '奥義' : a.name + 'の攻め')));
+    field.append(cut);
+    setTimeout(() => cut.remove(), a.ult ? 1150 : 760);
+  }
+  /* 打たれた側。少し遅らせて、踏み込みと絵が通ったあとに当てる */
+  const hitAt = a.ult ? 520 : 260;
+  setTimeout(() => {
+    const tgts = a.who === 'pl' ? a.hits.map(i => foes[i]).filter(Boolean) : ((a.hurt && me) ? [me] : []);
+    for (const t of tgts) {
+      fxBurst(t, a.ult ? 'ult_burst' : (a.ko ? 'impact' : 'slash'), { ms: a.ult ? 620 : 420, scale: a.ult ? 1.5 : 1.1, spin: !a.ult });
+      const im = t.querySelector('.trmeimg, .trfimg');
+      if (im) {
+        const f2 = t.classList.contains('trfoe') ? ' scaleX(-1)' : '';
+        const back = t.classList.contains('trfoe') ? 10 : -10;
+        im.animate([{ filter: 'brightness(1)', transform: 'translateX(0)' + f2 },
+                    { filter: 'brightness(3)', transform: `translateX(${back}px)` + f2, offset: .2 },
+                    { filter: 'brightness(1)', transform: 'translateX(0)' + f2 }], { duration: 300 });
+      }
+    }
+    if (tgts.length && a.ult) field.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(-6px,3px)' },
+      { transform: 'translate(5px,-3px)' }, { transform: 'translate(0,0)' }], { duration: 300 });
+    if (a.who === 'foe' && a.dodge && me) fxBurst(me, 'guard', { ms: 380 });
+  }, hitAt);
+}
 async function trFoeTurn() {
   const F = P.trail.fight; if (!F || S.trBusy || F.over) return;
   S.trBusy = true; S.trSel = null; trEnd(F); S.trFx = null; draw();
@@ -11529,11 +11608,16 @@ async function trFoeTurn() {
     if (F.over) break;
     if (F.foes[i].hp <= 0) continue;
     S.trActing = i;
+    const it = F.foes[i].it || {};
     const ev = trFoeAct(F, i);
     S.trFx = ev;
+    const act = ev.find(e => e.t === 'act');
+    S.trAnim = { who: 'foe', fi: i, no: F.foes[i].no, name: F.foes[i].name,
+                 kind: act ? act.k : null, ult: !!(act && act.ult), atk: !!(act && act.k === 'atk'),
+                 hurt: ev.some(e => e.t === 'hurt'), dodge: ev.some(e => e.t === 'dodge') };
     if (ev.some(e => e.t === 'hurt' && e.n)) SFX.hit(); else if (ev.some(e => e.t === 'dodge')) SFX.eva(); else if (ev.some(e => e.t === 'fheal')) SFX.heal();
     draw();
-    await sleep(520);
+    await sleep(act && act.k === 'atk' ? (act.ult ? 1100 : 760) : 560);
   }
   S.trActing = null;
   if (!F.over) trRound(F);

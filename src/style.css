@@ -5837,6 +5837,17 @@ button.mkpv:active{transform:translateY(1px)}
 .addots i{width:7px;height:7px;border-radius:50%;background:#ffffff44}
 .addots i.on{background:var(--gold)}
 .adhint{margin:0;font-size:11px;letter-spacing:.06em;color:#d8d2c8;text-shadow:0 1px 3px #000}
+/* 札の下の二つの釦（2026-10-09・悠さんの指図）。毎回出るのが煩わしいので
+   「今日は表示しない」を置いた。画面を触って閉じたぶんは、ふつうの閉じる扱い。
+   .go は flex:1 と min-width:120px を持っていて狭い場所で効きすぎるので、
+   ここでは使わず別の名前で組む */
+.adbtns{display:flex;gap:12px;justify-content:center;width:100%;margin-top:2px}
+.adbtn{flex:0 1 160px;min-height:46px;padding:7px 12px;border-radius:9px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.18;
+  font-size:13px;font-weight:700;letter-spacing:.06em;
+  color:#f2ead8;background:linear-gradient(#2a241c,#17130e);
+  border:1.5px solid var(--gold);box-shadow:0 3px 10px #000a,inset 0 1px 0 #ffffff14}
+.adbtn:active{transform:translateY(1px);box-shadow:0 1px 5px #000a}
 
 /* 友の顔は押せる（2026-10-08）。押すとその人の主役の札がひらく。
    枠も地も持たせない ── 見た目はこれまでの顔のまま */
@@ -6017,3 +6028,19 @@ body.trdragging { cursor: grabbing; }
 
 /* 技名は二行まで折り返す（2026-10-09・省略の「…」で名が読めなかった） */
 .trcname { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 9.5px; min-height: 26px; padding-top: 3px; }
+
+/* ---- 攻めの動き（2026-10-09）---- 技の一枚絵が帯になって戦の地を横切る */
+.trcut { position: absolute; z-index: 6; left: -4%; right: -4%; top: 30%; height: 118px; pointer-events: none; overflow: hidden;
+  background: #12100e; border-top: 2px solid #d8a94a; border-bottom: 2px solid #d8a94a; box-shadow: 0 6px 18px rgba(0,0,0,.7);
+  transform: skewY(-4deg); }
+.trcut img { width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+.trcut b { position: absolute; bottom: 6px; font-family: var(--mincho, serif); font-size: 20px; color: #fff; letter-spacing: .1em;
+  text-shadow: 0 2px 4px #000, 0 0 10px #000; }
+.trcut.from-l b { right: 18px; } .trcut.from-r b { left: 18px; }
+.trcut.from-l { animation: trcutl .76s cubic-bezier(.2,.9,.3,1) forwards; }
+.trcut.from-r { animation: trcutr .76s cubic-bezier(.2,.9,.3,1) forwards; border-color: #e0654f; }
+.trcut.ult { top: 22%; height: 190px; animation-duration: 1.15s; border-width: 3px; }
+.trcut.ult b { font-size: 26px; color: #f5e2a8; }
+@keyframes trcutl { 0% { clip-path: inset(0 100% 0 0); opacity: 1; } 22% { clip-path: inset(0 0 0 0); } 78% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { clip-path: inset(0 0 0 100%); opacity: 0; } }
+@keyframes trcutr { 0% { clip-path: inset(0 0 0 100%); opacity: 1; } 22% { clip-path: inset(0 0 0 0); } 78% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { clip-path: inset(0 100% 0 0); opacity: 0; } }
+.trme .fxw, .trfoe .fxw { left: -20%; right: -20%; top: -10%; bottom: 20%; }

@@ -34102,6 +34102,10 @@ const newsUrl = n => {
 const AD_CARDS = [
   { art: 'login_duel',  name: '友人対戦' },
   { art: 'login_tower', name: '試練の塔' },
+  /* 落ち延び道中（2026-10-09・悠さんの指図）。絵を news/login_trail.png に
+     置けば出る。無いうちは adUrl が null を返して adList が落とすので、
+     置くまで何も起きない ── 「絵が無くても動く」 */
+  { art: 'login_trail', name: '落ち延び道中' },
 ];
 /* ---- その日のお祭りの札（2026-10-09・悠さんの指図）----
    「この画像を各イベントの日に合わせてログイン時のポップアップに表示して」。

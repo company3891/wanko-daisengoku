@@ -1727,7 +1727,8 @@ const HOME_MENU = [
      label ＝ 札に出す短い名（絵が無いあいだだけ出る）。
      69角に「落ち延び道中」は収まらないので「道中」にしてある。
      ui/home_trail.png を置けば、名札そのものが消える */
-  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, label: '道中',
+  /* 絵（ui/home_trail.png・2026-10-09 悠さん作）に「旅」が入っているので、下の名札は出さない */
+  { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, noname: true,
     go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; S.trScroll = true; } },
   { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },

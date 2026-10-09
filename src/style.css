@@ -6044,3 +6044,6 @@ body.trdragging { cursor: grabbing; }
 @keyframes trcutl { 0% { clip-path: inset(0 100% 0 0); opacity: 1; } 22% { clip-path: inset(0 0 0 0); } 78% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { clip-path: inset(0 0 0 100%); opacity: 0; } }
 @keyframes trcutr { 0% { clip-path: inset(0 0 0 100%); opacity: 1; } 22% { clip-path: inset(0 0 0 0); } 78% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { clip-path: inset(0 100% 0 0); opacity: 0; } }
 .trme .fxw, .trfoe .fxw { left: -20%; right: -20%; top: -10%; bottom: 20%; }
+
+/* 旅の座は丸い絵なので、四角い「任」と並ぶと小さく見える。少しだけ大きく（2026-10-09） */
+.hmb img[src*="home_trail"] { transform: scale(1.14); }

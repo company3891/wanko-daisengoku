@@ -6336,3 +6336,66 @@ body.trdragging { cursor: grabbing; }
 /* 友の部隊（2026-10-10）。五枚を大きめに並べる */
 .frbox.frsq .frhd{text-align:center}
 .frbox.frsq .frteam{gap:6px}
+
+/* ================= 道中：褒美の絵・勝利の札・限界突破（2026-10-10 夕）================= */
+.trpz { gap: 10px 8px; margin: 6px 0 4px; }
+.trpz .pz { width: 60px; gap: 3px; }
+.trpz .pzi, .trpz .pzm { width: 52px; height: 52px; border-radius: 10px; background: #2a241cd9; padding: 4px; box-sizing: border-box; }
+.trpz .pzm { font-size: 20px; color: #f5e2a8; font-style: normal; font-weight: 900; font-family: var(--mincho, serif); }
+.trpz .pzn { right: -4px; top: 34px; font-size: 12px; padding: 0 4px; border-radius: 6px; background: #12100e; color: #f5e2a8; line-height: 17px; }
+.trpz .pzt { font-size: 10px; color: #6b4a18; }
+/* 宝箱の絵の上に品を浮かせる */
+.trchest { position: relative; width: 100%; height: 190px; display: flex; justify-content: center; }
+.trchestimg { position: absolute; bottom: 0; width: 150px; height: 150px; object-fit: contain; animation: trChestIn .5s cubic-bezier(.2,1.4,.4,1) both; }
+.trchestglow { position: absolute; bottom: 40px; width: 220px; height: 150px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255,226,140,.95), rgba(255,200,80,.35) 55%, transparent); animation: trGlow 1.8s ease-in-out infinite; }
+.trchest .trpz { position: absolute; top: 0; left: 0; right: 0; z-index: 2; margin: 0; animation: trPop .6s .25s cubic-bezier(.2,1.5,.4,1) both; }
+.trchest .trpz .pzi, .trchest .trpz .pzm { box-shadow: 0 0 14px rgba(255,214,120,.9); }
+@keyframes trChestIn { from { transform: translateY(20px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes trPop { from { transform: translateY(60px) scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes trGlow { 0%,100% { opacity: .65; transform: scale(.95); } 50% { opacity: 1; transform: scale(1.06); } }
+/* 戦の場のまん中に勝ち負けの絵 */
+.trbanner { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; pointer-events: none;
+  background: radial-gradient(circle, rgba(0,0,0,.25), rgba(0,0,0,.6)); animation: trFade .3s both; }
+.trbanimg { width: 78%; max-width: 340px; animation: trBan .7s cubic-bezier(.2,1.6,.35,1) both; filter: drop-shadow(0 6px 16px rgba(0,0,0,.8)); }
+.trbantxt { font-family: var(--mincho, serif); font-size: 72px; color: #f5e2a8; animation: trBan .7s cubic-bezier(.2,1.6,.35,1) both; }
+.trbanner.lose .trbanimg, .trbanner.lose .trbantxt { filter: grayscale(.3) drop-shadow(0 6px 16px rgba(0,0,0,.8)); }
+.trbanray { position: absolute; width: 140vw; height: 140vw; max-width: 900px; max-height: 900px;
+  background: repeating-conic-gradient(rgba(255,226,140,.28) 0 8deg, transparent 8deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 62%); mask-image: radial-gradient(circle, #000 20%, transparent 62%);
+  animation: trSpin 6s linear infinite; }
+.trbanner.lose .trbanray { display: none; }
+@keyframes trBan { 0% { transform: scale(2.6); opacity: 0; } 60% { transform: scale(.92); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes trFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes trSpin { to { transform: rotate(360deg); } }
+/* 国主を討った札の題 */
+.trreshimg { width: 62%; max-width: 230px; margin: -4px auto 0; display: block; animation: trBan .7s cubic-bezier(.2,1.6,.35,1) both; }
+/* 限界突破 */
+.trlimit { position: relative; overflow: hidden; padding: 12px 10px 10px; border-radius: 12px; text-align: center;
+  background: linear-gradient(180deg, #3a0f0a, #12100e); border: 2px solid #f5e2a8;
+  box-shadow: 0 0 0 2px #a8802c, 0 0 22px rgba(245,190,90,.75); animation: trLimIn .8s cubic-bezier(.2,1.5,.4,1) both, trLimBeat 1.6s .8s ease-in-out infinite; }
+.trlimray { position: absolute; inset: -60%; background: repeating-conic-gradient(rgba(255,214,120,.22) 0 10deg, transparent 10deg 24deg);
+  animation: trSpin 5s linear infinite; }
+.trlimit .trlimw { position: relative; display: block; font-family: var(--mincho, serif); font-size: 34px; font-weight: 900; letter-spacing: .12em; }
+.trlimit .trlimw span { display: inline-block; color: #fff3c4; text-shadow: 0 0 6px #ffcf5a, 0 0 16px #e0654f, 0 3px 0 #a8802c;
+  animation: trLimCh .5s calc(.25s + var(--k) * .09s) cubic-bezier(.2,1.8,.4,1) both, trLimShine 2.4s calc(1s + var(--k) * .12s) ease-in-out infinite; }
+.trlimit small { position: relative; display: block; color: #f5e2a8; font-size: 12px; margin-top: 2px; }
+.trlimit > span { position: relative; display: block; color: #fff; font-weight: 800; font-size: 14px; }
+@keyframes trLimIn { from { transform: scale(.4) rotate(-4deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes trLimBeat { 0%,100% { box-shadow: 0 0 0 2px #a8802c, 0 0 18px rgba(245,190,90,.6); } 50% { box-shadow: 0 0 0 2px #f5e2a8, 0 0 34px rgba(255,214,120,1); } }
+@keyframes trLimCh { from { transform: translateY(-30px) scale(2); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes trLimShine { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
+
+/* 戦の品は 気と「ターン終了」のあいだの欄に並べる（2026-10-10 夕） */
+.trdetail.tritray { flex-direction: row; align-items: center; justify-content: center; gap: 8px; }
+.tritray .tritem { width: 42px; height: 42px; }
+.tritray .tritem .itic { width: 36px; height: 36px; }
+.tritray small { color: #6f6656; }
+.tritx { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(216,169,74,.5); background: none; color: #f5e2a8; font-size: 13px; }
+/* 品の中身は一行で（2026-10-10 夕）。縦に積むと欄が伸びて札に重なった */
+.trdetail.tritd { flex-direction: row; align-items: center; gap: 6px; text-align: left; }
+.trdetail.tritd b { font-size: 11.5px; } .trdetail.tritd p { font-size: 10.5px; }
+.trdetail.tritd .trituse { padding: 6px 8px; }
+.trlimit { width: 100%; box-sizing: border-box; }
+.trlimit .trlimw { font-size: 42px; line-height: 1.15; }
+.trlimit .trlimw span { font-size: inherit; font-weight: 900; }   /* .trmileup span の小さな字が効いていた */

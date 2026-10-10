@@ -11881,21 +11881,43 @@ function trEvSheet() {
   }
   if (e.k === 'item' || (e.k === 'chest' && e.mode === 'item')) {
     return box(el('b', { class: 'trresh' }, e.k === 'chest' ? '宝箱' : head('落とし物')),
-      el('p', {}, e.k === 'chest' ? `小判 ${num(e.kb)} と、品がひとつ入っていた` : '道ばたに品がひとつ落ちていた'),
+      e.k === 'chest' ? trChestArt({ koban: e.kb, items: [e.item] }) : null,
+      el('p', {}, e.k === 'chest' ? '品がひとつ入っていた' : '道ばたに品がひとつ落ちていた'),
       itemRow(e.item),
       (!e.got && run.items.length >= TR_ITEM_MAX) ? swapRow() : null,
       el('button', { class: 'go wide', onclick: done }, e.got ? '先へ' : 'あきらめて先へ'));
   }
   if (e.k === 'chest' && e.mode === 'cards') {
     return box(el('b', { class: 'trresh' }, '宝箱'),
-      el('p', {}, e.took != null ? `小判 ${num(e.kb)} と札を一枚手に入れた` : `小判 ${num(e.kb)} と、札が三枚。一枚だけ持っていける`),
+      trChestArt({ koban: e.kb }),
+      el('p', {}, e.took != null ? '札を一枚手に入れた' : '札が三枚。一枚だけ持っていける'),
       el('div', { class: 'trevcards' }, e.cards.map((en, k) => el('div', { class: 'trevc' + (e.took === k ? ' took' : e.took != null ? ' sold' : '') },
         cardOf(en, { on: () => { if (e.took != null) return; e.took = k; run.cards.push({ no: en.no, key: en.key, up: 0 }); SFX.get(); savePlayer(); draw(); } })))),
       el('button', { class: 'go wide', onclick: done }, e.took != null ? '先へ' : '札はとらずに先へ'));
   }
   return box(el('b', { class: 'trresh' }, '宝箱'),
-    el('p', {}, `小判 ${num(e.kb)}・稽古の書 ${e.bk}冊 を見つけた`),
+    trChestArt({ koban: e.kb, books: { '稽古の書': e.bk } }),
     el('button', { class: 'go wide', onclick: done }, '先へ'));
+}
+/* 褒美の粒（2026-10-10 夕・悠さんの指図「報酬はぜんぶ道具の絵で、初めての分も分けずにまとめて」）。
+   o = { koban, soul, books: { 名: 冊 }, heal, items: [名] } */
+function trPrizes(o) {
+  const t = [];
+  const add = (a, m, n, c) => { if (c) t.push(prizeTile(a, m, n, c)); };
+  add(uiUrl('coin_小判'), '判', '小判', o.koban);
+  for (const [nm, n] of Object.entries(o.books || {})) add(itemUrl(nm), '書', nm, n);
+  add(uiUrl('coin_魂'), '魂', '武士の魂', o.soul);
+  for (const nm of (o.items || [])) add(itemUrl(nm), '品', nm, 1);
+  add(null, '兵', '兵量', o.heal);
+  return t.length ? el('div', { class: 'pzrow trpz' }, t) : null;
+}
+/* 宝箱の絵の上に、出てきた品を浮かせる */
+function trChestArt(o) {
+  const art = uiUrl('trail_treasure') || uiUrl('gacha_box');
+  return el('div', { class: 'trchest' },
+    el('div', { class: 'trchestglow' }),
+    art ? keepImg({ class: 'trchestimg', src: art, alt: '宝箱' }) : el('i', { class: 'trchestimg txt' }, '宝'),
+    trPrizes(o));
 }
 /* 鍛えるとどう変わるか（数は札の面と同じ三つだけ） */
 function trUpWords(who, kd) {
@@ -12146,7 +12168,7 @@ function trFixFight(F, who, kinds) {
 }
 function screenTrFight() {
   if (S.trAnim) setTimeout(trAnimate, 0);
-  const F = P.trail.fight;
+  const F = P.trail.fight || (S.trBanner && S.trBanner.F);
   if (!F) { S.screen = 'trail'; return screenTrail(); }
   const who = charOf(F.no) && hasCard(F.no) ? trWho(F.no) : null;
   if (!who) { P.trail.fight = null; S.screen = 'trail'; return screenTrail(); }
@@ -12155,7 +12177,7 @@ function screenTrFight() {
   const kdOf = trKdOfF(F, who);
   const run = trRunOf(F.no);
   const s = TR_STORY[F.i];
-  const busy = !!S.trBusy;
+  const busy = !!S.trBusy || !!S.trBanner;
   const pl = F.pl;
   const bg = stageUrl((s.g || '草原') + '_背景') || stageUrl(s.g || '草原') || bgUrl('battle');
   const tags = [
@@ -12207,10 +12229,12 @@ function screenTrFight() {
           el('b', { class: 'trnm' }, who.name),
           el('div', { class: 'trtags' }, tags.map(t => el('i', {}, t))),
           trFloat(trFxOf('pl'))),
-        run.items.length ? el('div', { class: 'tritems' }, run.items.map((nm, k) => el('button', {
-          class: 'tritem' + (S.trItB === k ? ' on' : ''), onclick: () => { S.trItB = S.trItB === k ? null : k; S.trSel = null; SFX.pick(); draw(); } },
-          itemIcon(nm)))) : null,
         /* 敵（右） */
+        S.trBanner ? el('div', { class: 'trbanner ' + (S.trBanner.win ? 'win' : 'lose') },
+          el('div', { class: 'trbanray' }),
+          uiUrl(S.trBanner.win ? 'title_勝利' : 'title_敗北')
+            ? keepImg({ class: 'trbanimg', src: uiUrl(S.trBanner.win ? 'title_勝利' : 'title_敗北'), alt: '' })
+            : el('b', { class: 'trbantxt' }, S.trBanner.win ? '勝利' : '敗北')) : null,
         ...F.foes.map((f, i) => {
           const [x, back] = pos[i] || [80, 0];
           return el('div', {
@@ -12230,11 +12254,16 @@ function screenTrFight() {
         el('span', { class: 'trpile' }, el('i', {}, '山'), String(F.draw.length)),
         itSel ? el('div', { class: 'trdetail tritd' },
           el('div', {}, el('b', {}, itSel), el('p', {}, (TR_ITEMS[itSel] || {}).d || '')),
-          el('button', { class: 'trituse', disabled: (busy || F.over) ? true : null, onclick: useIt }, '使う'))
+          el('button', { class: 'trituse', disabled: (busy || F.over) ? true : null, onclick: useIt }, '使う'),
+          el('button', { class: 'tritx', onclick: () => { S.trItB = null; SFX.pick(); draw(); } }, '×'))
         : selKd ? el('div', { class: 'trdetail' },
           el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}${selKd.up ? '＋' : ''}`),
           el('p', {}, trWords(trSpec(who, selKd, F)).join('・')))
-          : el('div', { class: 'trdetail hint' }),
+          /* 何も選んでいないときは、ここに持っている品を並べる（押すと中身と「使う」） */
+          : el('div', { class: 'trdetail tritray' }, run.items.length
+              ? run.items.map((nm, k) => el('button', { class: 'tritem',
+                  onclick: () => { S.trItB = k; S.trSel = null; SFX.pick(); draw(); } }, itemIcon(nm)))
+              : el('small', {}, '品なし')),
         el('span', { class: 'trpile' }, el('i', {}, '捨'), String(F.disc.length)),
         el('button', { class: 'trendb', disabled: (busy || F.over) ? true : null, onclick: () => trFoeTurn() }, 'ターン終了')),
       hand),
@@ -12343,7 +12372,8 @@ function trFinish() {
     const heal = Math.min(mx - run.hp, Math.round(mx * (0.08 + (tf.mend || 0))));
     run.hp += heal;
     const R = { rs: (run.seed ^ (F.i * 31337) ^ ((run.path || []).length * 7)) >>> 0 };
-    res.spoil = { kb, heal, book: t === '強' ? 1 : 0, cards: trOffer(R, C, no, run.part, 3, n2 => trKindsFor(n2, who)), took: null };
+    /* 国主を討ったときは札えらびを付けない（2026-10-10 夕・悠さんの指図） */
+    res.spoil = { kb, heal, book: t === '強' ? 1 : 0, cards: t === '将' ? [] : trOffer(R, C, no, run.part, 3, n2 => trKindsFor(n2, who)), took: null };
     const nd = F.node;      // 前の作り（話の一覧）の途中の戦には節が無い。そのときは道を動かさない
     if (nd) { run.at = { r: nd.r, c: nd.c }; run.path = [...(run.path || []), { r: nd.r, c: nd.c }]; }
     const got = trFloorDone(no, F.i);
@@ -12361,8 +12391,11 @@ function trFinish() {
     P.trail.runs[no] = trRunNew(run.part, trMx(trWho(no)), (Date.now() ^ no) >>> 0);
   }
   P.trail.fight = null;
-  S.trRes = res; S.trScroll = true;
-  setTimeout(() => { (win ? SFX.win : SFX.lose)(); draw(); }, 350);
+  /* いきなり札に切り替わらないよう、戦の場のまん中に勝ち負けの絵を出す（2026-10-10 夕・悠さんの指図）。
+     戦は消したので、絵を出すあいだだけ盤を S.trBanner に預けて描く */
+  S.trBanner = { win, F }; S.trScroll = true;
+  setTimeout(() => { (win ? SFX.win : SFX.lose)(); draw(); }, 250);
+  setTimeout(() => { S.trBanner = null; S.trRes = res; draw(); }, 1900);
   savePlayer();
 }
 function trResSheet() {
@@ -12370,23 +12403,29 @@ function trResSheet() {
   const c = charOf(r.no);
   const close = () => { S.trRes = null; S.screen = 'trail'; S.trView = 'list'; SFX.pick(); draw(); };
   const head = !r.win ? '道半ばで倒れた' : r.end ? '道を踏破した' : r.boss ? '国主を討った' : '道は開けた';
+  /* 国主を討ったら題は「勝利」の絵（2026-10-10 夕）。絵が無ければ字 */
+  const headEl = (r.boss && uiUrl('title_勝利'))
+    ? keepImg({ class: 'trreshimg', src: uiUrl('title_勝利'), alt: head })
+    : el('b', { class: 'trresh' }, head);
+  /* 褒美は一列にまとめる（初めて抜けた分も足して数える） */
+  const sum = { koban: 0, soul: 0, books: {}, heal: 0 };
+  if (r.spoil) { sum.koban += r.spoil.kb || 0; sum.heal += r.spoil.heal || 0; if (r.spoil.book) sum.books['稽古の書'] = (sum.books['稽古の書'] || 0) + r.spoil.book; }
+  if (r.rw) { sum.koban += r.rw.koban || 0; sum.soul += r.rw.soul || 0; for (const [nm, n] of Object.entries(r.rw.books || {})) sum.books[nm] = (sum.books[nm] || 0) + n; }
   const msg = !r.win ? `${['一', '二', '三'][r.part]}の部のはじめから、もう一度`
     : r.end ? '三つの部をすべて抜けた。また一の部から歩める'
     : r.boss ? `${['二', '三'][r.part]}の部「${TR_PARTS[r.part + 1]}」へ`
     : `${r.i + 1}階を抜けた`;
   return el('div', { class: 'sheet' },
     el('div', { class: 'card2 trres ' + (r.win ? 'win' : 'lose') },
-      el('b', { class: 'trresh' }, head),
+      headEl,
       c ? keepImg({ class: 'trresimg', src: trFace(c.no), alt: c.name }) : null,
       el('p', {}, msg),
-      r.spoil ? el('div', { class: 'trrw' }, el('span', {}, `小判 ${num(r.spoil.kb)}`),
-        r.spoil.book ? el('span', {}, '稽古の書 1冊') : null,
-        r.spoil.heal ? el('span', {}, `兵量 ＋${num(r.spoil.heal)}`) : null) : null,
-      r.rw ? el('div', { class: 'trrw first' }, el('small', {}, 'はじめて抜けた褒美'), el('span', {}, `小判 ${num(r.rw.koban)}`),
-        ...Object.entries(r.rw.books || {}).map(([nm, n]) => el('span', {}, `${nm} ${n}冊`)),
-        r.rw.soul ? el('span', {}, `武士の魂 ${num(r.rw.soul)}`) : null) : null,
-      r.mile ? el('div', { class: 'trmileup' },
-        el('b', {}, `${c ? c.name : ''}の殻が破れた`),
+      r.win ? trPrizes(sum) : null,
+      /* 「限界突破」（2026-10-10 夕・悠さんの指図）。光を回して大きく見せる */
+      r.mile ? el('div', { class: 'trmileup trlimit' },
+        el('i', { class: 'trlimray' }),
+        el('b', { class: 'trlimw' }, ...'限界突破'.split('').map((ch, k) => el('span', { style: `--k:${k}` }, ch))),
+        c ? el('small', {}, c.name) : null,
         r.mile.sp ? el('span', {}, `武士の魂の上限 ＋${r.mile.sp}`) : null,
         r.mile.lv ? el('span', {}, `レベルの上限 ＋${r.mile.lv}`) : null) : null,
       /* 札を一枚えらぶ（2026-10-10）。とらずに戻ってもよい */

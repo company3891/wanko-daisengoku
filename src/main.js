@@ -1869,6 +1869,7 @@ function screenHome() {
            城下町の絵の上に浮いて見えるほうが気になった。押せば出る、で足りる */
         el('button', { class: 'lordtap', title: gen.name + 'の札', onclick: () => openCard(gen) },
           /* 足元の輪（2026-10-10）。奥の半分は絵のうしろ、手前の半分は絵の前 */
+          art ? titleBg(gen) : null,
           art ? footAura(gen, 'back') : null,
           art ? keepImg({ class: 'lordart', src: art, alt: gen.name })
               : el('div', { class: 'lordart chip', style: chipStyle(gen) }),
@@ -8220,7 +8221,20 @@ function skillFlames(c) {
    同じ絵を二枚重ね、clip-path で上下に切り分けている（足が輪の中に立って見える）。
    絵は assets/fx/aura_<色>.webp（1秒の動くwebp）。無ければ何も出さない */
 const AURA_COL = [null, '赤', '青', '緑', '金', '虹'];
+/* ---- 称号の背景（2026-10-10・悠さんの指図「称号に応じてキャラの背景つけよう」）----
+   いま名乗っている称号（P.title）の絵を、立ち絵のいちばん奥に敷く。
+   絵は assets/fx/tbg_<称号の名>.webp（止まった絵でも、1秒の動くwebpでもよい）。
+   無い称号は何も敷かない ── 絵を置いた称号から順に灯っていく。
+   重なり：背景（z0）＜ 輪の奥（z1）＜ 立ち絵（z2）＜ 輪の手前・炎（z3） */
+function titleBg(c) {
+  if (!c || !P.own.includes(c.no) || !P.title) return null;
+  const u = fxUrl('tbg_' + P.title);
+  return u ? keepImg({ class: 'ttlbg', src: u, alt: '' }) : null;
+}
 function footAura(c, side) {
+  /* 2026-10-10 悠さんの指図「足元のエフェクトはキャラより背面にした方がよさそう」。
+     手前の半分はやめ、輪まるごとを立ち絵のうしろに置く（back だけ出す） */
+  if (side === 'front') return null;
   if (!c || !P.own.includes(c.no)) return null;
   const aw = Math.max(0, Math.min(5, charState(c.no).awake || 0));
   const col = AURA_COL[aw];
@@ -8232,7 +8246,8 @@ function growFigure(c) {
   return el('button', {
     class: 'gxfig' + (pw ? ' art' : ''), title: `${c.name} のカードを見る`,
     onclick: e => { e.stopPropagation(); SFX.pick(); openCard(c); },
-  }, pw ? footAura(c, 'back') : null,
+  }, pw ? titleBg(c) : null,
+     pw ? footAura(c, 'back') : null,
      pw ? keepImg({ class: 'gxpw', src: pw, alt: c.name, decoding: 'async' })
         : el('span', { class: 'f', style: chipStyle(c) }),
      pw ? footAura(c, 'front') : null,

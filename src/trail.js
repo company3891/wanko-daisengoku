@@ -168,7 +168,7 @@ const trPct = text => {
 
 /* 武将ひとりの札の種類。who は grownFor を通した武将（育った値・継いだ技が入っている）。
    starOf は特技の★を返す関数（player.js） */
-export function trKinds(who, starOf, slots) {
+export function trKinds(who, starOf, slots, withGen = false) {
   const out = [];
   /* 自分の武将は特技の枠（slotsOf）から作る（2026-10-09・悠さんの実機で「技が5つない」）。
      grownFor の normals は継いだ固有◆を落としているので、継いだ◆が札にならなかった。
@@ -181,7 +181,8 @@ export function trKinds(who, starOf, slots) {
       out.push({ key: 's' + x.slot, kind: uq ? 'u' : 'sk', sk: x.sk, cost });
     }
     if (who.ultimate && who.ultimate.name) out.push({ key: 'ult', kind: 'ult', sk: who.ultimate, cost: TR_COST.ult });
-    if (who.generalTrait && who.generalTrait.name) out.push({ key: 'gen', kind: 'gen', sk: who.generalTrait, cost: TR_COST.gen });
+    /* 大将特性は札にしない（2026-10-10・悠さんの指図）。武将ごとの「特性」として戦のはじめから効く（trTrait） */
+    if (withGen && who.generalTrait && who.generalTrait.name) out.push({ key: 'gen', kind: 'gen', sk: who.generalTrait, cost: TR_COST.gen });
     return out;
   }
   if (who.unique && who.unique.name)
@@ -192,16 +193,23 @@ export function trKinds(who, starOf, slots) {
     out.push({ key: 'n' + i, kind: 'sk', sk, cost: star });
   });
   if (who.ultimate && who.ultimate.name) out.push({ key: 'ult', kind: 'ult', sk: who.ultimate, cost: TR_COST.ult });
-  if (who.generalTrait && who.generalTrait.name) out.push({ key: 'gen', kind: 'gen', sk: who.generalTrait, cost: TR_COST.gen });
+  if (withGen && who.generalTrait && who.generalTrait.name) out.push({ key: 'gen', kind: 'gen', sk: who.generalTrait, cost: TR_COST.gen });
   return out;
 }
 /* 札の名から（属性）と◆を落とす */
 export const trName = n => String(n || '').replace(/^[（(][^）)]*[）)]/, '').replace(/◆/g, '');
 
 /* 札一枚の効き目。kd は trKinds の一つ */
+/* 鍛えた札（2026-10-10・宿で一枚）。重い札は気を一つ軽く、軽い札は効き目を厚くする */
+export const trUpKind = kd => (kd.cost >= 3 ? 'c' : 'v');
+export const TR_UP_MUL = 1.35;
 export function trSpec(who, kd, F) {
   const st = who.stats || {};
+  /* ほかの武将の札（2026-10-10）。数は連れている武将の育った値で、働きは札の持ち主の属性で決める。
+     猛将の札を守将が使えば火力が低いぶん弱い ── 札の取り合わせを考える楽しみにする */
+  const attr = kd.attr || who.attr;
   let c = kd.cost;
+  if (kd.up && trUpKind(kd) === 'c') c = Math.max(0, c - 1);
   if (kd.kind === 'ult' && F && F.pl) c = Math.max(0, c - (F.pl.charge || 0));
   let o;
   if (kd.kind === 'ult') {
@@ -233,15 +241,125 @@ export function trSpec(who, kd, F) {
     else if (k === '回復') o.healUp = p * 3 / 100;
     else o.drawUp = 1;
   } else {
-    const v = trV(c);
-    o = trBase(who.attr, st, v);
+    const v = trV(kd.cost);
+    o = trBase(attr, st, v);
     trApplyRider(o, trRider(kd.sk.text), st, v, c);
   }
+  if (kd.up && trUpKind(kd) === 'v') for (const k of ['dmg', 'blk', 'heal', 'burn', 'thorns']) if (o[k]) o[k] *= TR_UP_MUL;
   for (const k of ['dmg', 'blk', 'heal', 'burn', 'thorns']) if (o[k]) o[k] = trR(o[k]);
   o.cost = c;
   o.need = !!(o.dmg && !o.all);
   return o;
 }
+/* ================= 武将の特性（2026-10-10・悠さんの指図）=================
+   大将特性は札にせず、武将ごとの「特性」として旅のあいだずっと効かせる
+   （札で戦う外国の名作で、人物ごとに一つ持っている品のような扱い）。
+   特性の文から一つだけ読む。数（+10% など）は画面に出さず、何が起きるかだけを見せる */
+const TR_TRAIT_RULES = [
+  [/被ダメージ/,        p => ({ tough: Math.min(0.25, p * 1.5 / 100) }), '受ける傷が浅い'],
+  [/状態異常耐性/,      () => ({ ward: 1 }),                             '戦ごとに一度、敵の悪い効き目をはね返す'],
+  [/回避/,              () => ({ dodge: 1 }),                            '戦のはじめ、一度だけかわす構え'],
+  [/会心|クリティカル/, () => ({ crit: 1 }),                             '戦のはじめの一撃が冴える'],
+  [/経験値|報酬/,       () => ({ coin: 0.3 }),                           '戦に勝つと、持ち帰る小判が多い'],
+  [/発動率/,            () => ({ drawFirst: 1 }),                        'はじめの手番、札を一枚多く引く'],
+  [/特技ダメージ/,      p => ({ might: p * 2 / 100 }),                   '戦のはじめから勢いがある'],
+  [/HP/,                p => ({ hp: p * 1.5 / 100 }),                    '兵量の上限が高い'],
+  [/全能力/,            p => ({ might: p * 1.5 / 100, blk: p * 1.5 / 100 }), '勢いを持ち、構えて臨む'],
+  [/火力/,              p => ({ might: p * 2.5 / 100 }),                 '戦のはじめから勢いがある'],
+  [/賢さ|知力/,         () => ({ kiFirst: 1 }),                          'はじめの手番、気が一つ多い'],
+  [/防御/,              p => ({ blk: p * 1.8 / 100 }),                   '戦のはじめ、構えて臨む'],
+  [/回復/,              p => ({ mend: p * 0.8 / 100 }),                  '戦に勝つと、兵量が少し戻る'],
+  [/速さ/,              () => ({ drawFirst: 2 }),                        'はじめの手番、札を二枚多く引く'],
+];
+const TR_TRAIT_ATTR = { 猛将: '火力', 智将: '賢さ', 守将: '防御', 仁将: '回復', 神速: '速さ' };
+export function trTrait(who) {
+  const g = (who && who.generalTrait) || {};
+  const t = String(g.text || '').replace(/【[^】]*】/, '');
+  const pm = t.match(/(\d+)%/); const p = pm ? +pm[1] : 8;
+  for (const [re, fx, words] of TR_TRAIT_RULES) if (re.test(t)) return { name: g.name || '', fx: fx(p), words };
+  const k = TR_TRAIT_ATTR[who && who.attr] || '火力';
+  const r = TR_TRAIT_RULES.find(x => x[0].test(k));
+  return { name: g.name || '', fx: r[1](p), words: r[2] };
+}
+
+/* ================= 道中の品（2026-10-10・悠さんの指図）=================
+   出陣で使う陣中の品・兵糧を、旅の中だけで使える形にした。三つまで持てる。
+   旅の外へは持ち出さない（持ち帰れるのは褒美だけ）。
+   map＝道の上でも使える／ほかは戦のさなかだけ */
+export const TR_ITEM_MAX = 3;
+export const TR_ITEMS = {
+  '兵糧丸':         { map: 1, d: '兵量が戻る', heal: 0.3 },
+  '兵糧俵':         { map: 1, d: '兵量がたっぷり戻る', heal: 0.6 },
+  '火力の秘薬・大': { d: 'この戦、勢いが増す', might: 0.35 },
+  '賢さの秘薬・大': { d: 'いまの手番、気が満ちる', ki: 2 },
+  '防御の秘薬・大': { d: '固く構え、この戦の構えが厚くなる', blk: 0.22, guardUp: 0.3 },
+  '回復の秘薬・大': { d: '兵量が戻り、この戦の癒しが厚くなる', heal: 0.15, healUp: 0.5 },
+  '速さの秘薬・大': { d: '札を三枚引く', draw: 3 },
+  '照る照る坊主':   { d: '日照りで敵みなを焼く', burn: 0.07 },
+  '雨乞いの壺':     { d: '雨で敵みなの勢いを削ぐ', weak: 3 },
+  '野分の法螺貝':   { d: '嵐で敵みなの守りを崩す', vuln: 3 },
+  '風花の鈴':       { d: '雪で敵みなをひるませる', stun: 1 },
+  '朧の香':         { d: '霧にまぎれて、二度かわす', dodge: 2 },
+};
+export const TR_ITEM_NAMES = Object.keys(TR_ITEMS);
+/* 戦のさなかに品を使う。返すのは出来事の並び */
+export function trUseItem(F, name) {
+  const it = TR_ITEMS[name]; if (!it || !F || F.over) return null;
+  const pl = F.pl, ev = [{ t: 'item', name }];
+  if (it.heal) { const h = pl.seal ? 0 : Math.min(pl.mx - pl.hp, trR(pl.mx * it.heal)); pl.hp += h; ev.push({ t: 'heal', n: h }); }
+  if (it.might) pl.might += it.might;
+  if (it.ki) F.ki += it.ki;
+  if (it.blk) { const b = trR(pl.mx * it.blk); pl.blk += b; ev.push({ t: 'blk', n: b }); }
+  if (it.guardUp) pl.guardUp += it.guardUp;
+  if (it.healUp) pl.healUp += it.healUp;
+  if (it.draw) trDraw(F, it.draw);
+  if (it.dodge) pl.dodge += it.dodge;
+  for (const f of trLive(F)) {
+    const i = F.foes.indexOf(f);
+    if (it.burn) { f.burn = Math.max(f.burn, trR(pl.mx * it.burn)); f.burnT = 3; ev.push({ t: 'fburn', f: i }); }
+    if (it.weak) f.weakT = Math.max(f.weakT || 0, it.weak);
+    if (it.vuln) f.vuln = Math.max(f.vuln, it.vuln);
+    if (it.stun) { f.stun = 1; ev.push({ t: 'stun', f: i }); }
+  }
+  return ev;
+}
+
+/* ================= 道中の札束（2026-10-10）=================
+   旅に出るとき、組んだ山札（10枚）を「札束」に写す。旅のあいだに増えた札・鍛えた札はここだけに残り、
+   倒れて部のはじめに戻ると、組んだ山札から写し直す。
+   一枚は { no: 札の持ち主の武将, key: 札の印, up: 鍛えたか } */
+export function trCardsFrom(deck, kinds, no) {
+  const out = [];
+  for (const k of kinds) for (let n = 0; n < (deck[k.key] || 0); n++) out.push({ no, key: k.key, up: 0 });
+  return out;
+}
+/* 札の申し出（褒美・宝箱・商人）。ほかの武将の札も混ぜる。
+   kindsOf(no) は その武将の札の種類を返す関数（画面側が渡す） */
+const TR_OFFER_RAR = p => p === 0 ? [['N', 30], ['R', 40], ['SR', 22], ['SSR', 7], ['UR', 1]]
+  : p === 1 ? [['R', 30], ['SR', 38], ['SSR', 24], ['UR', 8]] : [['SR', 30], ['SSR', 45], ['UR', 25]];
+export function trOffer(R, all, meNo, part, n, kindsOf, own = 0.3) {
+  const out = [], seen = new Set();
+  const rw = TR_OFFER_RAR(part);
+  for (let g = 0; out.length < n && g < 80; g++) {
+    let no = meNo;
+    if (trRand(R) >= own) {
+      let x = trRand(R) * rw.reduce((a, b) => a + b[1], 0), rar = 'R';
+      for (const [r, v] of rw) { if ((x -= v) < 0) { rar = r; break; } }
+      const pool = all.filter(c => c.rarity === rar && c.no !== meNo);
+      if (!pool.length) continue;
+      no = pool[trInt(R, pool.length)].no;
+    }
+    const ks = (kindsOf(no) || []).filter(k => k.kind !== 'gen' && (k.kind !== 'ult' || trRand(R) < 0.25));
+    if (!ks.length) continue;
+    const k = ks[trInt(R, ks.length)];
+    const id = no + ':' + k.key;
+    if (seen.has(id)) continue;
+    seen.add(id); out.push({ no, key: k.key, up: 0 });
+  }
+  return out;
+}
+export const trPick = (R, list, n) => trShuffle(R, [...list]).slice(0, n);
+
 /* 札の面に出す短い言葉。数は 打つ・構え・癒す の三つだけ */
 export function trWords(o) {
   const w = [];
@@ -316,7 +434,7 @@ export const TR_FOE_CYCLE = ['atk', 'guard', 'buff'];
 /* 敵の札を三つの袋に分ける。札そのものの数ではなく「何をする札か」だけを覚える */
 function trFoeCards(ch, starOf) {
   const bag = { atk: [], guard: [], buff: [] };
-  for (const kd of trKinds(ch, starOf)) {
+  for (const kd of trKinds(ch, starOf, null, true)) {
     const t = kd.sk.text || '';
     const r = kd.kind === 'ult' ? trRider(t.replace(/ダメージ/g, '')) : trRider(t);
     const c = { key: kd.key, kind: kd.kind, r, cost: kd.cost, all: /全体/.test(t) };
@@ -418,8 +536,8 @@ export const trMaxHp = who => { const st = who.stats || {}; return trR(trS(st['�
    段の番号がそのまま「階」になる（一の部の1段目＝1階 … 国主＝10階）。
    節の種類：
      戦 … 敵（1〜2体）     強 … 手練れ（2〜3体・強め・褒美が厚い）
-     ？ … 何が起きるか分からない   宿 … 休む（兵量が戻る）
-     商 … 商人（小判で薬や護符）   宝 … 宝箱
+     ？ … 商・品・宿・敵のどれか（2026-10-10）   宿 … 休むか、札を一枚鍛える
+     商 … 商人（兵量で札や品を買う）   宝 … 宝箱（札を選ぶ・品・小判のどれか）
      将 … 国主（10階ごと） */
 export const TR_ROWS = 9;                 // 国主の手前までの段
 export const TR_COLS = 4;
@@ -480,20 +598,20 @@ export function trNext(run) {
   return (n ? n.nx : []).map(c => ({ r: run.at.r + 1, c }));
 }
 /* 新しい部の道を敷く。兵量は満たす */
-export function trRunNew(part, mx, seed) {
-  return { part, map: trMap(part, seed), at: null, path: [], hp: mx, seed, ki: 0, guard: 0 };
+/* carry＝前の部から持ち越す札束と品（国主を討って次の部へ進むとき）。倒れたときは持ち越さない */
+export function trRunNew(part, mx, seed, carry) {
+  return { part, map: trMap(part, seed), at: null, path: [], hp: mx, seed, ki: 0, guard: 0,
+           cards: carry ? carry.cards : null, items: carry ? [...(carry.items || [])] : [], ev: null };
 }
 /* 節から階へ（0 から数える）。国主は各部の10階 */
 export const trFloorOf = (part, r) => part * 10 + (r === 'boss' ? 9 : r);
 
 /* ================= 戦 ================= */
-/* deck は { key: 枚数 }。kinds は trKinds の並び。seed は戦ごとに変える */
-export function trBattle(i, who, kinds, deck, all, seed, starOf, lv, o = {}) {
-  const pile = [];
-  let u = 0;
-  for (const k of kinds) for (let n = 0; n < (deck[k.key] || 0); n++) pile.push({ u: u++, key: k.key });
-  const st = who.stats || {};
-  const mx = trMaxHp(who);
+/* cards は道中の札束（trCardsFrom）。seed は戦ごとに変える。
+   o.trait＝武将の特性の効き目（trTrait の fx）／o.mx＝特性で上がった兵量の上限 */
+export function trBattle(i, who, cards, all, seed, starOf, lv, o = {}) {
+  const pile = cards.map((e, c) => ({ u: c, c }));
+  const mx = o.mx || trMaxHp(who);
   const F = {
     i, no: who.no, rs: (seed >>> 0) || 1, turn: 0, over: null,
     pl: { hp: Math.max(1, Math.min(mx, o.hp != null ? o.hp : mx)), mx, blk: 0, might: 0, guardUp: 0, healUp: 0, drawUp: 0, weak: 0, dodge: 0,
@@ -504,9 +622,19 @@ export function trBattle(i, who, kinds, deck, all, seed, starOf, lv, o = {}) {
     lv: lv || 1,
     foes: trFoes(i, all, who.no, starOf, trLvMul(lv), o),
     draw: [], hand: [], disc: [], gone: [], ki: TR_KI,
+    cards: cards.map(e => ({ ...e })),
   };
   F.draw = trShuffle(F, pile);
+  const tr = o.trait || {};
+  F.pl.tough = tr.tough || 0; F.pl.ward = tr.ward || 0;
   trTurn(F);
+  /* 特性（2026-10-10）。はじめの手番にだけ乗るものと、戦のあいだずっと効くもの */
+  if (tr.might) F.pl.might += tr.might;
+  if (tr.crit) F.pl.crit = 1;
+  if (tr.dodge) F.pl.dodge += tr.dodge;
+  if (tr.blk) F.pl.blk += trR(mx * tr.blk);
+  if (tr.kiFirst) F.ki += tr.kiFirst;
+  if (tr.drawFirst) trDraw(F, tr.drawFirst);
   /* 商人の品（2026-10-09）。気の巻＝はじめの手番の気＋1／護符＝はじめから構える */
   if (o.ki) F.ki += o.ki;
   if (o.guard) F.pl.blk += o.guard;
@@ -541,17 +669,18 @@ function trHitFoe(F, f, n, ev) {
   if (f.thorns && F.pl.hp > 0) { const r = Math.min(F.pl.hp - 1, f.thorns); if (r > 0) { F.pl.hp -= r; ev.push({ t: 'hurt', n: r, b: 0 }); } }
 }
 /* 札を使う。h は手札の何枚目、ti は狙う敵の番号。返すのは出来事の並び（画面が光らせるのに使う） */
-export function trPlay(F, h, ti, who, kinds) {
+/* kdOf(札) は札の種類（持ち主の属性・鍛えを乗せたもの）を返す関数。画面側が渡す */
+export function trPlay(F, h, ti, who, kdOf) {
   if (F.over) return null;
   const card = F.hand[h]; if (!card) return null;
-  const kd = kinds.find(k => k.key === card.key); if (!kd) return null;
+  const kd = kdOf(card); if (!kd) return null;
   const o = trSpec(who, kd, F);
   if (o.cost > F.ki) return null;
   F.ki -= o.cost;
   F.hand.splice(h, 1);
   if (o.exhaust) F.gone.push(card); else F.disc.push(card);
   if (o.ult) F.pl.charge = 0;
-  const ev = [{ t: 'play', key: card.key, kind: kd.kind }];
+  const ev = [{ t: 'play', c: card.c, kind: kd.kind }];
   const live = trLive(F);
   const tgt = F.foes[ti] && F.foes[ti].hp > 0 ? F.foes[ti] : live[0];
   if (o.dmg && live.length) {
@@ -590,7 +719,7 @@ export function trPlay(F, h, ti, who, kinds) {
 export function trEnd(F) { F.disc.push(...F.hand); F.hand = []; }
 function trHitMe(F, f, n, ev) {
   if (F.pl.dodge > 0) { F.pl.dodge--; ev.push({ t: 'dodge' }); return; }
-  let d = trR(n * ((f.weakT || 0) > 0 ? 0.75 : 1) * (1 + f.mom) * (F.pl.crack ? 1.25 : 1));
+  let d = trR(n * ((f.weakT || 0) > 0 ? 0.75 : 1) * (1 + f.mom) * (F.pl.crack ? 1.25 : 1) * (1 - (F.pl.tough || 0)));
   const b = Math.min(F.pl.blk, d); F.pl.blk -= b; d -= b;
   F.pl.hp = Math.max(0, F.pl.hp - d);
   ev.push({ t: 'hurt', n: d, b, f: F.foes.indexOf(f) });
@@ -618,11 +747,16 @@ export function trFoeAct(F, fi) {
     if (it.k === 'atk') {
       for (let x = 0; x < (it.x || 1) && F.pl.hp > 0; x++) trHitMe(F, f, it.n, ev);
       f.pump = 0;
+      /* 特性「はね返す」（2026-10-10）。戦ごとに一度、悪い効き目をまとめて受けない */
+      const bad = it.daze || it.burn || it.crack || it.weak || it.seal;
+      if (bad && F.pl.ward > 0 && F.pl.hp > 0) { F.pl.ward--; ev.push({ t: 'ward' }); }
+      else {
       if (it.daze) F.pl.daze = 1;
       if (it.burn) { F.pl.burn = Math.max(F.pl.burn, it.burn); F.pl.burnT = 2; }
       if (it.crack) F.pl.crack = Math.max(F.pl.crack, it.crack);
       if (it.weak) F.pl.weak = Math.max(F.pl.weak, it.weak);
       if (it.seal) F.pl.seal = Math.max(F.pl.seal, it.seal);
+      }
     } else if (it.k === 'guard') {
       f.blk += it.n; ev.push({ t: 'fblk', f: fi, n: it.n });
       if (it.cover) for (const g of trLive(F)) if (g !== f) { g.blk += it.cover; ev.push({ t: 'fblk', f: F.foes.indexOf(g), n: it.cover }); }

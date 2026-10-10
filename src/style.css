@@ -6424,7 +6424,8 @@ body.trdragging { cursor: grabbing; }
    幅は立ち絵いっぱい。中心は足の高さ（絵の下から 5% ほど）。
    back＝輪の奥の半分（絵のうしろ）／front＝手前の半分（絵の前） */
 /* ホームの .lordtap の中の img にかかる型より強くするため、親の名を添える */
-.home .lordstage .lordtap .ftaura,.gxfig .ftaura{position:absolute;left:50%;top:94%;width:104%;height:auto;
+/* 2026-10-10 悠さんの指図で 5px 上げた */
+.home .lordstage .lordtap .ftaura,.gxfig .ftaura{position:absolute;left:50%;top:calc(94% - 5px);width:104%;height:auto;
   max-width:none;margin:0;transform:translate(-50%,-50%);pointer-events:none;animation:none}
 .home .lordstage .lordtap .ftaura.back,.gxfig .ftaura.back{z-index:1;clip-path:inset(0 0 50% 0)}
 .home .lordstage .lordtap .ftaura.front,.gxfig .ftaura.front{z-index:3;clip-path:inset(50% 0 0 0)}

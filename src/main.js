@@ -3044,10 +3044,14 @@ function frTakeBack(id) {
 
 /* 稽古（2026-09-24）。同じ友とは1日1回。兵糧は要らない。
    seed に日付を混ぜてあるので、毎日ちがう空と地形になる。 */
+/* 友との手合わせは **何度でも**（2026-10-10・悠さんの指図「友人対戦はやっぱり何回でもできる様にしよう」）。
+   入り口では止めない。ただし褒美（sparReward）はその日の一戦目だけ ──
+   何度でも褒美が出ると、弱い友を叩き続けるだけで稼げてしまうため。
+   canSpar は「今日まだ褒美の出る一戦が残っているか」の意味になった */
 const canSpar = id => frState(id).spar !== today();
 function sparStart(id) {
   const fr = npcFriendOf(id);      // 国の主でも 番付の相手でも通る（2026-10-09）
-  if (!fr || !canSpar(id)) return;
+  if (!fr) return;
   // どう手合わせするかを先にえらぶ（2026-09-30）
   S.spAsk = id; SFX.pick(); draw();
 }
@@ -3441,25 +3445,33 @@ function palRow(c, kind) {
           /* 国の主はその場で始まる（これまでの「稽古」をここに吞ませた・2026-10-06）。
              本物は座を立てて誘う。遊ぶ人から見ると同じ釦 */
           if (c.npc) {
-            if (!canSpar(c.id)) { S.frMsg = '今日はもう手合わせした'; SFX.pick(); draw(); return; }
             S.fr = false; sparStart(c.id); return;
           }
           palInvite(c);
         }));
     /* 陣中見舞。国の主にも本物の友にも置ける（2026-10-06）。
        どちらかにしか置けないと、そこで人かどうかが分かってしまう */
-    acts.push(btn('ghost sm', '見舞', () => {
+    /* その日もう置いた相手は、釦を灰色にして押せなくする（2026-10-10・悠さんの指図
+       「1度行った時にテキストを出すのではなく、見舞ボタンをグレーアウト」）。
+       本物の友はサーバーが覚えているが、端末でも f.gift に今日を控えて灰色を出す。
+       国の主も同じ見え方 ── どちらが人か分からないように */
+    const gave = frState(c.id).gift === today();
+    const gb = btn('ghost sm' + (gave ? ' frdone' : ''), '見舞', () => {
+      if (gave) return;
       if (c.npc) {
         if (frGift(c.id)) { S.frMsg = `${c.name} の陣に見舞を置いた。返礼は後日であろう`; SFX.pick(); }
-        else S.frMsg = '今日はもう置いた';
         draw(); return;
       }
       palDo(() => palGift({ id: c.id }), r => {
+        /* 置けた／もう置いてあった（409）のどちらでも、今日は灰色にする */
+        if (r.ok || r.status === 409) { frState(c.id).gift = today(); savePlayer(); }
         S.frMsg = r.ok ? `${c.name} の陣に見舞を置いた。返礼は後日であろう`
-                       : (r.status === 409 ? '今日はもう置いた' : '置けなかった');
+                       : r.status === 409 ? '' : '置けなかった';
         SFX.pick();
       });
-    }));
+    });
+    if (gave) gb.disabled = true;
+    acts.push(gb);
     /* 「外す」の釦はここに置かない（2026-10-06・悠さんの指図）。
        釦が四つ並ぶと名が潰れるうえ、いちばん押してほしくないものが
        いちばん押しやすい所にあった。
@@ -3581,6 +3593,31 @@ function palInvite(c) {
    預かっているのは「育ち終わった五つの数」だけ。相手の lv も振った魂も分からないので、
    札には数だけ重ね、**特技の位は書かない**（S.detailSt.abs の道）。
    2026-10-07 の留守の陣と同じで、**黙って帰る道は作らない**。どの枝でも一言は出す */
+/* 友の部隊（2026-10-10）。五枚の札を並べ、押すと育った数で札を開く。
+   札を閉じるとこの並びに戻る（S.frSquad は札を開いても消さない） */
+function frSquadSheet() {
+  const sq = S.frSquad;
+  if (!sq) return null;
+  const back = () => { S.frSquad = null; SFX.pick(); draw(); };
+  const peek = m => {
+    S.detail = m.no; S.side = null; S.detailRO = true; S.detailBase = false;
+    S.detailMod = null; S.detailBuy = null;
+    S.detailSt = m.stats ? { abs: m.stats } : null;
+    SFX.pick(); draw();
+  };
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
+    el('div', { class: 'card2 frbox frsq' },
+      el('b', { class: 'frhd' }, `${sq.name} の部隊`),
+      el('div', { class: 'frteam' }, sq.mem.map(m => {
+        const ch = charOf(m.no);
+        return el('button', { class: 'frc' + (m.no === sq.gen ? ' gen' : ''), title: ch.name, onclick: () => peek(m) },
+          cardArt(ch) ? keepImg({ class: 'cf', src: cardArt(ch), alt: ch.name, loading: 'lazy' })
+                      : el('i', { style: chipStyle(ch) }, el('b', {}, (ch.name || '')[0] || '')),
+          m.no === sq.gen ? genMark() : null);
+      })),
+      el('p', { class: 'frnote' }, '札を押すと、育った姿が見られる'),
+      closeX(back, 'もどる')));
+}
 function frPeek(c) {
   const open = (no, abs) => {
     const ch = charOf(no);
@@ -3590,11 +3627,25 @@ function frPeek(c) {
     S.detailSt = abs ? { abs } : null;
     SFX.pick(); draw();
   };
+  /* 顔を押したら **部隊ごと** 見せる（2026-10-10・悠さんの指図
+     「総大将のキャラカードしか見れないので、選択している1部隊見れる様にして、
+       その部隊のキャラを押したら、各キャラの育成後カードが見れる様にして」）。
+     並べた札を押すと、その子の育った数で札が開く（frSquadSheet）。
+     国の主も本物も同じ見せ方 ── どちらが人か分からないように */
+  const squad = (mem, genNo) => {
+    const list = (mem || []).filter(m => m && charOf(m.no));
+    if (!list.length) return false;
+    const g = genNo != null ? genNo : list[0].no;
+    list.sort((a, b) => (b.no === g) - (a.no === g));   // 総大将を先頭に
+    S.frSquad = { name: c.name, gen: g, mem: list.map(m => ({ no: m.no, stats: m.stats || null })) };
+    SFX.pick(); draw();
+    return true;
+  };
   if (c.npc) {
     const fr = npcFriendOf(c.id);
     const gen = fr && (fr.team || [])[0];
     if (!gen) { S.frMsg = `${c.name} の主役が引けなかった`; SFX.pick(); draw(); return; }
-    open(gen.no, gen.stats || null);
+    if (!squad(fr.team, gen.no)) open(gen.no, gen.stats || null);
     return;
   }
   /* 本物の主。陣を預かっていれば、その総大将を覗ける */
@@ -3616,6 +3667,8 @@ function frPeek(c) {
       done = true; clearTimeout(giveUp); frBusySet(false);
       const mem = ((r && r.team && r.team.members) || []);
       const no = (r && r.team && r.team.generalNo) != null ? r.team.generalNo : c.face;
+      S.frMsg = '';
+      if (squad(mem, no)) return;
       const m = mem.find(x => x && x.no === no) || mem[0] || null;
       S.frMsg = m ? '' : '育ちは分からなかった。素の札を出す';
       open(m ? m.no : c.face, (m && m.stats) || null);
@@ -3636,7 +3689,6 @@ function frPeek(c) {
    ・置き部隊の中身が壊れていたら、盤を立てる前に止める
      （番号だけの並びを engine に渡すと、戦の画面が真っ白になる） */
 function awayGo(c) {
-  if (!canSpar(c.id)) { S.frMsg = '今日はもうその陣に入った'; SFX.pick(); draw(); return; }
   if (c.npc) {
     /* 国の主の留守。盤はこれまでの稽古とおなじものを使う（国主戦の顔ぶれ）。
        留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る。
@@ -3850,9 +3902,8 @@ function frHomeSheet() {
       got ? el('p', { class: 'frmsg good' }, `返礼が届いておるわん　${giftWords(got)}`) : null,
       S.frMsg ? el('p', { class: 'frmsg' }, S.frMsg) : null,
       el('div', { class: 'frbtns' },
-        el('button', { class: 'go' + (canSpar(id) ? '' : ' soon'), disabled: canSpar(id) ? null : true,
-          /* 済んだときは「済」の一字（2026-09-25）。長い文だと二行に折れて釦の形が崩れる */
-          onclick: () => sparStart(id) }, canSpar(id) ? '稽古を申し込む' : 'CLEAR'),
+        /* 何度でも申し込める（2026-10-10）。前はその日一度で CLEAR になっていた */
+        el('button', { class: 'go', onclick: () => sparStart(id) }, '稽古を申し込む'),
         el('button', { class: 'ghost' + (f.gift === today() ? ' soon' : ''), disabled: f.gift === today() ? true : null,
           onclick: () => { if (frGift(id)) { S.frMsg = '見舞いを置いてきたわん。返礼は後日であろう'; SFX.pick(); draw(); } } },
           f.gift === today() ? 'CLEAR' : '陣中見舞')),
@@ -9401,11 +9452,13 @@ function drawBattle() {
                  : BATTLE.ev ? EV_FOOD[BATTLE.ev.rank]
                  : FOOD_COST;
       BATTLE.reward = BATTLE.duel ? null       // 果たし合いに褒美は無い（2026-10-05）
-                    : (BATTLE.bout && BATTLE.bout.friendly) ? sparReward(won0)   // 友との手合わせ（2026-10-09）
+                    /* 友との手合わせは何度でもできるが、褒美はその日の一戦目だけ（2026-10-10）。
+                       f.spar に今日を入れるのは下なので、ここではまだ「一戦目か」が読める */
+                    : (BATTLE.bout && BATTLE.bout.friendly) ? (canSpar(BATTLE.bout.npc.id) ? sparReward(won0) : null)
                     : BATTLE.bout ? null
                     : BATTLE.tw ? null
-                    : BATTLE.away ? sparReward(won0)
-                    : BATTLE.spar ? sparReward(won0)
+                    : BATTLE.away ? (canSpar(BATTLE.away.id) ? sparReward(won0) : null)
+                    : BATTLE.spar ? (canSpar(BATTLE.spar.id) ? sparReward(won0) : null)
                     : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone)
                     : giveReward(won0, rewardMulOf(S.picked), paid, noStone);
       /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
@@ -12479,7 +12532,7 @@ function draw() {
     S.reset ? resetSheet() : null,
     /* キャラカードを開いているあいだは友の札を引っ込める（2026-09-24）。
        重ねて出すとカードが友の札の裏に隠れてしまう。閉じれば友の家に戻る */
-    S.detail == null ? (S.frId ? frHomeSheet() : (S.fr ? frSheet() : null)) : null,
+    S.detail == null ? (S.frSquad ? frSquadSheet() : S.frId ? frHomeSheet() : (S.fr ? frSheet() : null)) : null,
     /* 名乗りが済むまで、どの画面の上にも出る。
        ただしスタートの画面と 読み込みの画面は別。
        ・スタート（2026-09-25）… 一枚絵を見せる場なので札を重ねない

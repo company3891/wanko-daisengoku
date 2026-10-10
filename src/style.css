@@ -6329,3 +6329,10 @@ body.trdragging { cursor: grabbing; }
   border: 1px solid var(--ac); background: #12100e; z-index: 1; }
 .trc.up .trcname { color: #9fe8b0; }
 .trc.up { box-shadow: 0 0 0 1px #5fbf74 inset; }
+
+/* 今日もう見舞を置いた相手の釦（2026-10-10）。灰色にして押せなくする */
+.frbtn.frdone,.frbtn.frdone:disabled{filter:grayscale(1);opacity:.45;cursor:default}
+
+/* 友の部隊（2026-10-10）。五枚を大きめに並べる */
+.frbox.frsq .frhd{text-align:center}
+.frbox.frsq .frteam{gap:6px}

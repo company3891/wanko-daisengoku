@@ -6426,7 +6426,7 @@ body.trdragging { cursor: grabbing; }
 /* ホームの .lordtap の中の img にかかる型より強くするため、親の名を添える */
 /* 2026-10-10 悠さんの指図で 5px 上げた */
 .home .lordstage .lordtap .ftaura,.gxfig .ftaura{position:absolute;left:50%;top:calc(94% - 5px);width:104%;height:auto;
-  max-width:none;margin:0;transform:translate(-50%,-50%);pointer-events:none;animation:none}
+  max-width:none;margin:0;transform:translate(-50%,-50%);pointer-events:none}
 /* 輪まるごと立ち絵のうしろ（2026-10-10）。上下に切り分けるのはやめた */
 .home .lordstage .lordtap .ftaura.back,.gxfig .ftaura.back{z-index:1;clip-path:none}
 .home .lordstage .lordtap .ftaura.front,.gxfig .ftaura.front{z-index:3;clip-path:inset(50% 0 0 0)}
@@ -6435,5 +6435,21 @@ body.trdragging { cursor: grabbing; }
 /* ---- 称号の背景（2026-10-10）----
    立ち絵のいちばん奥。ホームは絵より ひとまわり大きく、強化画面は右の数字に被らない大きさ */
 .home .lordstage .lordtap .ttlbg,.gxfig .ttlbg{position:absolute;left:50%;top:46%;width:124%;height:auto;
-  max-width:none;margin:0;transform:translate(-50%,-50%);z-index:0;pointer-events:none;animation:none}
+  max-width:none;margin:0;transform:translate(-50%,-50%);z-index:0;pointer-events:none}
 .gxfig .ttlbg{width:108%}
+
+/* ---- 入った瞬間だけ燃え上がる（2026-10-10）----
+   名は .fxlit（.fxw は合戦の演出で使っていて、当てると立ち絵が左へ飛んだ）
+   0〜50% は全力、そこから静める。--fxd（負の値）で途中から再生する。
+   静まった姿：炎は 7割の大きさ・少し透ける／輪は 4割／称号の背景は 3割 */
+.fxlit .skfl{animation:fxfl 4s ease-out var(--fxd,0ms) 1 both}
+.fxlit .ftaura{animation:fxau 4s ease-out var(--fxd,0ms) 1 both}
+.fxlit .ttlbg{animation:fxbg 4s ease-out var(--fxd,0ms) 1 both}
+@keyframes fxfl{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}
+  10%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+  50%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+  100%{opacity:.6;transform:translate(-50%,-50%) scale(.7)}}
+@keyframes fxau{0%{opacity:0}10%{opacity:1}50%{opacity:1}100%{opacity:.4}}
+@keyframes fxbg{0%{opacity:0;transform:translate(-50%,-50%) scale(.92)}
+  12%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  50%{opacity:1}100%{opacity:.3;transform:translate(-50%,-50%) scale(1)}}

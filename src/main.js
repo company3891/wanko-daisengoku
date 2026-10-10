@@ -1867,7 +1867,9 @@ function screenHome() {
            言葉では教えず、右下の小さな「札」の印だけで気づかせる */
         /* 右下に置いていた小さな「札」の印は外した（2026-09-30）。
            城下町の絵の上に浮いて見えるほうが気になった。押せば出る、で足りる */
-        el('button', { class: 'lordtap', title: gen.name + 'の札', onclick: () => openCard(gen) },
+        /* 札やお知らせが上に出ているあいだは時計を止める ── 閉じた瞬間に燃え上がる */
+        el('button', { class: 'lordtap fxlit', title: gen.name + 'の札', onclick: () => openCard(gen),
+          style: fxDelay('home', S.detail != null || S.ad != null || S.spAsk != null) },
           /* 足元の輪（2026-10-10）。奥の半分は絵のうしろ、手前の半分は絵の前 */
           art ? titleBg(gen) : null,
           art ? footAura(gen, 'back') : null,
@@ -8221,6 +8223,19 @@ function skillFlames(c) {
    同じ絵を二枚重ね、clip-path で上下に切り分けている（足が輪の中に立って見える）。
    絵は assets/fx/aura_<色>.webp（1秒の動くwebp）。無ければ何も出さない */
 const AURA_COL = [null, '赤', '青', '緑', '金', '虹'];
+/* ---- 入った瞬間だけ燃え上がる（2026-10-10・悠さんの指図「流石にごちゃごちゃしすぎかな」→ 案2）----
+   ホームに入った瞬間・武将強化で武将を選んだ瞬間・札を閉じて戻った瞬間に、
+   称号の背景・足元の輪・炎を全力で出し、約2秒たったら静める（炎は小さく、輪と背景は淡く）。
+   常に派手だとうるさいが、入るたびに見せ場がある。
+   draw は何度も組み直すので、そのたび燃え直さないよう「入ってから何ミリ秒か」を
+   負の animation-delay に渡して、演出の途中から再生させている */
+let FX_KEY = null, FX_AT = 0, FX_USED = false;
+function fxDelay(key, hold) {
+  FX_USED = true;
+  const now = Date.now();
+  if (FX_KEY !== key || hold) { FX_KEY = key; FX_AT = now; }
+  return `--fxd:-${now - FX_AT}ms`;
+}
 /* ---- 称号の背景（2026-10-10・悠さんの指図「称号に応じてキャラの背景つけよう」）----
    いま名乗っている称号（P.title）の絵を、立ち絵のいちばん奥に敷く。
    絵は assets/fx/tbg_<称号の名>.webp（止まった絵でも、1秒の動くwebpでもよい）。
@@ -8244,7 +8259,8 @@ function footAura(c, side) {
 function growFigure(c) {
   const pw = pawnUrl(c.no);
   return el('button', {
-    class: 'gxfig' + (pw ? ' art' : ''), title: `${c.name} のカードを見る`,
+    class: 'gxfig fxlit' + (pw ? ' art' : ''), title: `${c.name} のカードを見る`,
+    style: fxDelay('grow:' + c.no, S.detail != null),
     onclick: e => { e.stopPropagation(); SFX.pick(); openCard(c); },
   }, pw ? titleBg(c) : null,
      pw ? footAura(c, 'back') : null,
@@ -12604,6 +12620,10 @@ function draw() {
   const gbox0 = document.querySelector('.growbox');
   const keepG = (LAST_GROW === growKey && gbox0) ? gbox0.scrollTop : 0;
   const v = (SCREENS[S.screen] || screenHome)();
+  /* 立ち絵の燃え上がりの時計（2026-10-10）。炎の出ない画面に行ったら止めておき、
+     ホーム・武将強化に戻ってきたときに また初めから燃え上がらせる */
+  if (!FX_USED) FX_KEY = null;
+  FX_USED = false;
   const app = $('#app');
   app.innerHTML = '';
   // append に null を渡すと文字の "null" が出るので、先にふるい落とす

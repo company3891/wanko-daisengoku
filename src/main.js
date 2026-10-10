@@ -3061,10 +3061,18 @@ function sparStart(id) {
    どちらも「何が違うか」は字で並べず、語り手の吹き出しで言わせる */
 function sparAskSheet() {
   const id = S.spAsk; if (id == null) return null;
-  const fr = npcFriendOf(id); if (!fr) { S.spAsk = null; return null; }
-  const close = () => { S.spAsk = null; SFX.pick(); draw(); };
+  const aw = S.spAway && S.spAway.id === id ? S.spAway : null;   // 留守の陣から来たとき（2026-10-10）
+  const fr = aw ? { name: aw.name } : npcFriendOf(id);
+  if (!fr) { S.spAsk = null; return null; }
+  const close = () => { S.spAsk = null; S.spAway = null; SFX.pick(); draw(); };
   const go = duel => {
-    S.spAsk = null;
+    S.spAsk = null; S.spAway = null;
+    if (aw) {
+      sqAsk(duel ? '一騎打ちに出す部隊' : '留守の陣に出す部隊',
+        duel ? `${fr.name} の留守の陣へ一騎打ち。出るのは総大将ひとりだけ` : `${fr.name} の留守の陣へ総力戦`,
+        () => awayRun(aw, duel), !!duel);
+      return;
+    }
     sqAsk(duel ? '一騎打ちに出す部隊' : '稽古に出す部隊',
       duel ? `${fr.name} との一騎打ち。出るのは総大将ひとりだけ` : `${fr.name} との総力戦`,
       () => {
@@ -3091,7 +3099,7 @@ function sparAskSheet() {
   };
   return el('div', { class: 'sheet', onclick: e => { if (e.target === e.currentTarget) close(); } },
     el('div', { class: 'card2 sqbox' },
-      el('b', { class: 'sqttl' }, `${fr.name} との稽古`),
+      el('b', { class: 'sqttl' }, aw ? `${fr.name} の留守の陣` : `${fr.name} との稽古`),
       /* 語りは一匹にまとめた（2026-09-30）。二匹ぶん並べると札が長くなるうえ、
          どちらの犬を選ぶ話なのかと紛らわしかった */
       row('spar_duel', 'どちらで参るワン？',
@@ -3688,18 +3696,24 @@ function frPeek(c) {
    ・返事が来ないときは 20秒で諦める（frBusy が立ちっぱなしだと以後ずっと黙る）
    ・置き部隊の中身が壊れていたら、盤を立てる前に止める
      （番号だけの並びを engine に渡すと、戦の画面が真っ白になる） */
+/* 留守の陣も 一騎打ち／総力戦 をえらべる（2026-10-10・悠さんの指図
+   「留守の陣でも、一騎打ちと総力戦選べた方がいいね！」）。
+   まず稽古と同じ札（sparAskSheet）を出し、えらんだら awayRun で陣へ入る。
+   本物の友は npcFriendOf では引けないので、相手の行（c）ごと S.spAway に持たせる */
 function awayGo(c) {
+  S.spAsk = c.id; S.spAway = c; SFX.pick(); draw();
+}
+function awayRun(c, duel) {
   if (c.npc) {
     /* 国の主の留守。盤はこれまでの稽古とおなじものを使う（国主戦の顔ぶれ）。
-       留守なので申し込みの札（一騎打ち／総力戦）は出さず、そのまま陣へ入る。
        2026-10-09：番付で知り合った相手も同じ道を通す（国を持たないので盤は番付のもの） */
     const fr = npcFriendOf(c.id);
     if (!fr || !(fr.team || []).length) {
       S.frMsg = `${c.name} の陣が引けなかった`; SFX.pick(); draw(); return;
     }
     S.fr = false; S.frId = null; S.frMsg = '';
-    if (fr.rk) startBattle(null, null, null, { npc: fr.rk, friendly: true, away: true });
-    else startBattle(null, null, { id: c.id, pref: fr.pref, duel: false, away: true });
+    if (fr.rk) startBattle(null, null, null, { npc: fr.rk, friendly: true, away: true, duel: !!duel });
+    else startBattle(null, null, { id: c.id, pref: fr.pref, duel: !!duel, away: true });
     return;
   }
   if (frBusyNow()) { S.frMsg = 'いま別の返事を待っておる。少し待たれよ'; SFX.pick(); draw(); return; }
@@ -3731,7 +3745,7 @@ function awayGo(c) {
       }
       S.fr = false; S.frId = null; S.frMsg = '';
       try {
-        startBattle(null, null, null, null, null, { id: c.id, name: c.name, team: r.team });
+        startBattle(null, null, null, null, null, { id: c.id, name: c.name, team: r.team, duel: !!duel });
       } catch (e) {
         /* 盤が立たなかったら、真っ白のまま置き去りにしない（2026-10-07） */
         S.screen = 'home'; S.fr = true; S.frId = null;
@@ -8777,8 +8791,8 @@ function startBattle(camp, evb, spar, bout, tw, away) {
         : away ? `${away.name || '友'} の陣` : S.stage,
     ttlR: tw ? ((towerOf(tw.f) || {}).name || '試練')
         : camp ? (camp.pref.battles > 1 ? STEP_NAME[Math.min(camp.step, 2)] : '決戦')
-        : spar ? (spar.away ? '留守の陣' : spar.duel ? '一騎打ち' : '稽古')
-        : away ? '留守の陣' : 'の戦',
+        : spar ? (spar.duel ? '一騎打ち' : spar.away ? '留守の陣' : '稽古')
+        : away ? (away.duel ? '一騎打ち' : '留守の陣') : 'の戦',
     house: camp ? camp.pref.house : spar ? spar.pref.house : null,
     foe: (camp ? `${camp.pref.house}　` : spar ? `${spar.pref.house}　` : '') + (B[0] ? B[0].name : ''),
     w: BATTLE.weather,
@@ -8849,10 +8863,14 @@ function resolve() {
     const fo = b.B || [];
     const t = b.away.team || {};
     const gen = fo.some(m => m.no === t.generalNo) ? t.generalNo : (fo[0] || {}).no;
+    /* 留守の陣の一騎打ち（2026-10-10）。たがいの総大将ひとりずつ。並び順の指定は外す */
+    const dl = !!b.away.duel;
+    const mine = dl ? S.picked.filter(m => m.no === S.general).slice(0, 1) : S.picked;
+    const foes = dl ? fo.filter(m => m.no === gen).slice(0, 1) : fo;
     b.res = runBattle(
-      { members: S.picked.map(grownFor), generalNo: S.general, formation: S.form,
-        manual: true, modeSwitches: b.modes, slots: S.slots },
-      { members: fo, generalNo: gen, formation: b.bForm, slots: t.slots || null },
+      { members: (mine.length ? mine : S.picked).map(grownFor), generalNo: S.general, formation: S.form,
+        manual: true, modeSwitches: b.modes, slots: dl ? null : S.slots },
+      { members: foes.length ? foes : fo, generalNo: gen, formation: b.bForm, slots: dl ? null : (t.slots || null) },
       b.rules, b.seed, { log: true, commands: b.commands, weather: b.weather, useItems: b.useItems });
     return;
   }
@@ -9538,7 +9556,7 @@ function miAfterWin(won) {
   /* おまかせ＝一度も手で指図しなかった戦。
      modes に manual:true が一つも無ければオートで勝ったとみなす */
   if (!BATTLE || !(BATTLE.modes || []).some(x => x.manual)) miBump('autoWin');
-  if (BATTLE && BATTLE.spar && BATTLE.spar.duel) miBump('duelWin');
+  if (BATTLE && ((BATTLE.spar && BATTLE.spar.duel) || (BATTLE.away && BATTLE.away.duel))) miBump('duelWin');
 }
 /* 催しの褒美に覚醒の品（具足・軍配・無銘）が入っていたか（2026-10-02） */
 function miEvMat(rw) {

@@ -74,23 +74,45 @@ export const TR_STORY = [
 export const TR_MAX = TR_STORY.length;
 /* 初めて抜けたときの褒美（2026-10-08・「簡単な報酬」）。
    小判と魂を少し。5の倍数の話は多め */
-export function trReward(i) {
+export function trReward(i, t = 0) {
   const n = i + 1;
-  const big = n % 5 === 0;
+  const big = n % 5 === 0, boss = n % 10 === 0, k = n / 10;
   /* 武士の魂は貴重にしたいので出さない（2026-10-09・悠さんの指図）。小判と稽古の書にした。
      5の倍数の階は大稽古の書、10の倍数（国主）はさらに皆伝の書を一冊 */
-  const books = { '稽古の書': 1 + Math.floor(n / 10) };
-  if (big) books['大稽古の書'] = 1;
-  if (n % 10 === 0) books['皆伝の書'] = 1;
+  const books = { '稽古の書': (1 + Math.floor(n / 10)) * (t + 1) };
+  if (big) books['大稽古の書'] = t + 1;
+  if (boss) books['皆伝の書'] = t + 1;
+  /* 段ごとの品（2026-10-10・悠さんの指図「初級は特技系の品・魂・称号、上限を開くのは中級20階から」）。
+     5の倍数の階で上達の護符（段が上がるほど大きく）、国主で特技の伝書と相伝の護符 */
+  const CH = ['上達の護符・小', '上達の護符・中', '上達の護符・大'][t];
+  const INH = ['相伝の護符・小', '相伝の護符・中', '相伝の護符・大'][t];
+  if (big && !boss) books[CH] = 1;
+  if (boss) { books['特技の伝書'] = [[1, 2, 3], [2, 3, 5], [3, 5, 8]][t][k - 1]; books[INH] = 1; }
   /* 国主（10・20・30階）を初めて討ったときだけ武士の魂も渡す（2026-10-09・悠さんの指図）。
-     ふだんの階からは出さないので、魂の重みは保たれる */
-  const soul = n % 10 === 0 ? [30, 60, 100][n / 10 - 1] || 100 : 0;
-  return { koban: (300 + n * 40) * (big ? 3 : 1), books, soul };
+     ふだんの階からは出さないので、魂の重みは保たれる。段が上がると厚くする */
+  const soul = boss ? [[30, 60, 100], [60, 120, 200], [100, 200, 300]][t][k - 1] : 0;
+  return { koban: (300 + n * 40) * (big ? 3 : 1) * (t + 1), books, soul };
 }
 /* 敵の強さ。話が進むほど素の値に掛ける倍を大きくする。
    これにプレイヤーレベルの倍（trLvMul）を掛ける（2026-10-09・悠さんの指図「敵が雑魚すぎる」） */
 export const trLvMul = lv => 1 + 0.005 * Math.max(0, (lv || 1) - 1);
 export const trFoeMul = i => 0.8 + 0.15 * i;
+/* 段（2026-10-10・悠さんの指図「道中のボスが強すぎる」）。初級・中級・上級。
+   a は 10・20・30階の国主にかける倍。sim/tools/trail_tier.mjs で
+   「初級 Lv50/60/70、中級 Lv70/80/90、上級 Lv90/99/99＋魂999 の武将が国主に八割勝つ」ところを探して決めた。
+   あいだの階は、前の国主の倍（初めの部は国主の六割）から次の国主の倍へ、まっすぐ上げる。
+   段を選ぶと、レベルで敵が強くなる倍（trLvMul）は使わない（段そのものが敵の強さを決める） */
+export const TR_TIER = [
+  { n: '初級', a: [1.74, 2.35, 2.32] },
+  { n: '中級', a: [2.09, 2.78, 2.71] },
+  { n: '上級', a: [2.40, 3.18, 3.10] },
+];
+export function trTierMul(t, i) {
+  const a = (TR_TIER[t] || TR_TIER[0]).a;
+  const p = Math.min(2, Math.floor(i / 10)), r = i - p * 10;
+  const from = p ? a[p - 1] : a[0] * 0.6;
+  return from + (a[p] - from) * (r + 1) / 10;
+}
 
 /* ================= 札 =================
    札の効き目は、持ち主の育った値から毎回作る（覚えない）。
@@ -467,7 +489,8 @@ export function trFoes(i, all, meNo, starOf, k = 1, o = {}) {
   const rar = TR_POOL_RAR(i);
   let pool = all.filter(c => c.clan === s.h && rar.includes(c.rarity) && away(c));
   if (pool.length < s.n + 1) pool = pool.concat(all.filter(c => c.clan !== s.h && rar.includes(c.rarity) && away(c)));
-  const mul = trFoeMul(i) * k;
+  /* o.mul＝倍を直に渡す（段を合わせる試しの道具から）。ふだんは段（o.tier）の表から引く（2026-10-10） */
+  const mul = (o.mul != null ? o.mul : trTierMul(o.tier || 0, i)) * k;
   const out = [];
   if (s.boss) {
     const b = all.find(c => c.no === s.boss);
@@ -620,7 +643,7 @@ export function trBattle(i, who, cards, all, seed, starOf, lv, o = {}) {
              ／crack＝受けが重くなる／seal＝癒せない */
           daze: 0, burn: 0, burnT: 0, crack: 0, seal: 0 },
     lv: lv || 1,
-    foes: trFoes(i, all, who.no, starOf, trLvMul(lv), o),
+    foes: trFoes(i, all, who.no, starOf, 1, o),
     draw: [], hand: [], disc: [], gone: [], ki: TR_KI,
     cards: cards.map(e => ({ ...e })),
   };

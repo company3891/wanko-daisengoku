@@ -13,7 +13,7 @@ import { MK_MAX, MK_SLOTS, MK_LIFE_MS, MK_EVERY_MS, mkState, mkWorth, mkPower, m
          mkNext, mkRefresh, mkCollect, mkMyList, mkMyCount, mkKuraOn,
          mkFee, mkNet } from './market.js';
 import { pityOf } from './player.js';
-import { TR_KI, TR_DECK, TR_DUP, TR_ULT_MAX, TR_KIND_NAME, TR_STORY, TR_PARTS, TR_MAX, trReward, trKinds, trName,
+import { TR_KI, TR_DECK, TR_DUP, TR_ULT_MAX, TR_KIND_NAME, TR_STORY, TR_PARTS, TR_MAX, TR_TIER, trReward, trKinds, trName,
          trSpec, trWords, trDefaultDeck, trDeckCount, trDupMax, trDeckOk, trBattle, trPlay, trEnd, trFoeAct,
          trRound, trLive, TR_ROWS, TR_COLS, TR_NODE, trNext, trRunNew, trFloorOf, trMaxHp, trRand,
          trTrait, TR_ITEMS, TR_ITEM_NAMES, TR_ITEM_MAX, trUseItem, trCardsFrom, trOffer, trPick, trUpKind } from './trail.js';
@@ -23,7 +23,7 @@ import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TIC
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, campLv, campBox, campLvOpen, setCampLv, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
-         LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS, spMaxOf, trBonus, trProg, TR_MILE,
+         LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS, spMaxOf, trBonus, trProg, TR_MILE, trSetProg, trBest, trTierOpen, trTier,
          dailyDeals, dealBought, buyItem, buyDeal, useFood,
          ATTRS, AWAKE_TIERS, BADGES, badgeMat, freeMat, awakeNeed, awakeCheck,
          BATTLE_STATS, WEATHERS, WEATHER_ITEM, useItem,
@@ -2317,6 +2317,13 @@ const TITLES = [
   { n: '夜に挑む者',   g: '魔王', t: 4, f: () => campLvOpen(2) && takenCount(2) >= 2 },
   { n: '夜を裂く者',   g: '魔王', t: 5, f: () => campLvOpen(2) && takenCount(2) >= 24 },
   { n: '第六天魔王',   g: '魔王', t: 6, f: () => campLvOpen(2) && !!campBox(2).clear },
+  /* 落ち延び道中（2026-10-10・悠さんの指図「初級は特技の品・魂・称号で報いる」）。
+     どれか一体でその段の階まで抜ければ渡す。名は額の絵の名になるので、あとから変えない */
+  { n: '落ち延びし者', g: '道中', t: 1, f: () => trBest(0) >= 10 },
+  { n: '山越えの犬',   g: '道中', t: 2, f: () => trBest(0) >= 20 },
+  { n: '帰り着きし者', g: '道中', t: 3, f: () => trBest(0) >= 30 },
+  { n: '抜け道の主',   g: '道中', t: 4, f: () => trBest(1) >= 30 },
+  { n: '不帰を越えし者', g: '道中', t: 6, f: () => trBest(2) >= 30 },
   /* 番付 ─ 総合力と勝ち星 */
   { n: '足軽頭',       g: '番付', t: 1, f: () => titlePower() >= 8000 },
   { n: '侍大将',       g: '番付', t: 2, f: () => titlePower() >= 14000 },
@@ -11614,7 +11621,7 @@ document.addEventListener('click', e => {
 
 const PAGE_TALK = {
   /* 落ち延び道中（2026-10-08） */
-  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、分かれ道を選びながら三十階を抜けるワン。十階ごとの国主を討てば、その子の上限が開くワン'],
+  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、分かれ道を選びながら三十階を抜けるワン。道は初級・中級・上級。険しい道の国主を討てば、その子の上限が開くワン'],
   /* はじまりの一騎（2026-09-30）。持ち武将がまだ無いので、語り手は信わんに落ちる */
   tutorial: ['はじまりの一騎だワン！！',
     '天下は乱れ、犬たちが旗を掲げたワン。まずは旗下に加える武将を、ひとり選ぶワン'],
@@ -11730,8 +11737,9 @@ function screenTrail() {
   const who = trWho(no);
   const kinds = trKindsOf(who);
   if (S.trView === 'deck') return trDeckScreen(who, kinds);
-  const prog = trProg(no);
-  const run = trRunOf(no);
+  const tier = trTier();
+  const prog = trProg(no, tier);
+  const run = trRunOf(no, tier);
   const mx = trMx(who);
   const trait = trTrait(who);
   const can = trNext(run);
@@ -11785,13 +11793,14 @@ function screenTrail() {
           el('div', { class: 'trtrait' },
             el('i', {}, '特'),
             el('div', {}, el('b', {}, trait.name || '特性'), el('span', {}, trait.words))),
-          el('div', { class: 'trmiles' }, TR_MILE.map(m =>
+          el('div', { class: 'trmiles' }, TR_MILE.filter(m => m.t === tier).map(m =>
             el('span', { class: 'trmile' + (prog >= m.at ? ' on' : '') },
               `${m.at}階　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
           el('div', { class: 'trbtns' },
             el('button', { class: 'ghost', onclick: () => { S.trPick = true; SFX.pick(); draw(); } }, '武将をかえる'),
             el('button', { class: 'ghost', onclick: () => { S.trView = 'deck'; S.trDraft = { ...trDeckOf(who, kinds) }; SFX.pick(); draw(); } },
               `山札（${TR_DECK}枚）`)))),
+      trTierRow(tier),
       el('div', { class: 'trrun' },
         el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
         el('span', {}, `${floorNow ? floorNow + '階' : '出立前'}`),
@@ -11815,6 +11824,21 @@ function screenTrail() {
     nav: true,
   };
 }
+/* 段えらび（2026-10-10・悠さんの指図「道中を初級・中級・上級に分ける」）。
+   全国の道えらびと同じ丸い切り替えを使う。前の段をどれか一体で30階まで抜けると次が開く。
+   道は段ごとに別に持つので、切り替えても歩きかけの道は消えない */
+function trTierRow(cur) {
+  return el('div', { class: 'cmrow trtierrow' },
+    el('b', { class: 'trtierl' }, '道の険しさ'),
+    el('div', { class: 'cmodes' }, TR_TIER.map((m, t) => {
+      const ok = trTierOpen(t);
+      return el('button', {
+        class: 'cmode m' + t + (t === cur ? ' on' : '') + (ok ? '' : ' locked'),
+        disabled: ok ? null : true,
+        onclick: () => { if (t === cur) return; P.trail.tier = t; S.trScroll = true; savePlayer(); SFX.pick(); draw(); },
+      }, ok ? m.n : '？');
+    })));
+}
 /* 道の印の絵（2026-10-09・悠さんの指図）。
      敵・手練れ … ui/trail_enemy（悠さん作の紋）／宝 … ui/trail_treasure（くじの宝箱を切り出した）
      商 … ui/btn_道具（道具の袋・2026-10-09 ホームの袋の座から差し替え）／宿 … ui/trail_rest（作成中。置けばそのまま出る）
@@ -11823,12 +11847,14 @@ const TR_NODE_ART = { 戦: 'trail_enemy', 強: 'trail_enemy', 宝: 'trail_treasu
 const trNodeArt = t => (TR_NODE_ART[t] && uiUrl(TR_NODE_ART[t])) || null;
 const TR_TICKET = '道中手形';
 /* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
-function trRunOf(no) {
+/* 道は段ごとに別に持つ（2026-10-10）。初級は前からの置き場（番号だけ）、中級・上級は「番号@段」 */
+const trRK = (no, t) => t ? `${no}@${t}` : no;
+function trRunOf(no, t = trTier()) {
   const who = trWho(no); const mx = trMx(who);
-  let r = P.trail.runs[no];
+  let r = P.trail.runs[trRK(no, t)];
   if (!r || !r.map) {
-    const part = Math.min(2, Math.floor(trProg(no) / 10));
-    r = P.trail.runs[no] = trRunNew(part, mx, (Date.now() ^ (no * 40503)) >>> 0);
+    const part = Math.min(2, Math.floor(trProg(no, t) / 10));
+    r = P.trail.runs[trRK(no, t)] = trRunNew(part, mx, (Date.now() ^ (no * 40503)) >>> 0);
   }
   if (r.hp > mx) r.hp = mx;
   /* 札束が無ければ、組んだ山札から写す（2026-10-10）。前の版の道にも札束を持たせる */
@@ -11889,11 +11915,11 @@ function trGo(no, r, c) {
   savePlayer(); draw();
 }
 /* 階を抜けた。初めてなら褒美、10階ごとに上限が開く */
-function trFloorDone(no, floor) {
-  if (floor + 1 <= trProg(no)) return null;
+function trFloorDone(no, floor, t = 0) {
+  if (floor + 1 <= trProg(no, t)) return null;
   const before = trBonus(no);
-  P.trail.prog[no] = floor + 1;
-  const rw = trReward(floor);
+  trSetProg(no, t, floor + 1);
+  const rw = trReward(floor, t);
   P.koban += rw.koban; P.soul += rw.soul || 0;
   for (const [nm, n] of Object.entries(rw.books || {})) addItem(nm, n);
   const after = trBonus(no);
@@ -11910,7 +11936,7 @@ function trEvSheet() {
   }
   if (S.screen !== 'trail') return null;
   const no = trCur(); if (!no) return null;
-  const run = P.trail.runs[no]; if (!run) return null;
+  const run = P.trail.runs[trRK(no, trTier())]; if (!run) return null;
   const who = trWho(no); const mx = trMx(who);
   if (S.trDeckView) return trDeckViewSheet(who, run);
   if (S.trItem != null) return trItemSheet(who, run, mx);
@@ -12053,10 +12079,11 @@ function trStart(no, i, o = {}) {
   const who = trWho(no); if (!who) return;
   const run = trRunOf(no);
   P.trail.cur = no;
+  const tier = trTier();
   const F = trBattle(i, who, run.cards, C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf, P.lv,
-    { ...o, hp: run.hp, ki: run.ki, guard: run.guard, seed: (run.seed ^ (i * 977)) >>> 0, trait: trTrait(who).fx, mx: trMx(who) });
+    { ...o, tier, hp: run.hp, ki: run.ki, guard: run.guard, seed: (run.seed ^ (i * 977)) >>> 0, trait: trTrait(who).fx, mx: trMx(who) });
   run.ki = 0; run.guard = 0;
-  F.node = o.node || null;
+  F.node = o.node || null; F.tier = tier;
   P.trail.fight = F;
   S.trSel = null; S.trItB = null; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
   S.screen = 'trfight'; SFX.start(); draw();
@@ -12096,7 +12123,7 @@ function trDeckScreen(who, kinds) {
           onclick: () => {
             P.trail.deck[who.no] = { ...d };
             /* まだ歩き出していない道なら、札束も組み直した山札から写す（2026-10-10） */
-            const rn = P.trail.runs[who.no];
+            const rn = P.trail.runs[trRK(who.no, trTier())];
             if (rn && !rn.at && !(rn.path || []).length) rn.cards = trCardsFrom(d, kinds, who.no);
             S.trView = 'list'; S.trDraft = null; savePlayer(); SFX.get(); draw(); } }, 'この山札にする'),
         el('button', { class: 'ghost', onclick: () => { S.trView = 'list'; S.trDraft = null; SFX.pick(); draw(); } }, 'やめる'))),
@@ -12108,7 +12135,7 @@ function trDeckScreen(who, kinds) {
 function trPickSheet() {
   const close = () => { S.trPick = false; SFX.pick(); draw(); };
   const list = (P.own || []).filter(hasCard).map(charOf).filter(Boolean)
-    .sort((a, b) => (trProg(b.no) - trProg(a.no)) || (a.no - b.no));
+    .sort((a, b) => (trProg(b.no, trTier()) - trProg(a.no, trTier())) || (a.no - b.no));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 trpick' },
       el('b', { class: 'sqttl' }, '道中に連れていく武将'),
@@ -12118,7 +12145,7 @@ function trPickSheet() {
       },
         keepImg({ src: pawnUrl(c.no), alt: c.name }),
         el('span', {}, c.name),
-        el('em', {}, `${trProg(c.no)}階`)))),
+        el('em', {}, `${trProg(c.no, trTier())}階`)))),
       closeX(close)));
 }
 
@@ -12269,7 +12296,7 @@ function screenTrFight() {
   const kinds = trKindsOf(who);
   if (!trFixFight(F, who, kinds)) { P.trail.fight = null; S.screen = 'trail'; return screenTrail(); }
   const kdOf = trKdOfF(F, who);
-  const run = trRunOf(F.no);
+  const run = trRunOf(F.no, F.tier || 0);
   const s = TR_STORY[F.i];
   const busy = !!S.trBusy || !!S.trBanner;
   const pl = F.pl;
@@ -12452,7 +12479,7 @@ async function trFoeTurn() {
 function trFinish() {
   const F = P.trail.fight; if (!F || !F.over) return;
   const win = F.over === 'win';
-  const no = F.no, run = trRunOf(no);
+  const no = F.no, ft = F.tier || 0, run = trRunOf(no, ft), rk = trRK(no, ft);
   const res = { win, i: F.i, no, rw: null, mile: null, boss: false, part: run.part };
   if (win) {
     run.hp = Math.max(1, F.pl.hp);
@@ -12470,19 +12497,19 @@ function trFinish() {
     res.spoil = { kb, heal, book: t === '強' ? 1 : 0, cards: t === '将' ? [] : trOffer(R, C, no, run.part, 3, n2 => trKindsFor(n2, who)), took: null };
     const nd = F.node;      // 前の作り（話の一覧）の途中の戦には節が無い。そのときは道を動かさない
     if (nd) { run.at = { r: nd.r, c: nd.c }; run.path = [...(run.path || []), { r: nd.r, c: nd.c }]; }
-    const got = trFloorDone(no, F.i);
+    const got = trFloorDone(no, F.i, ft);
     if (got) { res.rw = got.rw; res.mile = got.mile; }
     /* 国主を倒したら次の部の道を敷く。三の部を抜けたら踏破 */
     if (nd && nd.r === 'boss') {
       res.boss = true;
       const mx = trMx(trWho(no));
       /* 次の部へは札束と品を持ち越す（2026-10-10）。三の部を抜けたら旅は終わり、組んだ山札から出直す */
-      if (run.part < 2) P.trail.runs[no] = trRunNew(run.part + 1, mx, (Date.now() ^ no) >>> 0, { cards: run.cards, items: run.items });
-      else { P.trail.runs[no] = trRunNew(0, mx, (Date.now() ^ no) >>> 0); res.end = true; }
+      if (run.part < 2) P.trail.runs[rk] = trRunNew(run.part + 1, mx, (Date.now() ^ no) >>> 0, { cards: run.cards, items: run.items });
+      else { P.trail.runs[rk] = trRunNew(0, mx, (Date.now() ^ no) >>> 0); res.end = true; }
     }
   } else {
     /* 倒れたら その部のはじめから。道は敷き直し、兵量は満たす（抜けた階と褒美は残る） */
-    P.trail.runs[no] = trRunNew(run.part, trMx(trWho(no)), (Date.now() ^ no) >>> 0);
+    P.trail.runs[rk] = trRunNew(run.part, trMx(trWho(no)), (Date.now() ^ no) >>> 0);
   }
   P.trail.fight = null;
   /* いきなり札に切り替わらないよう、戦の場のまん中に勝ち負けの絵を出す（2026-10-10 夕・悠さんの指図）。

@@ -187,7 +187,7 @@ export const P = {
   /* 落ち延び道中（2026-10-08）。prog＝武将ごとに抜けた話の数／deck＝武将ごとの山札
      ／cur＝いま連れている武将／fight＝戦の途中（閉じても続きから）。
      P の既定値に並べておかないと loadPlayer が読み戻さない */
-  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {} },
+  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {} },
   /* runs＝武将ごとの道の途中（2026-10-09）。武将を替えると その武将の道に切り替わり、
      戻せば前の続きから。上限が開くのも、その道を抜けた武将だけ */
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
@@ -401,15 +401,34 @@ export function charState(no) {
 /* ---- 落ち延び道中で開く上限（2026-10-08・悠さんの指図）----
    その武将で10話ぬけるごとに、その武将だけ上限が開く。
    数はここだけで決める（道中の画面もこの表を読む） */
+/* 段（初級・中級・上級）を分けたので、上限を開く印は中級の20階から少しずつにした（2026-10-10・悠さんの指図）。
+   初級は特技の品・魂・称号で報いる（trReward）。t＝段 */
 export const TR_MILE = [
-  { at: 10, sp: 50 },            // 武士の魂の上限 999 → 1049
-  { at: 20, lv: 5 },             // レベルの上限 +5（覚醒の段に上乗せ）
-  { at: 30, sp: 50, lv: 5 },     // もう一段ずつ
+  { t: 1, at: 20, sp: 30 },            // 中級20階：武士の魂の上限 ＋30
+  { t: 1, at: 30, lv: 3 },             // 中級30階：レベルの上限 ＋3（覚醒の段に上乗せ）
+  { t: 2, at: 10, sp: 30 },            // 上級10階
+  { t: 2, at: 20, lv: 3 },             // 上級20階
+  { t: 2, at: 30, sp: 40, lv: 4 },     // 上級30階（合わせて 魂＋100・レベル＋10 は前と同じ）
 ];
-export const trProg = no => ((P.trail && P.trail.prog) || {})[no] || 0;
+export const TR_TIERS = 3;
+/* 抜けた階。初級は前からの prog をそのまま使う（前の版の記録は初級に入る）。中級・上級は progT[段] */
+export const trProg = (no, t = 0) => t ? (((P.trail && P.trail.progT) || {})[t] || {})[no] || 0
+                                       : ((P.trail && P.trail.prog) || {})[no] || 0;
+export function trSetProg(no, t, n) {
+  if (!t) { P.trail.prog[no] = n; return; }
+  const b = P.trail.progT[t] || (P.trail.progT[t] = {}); b[no] = n;
+}
+/* その段で、いちばん先まで行った武将の階。段を開く・称号の判定に使う */
+export function trBest(t) {
+  const b = t ? ((P.trail.progT || {})[t] || {}) : (P.trail.prog || {});
+  return Object.values(b).reduce((a, v) => Math.max(a, v || 0), 0);
+}
+/* 段は、前の段をどれか一体で30階まで抜けると開く */
+export const trTierOpen = t => !t || trBest(t - 1) >= 30;
+export const trTier = () => { const t = (P.trail && P.trail.tier) || 0; return trTierOpen(t) ? t : 0; };
 export function trBonus(no) {
-  const p = trProg(no); let lv = 0, sp = 0;
-  for (const m of TR_MILE) if (p >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
+  let lv = 0, sp = 0;
+  for (const m of TR_MILE) if (trProg(no, m.t) >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
   return { lv, sp };
 }
 export const spMaxOf = no => SP_MAX + trBonus(no).sp;
@@ -915,8 +934,8 @@ export function loadPlayer(FORMS) {
   if (!Array.isArray(P.camp.saw)) P.camp.saw = [];
   if (!P.items || typeof P.items !== 'object') P.items = {};
   /* 道中の入れ物（2026-10-08）。入れ子は丸ごと差し替わるので形を整え直す */
-  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, ...(P.trail || {}) };
-  for (const k of ['prog', 'deck', 'runs']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
+  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {}, ...(P.trail || {}) };
+  for (const k of ['prog', 'deck', 'runs', 'progT']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
   if (!P.shop || typeof P.shop !== 'object') P.shop = { day: '', bought: {} };
   if (!P.dup || typeof P.dup !== 'object') P.dup = {};
   if (!P.cnt || typeof P.cnt !== 'object') P.cnt = {};

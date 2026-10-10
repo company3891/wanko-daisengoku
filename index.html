@@ -6489,6 +6489,10 @@ body.trdragging { cursor: grabbing; }
 .frsqf .frgen{position:absolute;left:6%;top:6%;z-index:2;width:18%;height:auto}
 .frsqf em.frgen{width:auto}
 
+/* 道中の段えらび（2026-10-10） */
+.trtierrow{margin:10px 2px 8px}
+.trtierl{font-family:var(--mincho,serif);color:#f5e2a8;font-size:14px;font-weight:600}
+
 </style>
 </head>
 <body>
@@ -11647,7 +11651,7 @@ const P = {
   /* 落ち延び道中（2026-10-08）。prog＝武将ごとに抜けた話の数／deck＝武将ごとの山札
      ／cur＝いま連れている武将／fight＝戦の途中（閉じても続きから）。
      P の既定値に並べておかないと loadPlayer が読み戻さない */
-  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {} },
+  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {} },
   /* runs＝武将ごとの道の途中（2026-10-09）。武将を替えると その武将の道に切り替わり、
      戻せば前の続きから。上限が開くのも、その道を抜けた武将だけ */
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
@@ -11861,15 +11865,34 @@ function charState(no) {
 /* ---- 落ち延び道中で開く上限（2026-10-08・悠さんの指図）----
    その武将で10話ぬけるごとに、その武将だけ上限が開く。
    数はここだけで決める（道中の画面もこの表を読む） */
+/* 段（初級・中級・上級）を分けたので、上限を開く印は中級の20階から少しずつにした（2026-10-10・悠さんの指図）。
+   初級は特技の品・魂・称号で報いる（trReward）。t＝段 */
 const TR_MILE = [
-  { at: 10, sp: 50 },            // 武士の魂の上限 999 → 1049
-  { at: 20, lv: 5 },             // レベルの上限 +5（覚醒の段に上乗せ）
-  { at: 30, sp: 50, lv: 5 },     // もう一段ずつ
+  { t: 1, at: 20, sp: 30 },            // 中級20階：武士の魂の上限 ＋30
+  { t: 1, at: 30, lv: 3 },             // 中級30階：レベルの上限 ＋3（覚醒の段に上乗せ）
+  { t: 2, at: 10, sp: 30 },            // 上級10階
+  { t: 2, at: 20, lv: 3 },             // 上級20階
+  { t: 2, at: 30, sp: 40, lv: 4 },     // 上級30階（合わせて 魂＋100・レベル＋10 は前と同じ）
 ];
-const trProg = no => ((P.trail && P.trail.prog) || {})[no] || 0;
+const TR_TIERS = 3;
+/* 抜けた階。初級は前からの prog をそのまま使う（前の版の記録は初級に入る）。中級・上級は progT[段] */
+const trProg = (no, t = 0) => t ? (((P.trail && P.trail.progT) || {})[t] || {})[no] || 0
+                                       : ((P.trail && P.trail.prog) || {})[no] || 0;
+function trSetProg(no, t, n) {
+  if (!t) { P.trail.prog[no] = n; return; }
+  const b = P.trail.progT[t] || (P.trail.progT[t] = {}); b[no] = n;
+}
+/* その段で、いちばん先まで行った武将の階。段を開く・称号の判定に使う */
+function trBest(t) {
+  const b = t ? ((P.trail.progT || {})[t] || {}) : (P.trail.prog || {});
+  return Object.values(b).reduce((a, v) => Math.max(a, v || 0), 0);
+}
+/* 段は、前の段をどれか一体で30階まで抜けると開く */
+const trTierOpen = t => !t || trBest(t - 1) >= 30;
+const trTier = () => { const t = (P.trail && P.trail.tier) || 0; return trTierOpen(t) ? t : 0; };
 function trBonus(no) {
-  const p = trProg(no); let lv = 0, sp = 0;
-  for (const m of TR_MILE) if (p >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
+  let lv = 0, sp = 0;
+  for (const m of TR_MILE) if (trProg(no, m.t) >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
   return { lv, sp };
 }
 const spMaxOf = no => SP_MAX + trBonus(no).sp;
@@ -12375,8 +12398,8 @@ function loadPlayer(FORMS) {
   if (!Array.isArray(P.camp.saw)) P.camp.saw = [];
   if (!P.items || typeof P.items !== 'object') P.items = {};
   /* 道中の入れ物（2026-10-08）。入れ子は丸ごと差し替わるので形を整え直す */
-  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, ...(P.trail || {}) };
-  for (const k of ['prog', 'deck', 'runs']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
+  P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {}, ...(P.trail || {}) };
+  for (const k of ['prog', 'deck', 'runs', 'progT']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
   if (!P.shop || typeof P.shop !== 'object') P.shop = { day: '', bought: {} };
   if (!P.dup || typeof P.dup !== 'object') P.dup = {};
   if (!P.cnt || typeof P.cnt !== 'object') P.cnt = {};
@@ -14910,23 +14933,45 @@ const TR_STORY = [
 const TR_MAX = TR_STORY.length;
 /* 初めて抜けたときの褒美（2026-10-08・「簡単な報酬」）。
    小判と魂を少し。5の倍数の話は多め */
-function trReward(i) {
+function trReward(i, t = 0) {
   const n = i + 1;
-  const big = n % 5 === 0;
+  const big = n % 5 === 0, boss = n % 10 === 0, k = n / 10;
   /* 武士の魂は貴重にしたいので出さない（2026-10-09・悠さんの指図）。小判と稽古の書にした。
      5の倍数の階は大稽古の書、10の倍数（国主）はさらに皆伝の書を一冊 */
-  const books = { '稽古の書': 1 + Math.floor(n / 10) };
-  if (big) books['大稽古の書'] = 1;
-  if (n % 10 === 0) books['皆伝の書'] = 1;
+  const books = { '稽古の書': (1 + Math.floor(n / 10)) * (t + 1) };
+  if (big) books['大稽古の書'] = t + 1;
+  if (boss) books['皆伝の書'] = t + 1;
+  /* 段ごとの品（2026-10-10・悠さんの指図「初級は特技系の品・魂・称号、上限を開くのは中級20階から」）。
+     5の倍数の階で上達の護符（段が上がるほど大きく）、国主で特技の伝書と相伝の護符 */
+  const CH = ['上達の護符・小', '上達の護符・中', '上達の護符・大'][t];
+  const INH = ['相伝の護符・小', '相伝の護符・中', '相伝の護符・大'][t];
+  if (big && !boss) books[CH] = 1;
+  if (boss) { books['特技の伝書'] = [[1, 2, 3], [2, 3, 5], [3, 5, 8]][t][k - 1]; books[INH] = 1; }
   /* 国主（10・20・30階）を初めて討ったときだけ武士の魂も渡す（2026-10-09・悠さんの指図）。
-     ふだんの階からは出さないので、魂の重みは保たれる */
-  const soul = n % 10 === 0 ? [30, 60, 100][n / 10 - 1] || 100 : 0;
-  return { koban: (300 + n * 40) * (big ? 3 : 1), books, soul };
+     ふだんの階からは出さないので、魂の重みは保たれる。段が上がると厚くする */
+  const soul = boss ? [[30, 60, 100], [60, 120, 200], [100, 200, 300]][t][k - 1] : 0;
+  return { koban: (300 + n * 40) * (big ? 3 : 1) * (t + 1), books, soul };
 }
 /* 敵の強さ。話が進むほど素の値に掛ける倍を大きくする。
    これにプレイヤーレベルの倍（trLvMul）を掛ける（2026-10-09・悠さんの指図「敵が雑魚すぎる」） */
 const trLvMul = lv => 1 + 0.005 * Math.max(0, (lv || 1) - 1);
 const trFoeMul = i => 0.8 + 0.15 * i;
+/* 段（2026-10-10・悠さんの指図「道中のボスが強すぎる」）。初級・中級・上級。
+   a は 10・20・30階の国主にかける倍。sim/tools/trail_tier.mjs で
+   「初級 Lv50/60/70、中級 Lv70/80/90、上級 Lv90/99/99＋魂999 の武将が国主に八割勝つ」ところを探して決めた。
+   あいだの階は、前の国主の倍（初めの部は国主の六割）から次の国主の倍へ、まっすぐ上げる。
+   段を選ぶと、レベルで敵が強くなる倍（trLvMul）は使わない（段そのものが敵の強さを決める） */
+const TR_TIER = [
+  { n: '初級', a: [1.74, 2.35, 2.32] },
+  { n: '中級', a: [2.09, 2.78, 2.71] },
+  { n: '上級', a: [2.40, 3.18, 3.10] },
+];
+function trTierMul(t, i) {
+  const a = (TR_TIER[t] || TR_TIER[0]).a;
+  const p = Math.min(2, Math.floor(i / 10)), r = i - p * 10;
+  const from = p ? a[p - 1] : a[0] * 0.6;
+  return from + (a[p] - from) * (r + 1) / 10;
+}
 
 /* ================= 札 =================
    札の効き目は、持ち主の育った値から毎回作る（覚えない）。
@@ -15303,7 +15348,8 @@ function trFoes(i, all, meNo, starOf, k = 1, o = {}) {
   const rar = TR_POOL_RAR(i);
   let pool = all.filter(c => c.clan === s.h && rar.includes(c.rarity) && away(c));
   if (pool.length < s.n + 1) pool = pool.concat(all.filter(c => c.clan !== s.h && rar.includes(c.rarity) && away(c)));
-  const mul = trFoeMul(i) * k;
+  /* o.mul＝倍を直に渡す（段を合わせる試しの道具から）。ふだんは段（o.tier）の表から引く（2026-10-10） */
+  const mul = (o.mul != null ? o.mul : trTierMul(o.tier || 0, i)) * k;
   const out = [];
   if (s.boss) {
     const b = all.find(c => c.no === s.boss);
@@ -15456,7 +15502,7 @@ function trBattle(i, who, cards, all, seed, starOf, lv, o = {}) {
              ／crack＝受けが重くなる／seal＝癒せない */
           daze: 0, burn: 0, burnT: 0, crack: 0, seal: 0 },
     lv: lv || 1,
-    foes: trFoes(i, all, who.no, starOf, trLvMul(lv), o),
+    foes: trFoes(i, all, who.no, starOf, 1, o),
     draw: [], hand: [], disc: [], gone: [], ki: TR_KI,
     cards: cards.map(e => ({ ...e })),
   };
@@ -30464,6 +30510,13 @@ const TITLES = [
   { n: '夜に挑む者',   g: '魔王', t: 4, f: () => campLvOpen(2) && takenCount(2) >= 2 },
   { n: '夜を裂く者',   g: '魔王', t: 5, f: () => campLvOpen(2) && takenCount(2) >= 24 },
   { n: '第六天魔王',   g: '魔王', t: 6, f: () => campLvOpen(2) && !!campBox(2).clear },
+  /* 落ち延び道中（2026-10-10・悠さんの指図「初級は特技の品・魂・称号で報いる」）。
+     どれか一体でその段の階まで抜ければ渡す。名は額の絵の名になるので、あとから変えない */
+  { n: '落ち延びし者', g: '道中', t: 1, f: () => trBest(0) >= 10 },
+  { n: '山越えの犬',   g: '道中', t: 2, f: () => trBest(0) >= 20 },
+  { n: '帰り着きし者', g: '道中', t: 3, f: () => trBest(0) >= 30 },
+  { n: '抜け道の主',   g: '道中', t: 4, f: () => trBest(1) >= 30 },
+  { n: '不帰を越えし者', g: '道中', t: 6, f: () => trBest(2) >= 30 },
   /* 番付 ─ 総合力と勝ち星 */
   { n: '足軽頭',       g: '番付', t: 1, f: () => titlePower() >= 8000 },
   { n: '侍大将',       g: '番付', t: 2, f: () => titlePower() >= 14000 },
@@ -39761,7 +39814,7 @@ document.addEventListener('click', e => {
 
 const PAGE_TALK = {
   /* 落ち延び道中（2026-10-08） */
-  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、分かれ道を選びながら三十階を抜けるワン。十階ごとの国主を討てば、その子の上限が開くワン'],
+  trail: ['落ち延び道中だワン！！', 'ひとりで札を握って、分かれ道を選びながら三十階を抜けるワン。道は初級・中級・上級。険しい道の国主を討てば、その子の上限が開くワン'],
   /* はじまりの一騎（2026-09-30）。持ち武将がまだ無いので、語り手は信わんに落ちる */
   tutorial: ['はじまりの一騎だワン！！',
     '天下は乱れ、犬たちが旗を掲げたワン。まずは旗下に加える武将を、ひとり選ぶワン'],
@@ -39877,8 +39930,9 @@ function screenTrail() {
   const who = trWho(no);
   const kinds = trKindsOf(who);
   if (S.trView === 'deck') return trDeckScreen(who, kinds);
-  const prog = trProg(no);
-  const run = trRunOf(no);
+  const tier = trTier();
+  const prog = trProg(no, tier);
+  const run = trRunOf(no, tier);
   const mx = trMx(who);
   const trait = trTrait(who);
   const can = trNext(run);
@@ -39932,13 +39986,14 @@ function screenTrail() {
           el('div', { class: 'trtrait' },
             el('i', {}, '特'),
             el('div', {}, el('b', {}, trait.name || '特性'), el('span', {}, trait.words))),
-          el('div', { class: 'trmiles' }, TR_MILE.map(m =>
+          el('div', { class: 'trmiles' }, TR_MILE.filter(m => m.t === tier).map(m =>
             el('span', { class: 'trmile' + (prog >= m.at ? ' on' : '') },
               `${m.at}階　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
           el('div', { class: 'trbtns' },
             el('button', { class: 'ghost', onclick: () => { S.trPick = true; SFX.pick(); draw(); } }, '武将をかえる'),
             el('button', { class: 'ghost', onclick: () => { S.trView = 'deck'; S.trDraft = { ...trDeckOf(who, kinds) }; SFX.pick(); draw(); } },
               `山札（${TR_DECK}枚）`)))),
+      trTierRow(tier),
       el('div', { class: 'trrun' },
         el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
         el('span', {}, `${floorNow ? floorNow + '階' : '出立前'}`),
@@ -39962,6 +40017,21 @@ function screenTrail() {
     nav: true,
   };
 }
+/* 段えらび（2026-10-10・悠さんの指図「道中を初級・中級・上級に分ける」）。
+   全国の道えらびと同じ丸い切り替えを使う。前の段をどれか一体で30階まで抜けると次が開く。
+   道は段ごとに別に持つので、切り替えても歩きかけの道は消えない */
+function trTierRow(cur) {
+  return el('div', { class: 'cmrow trtierrow' },
+    el('b', { class: 'trtierl' }, '道の険しさ'),
+    el('div', { class: 'cmodes' }, TR_TIER.map((m, t) => {
+      const ok = trTierOpen(t);
+      return el('button', {
+        class: 'cmode m' + t + (t === cur ? ' on' : '') + (ok ? '' : ' locked'),
+        disabled: ok ? null : true,
+        onclick: () => { if (t === cur) return; P.trail.tier = t; S.trScroll = true; savePlayer(); SFX.pick(); draw(); },
+      }, ok ? m.n : '？');
+    })));
+}
 /* 道の印の絵（2026-10-09・悠さんの指図）。
      敵・手練れ … ui/trail_enemy（悠さん作の紋）／宝 … ui/trail_treasure（くじの宝箱を切り出した）
      商 … ui/btn_道具（道具の袋・2026-10-09 ホームの袋の座から差し替え）／宿 … ui/trail_rest（作成中。置けばそのまま出る）
@@ -39970,12 +40040,14 @@ const TR_NODE_ART = { 戦: 'trail_enemy', 強: 'trail_enemy', 宝: 'trail_treasu
 const trNodeArt = t => (TR_NODE_ART[t] && uiUrl(TR_NODE_ART[t])) || null;
 const TR_TICKET = '道中手形';
 /* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
-function trRunOf(no) {
+/* 道は段ごとに別に持つ（2026-10-10）。初級は前からの置き場（番号だけ）、中級・上級は「番号@段」 */
+const trRK = (no, t) => t ? `${no}@${t}` : no;
+function trRunOf(no, t = trTier()) {
   const who = trWho(no); const mx = trMx(who);
-  let r = P.trail.runs[no];
+  let r = P.trail.runs[trRK(no, t)];
   if (!r || !r.map) {
-    const part = Math.min(2, Math.floor(trProg(no) / 10));
-    r = P.trail.runs[no] = trRunNew(part, mx, (Date.now() ^ (no * 40503)) >>> 0);
+    const part = Math.min(2, Math.floor(trProg(no, t) / 10));
+    r = P.trail.runs[trRK(no, t)] = trRunNew(part, mx, (Date.now() ^ (no * 40503)) >>> 0);
   }
   if (r.hp > mx) r.hp = mx;
   /* 札束が無ければ、組んだ山札から写す（2026-10-10）。前の版の道にも札束を持たせる */
@@ -40036,11 +40108,11 @@ function trGo(no, r, c) {
   savePlayer(); draw();
 }
 /* 階を抜けた。初めてなら褒美、10階ごとに上限が開く */
-function trFloorDone(no, floor) {
-  if (floor + 1 <= trProg(no)) return null;
+function trFloorDone(no, floor, t = 0) {
+  if (floor + 1 <= trProg(no, t)) return null;
   const before = trBonus(no);
-  P.trail.prog[no] = floor + 1;
-  const rw = trReward(floor);
+  trSetProg(no, t, floor + 1);
+  const rw = trReward(floor, t);
   P.koban += rw.koban; P.soul += rw.soul || 0;
   for (const [nm, n] of Object.entries(rw.books || {})) addItem(nm, n);
   const after = trBonus(no);
@@ -40057,7 +40129,7 @@ function trEvSheet() {
   }
   if (S.screen !== 'trail') return null;
   const no = trCur(); if (!no) return null;
-  const run = P.trail.runs[no]; if (!run) return null;
+  const run = P.trail.runs[trRK(no, trTier())]; if (!run) return null;
   const who = trWho(no); const mx = trMx(who);
   if (S.trDeckView) return trDeckViewSheet(who, run);
   if (S.trItem != null) return trItemSheet(who, run, mx);
@@ -40200,10 +40272,11 @@ function trStart(no, i, o = {}) {
   const who = trWho(no); if (!who) return;
   const run = trRunOf(no);
   P.trail.cur = no;
+  const tier = trTier();
   const F = trBattle(i, who, run.cards, C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf, P.lv,
-    { ...o, hp: run.hp, ki: run.ki, guard: run.guard, seed: (run.seed ^ (i * 977)) >>> 0, trait: trTrait(who).fx, mx: trMx(who) });
+    { ...o, tier, hp: run.hp, ki: run.ki, guard: run.guard, seed: (run.seed ^ (i * 977)) >>> 0, trait: trTrait(who).fx, mx: trMx(who) });
   run.ki = 0; run.guard = 0;
-  F.node = o.node || null;
+  F.node = o.node || null; F.tier = tier;
   P.trail.fight = F;
   S.trSel = null; S.trItB = null; S.trFx = null; S.trRes = null; S.trQuit = false; S.trBusy = false;
   S.screen = 'trfight'; SFX.start(); draw();
@@ -40243,7 +40316,7 @@ function trDeckScreen(who, kinds) {
           onclick: () => {
             P.trail.deck[who.no] = { ...d };
             /* まだ歩き出していない道なら、札束も組み直した山札から写す（2026-10-10） */
-            const rn = P.trail.runs[who.no];
+            const rn = P.trail.runs[trRK(who.no, trTier())];
             if (rn && !rn.at && !(rn.path || []).length) rn.cards = trCardsFrom(d, kinds, who.no);
             S.trView = 'list'; S.trDraft = null; savePlayer(); SFX.get(); draw(); } }, 'この山札にする'),
         el('button', { class: 'ghost', onclick: () => { S.trView = 'list'; S.trDraft = null; SFX.pick(); draw(); } }, 'やめる'))),
@@ -40255,7 +40328,7 @@ function trDeckScreen(who, kinds) {
 function trPickSheet() {
   const close = () => { S.trPick = false; SFX.pick(); draw(); };
   const list = (P.own || []).filter(hasCard).map(charOf).filter(Boolean)
-    .sort((a, b) => (trProg(b.no) - trProg(a.no)) || (a.no - b.no));
+    .sort((a, b) => (trProg(b.no, trTier()) - trProg(a.no, trTier())) || (a.no - b.no));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 trpick' },
       el('b', { class: 'sqttl' }, '道中に連れていく武将'),
@@ -40265,7 +40338,7 @@ function trPickSheet() {
       },
         keepImg({ src: pawnUrl(c.no), alt: c.name }),
         el('span', {}, c.name),
-        el('em', {}, `${trProg(c.no)}階`)))),
+        el('em', {}, `${trProg(c.no, trTier())}階`)))),
       closeX(close)));
 }
 
@@ -40416,7 +40489,7 @@ function screenTrFight() {
   const kinds = trKindsOf(who);
   if (!trFixFight(F, who, kinds)) { P.trail.fight = null; S.screen = 'trail'; return screenTrail(); }
   const kdOf = trKdOfF(F, who);
-  const run = trRunOf(F.no);
+  const run = trRunOf(F.no, F.tier || 0);
   const s = TR_STORY[F.i];
   const busy = !!S.trBusy || !!S.trBanner;
   const pl = F.pl;
@@ -40599,7 +40672,7 @@ async function trFoeTurn() {
 function trFinish() {
   const F = P.trail.fight; if (!F || !F.over) return;
   const win = F.over === 'win';
-  const no = F.no, run = trRunOf(no);
+  const no = F.no, ft = F.tier || 0, run = trRunOf(no, ft), rk = trRK(no, ft);
   const res = { win, i: F.i, no, rw: null, mile: null, boss: false, part: run.part };
   if (win) {
     run.hp = Math.max(1, F.pl.hp);
@@ -40617,19 +40690,19 @@ function trFinish() {
     res.spoil = { kb, heal, book: t === '強' ? 1 : 0, cards: t === '将' ? [] : trOffer(R, C, no, run.part, 3, n2 => trKindsFor(n2, who)), took: null };
     const nd = F.node;      // 前の作り（話の一覧）の途中の戦には節が無い。そのときは道を動かさない
     if (nd) { run.at = { r: nd.r, c: nd.c }; run.path = [...(run.path || []), { r: nd.r, c: nd.c }]; }
-    const got = trFloorDone(no, F.i);
+    const got = trFloorDone(no, F.i, ft);
     if (got) { res.rw = got.rw; res.mile = got.mile; }
     /* 国主を倒したら次の部の道を敷く。三の部を抜けたら踏破 */
     if (nd && nd.r === 'boss') {
       res.boss = true;
       const mx = trMx(trWho(no));
       /* 次の部へは札束と品を持ち越す（2026-10-10）。三の部を抜けたら旅は終わり、組んだ山札から出直す */
-      if (run.part < 2) P.trail.runs[no] = trRunNew(run.part + 1, mx, (Date.now() ^ no) >>> 0, { cards: run.cards, items: run.items });
-      else { P.trail.runs[no] = trRunNew(0, mx, (Date.now() ^ no) >>> 0); res.end = true; }
+      if (run.part < 2) P.trail.runs[rk] = trRunNew(run.part + 1, mx, (Date.now() ^ no) >>> 0, { cards: run.cards, items: run.items });
+      else { P.trail.runs[rk] = trRunNew(0, mx, (Date.now() ^ no) >>> 0); res.end = true; }
     }
   } else {
     /* 倒れたら その部のはじめから。道は敷き直し、兵量は満たす（抜けた階と褒美は残る） */
-    P.trail.runs[no] = trRunNew(run.part, trMx(trWho(no)), (Date.now() ^ no) >>> 0);
+    P.trail.runs[rk] = trRunNew(run.part, trMx(trWho(no)), (Date.now() ^ no) >>> 0);
   }
   P.trail.fight = null;
   /* いきなり札に切り替わらないよう、戦の場のまん中に勝ち負けの絵を出す（2026-10-10 夕・悠さんの指図）。

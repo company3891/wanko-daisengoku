@@ -6473,3 +6473,7 @@ body.trdragging { cursor: grabbing; }
 .frsqf.big .frsqn{font-size:12px;font-weight:700;color:#3a2c12}
 .frsqf .frgen{position:absolute;left:6%;top:6%;z-index:2;width:18%;height:auto}
 .frsqf em.frgen{width:auto}
+
+/* 道中の段えらび（2026-10-10） */
+.trtierrow{margin:10px 2px 8px}
+.trtierl{font-family:var(--mincho,serif);color:#f5e2a8;font-size:14px;font-weight:600}

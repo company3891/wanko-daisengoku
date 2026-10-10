@@ -1737,7 +1737,9 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 /* 地図の下側も暗く落として、下ナビとなじませる */
 .jwrap::after{content:'';position:absolute;left:0;right:0;bottom:0;height:120px;z-index:1;
   pointer-events:none;background:linear-gradient(to top,#0b0908ee 0,#0b0908a0 48%,#0b090800)}
-.jm{flex:0 0 auto;height:100%;width:auto;display:block;
+/* 読み終わる前から幅を持たせる（2026-10-10）。無いと幅0で組まれ、旗が左に寄ってから跳ねる。
+   auto を付けてあるので、読み終われば絵の本当の比に従う */
+.jm{flex:0 0 auto;height:100%;width:auto;display:block;aspect-ratio:auto 1068 / 1440;
   user-select:none;-webkit-user-drag:none;margin-right:-0.5px}
 /* 国の旗 */
 .flag{position:absolute;transform:translate(-50%,-50%);z-index:2;padding:0;
@@ -5935,7 +5937,7 @@ button.mkpv:active{transform:translateY(1px)}
   align-items:center;gap:10px;animation:adin .28s cubic-bezier(.2,.9,.3,1.1)}
 @keyframes adin{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
 .adwrap{position:relative;width:100%;line-height:0}
-.adart{display:block;width:100%;height:auto;border-radius:10px;
+.adart{display:block;width:100%;height:auto;aspect-ratio:auto 1 / 1;border-radius:10px;
   box-shadow:0 14px 34px #000b,0 2px 6px #0008}
 /* ---- ログインボーナスの板の升（2026-10-09・悠さんの指図）----
    絵の黒い枡のうえに、褒美の絵と数と日を重ねる。位は % なので、
@@ -28322,6 +28324,12 @@ function loadList() {
   const out = [];
   for (const k of LOAD_KINDS) out.push(...assetUrlsOf(k));
   for (const n of ['home', 'title', 'kamon']) { const u = bgUrl(n); if (u) out.push(u); }
+  /* 全国の地図とお知らせ札も先に読む（2026-10-10・悠さんの指摘）。
+     地図は開いてから読んでいたので、絵の幅が0のまま組まれて
+     旗が左に寄り、読み終わってから跳ねていた。
+     お知らせ札も一枚ごとに読みに行くので、送るたびに間が空いていた */
+  for (const n of ['map_1', 'map_2', 'map_3']) { const u = bgUrl(n); if (u) out.push(u); }
+  try { for (const c of adList()) { const u = adUrl(c.art); if (u) out.push(u); } } catch { }
   /* いま出している部隊の子は、城でもすぐ出るので先に読む */
   const q = P.squads[P.active] || { nos: [] };
   for (const no of q.nos) {
@@ -28347,6 +28355,7 @@ function screenLoading() {
 }
 /* 先読み。読めない絵があっても止まらない（数だけ進める）。
    絵が早く終わっても 0.9秒は見せる（ぱっと消えると、かえって落ち着かない） */
+const IMG_HOLD = [];
 async function bootLoad() {
   const urls = loadList();
   const t0 = Date.now();
@@ -28357,7 +28366,11 @@ async function bootLoad() {
   await Promise.all(urls.map(u => new Promise(res => {
     const im = new Image();
     const fin = () => { done++; if (done % 6 === 0 || done === urls.length) tick(); res(); };
-    im.onload = fin; im.onerror = fin;
+    /* 読んだ絵は手放さず、ほどいて（decode）おく（2026-10-10）。
+       読み捨てると、画面に置いた瞬間にもう一度ほどくので一拍遅れる。
+       iPhone の Safari ではこれが「札を送るたびのもたつき」に見えていた */
+    im.onload = () => { IMG_HOLD.push(im); (im.decode ? im.decode().catch(() => { }) : Promise.resolve()).then(fin); };
+    im.onerror = fin;
     im.src = u;
   })));
   S.load = 1; draw();
@@ -29771,7 +29784,9 @@ function japanMap(maps, open, reg) {
      以前は 33.3334% / 66.6667% と決め打ちだったが、絵の白フチを切ったので
      3枚の幅がそろわなくなり、位置がずれるようになった。 */
   const inner = el('div', { class: 'jmapin' },
-    maps.map(u => el('span', { class: 'jmc' }, el('img', { class: 'jm', src: u, alt: '' }))),
+    /* 同じ img を使い回す（2026-10-10）。組み直すたびに新しい img だと、
+       そのたびに絵を置き直して一瞬 空になる */
+    maps.map(u => el('span', { class: 'jmc' }, keepImg({ class: 'jm', src: u, alt: '' }))),
     PREFS.map(p => {
       const b = flagBtn(p, open);
       b.onclick = () => { S.pref = p.id; S.screen = 'march'; SFX.pick(); draw(); };
@@ -34530,7 +34545,9 @@ function adSheet() {
       el('div', { class: 'adbtns' },
         el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); hideToday(); } },
           el('span', {}, '今日は'), el('span', {}, '表示しない')),
-        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); close(); } }, 'とじる'))));
+        /* 「とじる」は画面を触ったときと同じ＝次の札へ（2026-10-10・悠さんの指図
+           「閉じると画面タップは同じ動きね！」）。前は全部まとめて閉じていた */
+        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); next(); } }, 'とじる'))));
 }
 const newsOf = id => NEWS.find(n => n.id === id) || null;
 const newsRead = n => (P.newsRead || []).includes(n.id);

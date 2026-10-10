@@ -609,6 +609,12 @@ function loadList() {
   const out = [];
   for (const k of LOAD_KINDS) out.push(...assetUrlsOf(k));
   for (const n of ['home', 'title', 'kamon']) { const u = bgUrl(n); if (u) out.push(u); }
+  /* 全国の地図とお知らせ札も先に読む（2026-10-10・悠さんの指摘）。
+     地図は開いてから読んでいたので、絵の幅が0のまま組まれて
+     旗が左に寄り、読み終わってから跳ねていた。
+     お知らせ札も一枚ごとに読みに行くので、送るたびに間が空いていた */
+  for (const n of ['map_1', 'map_2', 'map_3']) { const u = bgUrl(n); if (u) out.push(u); }
+  try { for (const c of adList()) { const u = adUrl(c.art); if (u) out.push(u); } } catch { }
   /* いま出している部隊の子は、城でもすぐ出るので先に読む */
   const q = P.squads[P.active] || { nos: [] };
   for (const no of q.nos) {
@@ -634,6 +640,7 @@ function screenLoading() {
 }
 /* 先読み。読めない絵があっても止まらない（数だけ進める）。
    絵が早く終わっても 0.9秒は見せる（ぱっと消えると、かえって落ち着かない） */
+const IMG_HOLD = [];
 async function bootLoad() {
   const urls = loadList();
   const t0 = Date.now();
@@ -644,7 +651,11 @@ async function bootLoad() {
   await Promise.all(urls.map(u => new Promise(res => {
     const im = new Image();
     const fin = () => { done++; if (done % 6 === 0 || done === urls.length) tick(); res(); };
-    im.onload = fin; im.onerror = fin;
+    /* 読んだ絵は手放さず、ほどいて（decode）おく（2026-10-10）。
+       読み捨てると、画面に置いた瞬間にもう一度ほどくので一拍遅れる。
+       iPhone の Safari ではこれが「札を送るたびのもたつき」に見えていた */
+    im.onload = () => { IMG_HOLD.push(im); (im.decode ? im.decode().catch(() => { }) : Promise.resolve()).then(fin); };
+    im.onerror = fin;
     im.src = u;
   })));
   S.load = 1; draw();
@@ -2058,7 +2069,9 @@ function japanMap(maps, open, reg) {
      以前は 33.3334% / 66.6667% と決め打ちだったが、絵の白フチを切ったので
      3枚の幅がそろわなくなり、位置がずれるようになった。 */
   const inner = el('div', { class: 'jmapin' },
-    maps.map(u => el('span', { class: 'jmc' }, el('img', { class: 'jm', src: u, alt: '' }))),
+    /* 同じ img を使い回す（2026-10-10）。組み直すたびに新しい img だと、
+       そのたびに絵を置き直して一瞬 空になる */
+    maps.map(u => el('span', { class: 'jmc' }, keepImg({ class: 'jm', src: u, alt: '' }))),
     PREFS.map(p => {
       const b = flagBtn(p, open);
       b.onclick = () => { S.pref = p.id; S.screen = 'march'; SFX.pick(); draw(); };
@@ -6817,7 +6830,9 @@ function adSheet() {
       el('div', { class: 'adbtns' },
         el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); hideToday(); } },
           el('span', {}, '今日は'), el('span', {}, '表示しない')),
-        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); close(); } }, 'とじる'))));
+        /* 「とじる」は画面を触ったときと同じ＝次の札へ（2026-10-10・悠さんの指図
+           「閉じると画面タップは同じ動きね！」）。前は全部まとめて閉じていた */
+        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); next(); } }, 'とじる'))));
 }
 const newsOf = id => NEWS.find(n => n.id === id) || null;
 const newsRead = n => (P.newsRead || []).includes(n.id);

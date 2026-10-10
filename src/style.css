@@ -1722,7 +1722,9 @@ header .sub{display:inline-block;background:#000000a8;border:1px solid #ffffff22
 /* 地図の下側も暗く落として、下ナビとなじませる */
 .jwrap::after{content:'';position:absolute;left:0;right:0;bottom:0;height:120px;z-index:1;
   pointer-events:none;background:linear-gradient(to top,#0b0908ee 0,#0b0908a0 48%,#0b090800)}
-.jm{flex:0 0 auto;height:100%;width:auto;display:block;
+/* 読み終わる前から幅を持たせる（2026-10-10）。無いと幅0で組まれ、旗が左に寄ってから跳ねる。
+   auto を付けてあるので、読み終われば絵の本当の比に従う */
+.jm{flex:0 0 auto;height:100%;width:auto;display:block;aspect-ratio:auto 1068 / 1440;
   user-select:none;-webkit-user-drag:none;margin-right:-0.5px}
 /* 国の旗 */
 .flag{position:absolute;transform:translate(-50%,-50%);z-index:2;padding:0;
@@ -5920,7 +5922,7 @@ button.mkpv:active{transform:translateY(1px)}
   align-items:center;gap:10px;animation:adin .28s cubic-bezier(.2,.9,.3,1.1)}
 @keyframes adin{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
 .adwrap{position:relative;width:100%;line-height:0}
-.adart{display:block;width:100%;height:auto;border-radius:10px;
+.adart{display:block;width:100%;height:auto;aspect-ratio:auto 1 / 1;border-radius:10px;
   box-shadow:0 14px 34px #000b,0 2px 6px #0008}
 /* ---- ログインボーナスの板の升（2026-10-09・悠さんの指図）----
    絵の黒い枡のうえに、褒美の絵と数と日を重ねる。位は % なので、

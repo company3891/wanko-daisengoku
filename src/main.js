@@ -3626,14 +3626,30 @@ function frSquadSheet() {
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
     el('div', { class: 'card2 frbox frsq' },
       el('b', { class: 'frhd' }, `${sq.name} の部隊`),
-      el('div', { class: 'frteam' }, sq.mem.map(m => {
-        const ch = charOf(m.no);
-        return el('button', { class: 'frc' + (m.no === sq.gen ? ' gen' : ''), title: ch.name, onclick: () => peek(m) },
-          cardArt(ch) ? keepImg({ class: 'cf', src: cardArt(ch), alt: ch.name, loading: 'lazy' })
-                      : el('i', { style: chipStyle(ch) }, el('b', {}, (ch.name || '')[0] || '')),
-          m.no === sq.gen ? genMark() : null);
-      })),
-      el('p', { class: 'frnote' }, '札を押すと、育った姿が見られる'),
+      /* 札ではなく立ち絵で並べる（2026-10-10・悠さんの指図「ここもキャラの立ち絵にしよう」）。
+         総大将を上に大きく、そのうしろに相手の名乗っている称号の背景を敷く。
+         残りの四騎は下に並べる。押せば育った数で札が開くのは前と同じ。
+         立ち絵（コマ絵）が無い子は札の絵に落ちる */
+      (() => {
+        const fig = (m, big) => {
+          const ch = charOf(m.no);
+          const pw = pawnUrl(m.no);
+          const bg = big && sq.title ? fxUrl('tbg_' + sq.title) : null;
+          return el('button', { class: 'frsqf' + (big ? ' big' : ''), title: ch.name, onclick: () => peek(m) },
+            bg ? keepImg({ class: 'frsqbg', src: bg, alt: '' }) : null,
+            pw ? keepImg({ class: 'frsqpw', src: pw, alt: ch.name })
+               : cardArt(ch) ? keepImg({ class: 'frsqcd', src: cardArt(ch), alt: ch.name, loading: 'lazy' })
+               : el('i', { class: 'frsqch', style: chipStyle(ch) }, el('b', {}, (ch.name || '')[0] || '')),
+            big ? genMark() : null,
+            el('span', { class: 'frsqn' }, ch.name));
+        };
+        const gen = sq.mem.find(m => m.no === sq.gen) || sq.mem[0];
+        const rest = sq.mem.filter(m => m !== gen);
+        return el('div', { class: 'frsqwrap' },
+          fig(gen, true),
+          el('div', { class: 'frsqrow' }, rest.map(m => fig(m, false))));
+      })(),
+      el('p', { class: 'frnote' }, '押すと、育った姿が見られる'),
       closeX(back, 'もどる')));
 }
 function frPeek(c) {
@@ -3655,7 +3671,7 @@ function frPeek(c) {
     if (!list.length) return false;
     const g = genNo != null ? genNo : list[0].no;
     list.sort((a, b) => (b.no === g) - (a.no === g));   // 総大将を先頭に
-    S.frSquad = { name: c.name, gen: g, mem: list.map(m => ({ no: m.no, stats: m.stats || null })) };
+    S.frSquad = { name: c.name, gen: g, title: c.title || '', mem: list.map(m => ({ no: m.no, stats: m.stats || null })) };
     SFX.pick(); draw();
     return true;
   };

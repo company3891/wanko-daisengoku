@@ -6455,3 +6455,21 @@ body.trdragging { cursor: grabbing; }
 @keyframes fxbg{0%{opacity:0;transform:translate(-50%,-50%) scale(.92)}
   12%{opacity:1;transform:translate(-50%,-50%) scale(1)}
   100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+/* ---- 友の部隊を立ち絵で（2026-10-10）---- 総大将を上に大きく、四騎を下に */
+.frsqwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.frsqf{position:relative;border:0;background:none;padding:0;cursor:pointer;display:flex;
+  flex-direction:column;align-items:center;-webkit-tap-highlight-color:transparent}
+.frsqf:active{transform:scale(.97)}
+.frsqf.big{width:62%;overflow:visible}
+.frsqrow{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%}
+.frsqpw{position:relative;z-index:1;display:block;width:100%;aspect-ratio:1;object-fit:contain;
+  filter:drop-shadow(0 4px 8px #0004)}
+.frsqcd{display:block;width:78%;aspect-ratio:27/40;object-fit:cover;border-radius:6px;margin:4px auto}
+.frsqch{display:flex;align-items:center;justify-content:center;width:70%;aspect-ratio:1;border-radius:12px;margin:6px auto}
+.frsqbg{position:absolute;left:50%;top:46%;width:130%;max-width:none;transform:translate(-50%,-50%);
+  z-index:0;pointer-events:none}
+.frsqn{font-size:10px;color:#6b5a33;margin-top:-4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.frsqf.big .frsqn{font-size:12px;font-weight:700;color:#3a2c12}
+.frsqf .frgen{position:absolute;left:6%;top:6%;z-index:2;width:18%;height:auto}
+.frsqf em.frgen{width:auto}

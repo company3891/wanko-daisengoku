@@ -20,7 +20,7 @@ import { setMix } from './replay.js';
 import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          STONE_PACKS, STONE_FREE_FROM, STONE_FREE_PCT, stonePack, addFreeStones,
          AWAKE_KOBAN, awakeKoban,
-         setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
+         setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, campLv, campBox, campLvOpen, setCampLv, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
          LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS, spMaxOf, trBonus, trProg, TR_MILE,
          dailyDeals, dealBought, buyItem, buyDeal, useFood,
@@ -1778,7 +1778,8 @@ const HOME_MENU = [
     go: () => { S.screen = 'tower'; S.twMsg = ''; S.twSel = null; } },
 ];
 /* 第1章＝出発した章。そこを取りきると試練の塔が開く（2026-10-01） */
-const towerOpen = () => regionTaken((PREF[(P.camp && P.camp.start) || 'aichi'] || {}).region);
+/* 塔・友・称号・お役目は 並の進み具合で決める（2026-10-10）。修羅に入って振り出しに戻っても閉じない */
+const towerOpen = () => regionTaken((PREF[(P.camp && P.camp.start) || 'aichi'] || {}).region, 0);
 function homeMenuBtn(m) {
   const wide = m.side === 'BR' && !m.square;
   const art = (m.file && uiUrl(m.file)) || uiUrl((wide ? 'banner_' : 'menu_') + m.name);
@@ -2100,7 +2101,9 @@ function japanMap(maps, open, reg) {
     tabs.scrollLeft = Math.max(0, x);
   });
   const over = el('div', { class: 'jover' },
-    el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
+    el('div', { class: 'cmrow' },
+      el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
+      campModeRow()),
     tabs,
     // 章の題。絵（app/assets/ui/title_九州.png など）があれば文字の代わりに出す
     (() => {
@@ -2108,7 +2111,9 @@ function japanMap(maps, open, reg) {
       return el('div', { class: 'jttl' + (art ? ' art' : '') },
         art ? el('img', { src: art, alt: reg.label }) : reg.label);
     })());
-  const wrap = el('div', { class: 'jwrap' }, scroller, over);
+  /* 道ごとに地図の色を変える（2026-10-10）。修羅は血の気、魔王は夜。
+     filter は絵（.jm）だけに掛ける ── 親に掛けると旗まで染まる */
+  const wrap = el('div', { class: 'jwrap md' + campLv() }, scroller, over);
   /* 鼠で引きずっても動くようにする（2026-09-30）。
      指はそのまま巻けるが、机の上では引きずるほうが自然。
      6px 動いてから「引きずり」とみなし、そのときだけ旗の押しこみを止める。 */
@@ -2244,10 +2249,10 @@ function miTakeAll(tab) {
 function miRefresh() {
   miRoll();
   if (!(P.mi.d.login || 0)) miBump('login');          // その日はじめて城に戻った
-  miSet('taken', takenCount());                        // 制した国の数
+  miSet('taken', takenCount(0));                       // 制した国の数（並の道で数える・2026-10-10）
   // 極みまで育てた武将の数。覚醒で上限が伸びるので「いまの上限に届いているか」で見る
   miSet('maxLv', P.own.filter(n => hasCard(n) && charState(n).lv >= lvCapOf(n)).length);
-  miSet('chap', REGION_ORDER.filter(regionTaken).length);   // 平定した章の数（2026-09-25）
+  miSet('chap', REGION_ORDER.filter(r => regionTaken(r, 0)).length);   // 平定した章の数（並で数える）
   /* 門出の「ぜんぶ果たす」（2026-09-26）。受け取りではなく達成の数で見るので、
      八つ目が済んだその場で九つ目が灯り、まとめて頂戴で一度に取れる */
   miSet('kadode', miOfTab(KADODE).filter(m => m.key !== 'kadode' && miDone(m)).length);
@@ -2284,12 +2289,12 @@ const TITLES = [
   /* 全国 ─ 制した国の数 */
   /* はじめから額が付いていると、肩書きを取った手応えが無い（2026-09-26）。
      一国でも取ってから渡す。それまでは肩書き無し＝「無名」で、額も付かない */
-  { n: '野伏せり',     g: '全国', t: 1, f: () => takenCount() >= 1 },
-  { n: '里の番犬',     g: '全国', t: 1, f: () => takenCount() >= 3 },
-  { n: '城持ち',       g: '全国', t: 2, f: () => takenCount() >= 10 },
-  { n: '大名',         g: '全国', t: 4, f: () => takenCount() >= 22 },
-  { n: '国盗り',       g: '全国', t: 5, f: () => takenCount() >= 38 },
-  { n: '天下統一',     g: '全国', t: 6, f: () => takenCount() >= PREFS.length },
+  { n: '野伏せり',     g: '全国', t: 1, f: () => takenCount(0) >= 1 },
+  { n: '里の番犬',     g: '全国', t: 1, f: () => takenCount(0) >= 3 },
+  { n: '城持ち',       g: '全国', t: 2, f: () => takenCount(0) >= 10 },
+  { n: '大名',         g: '全国', t: 4, f: () => takenCount(0) >= 22 },
+  { n: '国盗り',       g: '全国', t: 5, f: () => takenCount(0) >= 38 },
+  { n: '天下統一',     g: '全国', t: 6, f: () => takenCount(0) >= PREFS.length },
   /* 番付 ─ 総合力と勝ち星 */
   { n: '足軽頭',       g: '番付', t: 1, f: () => titlePower() >= 8000 },
   { n: '侍大将',       g: '番付', t: 2, f: () => titlePower() >= 14000 },
@@ -2929,7 +2934,7 @@ function nmMsgPut() {
    いつ開いても同じ顔ぶれが出る。あとで本物の友を繋ぐときも、この棚に並べればよい。 */
 
 /* 友の顔ぶれ。制覇した国のうち、自分の本拠地だけは除く（それは自分なので） */
-const frList = () => PREFS.filter(p => prefTaken(p.id) && p.id !== (P.camp.start || 'aichi'));
+const frList = () => PREFS.filter(p => prefTaken(p.id, 0) && p.id !== (P.camp.start || 'aichi'));
 /* その友の中身。部隊はその国の最後の戦（国主戦）の顔ぶれ */
 function frOf(id) {
   const p = PREF[id];
@@ -3876,13 +3881,15 @@ function screenMap() {
     return {
       body: el('div', { class: 'mapbody' },
         japanMap(maps, open, reg),
-        !P.camp.intro ? sagaSheet() : null),
+        !P.camp.intro ? sagaSheet() : campStorySheet()),
       nav: true,
     };
   }
   return {
     body: el('div', {},
-      el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
+      el('div', { class: 'cmrow' },
+        el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
+        campModeRow()),
       el('div', { class: 'row chapters' }, REGION_ORDER.map(id => {
         const ok = open.includes(id), done = regionTaken(id);
         const r = REGIONS.find(x => x.id === id);
@@ -3898,9 +3905,77 @@ function screenMap() {
         b.onclick = () => { S.pref = p.id; S.screen = 'march'; SFX.pick(); draw(); };
         return b;
       })),
-      !P.camp.intro ? sagaSheet() : null),
+      !P.camp.intro ? sagaSheet() : campStorySheet()),
     nav: true,
   };
+}
+/* ---- 道の切り替え（2026-10-10・悠さんの指図）----
+   「切り替えやれる様にして」「制覇しないと次のモードは選択できない」。
+   制覇の数のとなりに 並・修羅・魔王 の三つ。まだ開いていない道は「？」で押せない
+   （章のタブと同じ見せ方。名を先に見せないほうが、開いたときに効く） */
+function campModeRow() {
+  const cur = campLv();
+  return el('div', { class: 'cmodes' }, CAMP_MODE.map((m, lv) => {
+    const ok = campLvOpen(lv);
+    return el('button', {
+      class: 'cmode m' + lv + (lv === cur ? ' on' : '') + (ok ? '' : ' locked'),
+      disabled: ok ? null : true,
+      title: ok ? m.name : 'まだ歩めぬ道',
+      onclick: () => {
+        if (lv === cur || !setCampLv(lv)) return;
+        S.region = null; S.pref = null; SFX.pick(); draw();
+      },
+    }, ok ? m.short : '？');
+  }));
+}
+/* ---- 道を制したときの語り（2026-10-10）----
+   「ノーマルをクリアしたら、ストーリーが流れてハードモードに切り替わる」。
+   その道を制していて、次の幕をまだ語っていなければ出す。
+   advancePref の中ではなく地図を開いたときに出すので、
+   制覇の札・天下統一の札を見終えてから流れる。前から並を制していた人にも一度出る。
+   幕3は魔王を制したあとの終幕で、道は切り替えない */
+const CAMP_STORY = {
+  1: { ttl: '修羅の道', go: '修羅の道へ', lines: [
+    '天下は一つになった。……誰もが、そう思っていた。',
+    '討ったはずの国主たちが、ふたたび旗を掲げている。',
+    'その目は赤く、牙は前より鋭い。',
+    '「一度きりの天下など、まぼろしにすぎぬ」',
+    '修羅の道が、ひらかれたわん。'] },
+  2: { ttl: '魔王の道', go: '魔王の道へ', lines: [
+    '修羅を越えた先に、夜が来た。',
+    '四十七の城に、黒い炎がともる。',
+    '炎の奥で、何者かが笑っている。第六天の魔王を名のる者が。',
+    '「天下が欲しくば、この夜ごと奪ってみよ」',
+    '魔王の道が、ひらかれたわん。'] },
+  3: { ttl: '夜明け', go: '天下を見わたす', lines: [
+    '黒い炎は消え、四十七の城に朝が来た。',
+    '並の道も、修羅も、魔王も。ぜんぶ、その足で越えてきた。',
+    'もう、この天下に敵はおらぬ。',
+    '……と言いたいところだが、犬はまた走りたくなる生きものわん。'] },
+};
+function campStoryNext() {
+  const saw = P.camp.saw || [];
+  for (const k of [1, 2, 3]) if (!saw.includes(k) && campBox(k - 1).clear) return k;
+  return 0;
+}
+function campStorySheet() {
+  const k = campStoryNext();
+  if (!k) return null;
+  const st = CAMP_STORY[k];
+  const close = () => {
+    P.camp.saw = [...(P.camp.saw || []), k];
+    if (k <= 2) { P.camp.lv = k; S.region = null; S.pref = null; }
+    savePlayer(); SFX.pick(); draw();
+  };
+  const no = talkerNo('saga');
+  const art = faceUrl(no, '凛々しい') || faceUrl(no, '通常') || pawnUrl(no);
+  return el('div', { class: 'sheet sagash cmstory m' + Math.min(k, 2) },
+    el('div', { class: 'card2 sagabox' },
+      el('div', { class: 'sagatop' },
+        art ? keepImg({ class: 'sagaf', src: art, alt: '' }) : el('i', { class: 'sagaf' }, '犬'),
+        el('b', {}, st.ttl)),
+      el('div', { class: 'sagain' }, st.lines.map(t => el('p', {}, t))),
+      el('button', { class: 'go wide', onclick: close }, st.go)));
 }
 
 /* 出陣のページ（2026-09-21）。国を選んだあと、ここで部隊を決めて出す。 */
@@ -8293,6 +8368,17 @@ function foeClash(nos, foes) {
 const FOE_LV   = (rank, step, last, lord) => 1 + rank * 15 + step * 7 + (last && lord ? 12 : 0);
 const FOE_SOUL = rank => rank * 104;   // 土道で歩きが速くなったぶん下げた（2026-09-27）
 const FOE_WANT = (rank, step, last, lord) => 560 + rank * 160 + step * 90 + (last && lord ? 180 : 0);
+/* 道の段ごとの上乗せ（2026-10-10・悠さんの指図「ハードモードと超ハードモード」）。
+   lv＝敵のLv、soul＝魂（999まで）、want＝兵力の目安、sk＝敵の特技の位。
+   sim/tools/camp_test.mjs に LVA/SPA/WA で同じ値を与えて測った（中部はじまり・自軍コスト1000・1戦4回）：
+     修羅  Lv99魂400 … 1章 87% → 7章 33%　／ 育て切り Lv99魂999 … 93% → 54%
+     魔王  Lv99魂400 … 1章 35% → 7章 15%　／ 育て切り              … 58% → 33%
+   試しの自軍は特技の位も陣形の選びも手で動かすこともしないので、本当はもう少し勝てる */
+const CAMP_MODE = [
+  { name: '並の道',   short: '並',   lv: 0,   soul: 0,   want: 0,    sk: 1 },
+  { name: '修羅の道', short: '修羅', lv: 60,  soul: 400, want: 600,  sk: 2 },
+  { name: '魔王の道', short: '魔王', lv: 150, soul: 900, want: 1400, sk: 3 },
+];
 /* 敵1体を育てる。こちらの grownStats と同じ式（Lv1を100%として1レベル +2%）。
    魂はこちらと同じ 999 が上限。特技レベルは normals の数だけ並べて渡す。
    武将のデータに hp は無い（engine が数値から組み立てる）ので、hp は触らない */
@@ -8309,7 +8395,7 @@ function foeGrown(c, lv, soul, skLv) {
 function campEnemy(pref, step, rng) {
   const rank = chapterRank(pref.region, (PREF[P.camp.start || 'aichi'] || {}).region);
   const last = step >= pref.battles - 1;                 // その県の最後の戦＝国主
-  const want = FOE_WANT(rank, step, last, pref.lord);
+  const want = FOE_WANT(rank, step, last, pref.lord) + (CAMP_MODE[campLv()] || CAMP_MODE[0]).want;
   /* 席は5つ。ただし1章は兵力の目安（560〜920）が小さく、
      残りをならす決まりのせいで実際には4体しか立たない（2026-09-28 実測）。
      わざと3体まで減らすと、こちらの範囲攻撃が散らずに相打ちが増え、
@@ -8342,8 +8428,10 @@ function campEnemy(pref, step, rng) {
     t.push(c); sum += c.cost;
   }
   const out = t.length ? t : [C.find(c => c.cost === Math.min(...C.map(x => x.cost)))];
-  const lv = FOE_LV(rank, step, last, pref.lord), soul = FOE_SOUL(rank);
-  return out.map(c => foeGrown(c, lv, soul));
+  const md = CAMP_MODE[campLv()] || CAMP_MODE[0];
+  const lv = FOE_LV(rank, step, last, pref.lord) + md.lv;
+  const soul = Math.min(999, FOE_SOUL(rank) + md.soul);
+  return out.map(c => foeGrown(c, lv, soul, md.sk));
 }
 // 国主の名前（いない国は野伏せり）
 function lordName(pref) {

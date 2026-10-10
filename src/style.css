@@ -6234,3 +6234,22 @@ body.trdragging { cursor: grabbing; }
 
 /* 褒美の札が四つ並んでも はみ出さないよう折り返す（2026-10-09） */
 .trrw { flex-wrap: wrap; justify-content: center; }
+
+/* ---- 全国の道の段（2026-10-10）---- 並・修羅・魔王 */
+.cmrow{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.cmrow .unibar{margin:0}
+.jover .cmrow{pointer-events:none}
+.cmodes{display:inline-flex;margin-left:auto;border:1px solid #d8a94a66;border-radius:999px;
+  background:#12100ecc;padding:2px;gap:2px;pointer-events:auto}
+.cmode{min-width:44px;height:26px;padding:0 10px;border:0;border-radius:999px;background:none;
+  font-family:var(--mincho);font-weight:700;font-size:13px;color:#cdbb92;cursor:pointer;letter-spacing:.06em}
+.cmode.on.m0{background:linear-gradient(#f5e2a8,#d8a94a);color:#12100e}
+.cmode.on.m1{background:linear-gradient(#f08a72,#b8382a);color:#fff3e6}
+.cmode.on.m2{background:linear-gradient(#8e6ad8,#3c2378);color:#f0e6ff}
+.cmode.locked{color:#6d6250;cursor:default}
+/* 地図の色。絵だけを染める（旗は染めない） */
+.jwrap.md1 .jm{filter:sepia(.25) saturate(1.25) hue-rotate(-14deg) brightness(.82) contrast(1.08)}
+.jwrap.md2 .jm{filter:saturate(.55) hue-rotate(205deg) brightness(.52) contrast(1.15)}
+/* 語りの札も道の色に寄せる */
+.cmstory.m1 .sagatop b{color:#b8382a}
+.cmstory.m2 .sagatop b{color:#4a2c8f}

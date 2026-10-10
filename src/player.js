@@ -89,7 +89,10 @@ export const P = {
   /* 天下統一の進み具合（2026-09-21）
      start=出発した国 ／ done={県:勝った戦の数} ／ intro=開幕の物語を見たか ／ clear=天下統一したか */
   /* got＝もう褒美を受け取った国（2026-09-27）。制覇の褒美は初回の一度だけ */
-  camp: { start: null, done: {}, intro: false, clear: false, got: [] },
+  /* lv＝いま歩いている道（0 並／1 修羅／2 魔王・2026-10-10）。
+     modes＝修羅と魔王の進み具合 { 1: { done, got, clear } }。並は camp 直下の done/got/clear のまま。
+     saw＝もう語った幕（並を制したあとの語りなど）。古い保存には無いので loadPlayer で整える */
+  camp: { start: null, done: {}, intro: false, clear: false, got: [], lv: 0, modes: {}, saw: [] },
   /* 道具（2026-09-21）。{ '稽古の書': 3, ... } */
   items: {},
   /* コスト上限の一時上げ（2026-09-23）。{ add, until } か null */
@@ -907,6 +910,9 @@ export function loadPlayer(FORMS) {
   // 天下統一の進み具合。古い保存には無いので形を整える
   if (!P.camp || typeof P.camp !== 'object') P.camp = { start: null, done: {}, intro: false, clear: false };
   if (!P.camp.done || typeof P.camp.done !== 'object') P.camp.done = {};
+  if (![0, 1, 2].includes(P.camp.lv)) P.camp.lv = 0;
+  if (!P.camp.modes || typeof P.camp.modes !== 'object') P.camp.modes = {};
+  if (!Array.isArray(P.camp.saw)) P.camp.saw = [];
   if (!P.items || typeof P.items !== 'object') P.items = {};
   /* 道中の入れ物（2026-10-08）。入れ子は丸ごと差し替わるので形を整え直す */
   P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, ...(P.trail || {}) };
@@ -1327,14 +1333,39 @@ export function setCampStart(c) {
   savePlayer();
   return id;
 }
+/* ---- 道の段（2026-10-10・悠さんの指図）----
+   「制覇したらやる事ないので、ハードモードと超ハードモードも追加しよか！」
+   並を制すると語りが流れて修羅へ、修羅を制すると魔王へ。前の道を制さないと次は選べない。
+   進み具合は道ごとに別に持つ。並は camp 直下（昔の保存そのまま）、修羅・魔王は camp.modes[lv]。
+   どの道も、本拠地は初めから取っている。
+   lv を省いた呼び出しは「いま歩いている道」。称号・塔・友・お役目のように
+   並の進み具合で決まるものは、呼ぶ側で 0 を渡す */
+export const campLv = () => (P.camp && P.camp.lv) || 0;
+export function campBox(lv = campLv()) {
+  if (!lv) return P.camp;
+  const m = P.camp.modes || (P.camp.modes = {});
+  if (!m[lv]) {
+    const done = {};
+    const st = P.camp.start || 'aichi';
+    if (PREF[st]) done[st] = PREF[st].battles;
+    m[lv] = { done, got: [], clear: false };
+  }
+  return m[lv];
+}
+// その道を選べるか。並はいつでも、修羅と魔王は一つ前の道を制していれば
+export const campLvOpen = lv => !lv || !!campBox(lv - 1).clear;
+export function setCampLv(lv) {
+  if (!campLvOpen(lv)) return false;
+  P.camp.lv = lv; savePlayer(); return true;
+}
 // その県で何戦勝ったか
-export const prefStep = id => P.camp.done[id] || 0;
+export const prefStep = (id, lv) => campBox(lv).done[id] || 0;
 // 制覇したか
-export const prefTaken = id => prefStep(id) >= (PREF[id] ? PREF[id].battles : 1);
+export const prefTaken = (id, lv) => prefStep(id, lv) >= (PREF[id] ? PREF[id].battles : 1);
 // 制覇した県の数
-export const takenCount = () => PREFS.filter(p => prefTaken(p.id)).length;
+export const takenCount = lv => PREFS.filter(p => prefTaken(p.id, lv)).length;
 // その章を平定したか
-export const regionTaken = r => prefsOf(r).every(p => prefTaken(p.id));
+export const regionTaken = (r, lv) => prefsOf(r).every(p => prefTaken(p.id, lv));
 
 /* 行ける章。出発の章はいつでも開いていて、
    平定した章のとなり（西どなり・東どなり）が開く＝「左右どちらへ攻めるか」 */
@@ -1379,20 +1410,21 @@ export function spendFood(pref, step) {
 /* 1戦勝ったぶん進める。県を取りきったら true を返す */
 export function advancePref(id) {
   const pr = PREF[id]; if (!pr) return { taken: false };
+  const lv = campLv(), box = campBox(lv);
   const now = Math.min(prefStep(id) + 1, pr.battles);
-  P.camp.done[id] = now;
+  box.done[id] = now;
   const taken = now >= pr.battles;
   let unified = false;
-  if (taken && takenCount() >= PREFS.length && !P.camp.clear) { P.camp.clear = true; unified = true; }
+  if (taken && takenCount() >= PREFS.length && !box.clear) { box.clear = true; unified = true; }
   /* 制覇の褒美は「初めて取った一度だけ」（2026-09-27）。
      取り返すたびに配ると、弱い国を往復するだけで無限に稼げてしまう。
      古い保存には got が無いので、そのときは いま取ってある国ぜんぶを
      「もう受け取った」ことにして始める（さかのぼって配り直さない） */
-  if (!Array.isArray(P.camp.got)) {
-    P.camp.got = PREFS.filter(q => q.id !== id && prefTaken(q.id)).map(q => q.id);
+  if (!Array.isArray(box.got)) {
+    box.got = PREFS.filter(q => q.id !== id && prefTaken(q.id)).map(q => q.id);
   }
-  const first = taken && !P.camp.got.includes(id);
-  if (first) P.camp.got.push(id);
+  const first = taken && !box.got.includes(id);
+  if (first) box.got.push(id);
   // 初めて制覇したときだけ褒美を上乗せする（大国ほど多い）
   let bonus = null;
   if (first) {
@@ -1400,13 +1432,15 @@ export function advancePref(id) {
     /* 軍配は属性つきになったので（2026-09-23）、県ごとに出る属性を決め打ちにする。
        同じ県を取り返せば同じ属性が出るので、足りない属性は取りに行ける */
     const badge = badgeMat(ATTRS[seedOf(id) % ATTRS.length], pr.battles > 2 ? 1 : 0);
-    bonus = { stone: 100 * pr.battles, koban: 1000 * pr.battles, soul: pr.battles,
-              book: pr.battles, gear: freeMat(tier), gearN: pr.battles, badge, badgeN: 1 };
+    /* 修羅は二倍・魔王は三倍（2026-10-10）。道ごとに「初めて取った一度だけ」 */
+    const k = lv + 1;
+    bonus = { stone: 100 * pr.battles * k, koban: 1000 * pr.battles * k, soul: pr.battles * k,
+              book: pr.battles * k, gear: freeMat(tier), gearN: pr.battles * k, badge, badgeN: k };
     addFreeStones(bonus.stone); P.koban += bonus.koban; P.soul += bonus.soul;
     P.items['大稽古の書'] = (P.items['大稽古の書'] || 0) + bonus.book;
     P.items[bonus.gear] = (P.items[bonus.gear] || 0) + bonus.gearN;
     P.items[badge] = (P.items[badge] || 0) + bonus.badgeN;
   }
   savePlayer();
-  return { taken, unified, bonus, first };
+  return { taken, unified, bonus, first, lv };
 }

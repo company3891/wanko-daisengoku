@@ -187,7 +187,7 @@ export const P = {
   /* 落ち延び道中（2026-10-08）。prog＝武将ごとに抜けた話の数／deck＝武将ごとの山札
      ／cur＝いま連れている武将／fight＝戦の途中（閉じても続きから）。
      P の既定値に並べておかないと loadPlayer が読み戻さない */
-  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {} },
+  trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {}, legacy: null },
   /* runs＝武将ごとの道の途中（2026-10-09）。武将を替えると その武将の道に切り替わり、
      戻せば前の続きから。上限が開くのも、その道を抜けた武将だけ */
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
@@ -429,6 +429,9 @@ export const trTier = () => { const t = (P.trail && P.trail.tier) || 0; return t
 export function trBonus(no) {
   let lv = 0, sp = 0;
   for (const m of TR_MILE) if (trProg(no, m.t) >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
+  /* 前の版で開いていたぶん（loadPlayer で写した P.trail.legacy）と比べて大きいほう */
+  const lg = ((P.trail && P.trail.legacy) || {})[no];
+  if (lg) { lv = Math.max(lv, lg.lv || 0); sp = Math.max(sp, lg.sp || 0); }
   return { lv, sp };
 }
 export const spMaxOf = no => SP_MAX + trBonus(no).sp;
@@ -876,6 +879,9 @@ export function replacePlayer(blob) {
 export function loadPlayer(FORMS) {
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { /* 壊れていたら初期値 */ }
+  /* 初めての人は前の版の道中を歩いていないので、写すものは無い（2026-10-11）。
+     null のままだと、次に開いたとき初級の到達を前の版のものと取り違える */
+  if (!raw || typeof raw !== 'object') P.trail.legacy = {};
   if (raw && typeof raw === 'object') {
     for (const k of Object.keys(P)) if (raw[k] !== undefined) P[k] = raw[k];
     if (!Array.isArray(P.own)) P.own = [];
@@ -936,6 +942,19 @@ export function loadPlayer(FORMS) {
   /* 道中の入れ物（2026-10-08）。入れ子は丸ごと差し替わるので形を整え直す */
   P.trail = { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {}, ...(P.trail || {}) };
   for (const k of ['prog', 'deck', 'runs', 'progT']) if (!P.trail[k] || typeof P.trail[k] !== 'object') P.trail[k] = {};
+  /* 段を分ける前（2026-10-10 まで）の道中で開いた上限は、そのまま持たせる（2026-10-11・悠さんの指図）。
+     前の印は 10階 魂＋50／20階 レベル＋5／30階 魂＋50・レベル＋5。一度だけ、前の到達から写す。
+     新しい印（TR_MILE）とは足さず、大きいほうを使う（二重には開かない） */
+  if (!P.trail.legacy || typeof P.trail.legacy !== 'object') {
+    const old = [{ at: 10, sp: 50 }, { at: 20, lv: 5 }, { at: 30, sp: 50, lv: 5 }];
+    const lg = {};
+    for (const [no, p] of Object.entries(P.trail.prog)) {
+      let lv = 0, sp = 0;
+      for (const m of old) if ((p || 0) >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
+      if (lv || sp) lg[no] = { lv, sp };
+    }
+    P.trail.legacy = lg;
+  }
   if (!P.shop || typeof P.shop !== 'object') P.shop = { day: '', bought: {} };
   if (!P.dup || typeof P.dup !== 'object') P.dup = {};
   if (!P.cnt || typeof P.cnt !== 'object') P.cnt = {};

@@ -6465,9 +6465,11 @@ body.trdragging { cursor: grabbing; }
   50%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
   100%{opacity:.6;transform:translate(-50%,-50%) scale(.7)}}
 @keyframes fxau{0%{opacity:0}10%{opacity:1}50%{opacity:1}100%{opacity:.4}}
+/* 称号の背景は静めない（2026-10-10・悠さんの指図「背景は残しても大丈夫かも」）。
+   入った瞬間にふわっと広がって現れ、そのまま残る */
 @keyframes fxbg{0%{opacity:0;transform:translate(-50%,-50%) scale(.92)}
   12%{opacity:1;transform:translate(-50%,-50%) scale(1)}
-  50%{opacity:1}100%{opacity:.3;transform:translate(-50%,-50%) scale(1)}}
+  100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 
 </style>
 </head>

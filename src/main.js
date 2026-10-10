@@ -1,7 +1,7 @@
 // わんこ大戦国 プロトタイプ（2026-09-20）
 // 編成 → 陣形 → 戦闘 → 勝敗。戦闘ルールは sim/src/engine.mjs をそのまま呼ぶ。
 import { runBattle, withKeep, WEATHER_NOTE, WEATHER_TABLE } from '/sim/src/engine.mjs';
-import { boardEl, fieldEl, pawns, byTurn, render, setBoardRev, boardCellOf, artHold, artWait, artFetch, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, uiUrl, statUrl, gachaUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
+import { boardEl, fieldEl, pawns, byTurn, render, setBoardRev, boardCellOf, artHold, artWait, artFetch, loadManifest, flipMove, snapshotRects, lunge, hitFlash, popNumber, fleeAway, ultFlare, SFX, soundEnabled, cutIn, pawnUrl, cutinUrl, cutinArt, heroUrl, frameUrl, faceUrl, FACES, bgUrl, bgVideoUrl, fxVideoUrl, fxUrl, uiUrl, statUrl, gachaUrl, statusIconUrl, stFace, stageUrl, cardUrl, cardLayout, cardPatchUrl, skillArtUrl, unknownCardUrl, bannerUrl, attrUrl, rarUrl, fxBurst, bgm, ambient, kamonUrl, itemUrl, setPlayMul, assetUrlsOf } from './replay.js';
 
 import { GACHAS, gachaOf, homeGacha, poolOf, urListOf, urRatesOf } from './gachas.js';
 /* 束ねるときに import 行は捨てられるので、別名（as）は使えない（2026-10-01 に踏んだ）。
@@ -615,6 +615,8 @@ function loadList() {
      旗が左に寄り、読み終わってから跳ねていた。
      お知らせ札も一枚ごとに読みに行くので、送るたびに間が空いていた */
   for (const n of ['map_1', 'map_2', 'map_3']) { const u = bgUrl(n); if (u) out.push(u); }
+  /* 立ち絵の炎（2026-10-10）。ホームに入った瞬間から灯っているように先に読む */
+  for (const n of ['虹', '赤', '黄', '青']) { const u = fxUrl('flame_' + n); if (u) out.push(u); }
   try { for (const c of adList()) { const u = adUrl(c.art); if (u) out.push(u); } } catch { }
   /* いま出している部隊の子は、城でもすぐ出るので先に読む */
   const q = P.squads[P.active] || { nos: [] };
@@ -1866,8 +1868,13 @@ function screenHome() {
         /* 右下に置いていた小さな「札」の印は外した（2026-09-30）。
            城下町の絵の上に浮いて見えるほうが気になった。押せば出る、で足りる */
         el('button', { class: 'lordtap', title: gen.name + 'の札', onclick: () => openCard(gen) },
+          /* 足元の輪（2026-10-10）。奥の半分は絵のうしろ、手前の半分は絵の前 */
+          art ? footAura(gen, 'back') : null,
           art ? keepImg({ class: 'lordart', src: art, alt: gen.name })
-              : el('div', { class: 'lordart chip', style: chipStyle(gen) }))) : null,
+              : el('div', { class: 'lordart chip', style: chipStyle(gen) }),
+          art ? footAura(gen, 'front') : null,
+          /* 特技の炎（2026-10-10）。立ち絵の上・ホームの釦の下（.lordstage が z2、釦の .hmenu が z4） */
+          art ? skillFlames(gen) : null)) : null,
       /* 戦績の数字と「編成へ」は出さない（2026-09-21）。
          下ナビに編成があるので重複だったし、絵と城を隠していた。 */
       /* 城に誰も立っていないときの一枚（2026-10-02 に作り直した）。
@@ -8183,13 +8190,53 @@ const cardRaw = () => S.detailBase;
    そのまま大きく立たせられる。**押すとその武将のカードがひらく**（悠さんの指図）。
    コマ絵が無い武将は、これまでの顔の切り抜きに落ちる
    ── 「絵が無くても動く」を崩さないため */
+/* ---- 立ち絵の炎（2026-10-10・悠さんの指図）----
+   特技の枠ひとつに炎ひとつ。最大三つ。空いた枠には出さない（二枠なら炎は二つ）。
+     固有（◆）… 虹
+     通常の特技 … 位1 赤／位2 黄／位3 青
+   置き場は 左に二つ（上＝一の枠・下＝二の枠）、右に一つ（三の枠）。
+   後で足元と背中にも炎を置く予定なので、胸から腰の高さに集めてある。
+   出すのは ホームの立ち絵と武将強化の立ち絵だけ。合戦のコマには出さない。
+   炎はその武将じしんの枠と位から決めるので、武将ごとに違う。
+   絵は assets/fx/flame_<色>.webp（1秒の動くwebp）。無ければ何も出さない */
+const FLAME_LV = ['赤', '赤', '黄', '青'];   // 位 → 色（位0は無いが念のため赤）
+function skillFlames(c) {
+  if (!c || !P.own.includes(c.no)) return null;
+  const sl = slotsOf(c), lv = skillLvOf(c.no) || [];
+  const out = [];
+  for (let i = 0; i < 3; i++) {
+    const x = sl[i];
+    if (!x || !x.sk) continue;
+    const col = x.uniq ? '虹' : FLAME_LV[Math.max(1, Math.min(3, lv[i] || 1))];
+    const u = fxUrl('flame_' + col);
+    if (u) out.push(keepImg({ class: 'skfl s' + i, src: u, alt: '' }));
+  }
+  return out.length ? el('div', { class: 'skfls', 'aria-hidden': 'true' }, out) : null;
+}
+/* ---- 足元の光の輪（2026-10-10・悠さんの指図）----
+   覚醒の段で色が変わる。覚醒なしは出さない。
+     覚醒1 赤／2 青／3 緑／4 金／5 虹
+   輪は足を囲むので、**奥の半分は立ち絵のうしろ、手前の半分は立ち絵の前**に分けて置く。
+   同じ絵を二枚重ね、clip-path で上下に切り分けている（足が輪の中に立って見える）。
+   絵は assets/fx/aura_<色>.webp（1秒の動くwebp）。無ければ何も出さない */
+const AURA_COL = [null, '赤', '青', '緑', '金', '虹'];
+function footAura(c, side) {
+  if (!c || !P.own.includes(c.no)) return null;
+  const aw = Math.max(0, Math.min(5, charState(c.no).awake || 0));
+  const col = AURA_COL[aw];
+  const u = col ? fxUrl('aura_' + col) : null;
+  return u ? keepImg({ class: 'ftaura ' + side, src: u, alt: '' }) : null;
+}
 function growFigure(c) {
   const pw = pawnUrl(c.no);
   return el('button', {
     class: 'gxfig' + (pw ? ' art' : ''), title: `${c.name} のカードを見る`,
     onclick: e => { e.stopPropagation(); SFX.pick(); openCard(c); },
-  }, pw ? keepImg({ class: 'gxpw', src: pw, alt: c.name, decoding: 'async' })
-        : el('span', { class: 'f', style: chipStyle(c) }));
+  }, pw ? footAura(c, 'back') : null,
+     pw ? keepImg({ class: 'gxpw', src: pw, alt: c.name, decoding: 'async' })
+        : el('span', { class: 'f', style: chipStyle(c) }),
+     pw ? footAura(c, 'front') : null,
+     pw ? skillFlames(c) : null);
 }
 function faceBtn(c) {
   return el('button', {

@@ -1352,6 +1352,11 @@ export function campBox(lv = campLv()) {
   }
   return m[lv];
 }
+/* 道を制した褒美（2026-10-10）。石は無料ストーン */
+export const UNIFY_RW = {
+  1: { stone: 3000,  items: { '相伝の護符・大': 3,  '上達の護符・大': 3,  '皆伝の書': 5,  '特技の伝書': 20 } },
+  2: { stone: 10000, items: { '相伝の護符・大': 10, '上達の護符・大': 10, '皆伝の書': 15, '特技の伝書': 60 } },
+};
 // その道を選べるか。並はいつでも、修羅と魔王は一つ前の道を制していれば
 export const campLvOpen = lv => !lv || !!campBox(lv - 1).clear;
 export function setCampLv(lv) {
@@ -1416,6 +1421,14 @@ export function advancePref(id) {
   const taken = now >= pr.battles;
   let unified = false;
   if (taken && takenCount() >= PREFS.length && !box.clear) { box.clear = true; unified = true; }
+  /* 修羅・魔王を制した褒美（2026-10-10・悠さんの指図「報酬や称号などの追加は必要だね」）。
+     道ごとに一度だけ。並の天下統一は前から褒美なし（称号「天下統一」だけ）なので触らない */
+  let unifyRw = null;
+  if (unified && UNIFY_RW[lv]) {
+    unifyRw = UNIFY_RW[lv];
+    addFreeStones(unifyRw.stone);
+    for (const [k, v] of Object.entries(unifyRw.items)) P.items[k] = (P.items[k] || 0) + v;
+  }
   /* 制覇の褒美は「初めて取った一度だけ」（2026-09-27）。
      取り返すたびに配ると、弱い国を往復するだけで無限に稼げてしまう。
      古い保存には got が無いので、そのときは いま取ってある国ぜんぶを
@@ -1442,5 +1455,5 @@ export function advancePref(id) {
     P.items[badge] = (P.items[badge] || 0) + bonus.badgeN;
   }
   savePlayer();
-  return { taken, unified, bonus, first, lv };
+  return { taken, unified, bonus, first, lv, unifyRw };
 }

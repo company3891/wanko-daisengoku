@@ -2062,9 +2062,11 @@ function flagBtn(p, open) {
        家紋の縁を光らせるだけでは、地図を引いて見たときに分からなかった。
        色は青にした（2026-09-30）。地図の紙が茶と朱なので、赤だと同化して見えない。
        戦いの画面とも揃えた（自軍＝青／敵＝赤） */
-    taken && uiUrl('nobori_青') ? keepImg({ class: 'fnob', src: uiUrl('nobori_青'), alt: '制覇' }) : null,
+    /* 道ごとに幟を替える（2026-10-10）。修羅は朱、魔王は黒。絵が無いうちは青のまま */
+    taken && noboriUrl() ? keepImg({ class: 'fnob', src: noboriUrl(), alt: '制覇' }) : null,
     kamon(p.house, 'onmap'), el('span', { class: 'fn' }, ok ? p.house : '？'));
 }
+const noboriUrl = () => uiUrl(['nobori_青', 'nobori_朱', 'nobori_黒'][campLv()] || 'nobori_青') || uiUrl('nobori_青');
 function japanMap(maps, open, reg) {
   /* 3枚の絵を「巻」ごとに箱へ入れる（2026-09-22）。
      こうすると継ぎ目の霞を CSS だけで 2枚目・3枚目の左端に置ける。
@@ -2296,6 +2298,15 @@ const TITLES = [
   { n: '大名',         g: '全国', t: 4, f: () => takenCount(0) >= 22 },
   { n: '国盗り',       g: '全国', t: 5, f: () => takenCount(0) >= 38 },
   { n: '天下統一',     g: '全国', t: 6, f: () => takenCount(0) >= PREFS.length },
+  /* 修羅・魔王の道（2026-10-10・悠さんの指図）。本拠地は初めから取っているので「一国」は 2 から。
+     名はファイル名（frame/<名>.webp）になるので、あとから変えない。
+     魔王を制した者が「第六天魔王」を名乗る ── 倒した相手の名を継ぐ */
+  { n: '修羅の一歩',   g: '修羅', t: 3, f: () => campLvOpen(1) && takenCount(1) >= 2 },
+  { n: '修羅の国盗り', g: '修羅', t: 5, f: () => campLvOpen(1) && takenCount(1) >= 24 },
+  { n: '修羅天下',     g: '修羅', t: 6, f: () => campLvOpen(1) && !!campBox(1).clear },
+  { n: '夜に挑む者',   g: '魔王', t: 4, f: () => campLvOpen(2) && takenCount(2) >= 2 },
+  { n: '夜を裂く者',   g: '魔王', t: 5, f: () => campLvOpen(2) && takenCount(2) >= 24 },
+  { n: '第六天魔王',   g: '魔王', t: 6, f: () => campLvOpen(2) && !!campBox(2).clear },
   /* 番付 ─ 総合力と勝ち星 */
   { n: '足軽頭',       g: '番付', t: 1, f: () => titlePower() >= 8000 },
   { n: '侍大将',       g: '番付', t: 2, f: () => titlePower() >= 14000 },
@@ -9876,10 +9887,16 @@ function resSheet() {
       })) : null,
       evRewardRow(rw));
   } else {
-    box = el('div', { class: 'card2 resbox unified' },
+    /* 道ごとに題と一言を変え、修羅・魔王は褒美を添える（2026-10-10） */
+    const lvU = (mr && mr.lv) || 0;
+    const UT = ['——四十七の国、ことごとく従えたり。',
+                '——修羅の国々も、ついにひれ伏した。',
+                '——魔王の夜は明けた。その名は、いまやそなたのもの。'];
+    box = el('div', { class: 'card2 resbox unified m' + lvU },
       el('div', { class: 'wray' }),
-      el('b', { class: 'rttl' }, '天下統一'),
-      el('p', { class: 'rtalk' }, '——四十七の国、ことごとく従えたり。'));
+      el('b', { class: 'rttl' }, lvU ? `${CAMP_MODE[lvU].short}　天下統一` : '天下統一'),
+      el('p', { class: 'rtalk' }, UT[lvU] || UT[0]),
+      mr && mr.unifyRw ? el('p', { class: 'rsub' }, giftWords(mr.unifyRw)) : null);
   }
   box.append(el('button', { class: 'go wide', onclick: next },
     kind === 'lose' ? '受け取る' : '報酬を受け取る'));

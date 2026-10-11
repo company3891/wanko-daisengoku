@@ -6644,7 +6644,9 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .roster{position:relative;z-index:4;transform:translateZ(0)}
 /* 属性の巡り（2026-10-11）。盤の左上、兵量の帯と同じ段 */
 .affw{position:absolute;left:6px;top:2px;z-index:50;width:64px;height:64px;border-radius:50%;
-  background:radial-gradient(circle,#12100ecc 55%,#12100e99 70%,transparent 72%);pointer-events:none}
+  pointer-events:none}
+/* 背景の黒い円は外した（2026-10-11・悠さんの指図）。そのぶん矢印に黒い縁を付け、明るい空の上でも向きが読めるようにする */
+.affarc svg g{filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000)}
 .field.tilt .affw{top:4px;left:6px}
 .affarc,.affarc svg{position:absolute;inset:0;width:100%;height:100%}
 .affi{position:absolute;width:22px;height:22px;transform:translate(-50%,-50%);display:block}

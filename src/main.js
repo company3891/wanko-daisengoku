@@ -13143,7 +13143,8 @@ function sekiSheet() {
         el('em', { class: 'skvsw' }, '対'),
         el('div', { class: 'skfoe' }, SEKI_FOE.map((n, i) => {
           const c = charOf(n); if (!c) return null;
-          return el('span', { class: 'skfc' + (i === 0 ? ' gen' : '') }, pawnUrl(n) ? el('img', { src: pawnUrl(n), alt: c.name }) : el('i', {}, c.name[0]));
+          const u = pawnUrl(n) || faceUrl(n, '通常');   // コマ絵がまだ無い武将は顔で（2026-10-12 石田PR）
+          return el('span', { class: 'skfc' + (i === 0 ? ' gen' : '') }, u ? el('img', { src: u, alt: c.name }) : el('i', {}, c.name[0]));
         }))),
       ...body,
       SEKI.msg ? el('p', { class: 'mimsg' }, SEKI.msg) : null,

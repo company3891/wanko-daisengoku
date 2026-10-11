@@ -11903,6 +11903,8 @@ function screenTrail() {
               `${m.at}階　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
           el('div', { class: 'trbtns' },
             el('button', { class: 'ghost', onclick: () => { S.trPick = true; SFX.pick(); draw(); } }, '武将をかえる'),
+            /* 手ほどきをもう一度（2026-10-11）。控えを空にすると、場面ごとにまた出る */
+            el('button', { class: 'ghost', onclick: () => { P.trTips = {}; S.trTipPg = 0; savePlayer(); SFX.pick(); draw(); } }, '遊び方'),
             el('button', { class: 'ghost', onclick: () => { S.trView = 'deck'; S.trDraft = { ...trDeckOf(who, kinds) }; SFX.pick(); draw(); } },
               `山札（${TR_DECK}枚）`)))),
       trTierRow(tier),
@@ -11928,6 +11930,68 @@ function screenTrail() {
         ...nodes)),
     nav: true,
   };
+}
+/* ---- 道中の手ほどき（2026-10-11・悠さんの指図）----
+   「はじめてやった人わからないから、キャラアイコンとテキストで少し説明を」。
+   はじめてその場面に来たときだけ、連れている武将が顔を出して数枚で語る。
+   読み終えた場面は P.trTips に控え、二度は出さない。道の画面の「遊び方」で空に戻せる。
+   数（何％・何点）は語らない。何を押せば何が起きるかだけ */
+const TR_TIPS = {
+  road: [
+    ['道は下から上へ進むワン', '光っている丸だけが押せるワン。線でつながった先へ、一歩ずつ進むワン。いちばん上の国主を討てば、その部を抜けるワン'],
+    ['丸の印で、先に何が待つか分かるワン', '敵・手練れは戦、未知は何が出るか分からぬ所、休憩で兵量を戻したり札を鍛えたり、商人で品や札を買えるワン。宝箱は開けるだけだワン'],
+    ['兵量は戦のあとも持ち越すワン', '倒れると、その部のはじめからやり直しだワン。休憩をどこで踏むかが勝負どころだワン。出立の前に「山札」で札を組み替えられるワン'],
+  ],
+  fight: [
+    ['札を敵へ引っ張って放すワン', '手札を指でつまんで、敵の上で放せば斬りかかるワン。守りや癒しの札は、場の上へ放せば効くワン。押すだけなら、下に札の中身が出るワン'],
+    ['札の左上の数が、使う「気」だワン', '一手で使える気には限りがあるワン。足りない札は暗くなるワン。打ち終えたら右下の「ターン終了」を押すワン'],
+    ['敵の頭の印は、次にしてくることだワン', '攻の印と数は斬りかかってくる強さ、守は身を固める、昂は力を溜めているワン。守るか、先に討つか、見て決めるワン'],
+    ['道中の品は下の欄から使うワン', '品を押すと中身と「使う」が出るワン。品は旅のあいだだけのものだワン'],
+  ],
+  deck: [
+    ['武将の技が、そのまま札になるワン', '＋と−で枚数を決めて、山札を組むワン。同じ札は重ねられるワン（重ねられる数には限りがあるワン）'],
+    ['重い札ほど強いワン', '左上の数が使う気。奥義のような重い札は強いが、一手でたくさんは打てぬワン。迷ったら「おまかせ」だワン'],
+  ],
+  spoil: [
+    ['勝つと札を一枚もらえるワン', '欲しい札を押して選ぶワン。もう一度押すと外れるワン。下の釦で決めるワン。とらずに進んでもよいワン（札束が軽いほうが、強い札を引きやすいワン）'],
+  ],
+};
+/* いま見せる手ほどきの場面。ほかの札（出来事・結果）が出ているときは、それを先に読ませる */
+function trTipKey() {
+  if (!P.name) return null;
+  if (S.screen === 'trail' && S.trView === 'deck') return 'deck';
+  if (S.trRes) return (S.trRes.win && S.trRes.spoil && S.trRes.spoil.cards.length && S.trRes.spoil.took == null) ? 'spoil' : null;
+  if (S.screen === 'trfight') return (S.trBanner || S.trBusy) ? null : 'fight';
+  if (S.screen === 'trail' && S.trView !== 'deck') {
+    const run = trCur() ? trRunOf(trCur()) : null;
+    if (S.trPick || S.trDeckView || S.trItem != null || (run && run.ev)) return null;
+    return 'road';
+  }
+  return null;
+}
+function trTipSheet() {
+  const key = trTipKey();
+  if (!key || (P.trTips || {})[key]) return null;
+  const pages = TR_TIPS[key];
+  const i = Math.min(S.trTipPg || 0, pages.length - 1);
+  const no = trCur() || talkerNo('trail');
+  const c = charOf(no);
+  const art = faceUrl(no, '笑顔') || faceUrl(no, '通常') || pawnUrl(no);
+  const last = i >= pages.length - 1;
+  const done = () => { P.trTips = { ...(P.trTips || {}), [key]: 1 }; S.trTipPg = 0; savePlayer(); SFX.pick(); draw(); };
+  const next = () => { if (last) return done(); S.trTipPg = i + 1; SFX.pick(); draw(); };
+  /* 場面の下のほうを指したいので、札は画面の下寄りに出す（戦は手札の上、道は地図の上） */
+  return el('div', { class: 'sheet trtip k-' + key, onclick: e => { if (e.target === e.currentTarget) next(); } },
+    el('div', { class: 'trtipbox' },
+      el('div', { class: 'gtalk' + (art ? ' art' : '') },
+        art ? keepImg({ class: 'gtface', src: art, alt: c ? c.name : '' }) : el('i', { class: 'gtface' }, '犬'),
+        el('div', { class: 'gtbub' },
+          el('b', {}, c ? c.name : 'わんこ'),
+          el('p', {}, el('em', {}, pages[i][0]), pages[i][1]))),
+      el('div', { class: 'trtipft' },
+        pages.length > 1 ? el('span', { class: 'trtipdots' }, pages.map((_, j) => el('i', { class: j === i ? 'on' : '' }))) : el('span'),
+        last ? null : el('button', { class: 'trtipskip', onclick: done }, 'とばす'),
+        el('button', { class: 'trtipgo', onclick: next }, last ? 'わかったワン' : '次へ'))));
 }
 /* 段えらび（2026-10-10・悠さんの指図「道中を初級・中級・上級に分ける」）。
    全国の道えらびと同じ丸い切り替えを使う。前の段をどれか一体で30階まで抜けると次が開く。
@@ -12870,6 +12934,7 @@ function draw() {
     S.trPick ? trPickSheet() : null,
     S.trRes ? trResSheet() : null,
     trEvSheet(),                     // 道の出来事・品・札束（2026-10-10）。出すものが無ければ null
+    trTipSheet(),                    // 道中の手ほどき（2026-10-11）。はじめての場面だけ
     S.sqp ? sqSheet() : null,
     S.food ? foodSheet() : null,
     S.cp ? pickSheet() : null,

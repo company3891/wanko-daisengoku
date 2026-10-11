@@ -6616,3 +6616,23 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .tmfacts{display:flex;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #a8802c33}
 .tmfacts button{flex:1 1 0;min-width:0;padding:14px 10px;font-size:15px;font-weight:800;border-radius:12px}
 .tmfacts .go{flex:2 1 0}
+
+/* ---- 道中の手ほどき（2026-10-11）----
+   語りの見た目は上の .gtalk をそのまま借りる。札は画面の下寄りに置き、
+   戦では手札の真上、道では地図の上に重なる。地は薄く暗くするだけ（場面が透けて見える） */
+.sheet.trtip{align-items:flex-end;justify-content:center;background:#0008;
+  padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+.sheet.trtip.k-fight{padding-bottom:calc(230px + env(safe-area-inset-bottom))}
+.sheet.trtip.k-spoil{align-items:flex-start;padding-top:calc(var(--safetop,0px) + 40px)}
+.trtipbox{width:calc(100% - 24px);max-width:440px;animation:adin .25s cubic-bezier(.2,.9,.3,1.1)}
+.trtipbox .gtalk{min-height:0;padding:6px 4px}
+.trtipbox .gtalk .gtface{flex-basis:76px;width:76px;height:76px}
+.trtipbox .gtbub em{display:block;font-style:normal;font-weight:800;font-size:14px;color:#2a1d07;margin-bottom:2px}
+.trtipft{display:flex;align-items:center;gap:8px;margin:2px 4px 0}
+.trtipdots{flex:1 1 auto;display:flex;gap:6px}
+.trtipdots i{width:7px;height:7px;border-radius:50%;background:#ffffff44}
+.trtipdots i.on{background:var(--gold)}
+.trtipskip{border:0;background:none;color:#d8d2c8;font-size:12px;padding:8px 6px;cursor:pointer}
+.trtipgo{min-height:40px;padding:6px 18px;border-radius:9px;cursor:pointer;
+  font-size:13px;font-weight:700;letter-spacing:.06em;color:#2a1d07;
+  background:linear-gradient(#f5e2a8,#d8a94a);border:1px solid #a8802c;box-shadow:0 3px 10px #000a}

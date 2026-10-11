@@ -6493,6 +6493,58 @@ body.trdragging { cursor: grabbing; }
 .trtierrow{margin:10px 2px 8px}
 .trtierl{font-family:var(--mincho,serif);color:#f5e2a8;font-size:14px;font-weight:600}
 
+/* ---- 番付の表彰台と戦歴の釦（2026-10-11・悠さんの指図）----
+   上の三人は立ち絵で台に立たせる。並びは 2・1・3。一位の台がいちばん高い。
+   台の色は 一＝金／二＝銀／三＝銅 */
+.rkpod{display:grid;grid-template-columns:1fr 1.18fr 1fr;align-items:end;gap:5px;margin:2px 0 6px;flex:none}
+.rkpc{display:flex;flex-direction:column;align-items:center;border:0;background:none;padding:0;
+  cursor:pointer;color:inherit;font:inherit;min-width:0}
+.rkpc:active{transform:scale(.98)}
+.rkpc.me{cursor:default}
+.rkpc.none{visibility:hidden}
+.rkpfig{position:relative;display:block;width:100%;aspect-ratio:1;margin-bottom:-14%}
+.rkpbg{position:absolute;left:50%;top:48%;width:92%;aspect-ratio:1;object-fit:cover;border-radius:50%;
+  transform:translate(-50%,-50%);opacity:.9;box-shadow:0 0 0 2px #d8a94a55}
+.rkppw{position:relative;z-index:1;display:block;width:100%;height:100%;object-fit:contain;
+  filter:drop-shadow(0 4px 4px #0006)}
+.rkpcd{position:relative;z-index:1;display:block;width:66%;aspect-ratio:27/40;object-fit:cover;border-radius:6px;margin:6% auto 0}
+.rkpch{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:62%;aspect-ratio:1;border-radius:12px;margin:14% auto 0}
+.rkpstep{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;
+  padding:15px 5px 7px;border-radius:12px 12px 5px 5px;text-align:center;
+  background:linear-gradient(#e6e9ee,#a9b1bc);border:1px solid #8d96a3;box-shadow:inset 0 1px 0 #fff9,0 3px 6px #0003}
+.rkpc.r1 .rkpstep{min-height:96px;background:linear-gradient(#f5e2a8,#d8a94a 60%,#a8802c);border-color:#a8802c}
+.rkpc.r2 .rkpstep{min-height:80px}
+.rkpc.r3 .rkpstep{min-height:70px;background:linear-gradient(#ecc29f,#c98a5a 60%,#8a5530);border-color:#8a5530}
+.rkprk{position:absolute;top:-13px;left:50%;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-style:normal;font-family:var(--mincho);font-weight:900;
+  font-size:14px;color:#fff;background:#6b7380;border:2px solid #fff;box-shadow:0 2px 4px #0005}
+.rkpc.r1 .rkprk{width:30px;height:30px;top:-15px;font-size:16px;background:#c0392b}
+.rkpc.r3 .rkprk{background:#8a5530}
+.rkpnm{font-size:12px;font-weight:800;color:#2a2010;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rkpc.r1 .rkpnm{font-size:13.5px;font-family:var(--mincho)}
+.rkpttl{font-size:9px;color:#f5e2a8;background:#12100ecc;border-radius:999px;padding:1px 7px;max-width:100%;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rkppt{display:flex;align-items:baseline;gap:2px;margin-top:1px}
+.rkppt b{font-family:var(--mincho);font-size:15px;font-weight:900;color:#2a2010}
+.rkpc.r1 .rkppt b{font-size:18px}
+.rkppt i{font-style:normal;font-size:9px;color:#3a2c12}
+.rkpc.me .rkpstep{box-shadow:0 0 0 2px #e0654f,0 0 12px #e0654f99,inset 0 1px 0 #fff9}
+.rklogb{position:absolute;left:0;top:-2px;height:30px;padding:0 11px;border-radius:999px;cursor:pointer;
+  background:#ffffff0f;border:1px solid var(--line);font-family:var(--mincho);font-size:12.5px;font-weight:700;color:var(--gold)}
+.rklogb:active{transform:scale(.94)}
+.rklogdot{position:absolute;top:1px;right:1px;width:8px;height:8px;border-radius:50%;background:#e0654f;box-shadow:0 0 0 2px #fff}
+.rklogsum{display:flex;justify-content:center;gap:14px;font-size:13px;font-weight:700;margin:2px 0 4px}
+.rklogsum .rklw{color:#3f8f4f}.rklogsum .rkll{color:#c0392b}
+.rklogrow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;background:var(--pop);border:1px solid var(--edge)}
+.rklogwl{flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-style:normal;font-family:var(--mincho);font-weight:900;color:#fff;background:#3f8f4f}
+.rklogrow.lose .rklogwl{background:#c0392b}
+/* 戦歴の釦は、題の帯の中で縦の真ん中、左に寄せる（右の褒美のしるしと対） */
+.card2:not(.winbox):not(.resbox):not(.growbox) .rklogb{
+  left:12px;top:50%;transform:translateY(-50%);height:26px;padding:0 10px;
+  background:#ffffff1a;border:1px solid #ffffff4d;color:#f5e2a8;font-size:12px}
+.card2:not(.winbox):not(.resbox):not(.growbox) .rklogb:active{transform:translateY(-50%) scale(.94)}
+
 </style>
 </head>
 <body>
@@ -30994,31 +31046,13 @@ function rkSheet() {
   const r = rkState();
   const rows = rkTable();
   const me = rows.find(x => x.me) || {};
-  const close = () => { S.rk = false; S.rkSel = null; S.rkMsg = ''; draw(); };
+  const close = () => { S.rk = false; S.rkSel = null; S.rkMsg = ''; S.rkLog = false; draw(); };
   if (r.last) return rkLastSheet(r.last);
   if (S.rkPz) return rkPrizeSheet();
   if (S.rkSel) return rkFoeSheet(rows.find(x => x.id === S.rkSel) || null);
-  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
-    el('div', { class: 'card2 rkbox' },
-      el('div', { class: 'rkttl' },
-        el('b', { class: 'mittl' }, '番付'),
-        /* 段ごとの褒美を見る小さな釦（2026-09-25）。右上に置く */
-        /* 小判の絵だと「ここで小判がもらえる」に見えるので、しるしに変えた（2026-09-25） */
-        el('button', { class: 'rkpz', title: '月末の褒美を見る',
-          onclick: () => { S.rkPz = true; SFX.pick(); draw(); } }, el('i', {}, 'i'))),
-      el('div', { class: 'rkhead' },
-        el('div', { class: 'rkt' }, el('b', {}, RK_TIERS[r.tier]), el('i', {}, `${me.rank} 位 / ${RK_SEATS}`)),
-        el('div', { class: 'rkp' }, el('b', {}, num(r.pt)), el('i', {}, 'pt')),
-        el('div', { class: 'rkk' }, el('b', {}, `${r.tick} / ${RK_TICKET}`), el('i', {}, '対戦札'))),
-      el('p', { class: 'ttsub' }, `月が変われば 上位${RK_UP}組が昇格、下位${RK_DOWN}組が降格するわん`),
-      r.log.length ? el('div', { class: 'rkraid' },
-        el('b', {}, '留守のあいだの戦'),
-        r.log.map(x => el('span', { class: x.won ? 'w' : 'l' },
-          `${x.name} に ${x.won ? '勝' : '負'}　${x.d > 0 ? '+' : ''}${x.d}`))) : null,
-      /* 自分の段は、下にくっつけて常に見えるようにする（2026-09-25）。
-         上から8番までに入っているときは、そのまま正しい順位のところに置く
-         （すぐ見える高さなので、下に貼ると かえって順位が読めなくなる） */
-      el('div', { class: 'rklist' }, rows.map(x => el('button', {
+  if (S.rkLog) return rkLogSheet(r);
+  /* 一覧の一騎（2026-10-11 から 4位より下だけ）。中身は前と同じ */
+  const rowEl = x => el('button', {
         class: 'rkrow' + (x.me ? (rkMyRank() > RK_PIN ? ' me pin' : ' me') : ''),
         onclick: x.me ? null : () => { S.rkSel = x.id; S.rkMsg = ''; SFX.pick(); draw(); },
       },
@@ -31032,9 +31066,78 @@ function rkSheet() {
           el('b', {}, x.name),
           el('i', {}, x.me ? (x.title || NONAME) : rkSide(r.pt, x.pt),
             el('em', {}, `総合力 ${num(x.power)}`))),
-        el('span', { class: 'rkpt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt'))))),
+        el('span', { class: 'rkpt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt')));
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 rkbox' },
+      el('div', { class: 'rkttl' },
+        /* 留守のあいだの戦は、ここから別の札で見る（2026-10-11・悠さんの指図「戦歴は釦をつけてそこで確認」）。
+           左上に置いて、右上の褒美の釦と対にする。新しい戦があるあいだは小さな印を灯す */
+        el('button', { class: 'rklogb', title: '戦歴',
+          onclick: () => { S.rkLog = true; r.logSeen = r.day; savePlayer(); SFX.pick(); draw(); } },
+          '戦歴', r.log.length && r.logSeen !== r.day ? el('i', { class: 'rklogdot' }) : null),
+        el('b', { class: 'mittl' }, '番付'),
+        /* 段ごとの褒美を見る小さな釦（2026-09-25）。右上に置く */
+        /* 小判の絵だと「ここで小判がもらえる」に見えるので、しるしに変えた（2026-09-25） */
+        el('button', { class: 'rkpz', title: '月末の褒美を見る',
+          onclick: () => { S.rkPz = true; SFX.pick(); draw(); } }, el('i', {}, 'i'))),
+      el('div', { class: 'rkhead' },
+        el('div', { class: 'rkt' }, el('b', {}, RK_TIERS[r.tier]), el('i', {}, `${me.rank} 位 / ${RK_SEATS}`)),
+        el('div', { class: 'rkp' }, el('b', {}, num(r.pt)), el('i', {}, 'pt')),
+        el('div', { class: 'rkk' }, el('b', {}, `${r.tick} / ${RK_TICKET}`), el('i', {}, '対戦札'))),
+      el('p', { class: 'ttsub' }, `月が変われば 上位${RK_UP}組が昇格、下位${RK_DOWN}組が降格するわん`),
+      /* 上の三人は表彰台に立ち絵で（2026-10-11・悠さんの指図）。4位から下は一覧。
+         表彰台も一覧と同じく、押せば相手の札が開く（自分は押せない）。
+         立ち絵のうしろに、その人の名乗る称号の背景を敷く（友の部隊の札と同じ作り）。
+         NPC も同じ作りで出す ── 人かどうかが見た目で分からないように */
+      el('div', { class: 'rklist' },
+        rkPodium(rows.slice(0, 3), r),
+        rows.slice(3).map(rowEl)),
       S.rkMsg ? el('p', { class: 'mimsg' }, S.rkMsg) : null,
       closeX(close)));
+}
+/* 表彰台（2026-10-11）。並びは 2・1・3（一位がまん中で高い） */
+function rkPodium(top, r) {
+  const col = x => {
+    if (!x) return el('div', { class: 'rkpc none' });
+    const ch = x.me ? faceChar() : rkGenOf(x);
+    const ttl = x.me ? P.title : (x.title || npcTitleOf(x.id, npcTierOfPower(x.power)));
+    const bg = ttl ? fxUrl('tbg_' + ttl) : null;
+    const pw = ch ? pawnUrl(ch.no) : null;
+    return el('button', {
+      class: 'rkpc r' + x.rank + (x.me ? ' me' : ''),
+      onclick: x.me ? null : () => { S.rkSel = x.id; S.rkMsg = ''; SFX.pick(); draw(); },
+    },
+      el('span', { class: 'rkpfig' },
+        bg ? keepImg({ class: 'rkpbg', src: bg, alt: '' }) : null,
+        pw ? keepImg({ class: 'rkppw', src: pw, alt: ch.name })
+           : ch && cardArt(ch) ? keepImg({ class: 'rkpcd', src: cardArt(ch), alt: ch.name, loading: 'lazy' })
+           : el('i', { class: 'rkpch', style: ch ? chipStyle(ch) : '' }, el('b', {}, ((ch && ch.name) || '')[0] || ''))),
+      el('span', { class: 'rkpstep' },
+        el('em', { class: 'rkprk' }, String(x.rank)),
+        el('b', { class: 'rkpnm' }, x.name),
+        el('span', { class: 'rkpttl' }, ttl || NONAME),
+        el('span', { class: 'rkppt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt'))));
+  };
+  return el('div', { class: 'rkpod' }, col(top[1]), col(top[0]), col(top[2]));
+}
+/* 留守のあいだの戦（2026-10-11 番付の札から分けた） */
+function rkLogSheet(r) {
+  const back = () => { S.rkLog = false; SFX.pick(); draw(); };
+  const w = r.log.filter(x => x.won).length, l = r.log.length - w;
+  const sum = r.log.reduce((a, x) => a + (x.d || 0), 0);
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
+    el('div', { class: 'card2 rkbox rklogbox' },
+      el('b', { class: 'mittl' }, '戦歴'),
+      el('p', { class: 'ttsub' }, '留守のあいだに、陣に攻め寄せた者たち'),
+      r.log.length ? el('div', { class: 'rklogsum' },
+        el('span', { class: 'rklw' }, `${w} 勝`), el('span', { class: 'rkll' }, `${l} 敗`),
+        el('span', {}, `${sum > 0 ? '+' : ''}${sum} pt`)) : null,
+      el('div', { class: 'rklist' }, r.log.length ? r.log.map(x => el('div', { class: 'rklogrow' + (x.won ? '' : ' lose') },
+        el('em', { class: 'rklogwl' }, x.won ? '勝' : '負'),
+        el('span', { class: 'rknm' }, el('b', {}, x.name), el('i', {}, el('em', {}, `総合力 ${num(x.power || 0)}`))),
+        el('span', { class: 'rkpt' }, el('b', {}, `${x.d > 0 ? '+' : ''}${x.d}`), el('i', {}, 'pt'))))
+        : el('p', { class: 'note' }, 'きょうは、まだ誰も攻めてこぬ')),
+      closeX(back, 'もどる')));
 }
 /* 相手の札。部隊を見てから出陣する */
 function rkFoeSheet(foe) {

@@ -6477,3 +6477,55 @@ body.trdragging { cursor: grabbing; }
 /* 道中の段えらび（2026-10-10） */
 .trtierrow{margin:10px 2px 8px}
 .trtierl{font-family:var(--mincho,serif);color:#f5e2a8;font-size:14px;font-weight:600}
+
+/* ---- 番付の表彰台と戦歴の釦（2026-10-11・悠さんの指図）----
+   上の三人は立ち絵で台に立たせる。並びは 2・1・3。一位の台がいちばん高い。
+   台の色は 一＝金／二＝銀／三＝銅 */
+.rkpod{display:grid;grid-template-columns:1fr 1.18fr 1fr;align-items:end;gap:5px;margin:2px 0 6px;flex:none}
+.rkpc{display:flex;flex-direction:column;align-items:center;border:0;background:none;padding:0;
+  cursor:pointer;color:inherit;font:inherit;min-width:0}
+.rkpc:active{transform:scale(.98)}
+.rkpc.me{cursor:default}
+.rkpc.none{visibility:hidden}
+.rkpfig{position:relative;display:block;width:100%;aspect-ratio:1;margin-bottom:-14%}
+.rkpbg{position:absolute;left:50%;top:48%;width:92%;aspect-ratio:1;object-fit:cover;border-radius:50%;
+  transform:translate(-50%,-50%);opacity:.9;box-shadow:0 0 0 2px #d8a94a55}
+.rkppw{position:relative;z-index:1;display:block;width:100%;height:100%;object-fit:contain;
+  filter:drop-shadow(0 4px 4px #0006)}
+.rkpcd{position:relative;z-index:1;display:block;width:66%;aspect-ratio:27/40;object-fit:cover;border-radius:6px;margin:6% auto 0}
+.rkpch{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:62%;aspect-ratio:1;border-radius:12px;margin:14% auto 0}
+.rkpstep{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;
+  padding:15px 5px 7px;border-radius:12px 12px 5px 5px;text-align:center;
+  background:linear-gradient(#e6e9ee,#a9b1bc);border:1px solid #8d96a3;box-shadow:inset 0 1px 0 #fff9,0 3px 6px #0003}
+.rkpc.r1 .rkpstep{min-height:96px;background:linear-gradient(#f5e2a8,#d8a94a 60%,#a8802c);border-color:#a8802c}
+.rkpc.r2 .rkpstep{min-height:80px}
+.rkpc.r3 .rkpstep{min-height:70px;background:linear-gradient(#ecc29f,#c98a5a 60%,#8a5530);border-color:#8a5530}
+.rkprk{position:absolute;top:-13px;left:50%;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-style:normal;font-family:var(--mincho);font-weight:900;
+  font-size:14px;color:#fff;background:#6b7380;border:2px solid #fff;box-shadow:0 2px 4px #0005}
+.rkpc.r1 .rkprk{width:30px;height:30px;top:-15px;font-size:16px;background:#c0392b}
+.rkpc.r3 .rkprk{background:#8a5530}
+.rkpnm{font-size:12px;font-weight:800;color:#2a2010;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rkpc.r1 .rkpnm{font-size:13.5px;font-family:var(--mincho)}
+.rkpttl{font-size:9px;color:#f5e2a8;background:#12100ecc;border-radius:999px;padding:1px 7px;max-width:100%;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rkppt{display:flex;align-items:baseline;gap:2px;margin-top:1px}
+.rkppt b{font-family:var(--mincho);font-size:15px;font-weight:900;color:#2a2010}
+.rkpc.r1 .rkppt b{font-size:18px}
+.rkppt i{font-style:normal;font-size:9px;color:#3a2c12}
+.rkpc.me .rkpstep{box-shadow:0 0 0 2px #e0654f,0 0 12px #e0654f99,inset 0 1px 0 #fff9}
+.rklogb{position:absolute;left:0;top:-2px;height:30px;padding:0 11px;border-radius:999px;cursor:pointer;
+  background:#ffffff0f;border:1px solid var(--line);font-family:var(--mincho);font-size:12.5px;font-weight:700;color:var(--gold)}
+.rklogb:active{transform:scale(.94)}
+.rklogdot{position:absolute;top:1px;right:1px;width:8px;height:8px;border-radius:50%;background:#e0654f;box-shadow:0 0 0 2px #fff}
+.rklogsum{display:flex;justify-content:center;gap:14px;font-size:13px;font-weight:700;margin:2px 0 4px}
+.rklogsum .rklw{color:#3f8f4f}.rklogsum .rkll{color:#c0392b}
+.rklogrow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;background:var(--pop);border:1px solid var(--edge)}
+.rklogwl{flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-style:normal;font-family:var(--mincho);font-weight:900;color:#fff;background:#3f8f4f}
+.rklogrow.lose .rklogwl{background:#c0392b}
+/* 戦歴の釦は、題の帯の中で縦の真ん中、左に寄せる（右の褒美のしるしと対） */
+.card2:not(.winbox):not(.resbox):not(.growbox) .rklogb{
+  left:12px;top:50%;transform:translateY(-50%);height:26px;padding:0 10px;
+  background:#ffffff1a;border:1px solid #ffffff4d;color:#f5e2a8;font-size:12px}
+.card2:not(.winbox):not(.resbox):not(.growbox) .rklogb:active{transform:translateY(-50%) scale(.94)}

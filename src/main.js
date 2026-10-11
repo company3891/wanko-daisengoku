@@ -2782,31 +2782,13 @@ function rkSheet() {
   const r = rkState();
   const rows = rkTable();
   const me = rows.find(x => x.me) || {};
-  const close = () => { S.rk = false; S.rkSel = null; S.rkMsg = ''; draw(); };
+  const close = () => { S.rk = false; S.rkSel = null; S.rkMsg = ''; S.rkLog = false; draw(); };
   if (r.last) return rkLastSheet(r.last);
   if (S.rkPz) return rkPrizeSheet();
   if (S.rkSel) return rkFoeSheet(rows.find(x => x.id === S.rkSel) || null);
-  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
-    el('div', { class: 'card2 rkbox' },
-      el('div', { class: 'rkttl' },
-        el('b', { class: 'mittl' }, '番付'),
-        /* 段ごとの褒美を見る小さな釦（2026-09-25）。右上に置く */
-        /* 小判の絵だと「ここで小判がもらえる」に見えるので、しるしに変えた（2026-09-25） */
-        el('button', { class: 'rkpz', title: '月末の褒美を見る',
-          onclick: () => { S.rkPz = true; SFX.pick(); draw(); } }, el('i', {}, 'i'))),
-      el('div', { class: 'rkhead' },
-        el('div', { class: 'rkt' }, el('b', {}, RK_TIERS[r.tier]), el('i', {}, `${me.rank} 位 / ${RK_SEATS}`)),
-        el('div', { class: 'rkp' }, el('b', {}, num(r.pt)), el('i', {}, 'pt')),
-        el('div', { class: 'rkk' }, el('b', {}, `${r.tick} / ${RK_TICKET}`), el('i', {}, '対戦札'))),
-      el('p', { class: 'ttsub' }, `月が変われば 上位${RK_UP}組が昇格、下位${RK_DOWN}組が降格するわん`),
-      r.log.length ? el('div', { class: 'rkraid' },
-        el('b', {}, '留守のあいだの戦'),
-        r.log.map(x => el('span', { class: x.won ? 'w' : 'l' },
-          `${x.name} に ${x.won ? '勝' : '負'}　${x.d > 0 ? '+' : ''}${x.d}`))) : null,
-      /* 自分の段は、下にくっつけて常に見えるようにする（2026-09-25）。
-         上から8番までに入っているときは、そのまま正しい順位のところに置く
-         （すぐ見える高さなので、下に貼ると かえって順位が読めなくなる） */
-      el('div', { class: 'rklist' }, rows.map(x => el('button', {
+  if (S.rkLog) return rkLogSheet(r);
+  /* 一覧の一騎（2026-10-11 から 4位より下だけ）。中身は前と同じ */
+  const rowEl = x => el('button', {
         class: 'rkrow' + (x.me ? (rkMyRank() > RK_PIN ? ' me pin' : ' me') : ''),
         onclick: x.me ? null : () => { S.rkSel = x.id; S.rkMsg = ''; SFX.pick(); draw(); },
       },
@@ -2820,9 +2802,78 @@ function rkSheet() {
           el('b', {}, x.name),
           el('i', {}, x.me ? (x.title || NONAME) : rkSide(r.pt, x.pt),
             el('em', {}, `総合力 ${num(x.power)}`))),
-        el('span', { class: 'rkpt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt'))))),
+        el('span', { class: 'rkpt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt')));
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 rkbox' },
+      el('div', { class: 'rkttl' },
+        /* 留守のあいだの戦は、ここから別の札で見る（2026-10-11・悠さんの指図「戦歴は釦をつけてそこで確認」）。
+           左上に置いて、右上の褒美の釦と対にする。新しい戦があるあいだは小さな印を灯す */
+        el('button', { class: 'rklogb', title: '戦歴',
+          onclick: () => { S.rkLog = true; r.logSeen = r.day; savePlayer(); SFX.pick(); draw(); } },
+          '戦歴', r.log.length && r.logSeen !== r.day ? el('i', { class: 'rklogdot' }) : null),
+        el('b', { class: 'mittl' }, '番付'),
+        /* 段ごとの褒美を見る小さな釦（2026-09-25）。右上に置く */
+        /* 小判の絵だと「ここで小判がもらえる」に見えるので、しるしに変えた（2026-09-25） */
+        el('button', { class: 'rkpz', title: '月末の褒美を見る',
+          onclick: () => { S.rkPz = true; SFX.pick(); draw(); } }, el('i', {}, 'i'))),
+      el('div', { class: 'rkhead' },
+        el('div', { class: 'rkt' }, el('b', {}, RK_TIERS[r.tier]), el('i', {}, `${me.rank} 位 / ${RK_SEATS}`)),
+        el('div', { class: 'rkp' }, el('b', {}, num(r.pt)), el('i', {}, 'pt')),
+        el('div', { class: 'rkk' }, el('b', {}, `${r.tick} / ${RK_TICKET}`), el('i', {}, '対戦札'))),
+      el('p', { class: 'ttsub' }, `月が変われば 上位${RK_UP}組が昇格、下位${RK_DOWN}組が降格するわん`),
+      /* 上の三人は表彰台に立ち絵で（2026-10-11・悠さんの指図）。4位から下は一覧。
+         表彰台も一覧と同じく、押せば相手の札が開く（自分は押せない）。
+         立ち絵のうしろに、その人の名乗る称号の背景を敷く（友の部隊の札と同じ作り）。
+         NPC も同じ作りで出す ── 人かどうかが見た目で分からないように */
+      el('div', { class: 'rklist' },
+        rkPodium(rows.slice(0, 3), r),
+        rows.slice(3).map(rowEl)),
       S.rkMsg ? el('p', { class: 'mimsg' }, S.rkMsg) : null,
       closeX(close)));
+}
+/* 表彰台（2026-10-11）。並びは 2・1・3（一位がまん中で高い） */
+function rkPodium(top, r) {
+  const col = x => {
+    if (!x) return el('div', { class: 'rkpc none' });
+    const ch = x.me ? faceChar() : rkGenOf(x);
+    const ttl = x.me ? P.title : (x.title || npcTitleOf(x.id, npcTierOfPower(x.power)));
+    const bg = ttl ? fxUrl('tbg_' + ttl) : null;
+    const pw = ch ? pawnUrl(ch.no) : null;
+    return el('button', {
+      class: 'rkpc r' + x.rank + (x.me ? ' me' : ''),
+      onclick: x.me ? null : () => { S.rkSel = x.id; S.rkMsg = ''; SFX.pick(); draw(); },
+    },
+      el('span', { class: 'rkpfig' },
+        bg ? keepImg({ class: 'rkpbg', src: bg, alt: '' }) : null,
+        pw ? keepImg({ class: 'rkppw', src: pw, alt: ch.name })
+           : ch && cardArt(ch) ? keepImg({ class: 'rkpcd', src: cardArt(ch), alt: ch.name, loading: 'lazy' })
+           : el('i', { class: 'rkpch', style: ch ? chipStyle(ch) : '' }, el('b', {}, ((ch && ch.name) || '')[0] || ''))),
+      el('span', { class: 'rkpstep' },
+        el('em', { class: 'rkprk' }, String(x.rank)),
+        el('b', { class: 'rkpnm' }, x.name),
+        el('span', { class: 'rkpttl' }, ttl || NONAME),
+        el('span', { class: 'rkppt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt'))));
+  };
+  return el('div', { class: 'rkpod' }, col(top[1]), col(top[0]), col(top[2]));
+}
+/* 留守のあいだの戦（2026-10-11 番付の札から分けた） */
+function rkLogSheet(r) {
+  const back = () => { S.rkLog = false; SFX.pick(); draw(); };
+  const w = r.log.filter(x => x.won).length, l = r.log.length - w;
+  const sum = r.log.reduce((a, x) => a + (x.d || 0), 0);
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
+    el('div', { class: 'card2 rkbox rklogbox' },
+      el('b', { class: 'mittl' }, '戦歴'),
+      el('p', { class: 'ttsub' }, '留守のあいだに、陣に攻め寄せた者たち'),
+      r.log.length ? el('div', { class: 'rklogsum' },
+        el('span', { class: 'rklw' }, `${w} 勝`), el('span', { class: 'rkll' }, `${l} 敗`),
+        el('span', {}, `${sum > 0 ? '+' : ''}${sum} pt`)) : null,
+      el('div', { class: 'rklist' }, r.log.length ? r.log.map(x => el('div', { class: 'rklogrow' + (x.won ? '' : ' lose') },
+        el('em', { class: 'rklogwl' }, x.won ? '勝' : '負'),
+        el('span', { class: 'rknm' }, el('b', {}, x.name), el('i', {}, el('em', {}, `総合力 ${num(x.power || 0)}`))),
+        el('span', { class: 'rkpt' }, el('b', {}, `${x.d > 0 ? '+' : ''}${x.d}`), el('i', {}, 'pt'))))
+        : el('p', { class: 'note' }, 'きょうは、まだ誰も攻めてこぬ')),
+      closeX(back, 'もどる')));
 }
 /* 相手の札。部隊を見てから出陣する */
 function rkFoeSheet(foe) {

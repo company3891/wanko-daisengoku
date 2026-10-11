@@ -8063,6 +8063,22 @@ function disbandSheet() {
         }, 'すべて外す'))));
 }
 
+/* 編成の絞込みが何か効いているか（2026-10-11）。並べ替えは数えない */
+const pfOnTeam = () => pfGet(PF_TEAM, 'rar', 'すべて') !== 'すべて' || pfGet(PF_TEAM, 'att', 'すべて') !== 'すべて'
+  || pfGet(PF_TEAM, 'clan', 'すべて') !== 'すべて' || !!pfGet(PF_TEAM, 'sq', false);
+/* 編成の絞込みの札（2026-10-11）。中身は図鑑・育成と同じ pickRows */
+function tmFiltSheet() {
+  const close = () => { S.tmFilt = false; SFX.pick(); draw(); };
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 tmfbox' },
+      el('b', { class: 'mittl' }, '絞込み'),
+      pickRows(PF_TEAM),
+      el('div', { class: 'acts2' },
+        el('button', { class: 'ghost sm', disabled: pfOnTeam() ? null : true, onclick: () => {
+          S[PF_TEAM.rar] = 'すべて'; S[PF_TEAM.att] = 'すべて'; S[PF_TEAM.clan] = 'すべて'; S[PF_TEAM.sq] = false;
+          SFX.pick(); draw(); } }, '戻す'),
+        el('button', { class: 'go sm', onclick: close }, 'とじる'))));
+}
 function screenTeam() {
   /* 編成に並ぶのは「いま手元にいる」武将だけ（2026-10-03 直し）。
      owns() は「かつて手に入れたか」なので、解雇して0枚になった武将や
@@ -8102,43 +8118,45 @@ function screenTeam() {
   const dups = dupOrigins(q0.nos);        // 古い保存に残っている重なり
   return {
     body: el('div', {},
-      el('h2', {}, '部隊の名前'),
-      /* 名前の欄を短くして、同じ行に「部隊を解く」を置く（2026-09-23）。
-         5人を1枚ずつ外すのが面倒だという話。押すと確認を出してから空にする */
-      el('div', { class: 'namerow' },
-        /* どの部隊を組むかを、ここで選べるようにした（2026-10-01）。
-           塔やお祭りから編成へ入ると、部隊えらびの画面を通らないので
-           いま組んでいるのが何番目かも分からず、替えるすべも無かった。
-           S.name / S.picked は P.squads[P.active] をそのまま見ているので、
-           P.active を替えて描き直すだけでよい */
-        el('select', {
-          class: 'sqsel', title: 'どの部隊を組むか',
-          onchange: e => { P.active = +e.target.value; savePlayer(); SFX.pick(); draw(); },
-        /* 名で選ぶ（2026-10-02）。騎の数だけでは、どれが「先鋒」でどれが
-           「守りの陣」なのか見分けられなかった。名を付けていない部隊だけ数で出す */
-        }, P.squads.map((q, i) => el('option', {
-          value: String(i), selected: i === P.active ? 'selected' : null,
-        }, `${i + 1}　${(q.name || '').trim() || `名無し（${q.nos.length}騎）`}`))),
+      /* 上の段を一列にした（2026-10-11・悠さんの指図）。
+         名前・おすすめ・解散・絞込み の順に並べる。部隊えらびのプルダウンは外した
+         （部隊を替えるのは部隊の画面で）。題と操作の説明も外した ── 選んでいる顔が
+         下の帯に並ぶので、何人選んだかは見れば分かる */
+      el('div', { class: 'namerow tmrow' },
         el('input', {
-          class: 'nameIn', type: 'text', maxlength: 12, value: S.name,
+          class: 'nameIn', type: 'text', maxlength: 12, value: S.name, title: '部隊の名前',
           oninput: e => { P.squads[P.active].name = e.target.value.slice(0, 12); saveSquads(); },
         }),
+        /* おすすめ編成（2026-09-23）。コスト内で総戦力がいちばん高くなる5人に組み替える。
+           いま敵に出ている人物は外して考える */
         el('button', {
-          class: 'ghost sm disband', disabled: q0.nos.length ? null : true,
+          class: 'ghost sm tmbtn tmreco', disabled: mine.length ? null : true, title: 'おすすめ編成（総戦力が最大）',
+          onclick: () => {
+            const pool = mine.filter(c => !foeNg(c));
+            const best = bestTeam(pool);
+            if (!best.length) { S.pickMsg = 'おすすめを組めなんだ'; SFX.pick(); draw(); return; }
+            q0.nos = best.map(c => c.no);
+            S.general = best.reduce((a, c) => (powerOf(c) > powerOf(a) ? c : a), best[0]).no;
+            S.slots = [null, null, null, null, null];
+            S.pickMsg = `総戦力 ${num(best.reduce((a, c) => a + powerOf(c), 0))} の編成に組み替えた`;
+            saveSquads(); SFX.win ? SFX.win() : SFX.pick(); draw();
+          },
+        }, el('i', {}, '★'), 'おすすめ'),
+        el('button', {
+          class: 'ghost sm disband tmbtn', disabled: q0.nos.length ? null : true,
           onclick: () => { S.disband = true; SFX.pick(); draw(); },
-        }, '部隊解散')),
+        }, '解散'),
+        /* 絞込みは札の中へまとめた（2026-10-11）。
+           何かで絞っているあいだは釦を金に灯す（絞ったまま忘れて「武将がいない」とならないように） */
+        el('button', {
+          class: 'ghost sm tmbtn tmfilt' + (pfOnTeam() ? ' on' : ''),
+          onclick: () => { S.tmFilt = true; SFX.pick(); draw(); },
+        }, '絞込み')),
       S.disband ? disbandSheet() : null,
-      /* 絞込みは図鑑・育成とそろえた（2026-09-30）。
-         題を付けずに一行ずつ並べたので、前より場所を取らない */
-      pickRows(PF_TEAM),
-      el('h2', {}, `武将を選ぶ（${S.picked.length}/5）　所持 ${P.own.filter(hasCard).length}体`),
+      S.tmFilt ? tmFiltSheet() : null,
       !mine.length ? el('button', {
         class: 'notice', onclick: () => { S.screen = 'gachalist'; draw(); },
       }, el('b', {}, '武将がまだおらぬ'), el('span', {}, 'わんこみくじで引いてから編成する')) : null,
-      el('p', { class: 'note', style: 'font-size:11px;color:var(--text3);margin:-4px 0 8px' },
-        'タップで出陣に入れる／外す　／　長押しでカードを表裏で見る'),
-      el('p', { class: 'note', style: 'font-size:11px;color:var(--text3);margin:-6px 0 8px' },
-        '同じ武将（元になった人物が同じ）は、一隊にひとりまで'),
       (() => {
         const hit = q0.nos.map(charOf).filter(c => c && foeNg(c));
         return hit.length ? el('div', { class: 'shopmsg warn' },
@@ -8150,27 +8168,22 @@ function screenTeam() {
           `${d.origin}（${d.nos.map(n => (charOf(n) || {}).name).join('・')}）`).join('　') +
         '　どちらかを外すまで陣形へ進めぬ') : null,
       S.pickMsg ? el('div', { class: 'shopmsg' }, S.pickMsg) : null,
-      /* おすすめ編成（2026-09-23）。コスト内で総戦力がいちばん高くなる5人に組み替える。
-         いま敵に出ている人物は外して考える */
-      el('button', {
-        class: 'ghost wide reco', disabled: mine.length ? null : true,
-        onclick: () => {
-          const pool = mine.filter(c => !foeNg(c));
-          const best = bestTeam(pool);
-          if (!best.length) { S.pickMsg = 'おすすめを組めなんだ'; SFX.pick(); draw(); return; }
-          q0.nos = best.map(c => c.no);
-          S.general = best.reduce((a, c) => (powerOf(c) > powerOf(a) ? c : a), best[0]).no;
-          S.slots = [null, null, null, null, null];
-          S.pickMsg = `総戦力 ${num(best.reduce((a, c) => a + powerOf(c), 0))} の編成に組み替えた`;
-          saveSquads(); SFX.win ? SFX.win() : SFX.pick(); draw();
-        },
-      }, el('i', {}, '★'), 'おすすめ編成（総戦力が最大）'),
       grid,
       /* 武将の升は縦に長い。コストと「陣形へ」を見るために いちいち
          いちばん下まで巻くのが手間だったので、この帯ごと画面の下に貼り付けた
          （2026-10-03）。追従していた左下の丸い戻り道は、この帯に戻り釦を
          置いたので外した。ほかの画面の戻り釦はそのまま */
       el('div', { class: 'acts actsfix' },
+        /* 選んでいる武将の顔（2026-10-11・悠さんの指図）。いま誰を選んでいるかが一目で分かる。
+           五つの座。空いている座は点線の丸。押すと外れる。総大将には印 */
+        el('div', { class: 'tmpk' }, [0, 1, 2, 3, 4].map(i => {
+          const no = q0.nos[i]; const c = no != null ? charOf(no) : null;
+          if (!c) return el('span', { class: 'tmslot none' });
+          return el('button', { class: 'tmslot' + (S.general === c.no ? ' gen' : ''), title: c.name,
+            onclick: () => { togglePick(c); SFX.pick(); draw(); } },
+            el('i', { class: 'tmface', style: faceStyle(c) }),
+            S.general === c.no ? el('em', { class: 'tmgen' }, '大将') : null);
+        })),
         S.sqpHold
           ? el('button', { class: 'ghost', onclick: () => { const h = S.sqpHold; S.sqpHold = null;
               S.screen = h.from; S.sqp = h.ask;
@@ -10758,7 +10771,10 @@ function screenTower() {
           };
           return el('div', { class: 'twbtns' },
             side('tw_hensei', '陣', '編成', '部隊を組み直す',
-              () => { S.twBack = true; S.teamFrom = 'tower'; S.screen = 'team'; SFX.pick(); draw(); }),
+              /* 編成の画面から部隊えらびを外したので（2026-10-11）、果たし合いと同じく
+                 先に「編む部隊をえらぶ」の札を挟む。戻り先は塔のまま */
+              () => sqAsk('編む部隊をえらぶ', '試練の塔に出す部隊', () => {
+                S.twBack = true; S.teamFrom = 'tower'; S.screen = 'team'; draw(); }, false, true)),
             el('button', { class: 'go twgo',
               disabled: (q.nos.length && !ng.length) ? null : true,
               onclick: () => twGo(f) },

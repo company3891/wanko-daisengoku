@@ -6569,3 +6569,41 @@ body.trdragging { cursor: grabbing; }
 .trevc.dimc { opacity: .55; }
 .trevc .trc { transition: transform .12s, box-shadow .12s, opacity .12s; }
 .trevc.took .trc { transform: translateY(-4px); }
+/* ---- 編成の上の段と、選んでいる顔の帯（2026-10-11）---- */
+.tmrow{gap:6px;margin:2px 0 10px}
+.tmrow .tmbtn{flex:0 0 auto;white-space:nowrap;padding:10px 10px;font-size:12px;min-width:0}
+.tmrow .tmreco{display:flex;align-items:center;gap:4px;border-style:dashed;border-color:#5fb6ff66;color:#bfe6ff}
+.tmrow .tmreco i{font-style:normal;font-size:10px;color:#bfe6ff}
+.tmrow .tmfilt.on{border-color:var(--gold);color:#12100e;background:linear-gradient(#f5e2a8,#d8a94a)}
+.tmfbox .pfrow,.tmfbox .row{flex-wrap:wrap}
+.acts.actsfix:has(.tmpk){flex-wrap:wrap;padding-top:6px}
+.tmpk{flex:0 0 100%;display:flex;justify-content:center;gap:10px;margin-bottom:2px}
+.tmslot{position:relative;width:44px;height:44px;border-radius:50%;padding:0;border:2px solid #d8a94a;
+  background:#1c1916;cursor:pointer;overflow:visible;box-shadow:0 2px 6px #0008}
+.tmslot.none{border:2px dashed #d8a94a55;background:none;box-shadow:none;cursor:default}
+.tmslot.gen{border-color:#f5e2a8;box-shadow:0 0 0 2px #e0654f,0 2px 6px #0008}
+.tmface{display:block;width:100%;height:100%;border-radius:50%;background-size:cover;background-position:50% 30%}
+.tmgen{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);font-style:normal;font-size:8.5px;
+  font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;background:#e0654f;color:#fff;white-space:nowrap}
+.tmslot:active{transform:scale(.92)}
+main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
+/* ---- 編成の上の段と、選んでいる顔の帯（2026-10-11）---- */
+.tmrow{gap:6px;margin:2px 0 10px}
+.tmrow .tmbtn{flex:0 0 auto;white-space:nowrap;padding:10px 10px;font-size:12px;min-width:0}
+.tmrow .tmreco{display:flex;align-items:center;gap:4px;border-style:dashed;border-color:#5fb6ff66;color:#bfe6ff}
+.tmrow .tmreco i{font-style:normal;font-size:10px;color:#bfe6ff}
+.tmrow .tmfilt.on{border-color:var(--gold);color:#12100e;background:linear-gradient(#f5e2a8,#d8a94a)}
+.acts.actsfix:has(.tmpk){flex-wrap:wrap;padding-top:6px}
+.tmpk{flex:0 0 100%;display:flex;justify-content:center;gap:10px;margin-bottom:2px}
+.tmslot{position:relative;width:44px;height:44px;border-radius:50%;padding:0 !important;border:2px solid #d8a94a;
+  background:#1c1916;cursor:pointer;overflow:visible;box-shadow:0 2px 6px #0008}
+.tmslot.none{border:2px dashed #d8a94a55;background:none;box-shadow:none;cursor:default}
+.tmslot.gen{border-color:#f5e2a8;box-shadow:0 0 0 2px #e0654f,0 2px 6px #0008}
+.tmface{display:block;width:100%;height:100%;border-radius:50%;background-size:cover;background-position:50% 30%}
+.tmgen{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);font-style:normal;font-size:8.5px;
+  font-weight:800;line-height:1;padding:2px 4px;border-radius:4px;background:#e0654f;color:#fff;white-space:nowrap}
+.tmslot:active{transform:scale(.92)}
+main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
+/* 札（明るい地）の中に入れた家の引き出しは、字を濃くする（2026-10-11） */
+.tmfbox .clansel{color:#3a2c12;background-color:#ffffffaa;border-color:#a8802c88}
+.tmfbox .clansel option{color:#3a2c12;background:#fff}

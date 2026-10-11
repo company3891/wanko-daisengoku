@@ -215,7 +215,7 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   detailRO: false, detailBase: false, nmMsg: '', rwi: null,
   /* 城に入るたびのお知らせ札（2026-10-08・悠さんの指図）。
      いま何枚目を出しているか。null なら出していない */
-  ad: null,
+  ad: null, skIntro: null,   // skIntro＝関ヶ原の手ほどきの何枚目か（2026-10-12）
   /* 戦のさなかに札を開いたときだけ入る（2026-10-08）。
      { 火力: +120, 防御: -30 } のように、素からの差だけを持つ */
   detailMod: null,
@@ -12980,7 +12980,13 @@ const SEKI_POLL = 3000;
 let SEKI = { look: null, timer: 0, seenRound: 0, npcAt: 0, busy: false, msg: '', pick: false, inv: false };
 
 /* 開いているか（端末の時計で見る。決めるのはサーバー） */
+/* 臨時に開く時（2026-10-12・悠さんの指図「一度内容を確認したいので、今日の10:00まで開催しといて」）。
+   [始め, 終わり]（ミリ秒・UTC）。端末とサーバーの両方に同じものを置く（片方だけだと陣が立たない）。
+   確かめ終えたら空にしてよい */
+const SEKI_EXTRA = [[Date.UTC(2026, 9, 11, 23, 40), Date.UTC(2026, 9, 12, 1, 0)]];   // 10/12 08:40〜10:00（日本）
 function sekiWin(t = Date.now()) {
+  const ex = SEKI_EXTRA.find(([a, b]) => t >= a && t < b);
+  if (ex) return { on: true, key: 'X' + ex[0], left: Math.floor((ex[1] - t) / 1000) };
   const d = new Date(t + 9 * 3600 * 1000);
   const day = d.getUTCDay(), h = d.getUTCHours(), m = d.getUTCMinutes();
   const on = (day === 0 || day === 6) && SEKI_HOURS.includes(h) && m < SEKI_MIN;
@@ -13024,6 +13030,32 @@ function sekiOpen() {
   sekiPoll();
   if (!SEKI.timer) SEKI.timer = setInterval(() => { if (!S.seki) { clearInterval(SEKI.timer); SEKI.timer = 0; return; } sekiPoll(); }, SEKI_POLL);
   SFX.pick(); draw();
+}
+/* はじめて関ヶ原を開いたときの手ほどき（2026-10-12・悠さんの指図
+   「初めて押した時にやり方がわからないと思うので、このポップアップを順番に表示して、
+    その後日程画面や待ち合わせ画面に移動する様にして」）。
+   絵は news/fest_seki（開戦の札）→ news/seki_howto（遊び方）。押すたびに次へ、最後で関ヶ原の札へ。
+   見終えた印は P.seki.intro。絵が一枚も無ければ手ほどきは飛ばす。札の「？」からいつでも見直せる */
+const SEKI_INTRO = ['fest_seki', 'seki_howto'];
+const sekiIntroList = () => SEKI_INTRO.filter(a => adUrl(a));
+function sekiEnter() {
+  if (!(P.seki && P.seki.intro) && sekiIntroList().length) { S.skIntro = 0; SFX.pick(); draw(); return; }
+  sekiOpen();
+}
+function sekiIntroSheet() {
+  const list = sekiIntroList(), i = S.skIntro || 0, a = list[i];
+  const done = () => {
+    P.seki = { ...(P.seki || {}), intro: 1 }; savePlayer();
+    S.skIntro = null; sekiOpen();
+  };
+  if (!a) { done(); return null; }
+  const next = () => { if (i + 1 < list.length) { S.skIntro = i + 1; SFX.pick(); draw(); } else done(); };
+  return el('div', { class: 'sheet adsheet', onclick: next },
+    el('div', { class: 'adbox' },
+      el('div', { class: 'adwrap' }, keepImg({ class: 'adart', src: adUrl(a), alt: '関ヶ原の戦い' })),
+      el('div', { class: 'skidots' }, list.map((_, k) => el('i', { class: k === i ? 'on' : '' }))),
+      el('div', { class: 'adbtns' },
+        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); next(); } }, i + 1 < list.length ? '次へ' : '陣へ向かう'))));
 }
 function sekiClose() { S.seki = false; SEKI.pick = false; SEKI.inv = false; SFX.pick(); draw(); }
 
@@ -13142,7 +13174,9 @@ function sekiSheet() {
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
     el('div', { class: 'card2 skbox' },
       el('div', { class: 'skhead' },
-        el('b', { class: 'mittl' }, '関ヶ原の戦い')),
+        el('b', { class: 'mittl' }, '関ヶ原の戦い'),
+        sekiIntroList().length ? el('button', { class: 'skhelp', title: '遊び方',
+          onclick: () => { S.seki = false; S.skIntro = 0; SFX.pick(); draw(); } }, '？') : null),
       /* 副題の横に残りの刻（2026-10-12）。前は題の帯の右に重なって読めなかった */
       el('p', { class: 'skst' }, '協力バトル',
         W.on ? el('span', { class: 'skleft' }, '残り ', el('b', {}, sekiLeft(W.left))) : null),
@@ -13285,7 +13319,7 @@ function sekiMark() {
   const fl = fxUrl('seki_flame') || fxUrl('flame_赤');
   return el('button', { class: 'skmark' + (W.on ? ' on' : ''), title: '関ヶ原の戦い',
     style: `left:${mapX(SEKI_PLACE)}%;top:${mapY(SEKI_PLACE)}%`,
-    onclick: e => { e.stopPropagation(); sekiOpen(); } },
+    onclick: e => { e.stopPropagation(); sekiEnter(); } },
     fl ? keepImg({ class: 'skfire', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
     el('span', { class: 'skmn' }, '関ヶ原'));
 }
@@ -13427,6 +13461,7 @@ function draw() {
     S.rk ? rkSheet() : null,
     S.link ? linkSheet() : null,
     S.dl ? duelSheet() : null,
+    S.skIntro != null ? sekiIntroSheet() : null,   // 関ヶ原の手ほどき（2026-10-12）
     S.seki && S.detail == null ? sekiSheet() : null,    // 関ヶ原（2026-10-11）。褒美の札を開いているあいだは引っ込める
     S.offl ? offlineSheet() : null,
     S.kuWar ? kuWarSheet() : null,

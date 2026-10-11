@@ -6806,3 +6806,10 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 
 .skst .skleft{position:static;margin-left:12px;letter-spacing:0;font-size:11px;color:#c0392b}
 .skst .skleft b{font-size:14px;color:#c0392b}
+
+/* 2026-10-12 関ヶ原の手ほどき：何枚目かの点と、見直しの「？」 */
+.skidots{display:flex;justify-content:center;gap:8px;margin:2px 0 -2px}
+.skidots i{width:7px;height:7px;border-radius:50%;background:#f5e2a855}
+.skidots i.on{background:#d8a94a;box-shadow:0 0 6px #d8a94a}
+.skhelp{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;padding:0;
+  border:1px solid #a8802c;background:#fbf4e3;color:#a8802c;font-weight:900;font-size:15px;cursor:pointer;line-height:1}

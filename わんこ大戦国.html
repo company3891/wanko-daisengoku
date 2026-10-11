@@ -10805,6 +10805,12 @@ function ultFlare(p) {
 /* ===== 音（2026-09-20）=====
    音源ファイルを持たず、その場で合成する。1枚のHTMLのまま鳴らせる。 */
 let AC = null, SOUND_ON = false;
+/* 音の箱を起こす（2026-10-11）。
+   iPhone の Safari は、閉じて戻ると箱が「suspended」ではなく「interrupted」という
+   Safari だけの状態で止まる。前は suspended しか見ていなかったので、起こし直されず
+   BGM（Web Audio で鳴らしている）だけが消えたままになっていた。
+   効果音は <audio> で鳴らしているので、この箱と関係なく鳴りつづけていた */
+const acWake = () => { if (AC && AC.state !== 'running' && AC.state !== 'closed') AC.resume().catch(() => { }); };
 /* 種類ごとの入り切りと大きさ（2026-09-28）。
    MIX[種類] は 0〜1。0 なら鳴らさない。
    もとの音を「BGM 平均 -21dB／環境音 -27dB」にそろえてあるので、
@@ -10834,7 +10840,7 @@ function soundEnabled(v) {
   if (!SOUND_ON) { for (const k of ['bgm', 'amb']) { const c = loops[k]; if (c) c.pause(); } }
   else { for (const k of ['bgm', 'amb']) { const c = loops[k]; if (c && mixOf(k) > 0) c.play(); } }
   if (SOUND_ON && !AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { AC = null; } }
-  if (AC && AC.state === 'suspended') AC.resume();
+  acWake();
   return SOUND_ON;
 }
 function tone({ f = 440, to = null, dur = .12, type = 'square', gain = .06, delay = 0 }) {
@@ -10970,7 +10976,7 @@ function waLoop(name, url, volume) {
       o.src = src; o.base = AC.currentTime - at;
     },
     play() { o.want = true;
-             if (AC.state === 'suspended') AC.resume().catch(() => {});
+             acWake();
              if (!o.src) o.begin(o.at); },
     pause() { o.want = false; o.at = o.pos();
               if (o.src) { try { o.src.stop(); } catch {} try { o.src.disconnect(); } catch {} o.src = null; } },
@@ -10981,7 +10987,7 @@ function waLoop(name, url, volume) {
   loopBuf(url).then(v => {
     if (!mine()) return;                    // 読んでいるあいだに曲が替わっていた
     o.seg = v;
-    if (o.want) { o.begin(null); o.fade(volume, 800); }
+    if (o.want) { o.begin(o.at); o.fade(volume, 800); }
   }).catch(() => {
     if (!mine()) return;
     const k = loops.bgm === o ? 'bgm' : 'amb';
@@ -11045,19 +11051,49 @@ function soundSleep() {
 function soundWake() {
   const keep = HIDDEN_LOOPS; HIDDEN_LOOPS = null;
   if (!keep || !SOUND_ON) return;
-  if (AC && AC.state === 'suspended') AC.resume().catch(() => { });
+  acWake();
   for (const k of ['bgm', 'amb']) {
     const cur = loops[k];
     if (cur && keep[k] === cur.name && mixOf(k) > 0) cur.play();   // 続きから鳴らし直す
+  }
+  AC_T = null;     // 戻ってすぐは時計の見張りを数え直す
+}
+/* 音の箱を作り直す（2026-10-11）。
+   iPhone は、戻ったあと箱が「running」と言いながら時計が止まり、何も鳴らないことがある。
+   そうなると起こしても戻らないので、箱ごと新しくし、鳴っていた曲を続きから掛け直す。
+   ほどいた波形（BUFC）は箱をまたいで使えるので、読み直しは要らない */
+let AC_T = null;
+function acRebuild() {
+  const keep = {};
+  for (const k of ['bgm', 'amb']) {
+    const cur = loops[k];
+    if (cur && cur.gain) { keep[k] = { name: cur.name, at: cur.pos ? cur.pos() : null }; cur.pause(); loops[k] = null; }
+  }
+  const old = AC;
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { AC = old; return; }
+  try { old && old.close(); } catch { }
+  acWake();
+  for (const k of Object.keys(keep)) {
+    playLoop(k, keep[k].name.replace(/\.mp3$/, ''));
+    if (loops[k] && keep[k].at != null) loops[k].at = keep[k].at;
   }
 }
 /* 勝手に止まったのを起こし直す（2026-09-30）。
    iPhone は 電話・動画・Siri に割り込まれると、囃子が止まったまま戻らない。
    設定は「入」のままなので、遊ぶ人には ただ音が消えたようにしか見えない。
    触れたときと、数秒ごとに「鳴っているはずなのに止まっていないか」を見に行く */
-function soundKick() {
+function soundKick(watch) {
   if (!SOUND_ON || HIDDEN_LOOPS) return;
-  if (AC && AC.state === 'suspended') AC.resume().catch(() => { });
+  /* 止まった箱を見つける：閉じられた／running なのに時計が進まない。
+     時計の見比べは4秒ごとの見回りだけで行う（触れたときは一度の手で何度も呼ばれ、
+     同じ刻みのうちに二度見ると「止まっている」と取り違える） */
+  if (watch === true && AC && (loops.bgm || loops.amb)) {
+    const t = AC.currentTime;
+    const stuck = AC.state === 'closed' || (AC.state === 'running' && AC_T != null && t === AC_T);
+    AC_T = t;
+    if (stuck) { AC_T = null; acRebuild(); return; }
+  }
+  acWake();
   for (const k of ['bgm', 'amb']) {
     const cur = loops[k];
     if (cur && mixOf(k) > 0 && cur.paused()) cur.play();
@@ -11072,7 +11108,7 @@ if (typeof document !== 'undefined') {
   window.addEventListener('pageshow', soundWake);
   for (const t of ['pointerdown', 'touchend', 'click', 'keydown'])
     document.addEventListener(t, soundKick, { passive: true, capture: true });
-  setInterval(soundKick, 4000);
+  setInterval(() => soundKick(true), 4000);
 }
 
 const SYNTH = {

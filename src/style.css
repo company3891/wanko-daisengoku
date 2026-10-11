@@ -6565,3 +6565,7 @@ body.trdragging { cursor: grabbing; }
 .rkpstep.img .rkppt b{font-size:14px}
 .rkpc.r1 .rkpstep.img .rkppt b{font-size:17px}
 .rkpstep.img .rkpttl{line-height:1.5 !important;padding:0 6px}
+/* 道中の札えらび：選んでいない札は少し沈める（2026-10-11） */
+.trevc.dimc { opacity: .55; }
+.trevc .trc { transition: transform .12s, box-shadow .12s, opacity .12s; }
+.trevc.took .trc { transform: translateY(-4px); }

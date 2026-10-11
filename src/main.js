@@ -12611,16 +12611,33 @@ function trResSheet() {
         const who = trWho(r.no); const sp = r.spoil;
         return el('div', { class: 'trevpickc' },
           el('small', {}, sp.took != null ? '札束に一枚くわえた' : '札を一枚えらんで札束にくわえる'),
+          /* 押しただけでは決めない（2026-10-11・悠さんの指図）。押すと選ぶ、もう一度押すと外す。
+             下の釦で決める。選んでいなければ「とらずに道へ」 */
           el('div', { class: 'trevcards' }, sp.cards.map((en, k) => {
             const kd = trKdOfEntry(en, who); if (!kd) return null;
-            return el('div', { class: 'trevc' + (sp.took === k ? ' took' : sp.took != null ? ' sold' : '') },
+            const cls = sp.took != null ? (sp.took === k ? ' took' : ' sold') : sp.sel === k ? ' took' : sp.sel != null ? ' dimc' : '';
+            return el('div', { class: 'trevc' + cls },
               trCardEl(who, kd, trSpec(who, kd), { small: true, on: () => {
-                if (sp.took != null) return; sp.took = k;
-                const rn = trRunOf(r.no); rn.cards.push({ no: en.no, key: en.key, up: 0 });
-                SFX.get(); savePlayer(); draw(); } }));
+                if (sp.took != null) return;
+                sp.sel = sp.sel === k ? null : k;
+                SFX.pick(); draw(); } }));
           })));
       })() : null,
-      el('button', { class: 'go wide', onclick: close }, (r.spoil && r.spoil.took == null && r.spoil.cards.length) ? '札はとらずに道へ' : '道へ戻る')));
+      (() => {
+        const sp = r.spoil;
+        const open = sp && sp.took == null && sp.cards.length;
+        const go = () => {
+          if (open && sp.sel != null) {
+            const en = sp.cards[sp.sel];
+            sp.took = sp.sel;
+            const rn = trRunOf(r.no); rn.cards.push({ no: en.no, key: en.key, up: 0 });
+            SFX.get(); savePlayer();
+          }
+          close();
+        };
+        return el('button', { class: 'go wide', onclick: go },
+          !open ? '道へ戻る' : sp.sel != null ? 'この札をくわえて道へ' : '札はとらずに道へ');
+      })()));
 }
 
 /* 出陣も題の帯を出さない（2026-09-29）。

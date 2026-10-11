@@ -7401,6 +7401,20 @@ function parseSentence(s, out) {
   // --- 5ステータスのバフ／デバフ ---
   const buffRe = new RegExp('(火力|賢さ|知力|知略|防御|守備|回復|速さ|攻撃力|防御力|回復力)(?:を)?([+-])' + N + '%', 'g');
   let bm;
+  /* 「…%のダメージを与え、防御-30%を3ターン付与する」（2026-10-11）。
+     ダメージの文なので下の筋では丸ごと飛ばしていて、後ろの弱体が効いていなかった
+     （明智・石田PR・濃姫ほか奥義9つ）。打った相手と同じ範囲にかける */
+  const tail = s.match(/%の?ダメージを与え[、,](.+)$/);
+  if (tail) {
+    const dmg = [...out].reverse().find(e => e.kind === 'damage');
+    const tr = new RegExp(buffRe.source, 'g');
+    let tm;
+    while ((tm = tr.exec(tail[1])) !== null) {
+      const sign = tm[2] === '-' ? -1 : 1;
+      push({ kind: sign > 0 ? 'buff' : 'debuff', stat: normalizeStat(tm[1]), pct: sign * +tm[3] / 100, dur: D,
+             target: sign > 0 ? 'self' : (dmg ? dmg.target : targetOf(s, 'enemy1')) });
+    }
+  }
   while ((bm = buffRe.exec(s)) !== null) {
     if (attrBuffDone) break;   // 「味方全体の〇将の△+N%」で既に拾っている
     if (/%の?ダメージ|回復力?\d+%で回復/.test(s)) continue;
@@ -20624,7 +20638,8 @@ const DB = {
       "kind": "不仲",
       "members": [
         61,
-        64
+        64,
+        111
       ],
       "cond": "同編成に2体以上",
       "need": 2,
@@ -20937,6 +20952,19 @@ const DB = {
       "stat": "防御",
       "rate": 0.1,
       "text": "同編成に2体以上で、対象の防御+10%"
+    },
+    {
+      "name": "刑部と治部",
+      "kind": "盟友",
+      "members": [
+        70,
+        111
+      ],
+      "cond": "同編成に2体以上",
+      "need": 2,
+      "stat": "全ステータス",
+      "rate": 0.08,
+      "text": "同編成で両者の全ステータス+8%"
     }
   ],
   "version": "v1.3",
@@ -28747,7 +28775,7 @@ const DB = {
       "gender": "男",
       "rarity": "PR",
       "attr": "猛将",
-      "clan": "織田家",
+      "clan": "豊臣家",
       "role": "前衛・攻撃",
       "cost": 200,
       "stats": {
@@ -28788,7 +28816,7 @@ const DB = {
         "cost": 4
       },
       "generalTrait": {
-        "name": "光秀の決意",
+        "name": "三成の決意",
         "text": "【範囲:全体】味方全体の会心率+10%",
         "element": "猛将"
       },

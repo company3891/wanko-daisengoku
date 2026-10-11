@@ -1349,6 +1349,8 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 .clv.dlt.s-速さ{color:#ffd23f}
 /* 役割の箱の塗り直し（2026-09-30）。焼いた字を地の色で隠し、上に書き直す */
 .cdc .crolebg{position:absolute;z-index:2;border-radius:.4cqw;pointer-events:none}
+/* 所属の欄に置き直す紋（2026-10-11） */
+.cdc .clkam{position:absolute;z-index:3;object-fit:contain;pointer-events:none}
 .clv.crole{transform:translate(-50%,-50%);font-family:var(--mincho);font-weight:700;
   letter-spacing:.02em;z-index:3}
 .cdc.hide{display:none}
@@ -34578,16 +34580,28 @@ function cardStatOverlay(c, ro, mod) {
      札の「所属」は絵に焼き込んであるので「浪人」のまま残っていた。
      焼き直すまでのあいだ、この6体だけ クリームの紙を当てて今の家を書く。
      ほかの子は焼いた字が正しいので触らない（全員に重ねると字の太さが揃わず目立つ） */
-  if (CLAN_REBAKE.has(+c.no) && c.clan) {
+  if (clanRebake(c)) {
     const t = CLAN_BOX;
+    /* 2026-10-11：紋も一緒に描き直す（悠さんの指図）。家紋12点を正しい紋に替えたが、
+       札に焼いた小さな紋は古いまま残っていた。焼いたときと同じ並び
+       （紋 38px・間 8px・字 26px を、欄の真ん中にそろえる）で、紙の上に置き直す。
+       字も今の家名で書く（焼いた札には「上杉軍」「西軍」など古い呼び名が残っていた） */
+    const ku = kamonUrl(c.clan);
+    const IS = 38, GAP = 8, FS = 26;
+    const tw = [...c.clan].length * FS;
+    const cx = t.x + t.w / 2, cy = t.y + t.h / 2 + 2;   // 焼いた字は欄の真ん中より 2px 下にある
+    const left = cx - (tw + (ku ? IS + GAP : 0)) / 2;
     out.push(
       el('i', { class: 'crolebg',
         style: `left:${pc(t.x, 864)};top:${pc(t.y, 1280)};`
              + `width:${pc(t.w, 864)};height:${pc(t.h, 1280)};background:${t.bg};`
              + `-webkit-mask-image:${t.mask};mask-image:${t.mask}` }),
+      ku ? el('img', { class: 'clkam', src: ku, alt: '',
+        style: `left:${pc(left, 864)};top:${pc(cy - IS / 2, 1280)};`
+             + `width:${pc(IS, 864)};height:${pc(IS, 1280)}` }) : null,
       el('b', { class: 'clv crole',
-        style: `left:${pc(t.x + t.w / 2, 864)};top:${pc(t.y + t.h / 2, 1280)};`
-             + `font-size:${fs(t.size)};color:${t.fg}` }, c.clan));
+        style: `left:${pc(left + (ku ? IS + GAP : 0) + tw / 2, 864)};top:${pc(cy, 1280)};`
+             + `font-size:${fs(FS)};color:${t.fg}` }, c.clan));
   }
   return out;
 }
@@ -34595,6 +34609,11 @@ function cardStatOverlay(c, ro, mod) {
    豊臣ヒデヨシバ・濃姫・浅井ながワン・加藤キヨマサ犬・直江カネつぐる・ガラシャわん。
    札を焼き直したら、ここから外す */
 const CLAN_REBAKE = new Set([30, 31, 47, 64, 67, 68]);
+/* 紋を正しいものに替えた家（2026-10-10）。この家の子は、札の所属の紋が古いので描き直す。
+   札を焼き直したら、ここから外す */
+const KAMON_REBAKE = new Set(['佐々家', '十河家', '津軽家', '長宗我部家', '石田家', '上杉家',
+  '浅井家', '島津家', '赤松家', '蠣崎家', '吉川家', '最上家']);
+const clanRebake = c => !!c.clan && (CLAN_REBAKE.has(+c.no) || KAMON_REBAKE.has(c.clan));
 /* 所属のクリームの欄（864×1280 の目盛りで実測・2026-10-10）。
    紙は x 586-819 / y 1154-1193。縁ぎわは金がにじんで黄ばむので、
    真ん中だけ塗り、左右の端は mask でぼかして継ぎ目を消す */

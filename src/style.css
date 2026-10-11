@@ -1334,6 +1334,8 @@ main.hasnav:has(.pity){padding-bottom:calc(var(--nav,104px) + 62px)}
 .clv.dlt.s-速さ{color:#ffd23f}
 /* 役割の箱の塗り直し（2026-09-30）。焼いた字を地の色で隠し、上に書き直す */
 .cdc .crolebg{position:absolute;z-index:2;border-radius:.4cqw;pointer-events:none}
+/* 所属の欄に置き直す紋（2026-10-11） */
+.cdc .clkam{position:absolute;z-index:3;object-fit:contain;pointer-events:none}
 .clv.crole{transform:translate(-50%,-50%);font-family:var(--mincho);font-weight:700;
   letter-spacing:.02em;z-index:3}
 .cdc.hide{display:none}

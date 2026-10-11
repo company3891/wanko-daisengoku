@@ -7038,6 +7038,9 @@ const AD_CARDS = [
    その日だけのものを先に見せたい */
 function festCards() {
   const out = [];
+  /* 関ヶ原の戦い（2026-10-12・悠さんの指図「開催の日に表示するように」）。
+     開くのは土日だけなので、土日のログインで一番先に出す。絵は news/fest_seki.png */
+  if (isWeekend()) out.push({ art: 'fest_seki', name: '関ヶ原の戦い' });
   const aw = evOf('awake');
   if (aw && evShownToday(aw))
     for (const a of awakeAttrsToday()) out.push({ art: 'fest_awake_' + a, name: a + '覚醒の日' });

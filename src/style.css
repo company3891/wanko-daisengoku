@@ -6544,3 +6544,24 @@ body.trdragging { cursor: grabbing; }
 .rktick b{font-size:15px;margin-left:0}
 .card2:not(.winbox):not(.resbox):not(.growbox) .rklogb{background:none;border:0;padding:0 4px;font-size:14px}
 .rklogdot{top:-1px;right:-6px;box-shadow:none}
+/* 表彰台の絵（2026-10-11）。絵は横480×縦約326（およそ 1.47:1）。
+   上の三割あまりは順位の丸と縁なので、字はその下の板の上に置く */
+.rkpstep.img{min-height:0 !important;aspect-ratio:1.47;background:none !important;border:0;box-shadow:none !important;
+  border-radius:0;padding:31% 9% 7%;justify-content:center;gap:1px}
+.rkpimg{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;filter:drop-shadow(0 3px 5px #0005)}
+.rkpstep.img > :not(.rkpimg){position:relative}
+.rkpstep.img{isolation:isolate}
+.rkpc.me .rkpstep.img .rkpimg{filter:drop-shadow(0 0 6px #e0654f) drop-shadow(0 3px 5px #0005)}
+.rkpc .rkpfig{margin-bottom:-24%}
+/* 対戦札の絵は「×5」の字と同じくらいに（2026-10-11） */
+.rktkimg{height:16px}
+/* 三行（名・称号・pt）が板に収まらなかったので、板を縦に二割ほど伸ばし、字を詰めた（2026-10-11） */
+.rkpstep.img{aspect-ratio:1.22;padding:29% 8% 9%;gap:2px}
+.rkpimg{object-fit:fill}
+.rkpstep.img > :not(.rkpimg){line-height:1.15}
+.rkpstep.img .rkpnm{font-size:11px}
+.rkpc.r1 .rkpstep.img .rkpnm{font-size:12.5px}
+.rkpstep.img .rkpttl{font-size:8.5px;padding:0 6px}
+.rkpstep.img .rkppt b{font-size:14px}
+.rkpc.r1 .rkpstep.img .rkppt b{font-size:17px}
+.rkpstep.img .rkpttl{line-height:1.5 !important;padding:0 6px}

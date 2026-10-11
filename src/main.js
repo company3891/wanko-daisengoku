@@ -2851,8 +2851,11 @@ function rkPodium(top, r) {
         pw ? keepImg({ class: 'rkppw', src: pw, alt: ch.name })
            : ch && cardArt(ch) ? keepImg({ class: 'rkpcd', src: cardArt(ch), alt: ch.name, loading: 'lazy' })
            : el('i', { class: 'rkpch', style: ch ? chipStyle(ch) : '' }, el('b', {}, ((ch && ch.name) || '')[0] || ''))),
-      el('span', { class: 'rkpstep' },
-        el('em', { class: 'rkprk' }, String(x.rank)),
+      /* 台の絵（ui/podium_1〜3・2026-10-11 悠さん作）。順位の丸は絵に入っているので、字の丸は出さない。
+         絵が無いうちは金・銀・銅の色の台と字の丸に落ちる */
+      el('span', { class: 'rkpstep' + (uiUrl('podium_' + x.rank) ? ' img' : '') },
+        uiUrl('podium_' + x.rank) ? keepImg({ class: 'rkpimg', src: uiUrl('podium_' + x.rank), alt: '' })
+                                  : el('em', { class: 'rkprk' }, String(x.rank)),
         el('b', { class: 'rkpnm' }, x.name),
         el('span', { class: 'rkpttl' }, ttl || NONAME),
         el('span', { class: 'rkppt' }, el('b', {}, num(x.pt)), el('i', {}, 'pt'))));

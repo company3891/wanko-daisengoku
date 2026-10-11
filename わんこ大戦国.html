@@ -6625,6 +6625,10 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 /* お祭りの褒美の道具は、小判や魂と同じく地を敷かずに絵だけ（2026-10-11・悠さんの指図）。
    .itic.art の白い地は、店の棚で絵を読みやすくするためのもの */
 .rc2 .itic.art,.evrw2 .itic.art,.evic .itic.art,.evbig .itic.art,.evrw .itic.art{background:none !important;border:0 !important;box-shadow:none !important}
+/* 編成の絞込み札の釦（2026-10-11） */
+.tmfacts{display:flex;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid #a8802c33}
+.tmfacts button{flex:1 1 0;min-width:0;padding:14px 10px;font-size:15px;font-weight:800;border-radius:12px}
+.tmfacts .go{flex:2 1 0}
 
 </style>
 </head>
@@ -36462,11 +36466,12 @@ function tmFiltSheet() {
       /* 家の引き出しをいちばん上に（2026-10-11・悠さんの指図）。
          pickRows の並びは [位, 属性, 家, 並べ替え]。図鑑・育成は前のまま */
       (r => [r[2], r[0], r[1], r[3]])(pickRows(PF_TEAM)),
-      el('div', { class: 'acts2' },
-        el('button', { class: 'ghost sm', disabled: pfOnTeam() ? null : true, onclick: () => {
+      /* 釦は 左＝とじる／右＝リセット。絞込みの札から間を空け、少し大きく（2026-10-11・悠さんの指図） */
+      el('div', { class: 'tmfacts' },
+        el('button', { class: 'go', onclick: close }, 'とじる'),
+        el('button', { class: 'ghost', disabled: pfOnTeam() ? null : true, onclick: () => {
           S[PF_TEAM.rar] = 'すべて'; S[PF_TEAM.att] = 'すべて'; S[PF_TEAM.clan] = 'すべて'; S[PF_TEAM.sq] = false;
-          SFX.pick(); draw(); } }, '戻す'),
-        el('button', { class: 'go sm', onclick: close }, 'とじる'))));
+          SFX.pick(); draw(); } }, 'リセット'))));
 }
 function screenTeam() {
   /* 編成に並ぶのは「いま手元にいる」武将だけ（2026-10-03 直し）。

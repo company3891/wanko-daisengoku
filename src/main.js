@@ -8081,11 +8081,12 @@ function tmFiltSheet() {
       /* 家の引き出しをいちばん上に（2026-10-11・悠さんの指図）。
          pickRows の並びは [位, 属性, 家, 並べ替え]。図鑑・育成は前のまま */
       (r => [r[2], r[0], r[1], r[3]])(pickRows(PF_TEAM)),
-      el('div', { class: 'acts2' },
-        el('button', { class: 'ghost sm', disabled: pfOnTeam() ? null : true, onclick: () => {
+      /* 釦は 左＝とじる／右＝リセット。絞込みの札から間を空け、少し大きく（2026-10-11・悠さんの指図） */
+      el('div', { class: 'tmfacts' },
+        el('button', { class: 'go', onclick: close }, 'とじる'),
+        el('button', { class: 'ghost', disabled: pfOnTeam() ? null : true, onclick: () => {
           S[PF_TEAM.rar] = 'すべて'; S[PF_TEAM.att] = 'すべて'; S[PF_TEAM.clan] = 'すべて'; S[PF_TEAM.sq] = false;
-          SFX.pick(); draw(); } }, '戻す'),
-        el('button', { class: 'go sm', onclick: close }, 'とじる'))));
+          SFX.pick(); draw(); } }, 'リセット'))));
 }
 function screenTeam() {
   /* 編成に並ぶのは「いま手元にいる」武将だけ（2026-10-03 直し）。

@@ -6536,3 +6536,11 @@ body.trdragging { cursor: grabbing; }
   color:#f5e2a8cc;font-size:11px;white-space:nowrap}
 .rktick b{font-family:var(--mincho);font-size:14px;color:#fff;font-weight:900;margin-left:2px}
 .rktick.none b{color:#e0654f}
+/* 対戦札は絵と数だけ、戦歴は字だけ（2026-10-11・悠さんの指図「背景みたいなのはいらない」） */
+.card2:not(.winbox):not(.resbox):not(.growbox) .rkttl{padding-left:132px;padding-right:132px}
+.rktick{right:42px;height:auto;padding:0;gap:3px;background:none;border:0;border-radius:0}
+.rktkimg{display:block;height:24px;width:auto;filter:drop-shadow(0 1px 2px #0008)}
+.rktick i{font-style:normal;font-family:var(--mincho);font-size:13px;color:#f5e2a8}
+.rktick b{font-size:15px;margin-left:0}
+.card2:not(.winbox):not(.resbox):not(.growbox) .rklogb{background:none;border:0;padding:0 4px;font-size:14px}
+.rklogdot{top:-1px;right:-6px;box-shadow:none}

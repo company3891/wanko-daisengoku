@@ -2815,7 +2815,10 @@ function rkSheet() {
         el('b', { class: 'mittl' }, RK_TIERS[r.tier]),
         /* 対戦札は しるしの横に小さく（2026-10-11）。上の三つの箱は外した：
            自分の点と順位は表彰台か一覧の自分の行に出ているので二度出しになっていた */
-        el('span', { class: 'rktick' + (r.tick < 1 ? ' none' : '') }, '札 ', el('b', {}, String(r.tick)), `/${RK_TICKET}`),
+        /* 札の絵（ui/rk_ticket・2026-10-11 悠さん作）と「×5」だけ。絵が無いうちは「札」の一字 */
+        el('span', { class: 'rktick' + (r.tick < 1 ? ' none' : '') },
+          uiUrl('rk_ticket') ? keepImg({ class: 'rktkimg', src: uiUrl('rk_ticket'), alt: '対戦札' }) : el('i', {}, '札'),
+          el('b', {}, `×${r.tick}`)),
         /* 段ごとの褒美を見る小さな釦（2026-09-25）。右上に置く */
         /* 小判の絵だと「ここで小判がもらえる」に見えるので、しるしに変えた（2026-09-25） */
         el('button', { class: 'rkpz', title: '月末の褒美を見る',

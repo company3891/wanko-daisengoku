@@ -341,7 +341,7 @@ const AWAKE_RECIPE = [
   [{ b: 2, n: 5 },  { b: 1, n: 20 }, { b: 0, n: 20 }, { f: 2, n: 40 }],   //     → 99
 ];
 /* レアリティが高いほど多く要る（上限そのものは同じ） */
-const RAR_MUL = { N: 1, R: 1, SR: 1.5, SSR: 2, UR: 2.5 };
+const RAR_MUL = { N: 1, R: 1, SR: 1.5, SSR: 2, UR: 2.5, PR: 1.5 }; // PR（催しの武将）は SR と同じ重さ 2026-10-11
 /* その回の覚醒に要るものを、並びで返す */
 export function awakeNeed(rarity, times, attr) {
   const r = AWAKE_RECIPE[times]; if (!r) return null;
@@ -525,7 +525,7 @@ export const SKILL_MAX = 3;                       // 通常特技のレベル上
 export const MAT_MAX = 1;                         // 1回に使える素材の数
 export const BOOK = '特技の伝書';
 /* 特技の★＝その特技を持つ武将のうち、いちばん低いレアリティ */
-const STAR_BY_RARITY = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5 };
+const STAR_BY_RARITY = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5, PR: 3 }; // PR（催しの武将）は SR と同じ重さ 2026-10-11
 /* ★ごとの、素材1つあたりの成功率（%）。
    通常特技3枠をすべてLv3にするのに要るカードが ★1で25体／★5で100体 になるよう置いた */
 export const STAR_RATE = [0, 40, 32, 24, 15, 7];
@@ -1074,7 +1074,7 @@ export function grantStones(no, receipt) {
    「御籤番号」を控えておけば、あとから同じ結果を再現して検証できる。
    サーバーは1回ぶんの結果を保存しなくても、申告が正しいか確かめられる。 */
 export const RATES = { UR: 0.02, SSR: 0.08, SR: 0.20, R: 0.30, N: 0.40 };
-export const SOUL_BY_RARITY = { N: 1, R: 3, SR: 10, SSR: 30, UR: 100 };
+export const SOUL_BY_RARITY = { N: 1, R: 3, SR: 10, SSR: 30, UR: 100, PR: 10 }; // PR（催しの武将）は SR と同じ重さ 2026-10-11
 export const PRICE = { single: 300, ten: 3000 };
 /* おみくじの帯の節目（2026-09-26）。帯は「URまでの積み」を見せている。
    30 … SR以上が確定　60 … SSR以上が確定

@@ -171,6 +171,11 @@ const STAGES = ['地形なし', ...Object.keys(RULES.stage.maps || {})];
    盤が真緑の四角になっていた */
 const stageArt = s => (s === '地形なし' ? '草原' : s);
 const RAR = ['UR', 'SSR', 'SR', 'R', 'N'];
+/* 催しでしか手に入らない武将（2026-10-11 悠さんの指図）。位は「PR」と出す。
+   くじ・取引所の他人の棚・番付や敵の顔ぶれには混ぜない（そのときしか出ない、が値打ちなので）。
+   図鑑・絞り込み・並べ替えでは PR を一番上に置く */
+const RAR_TAB = ['PR', ...RAR];
+const CR = C.filter(c => !c.eventLimited && c.rarity !== 'PR');
 const POOL = {}; for (const r of RAR) POOL[r] = C.filter(c => c.rarity === r);
 const charOf = no => C.find(c => c.no === no) || null;
 buildStars(C);                 // 特技の★（その特技を持つ最低レアリティ）を数えておく
@@ -2648,15 +2653,15 @@ const rkScale = (st, k) => {
 /* 一覧に顔を出すための総大将だけを安く取り出す（部隊5体を組むのは重いので）*/
 function rkGenOf(npc) {
   const rnd = rkRand(npc.pick);
-  for (let i = 0; i < 40; i++) { const c = C[Math.floor(rnd() * C.length)]; if (c) return c; }
-  return C[0];
+  for (let i = 0; i < 40; i++) { const c = CR[Math.floor(rnd() * CR.length)]; if (c) return c; }
+  return CR[0];
 }
 function rkTeamOf(npc) {
   const rnd = rkRand(npc.pick);
   const t = [];
   let guard = 0;
   while (t.length < 5 && guard++ < 400) {
-    const c = C[Math.floor(rnd() * C.length)];
+    const c = CR[Math.floor(rnd() * CR.length)];
     if (t.some(x => x.no === c.no)) continue;
     if (c.origin && t.some(x => x.origin === c.origin)) continue;   // 敵の中で同じ人物は重ねない
     t.push(c);
@@ -5325,7 +5330,7 @@ function screenInherit() {
            継ぐときに見ているのは「どの犬か」ではなく「どの技がもらえるか」なので、
            位だけでなく**渡せる特技の属性**で絞れるようにした。
            ◆は同じ属性にしか継げないので、「◆が継げる子だけ」の一押しも置く */
-        el('div', { class: 'row chapters bagtabs ihf' }, ['すべて', ...RAR].map(r => el('button', {
+        el('div', { class: 'row chapters bagtabs ihf' }, ['すべて', ...RAR_TAB].map(r => el('button', {
           class: 'chip' + ((S.ihRar || 'すべて') === r ? ' on' : ''),
           onclick: () => { S.ihRar = r; SFX.pick(); draw(); },
         }, r))),
@@ -5741,7 +5746,7 @@ function screenSquads() {
 /* 並びの名は、遊ぶ人が札の上で見ている言葉にそろえた（2026-09-30）。
    「位」は絞込みの行と紛らわしいので「レア」、出陣の重さは札に刷ってある通り「コスト」 */
 const DEXSORT = [
-  { k: 'rar',  name: 'レア',   up: false, v: c => -RAR.indexOf(c.rarity) },
+  { k: 'rar',  name: 'レア',   up: false, v: c => -RAR_TAB.indexOf(c.rarity) },
   { k: 'no',   name: 'No.',    up: true,  v: c => c.no },
   { k: 'cost', name: 'コスト', up: false, v: c => c.cost || 0 },
   /* 「手持ち」の並びは外した（2026-09-30）。
@@ -5798,7 +5803,7 @@ function pickRows(ks, opt) {
   const so  = DEXSORT.find(x => x.k === pfGet(ks, 'sort', (opt && opt.sort0) || 'rar')) || DEXSORT[0];
   const up  = pfGet(ks, 'asc', null) == null ? so.up : !!pfGet(ks, 'asc', null);
   return [
-    pfRow(['すべて', ...RAR].map(r => el('button', {
+    pfRow(['すべて', ...RAR_TAB].map(r => el('button', {
       class: 'chip' + (rar === r ? ' on' : '') + (r !== 'すべて' && rarUrl(r) ? ' ric' : ''),
       onclick: () => pfSet(ks, 'rar', r),
     }, r === 'すべて' ? 'すべて' : rarTag(r)))),
@@ -8709,7 +8714,7 @@ function campEnemy(pref, step, rng) {
     const room = want - sum;
     const need = Math.max(1, 4 - t.length);
     const cap = t.length >= 3 ? room : Math.max(150, Math.floor(room / need));
-    const cand = C.filter(c => c.cost <= Math.min(room, cap) && !t.some(x => x.no === c.no)
+    const cand = CR.filter(c => c.cost <= Math.min(room, cap) && !t.some(x => x.no === c.no)
       && !(c.origin && mine.has(c.origin))
       && !t.some(x => x.origin && c.origin && x.origin === c.origin));   // 敵の中でも同じ人物は重ねない
     if (!cand.length) break;
@@ -8730,7 +8735,7 @@ function lordName(pref) {
 function enemyTeam(rng) {
   // 相手はこちらと同じ合計コストに近づくようランダムに組む
   const want = Math.max(200, cost());
-  const pool = C.filter(c => !S.picked.some(p => p.no === c.no));   // 同じ武将が両軍に出ると戦況が読めない
+  const pool = CR.filter(c => !S.picked.some(p => p.no === c.no));   // 同じ武将が両軍に出ると戦況が読めない
   const t = [];
   let sum = 0, guard = 0;
   while (t.length < S.picked.length && guard++ < 400) {
@@ -8756,7 +8761,7 @@ function evEnemy(rank, rng) {
      いまは重いほうから、**残りの枠に最低のコストを残せるかぎり**取る。
      こうすると 1200 をきっちり使い切り、名のある将が並ぶ。 */
   const MIN = Math.min(...C.map(c => c.cost));
-  const pool = C.filter(c => !(c.origin && mine.has(c.origin)));
+  const pool = CR.filter(c => !(c.origin && mine.has(c.origin)));
   const t = [];
   let sum = 0;
   for (let slot = 0; slot < 5; slot++) {
@@ -9912,12 +9917,13 @@ function prizeRow(rw, ev) {
     /* 称号も粒で見せる（2026-10-01）。塔の節目でもらえる。
        数ではなく名を下に添えるので、prizeTile の数の枠には入れない */
     if (ev.title) t.push(prizeTile(frameUrl(ev.title), '称', ev.title, null));
-    // もらった武将はコマ絵で。新しく来たのか、重なったのかを下に添える
-    for (const g of (ev.got || [])) {
-      const o = charOf(g.no); if (!o) continue;
-      t.push(prizeTile(pawnUrl(g.no) || faceUrl(g.no, '通常'), (o.name || '')[0] || '将',
-                       g.dup ? '重ね' : '新', null));
-    }
+  }
+  /* もらった武将はコマ絵で。新しく来たのか、重なったのかを下に添える。
+     関ヶ原は勝ちの褒美（rw）に武将が入るので、ev の外に出した（2026-10-11） */
+  for (const g of [...((rw && !rw.lost && rw.got) || []), ...((ev && ev.got) || [])]) {
+    const o = charOf(g.no); if (!o) continue;
+    t.push(prizeTile(pawnUrl(g.no) || faceUrl(g.no, '通常'), (o.name || '')[0] || '将',
+                     g.dup ? '重ね' : '新', null));
   }
   if (!t.length) return null;
   return el('div', { class: 'pzrow' }, t);
@@ -10230,7 +10236,7 @@ function twEnemy(f, _rng) {
   for (let slot = 0; slot < 5; slot++) {
     const left = 5 - out.length - 1;
     const room = want - sum - left * MIN;
-    const cand = C.filter(c => c.cost <= room && !out.some(x => x.no === c.no)
+    const cand = CR.filter(c => c.cost <= room && !out.some(x => x.no === c.no)
       && !out.some(x => x.origin && c.origin && x.origin === c.origin));
     if (!cand.length) break;
     const aim = slot === 0 ? room : Math.round((want - sum) / (5 - out.length));
@@ -10447,7 +10453,7 @@ function mkRows() {
   const up = S.mkAsc == null ? so.up : !!S.mkAsc;
   const set = (k, v) => { S[k] = v; SFX.pick(); draw(); };
   return [
-    el('div', { class: 'row chapters pfrow' }, ['すべて', ...RAR].map(r => el('button', {
+    el('div', { class: 'row chapters pfrow' }, ['すべて', ...RAR_TAB].map(r => el('button', {
       class: 'chip' + (rar === r ? ' on' : '') + (r !== 'すべて' && rarUrl(r) ? ' ric' : ''),
       onclick: () => set('mkRar', r),
     }, r === 'すべて' ? 'すべて' : rarTag(r)))),
@@ -10538,7 +10544,7 @@ function mkBuyBar(c, it) {
 /* 出す札。どの武将を・いくらで */
 function mkPutSheet() {
   const close = () => { S.mkPut = null; S.mkMsg = ''; S.mkPEdit = false; draw(); };
-  const mine = P.own.filter(no => hasCard(no) && !inSquad(no)).map(charOf).filter(Boolean);
+  const mine = P.own.filter(no => hasCard(no) && !inSquad(no)).map(charOf).filter(c => c && c.marketAllowed !== false);  // 出せない武将（PRなど）は並べない 2026-10-11
   const c = S.mkPut === true ? null : charOf(S.mkPut);
   if (!c) {
     return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
@@ -12253,13 +12259,13 @@ function trGo(no, r, c) {
   const who = trWho(no);
   const kf = n2 => trKindsFor(n2, who);
   if (t === '宿') run.ev = { k: 'rest', unk };
-  else if (t === '商') run.ev = { k: 'shop', unk, cards: trOffer(R, C, no, run.part, 3, kf, 0.2), items: trPick(R, TR_SHOP_ITEMS, 3), sold: [] };
+  else if (t === '商') run.ev = { k: 'shop', unk, cards: trOffer(R, CR, no, run.part, 3, kf, 0.2), items: trPick(R, TR_SHOP_ITEMS, 3), sold: [] };
   else if (t === '品') { const nm = TR_ITEM_NAMES[Math.floor(roll() * TR_ITEM_NAMES.length)]; run.ev = { k: 'item', unk, item: nm, got: trAddItem(run, nm) }; SFX.get(); }
   else if (t === '宝') {
     const x = roll(), k = run.part + 1;
     const kb = Math.round((120 + roll() * 200) * k);
     P.koban += kb; SFX.get();
-    if (x < 0.4) run.ev = { k: 'chest', mode: 'cards', kb, cards: trOffer(R, C, no, run.part, 3, kf), took: null };
+    if (x < 0.4) run.ev = { k: 'chest', mode: 'cards', kb, cards: trOffer(R, CR, no, run.part, 3, kf), took: null };
     else if (x < 0.7) { const nm = TR_ITEM_NAMES[Math.floor(roll() * TR_ITEM_NAMES.length)]; run.ev = { k: 'chest', mode: 'item', kb, item: nm, got: trAddItem(run, nm) }; }
     else {
       const kb2 = Math.round((200 + roll() * 400) * k), bk = 1 + Math.floor(roll() * 2) + run.part;
@@ -12849,7 +12855,7 @@ function trFinish() {
     run.hp += heal;
     const R = { rs: (run.seed ^ (F.i * 31337) ^ ((run.path || []).length * 7)) >>> 0 };
     /* 国主を討ったときは札えらびを付けない（2026-10-10 夕・悠さんの指図） */
-    res.spoil = { kb, heal, book: t === '強' ? 1 : 0, cards: t === '将' ? [] : trOffer(R, C, no, run.part, 3, n2 => trKindsFor(n2, who)), took: null };
+    res.spoil = { kb, heal, book: t === '強' ? 1 : 0, cards: t === '将' ? [] : trOffer(R, CR, no, run.part, 3, n2 => trKindsFor(n2, who)), took: null };
     const nd = F.node;      // 前の作り（話の一覧）の途中の戦には節が無い。そのときは道を動かさない
     if (nd) { run.at = { r: nd.r, c: nd.c }; run.path = [...(run.path || []), { r: nd.r, c: nd.c }]; }
     const got = trFloorDone(no, F.i, ft);
@@ -12955,8 +12961,14 @@ const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gacha
    その人の盤だけ別の戦になる */
 const SEKI_HOURS = [12, 15, 18, 21];
 const SEKI_MIN = 30;
-const SEKI_FOE = [61, 70, 62, 27, 80];            // 石田（大将）・大谷・島津義弘・宇喜多・小早川秀秋
-const SEKI_FOE_LV = 80, SEKI_FOE_SOUL = 500;       // seki_test.mjs で合わせた（4人Lv80で四割、Lv99で八割半、1人は5%）
+/* 敵の総大将は関ヶ原の姿の石田（111・猛将PR）。勝つとこの武将がもらえる（2026-10-11 悠さんの指図） */
+const SEKI_FOE = [111, 70, 62, 27, 80];           // 石田（大将）・大谷・島津義弘・宇喜多・小早川秀秋
+const SEKI_PRIZE = 111;
+const SEKI_FOE_LV = 80, SEKI_FOE_SOUL = 500;       // seki_test.mjs で合わせた
+/* 敵だけにかける倍（2026-10-11）。大将が智将URの石田（61・総合4200）から猛将PRの石田（111・2900）に
+   替わって敵が軽くなったので、敵の数値を1.5倍にして前と同じ手ごたえに戻した。
+   実測：4人Lv60で23%・Lv80で47%・Lv99で80%、3人48%、2人17%、1人0% */
+const SEKI_FOE_MUL = 1.5;
 const SEKI_GEN = 23;                               // 東軍の総大将＝徳川イエヤスケ（SSR）。育ちは敵と同じ
 const SEKI_GEN_HP = 10000, SEKI_UNIT_HP = 2500;    // 総大将10000、ほかは一騎2500（防御で伸ばさない）
 const SEKI_NG_ORIGIN = ['徳川家康'];                 // 総大将と同じ人物は持ち寄れない
@@ -13184,9 +13196,9 @@ function sekiInvSheet() {
 }
 
 /* ---- 合戦 ---- */
-function sekiGrow(c) {
+function sekiGrow(c, k2 = 1) {
   const st = {}; const mul = 1 + (SEKI_FOE_LV - 1) * 0.02;
-  for (const k of SP_STATS) st[k] = Math.round((c.stats[k] || 0) * mul) + SEKI_FOE_SOUL;
+  for (const k of SP_STATS) st[k] = Math.round(((c.stats[k] || 0) * mul + SEKI_FOE_SOUL) * k2);
   return { ...c, stats: st };
 }
 function sekiFight(m) {
@@ -13197,7 +13209,7 @@ function sekiFight(m) {
   const A = [sekiGrow(charOf(SEKI_GEN))];
   for (const x of mem) { const u = (x.units || [])[0];
     if (u && !A.some(a => a.no === u.no || (a.origin && a.origin === u.origin)) && A.length < 5) A.push(u); }
-  const B = SEKI_FOE.map(n => charOf(n)).filter(Boolean).map(sekiGrow);
+  const B = SEKI_FOE.map(n => charOf(n)).filter(Boolean).map(c => sekiGrow(c, SEKI_FOE_MUL));
   const base = stageRules('草原', 0, false);
   /* 兵量は 総大将10000・ほか一騎2500。重み4で割ると、何騎でも総大将がちょうど10000になる */
   const rules = { ...base, holdWin: 'B',
@@ -13230,6 +13242,13 @@ function sekiReward(won) {
   P.seki.won[BATTLE.seki.win] = 1;
   if (r.stone) addFreeStones(r.stone);
   P.koban += r.koban || 0; P.soul += r.soul || 0;
+  /* その回の初めての勝ちで、総大将だった石田を1騎。二度目の回からは重ねになる（2026-10-11） */
+  if (first && charOf(SEKI_PRIZE)) {
+    const had = P.own.includes(SEKI_PRIZE);
+    setCnt(SEKI_PRIZE, cntOf(SEKI_PRIZE) + 1);
+    if (!had) P.own.push(SEKI_PRIZE);
+    r.got = [{ no: SEKI_PRIZE, dup: had }];
+  }
   savePlayer();
   return r;
 }

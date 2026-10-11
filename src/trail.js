@@ -16,7 +16,7 @@ export const TR_DUP = 4;           // 同じ札は4枚まで
 export const TR_ULT_MAX = 2;       // 奥義と大将特性は2枚まで（重すぎて手が回らなくなるため）
 export const TR_COST = { ult: 5, gen: 3 };
 /* 固有は★を持たないので、位で気を決める（2026-10-08） */
-export const TR_UNIQ_COST = { N: 1, R: 2, SR: 2, SSR: 3, UR: 3 };
+export const TR_UNIQ_COST = { N: 1, R: 2, SR: 2, SSR: 3, UR: 3, PR: 2 }; // PR（催しの武将）は SR と同じ重さ 2026-10-11
 export const TR_KIND_NAME = { sk: '特技', u: '固有', ult: '奥義', gen: '大将特性' };
 
 /* ---- 種のある乱数。戦の途中で閉じても、開き直したら同じ続きになる ---- */

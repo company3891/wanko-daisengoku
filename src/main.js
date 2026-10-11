@@ -2811,15 +2811,15 @@ function rkSheet() {
         el('button', { class: 'rklogb', title: '戦歴',
           onclick: () => { S.rkLog = true; r.logSeen = r.day; savePlayer(); SFX.pick(); draw(); } },
           '戦歴', r.log.length && r.logSeen !== r.day ? el('i', { class: 'rklogdot' }) : null),
-        el('b', { class: 'mittl' }, '番付'),
+        /* 題は段の名にした（2026-10-11・悠さんの指図「番付ってタイトルを五の丸とかの表示に」） */
+        el('b', { class: 'mittl' }, RK_TIERS[r.tier]),
+        /* 対戦札は しるしの横に小さく（2026-10-11）。上の三つの箱は外した：
+           自分の点と順位は表彰台か一覧の自分の行に出ているので二度出しになっていた */
+        el('span', { class: 'rktick' + (r.tick < 1 ? ' none' : '') }, '札 ', el('b', {}, String(r.tick)), `/${RK_TICKET}`),
         /* 段ごとの褒美を見る小さな釦（2026-09-25）。右上に置く */
         /* 小判の絵だと「ここで小判がもらえる」に見えるので、しるしに変えた（2026-09-25） */
         el('button', { class: 'rkpz', title: '月末の褒美を見る',
           onclick: () => { S.rkPz = true; SFX.pick(); draw(); } }, el('i', {}, 'i'))),
-      el('div', { class: 'rkhead' },
-        el('div', { class: 'rkt' }, el('b', {}, RK_TIERS[r.tier]), el('i', {}, `${me.rank} 位 / ${RK_SEATS}`)),
-        el('div', { class: 'rkp' }, el('b', {}, num(r.pt)), el('i', {}, 'pt')),
-        el('div', { class: 'rkk' }, el('b', {}, `${r.tick} / ${RK_TICKET}`), el('i', {}, '対戦札'))),
       el('p', { class: 'ttsub' }, `月が変われば 上位${RK_UP}組が昇格、下位${RK_DOWN}組が降格するわん`),
       /* 上の三人は表彰台に立ち絵で（2026-10-11・悠さんの指図）。4位から下は一覧。
          表彰台も一覧と同じく、押せば相手の札が開く（自分は押せない）。

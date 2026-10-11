@@ -4901,6 +4901,9 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 /* 敵の陣立て：コマ絵の下に名。五騎が横一列に収まる大きさ */
 .foeicons{display:flex;gap:4px;justify-content:center;align-items:flex-start}
 .foec{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+/* 一騎だけのとき（初陣）は、五騎並んだときと同じ大きさに留める（2026-10-11）。
+   そのままだと一騎が箱いっぱいに広がっていた */
+.foeicons.one .foec{flex:0 0 calc((100% - 16px) / 5)}
 .foei{position:relative;width:100%;aspect-ratio:1/1;border-radius:9px;overflow:hidden;
   background:#00000012;border:1px solid var(--line);display:block}
 .foei img{width:100%;height:100%;object-fit:cover;display:block}
@@ -5105,6 +5108,63 @@ main.mid{display:flex;flex-direction:column;justify-content:center;padding-botto
   font-style:normal;color:var(--gold)}
 .gdsay .gdb b{display:block;font-size:13.5px;color:var(--gold2,#f5e2a8);font-family:var(--mincho)}
 .gdsay .gdb p{margin:2px 0 0;font-size:11.5px;line-height:1.55;color:#ddd2b6}
+
+/* ---- 手引きの直し（2026-10-11）---- */
+/* 手引きのあいだは、画面ごとの語り（上の吹き出し）を引っ込める。
+   犬が二匹同時にしゃべって、どちらを読めばよいか迷っていた。敵の城の見出しは残す */
+body.gdon .gtalk.slim:not(.marchtalk){display:none}
+.gdsay .gdb{min-width:0;flex:1}
+/* 語りに添える小さな図。ゲームの絵を並べて「何と何で何が起きるか」だけを見せる */
+.gdfig{display:flex;align-items:flex-start;gap:4px;margin:7px 0 0;flex-wrap:wrap}
+.gdchip{display:flex;flex-direction:column;align-items:center;gap:2px;width:52px}
+.gdchip img,.gdchip>i{width:38px;height:38px;border-radius:50%;object-fit:cover;
+  background:#241a12;border:1.5px solid var(--gold);display:grid;place-items:center;
+  font-style:normal;font-family:var(--mincho);font-size:16px;color:var(--gold2,#f5e2a8)}
+.gdchip.up>i{background:radial-gradient(circle at 50% 35%,#5a3f12,#241a12);
+  box-shadow:0 0 10px #d8a94a88;animation:gdup 1.3s ease-in-out infinite}
+@keyframes gdup{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.gdchip.book>*:first-child{width:38px;height:38px;margin:0}
+.gdchip em{font-style:normal;font-size:9px;line-height:1.2;color:#cdbf9c;text-align:center;white-space:nowrap}
+.gdop{font-style:normal;color:var(--gold);font-size:15px;line-height:38px;font-weight:700}
+.gdtap{display:grid;grid-template-columns:auto auto;gap:1px 5px;align-items:center;margin-left:4px;
+  font-size:9.5px;color:#cdbf9c;align-self:center}
+.gdtap b{font-weight:700;color:var(--gold2,#f5e2a8);font-size:10px}
+/* 締めの歩の「心得た」。逃げ道（やめる）は出さない */
+.gdsay .gddone{position:absolute;right:8px;bottom:6px;pointer-events:auto;
+  font-family:var(--mincho);font-size:11px;letter-spacing:.1em;color:#12100e;
+  background:linear-gradient(#f5e2a8,#d8a94a);border:1px solid #a8802c;border-radius:999px;
+  padding:3px 14px 4px;cursor:pointer}
+.gdsay.fin .gdquit{display:none}
+.gdsay .gddone:active{transform:translateY(1px);filter:brightness(.92)}
+/* 陣形の武将を差すときは、輪を ::after でなく箱の影で描く（2026-10-11）。
+   大将の札は ::after に「大将」の字を持っているので、輪がそれを上書きして
+   金の板が絵の上いっぱいにかぶり、武将の顔が消えていた */
+.bench .u.gdhit::after,.place .u.gdhit::after{content:none}
+.bench .u.gen.gdhit::after,.place .u.gen.gdhit::after{content:"大将";inset:auto;top:2px;left:2px;
+  border-radius:4px;box-shadow:0 1px 2px #000a;animation:none}
+.bench .u.gdhit,.place .u.gdhit{animation:gdring 1.5s ease-in-out infinite}
+/* 引いて置く手本の肉球。武将をつまんで、空いた枠まで運ぶ */
+.gdpaw{position:fixed;left:0;top:0;width:0;height:0;z-index:89;pointer-events:none}
+.gdpaw .gdpawu,.gdpaw .gdpawp{position:absolute;left:0;top:0;
+  animation:gdpaw 2.4s cubic-bezier(.45,0,.35,1) infinite}
+.gdpaw .gdpawu{width:42px;height:42px;margin:-21px 0 0 -21px;border-radius:8px;
+  background-size:cover;background-position:center;background-color:#d8a94a55;
+  border:1.5px solid #f5e2a8;box-shadow:0 4px 12px #000a;animation-name:gdpawu}
+.gdpaw .gdpawp{width:34px;height:34px;margin:-4px 0 0 -6px}
+.gdpaw svg{width:100%;height:100%;fill:#f5e2a8;stroke:#a8802c;stroke-width:1.2;
+  filter:drop-shadow(0 2px 3px #000c)}
+@keyframes gdpaw{
+  0%{transform:translate(var(--x0),var(--y0)) scale(1.3);opacity:0}
+  12%{transform:translate(var(--x0),var(--y0)) scale(1.3);opacity:1}
+  22%{transform:translate(var(--x0),var(--y0)) scale(.95);opacity:1}
+  68%{transform:translate(var(--x1),var(--y1)) scale(.95);opacity:1}
+  80%{transform:translate(var(--x1),var(--y1)) scale(1.3);opacity:1}
+  100%{transform:translate(var(--x1),var(--y1)) scale(1.3);opacity:0}}
+@keyframes gdpawu{
+  0%,20%{transform:translate(var(--x0),var(--y0)) scale(1);opacity:0}
+  24%{transform:translate(var(--x0),var(--y0)) scale(1.08);opacity:.85}
+  68%{transform:translate(var(--x1),var(--y1)) scale(1.08);opacity:.85}
+  78%,100%{transform:translate(var(--x1),var(--y1)) scale(1);opacity:0}}
 
 /* ---- チュートリアルの直し（2026-09-30 その2）---- */
 /* ホームの総大将の立ち絵は薄くしない。押せなくするだけでよい

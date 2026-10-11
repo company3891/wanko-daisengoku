@@ -13257,12 +13257,13 @@ function sekiReward(won) {
 /* ---- 地図の印（関ヶ原）。開いているあいだは炎を大きく、閉じているときは小さくくすぶる ---- */
 function sekiMark() {
   const W = sekiWin();
-  const fl = fxUrl('flame_赤');
+  /* 2026-10-12 悠さんの指図：印は燃える炎の動く絵だけにし、「戦」の札はやめた。
+     炎は fx/seki_flame.webp（動く webp）。無ければ前の炎、それも無ければ色の玉に落ちる */
+  const fl = fxUrl('seki_flame') || fxUrl('flame_赤');
   return el('button', { class: 'skmark' + (W.on ? ' on' : ''), title: '関ヶ原の合戦',
     style: `left:${mapX(SEKI_PLACE)}%;top:${mapY(SEKI_PLACE)}%`,
     onclick: e => { e.stopPropagation(); sekiOpen(); } },
-    fl ? keepImg({ class: 'skfl', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
-    uiUrl('seki_mark') ? keepImg({ class: 'skmk', src: uiUrl('seki_mark'), alt: '関ヶ原' }) : el('b', { class: 'skmk0' }, '戦'),
+    fl ? keepImg({ class: 'skfire', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
     el('span', { class: 'skmn' }, '関ヶ原'));
 }
 

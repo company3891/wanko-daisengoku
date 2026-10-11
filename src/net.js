@@ -151,3 +151,16 @@ export const palTeam     = (id) => call('/v1/pal/team?id=' + encodeURIComponent(
 export const palRaid     = (id, broke) =>
   call('/v1/pal/raid', { method: 'POST', body: { id, broke: !!broke } });
 export const palRaidTake = () => call('/v1/pal/raid/take', { method: 'POST' });
+
+/* 関ヶ原の合戦（2026-10-11）。陣の集まりはここで行き来する。盤は送らない（種と持ち寄りだけ） */
+export const sekiLook   = () => call('/v1/seki');
+export const sekiMake   = (b) => call('/v1/seki/make',   { method: 'POST', body: b });
+export const sekiJoin   = (b) => call('/v1/seki/join',   { method: 'POST', body: b });
+export const sekiUnits  = (b) => call('/v1/seki/units',  { method: 'POST', body: b });
+export const sekiLeave  = () => call('/v1/seki/leave',   { method: 'POST' });
+export const sekiOpenSet = (open) => call('/v1/seki/open', { method: 'POST', body: { open } });
+export const sekiForm   = (form) => call('/v1/seki/form', { method: 'POST', body: { form } });
+export const sekiInvite = (to) => call('/v1/seki/invite', { method: 'POST', body: { to } });
+export const sekiNpc    = (member) => call('/v1/seki/npc', { method: 'POST', body: { member } });
+export const sekiStart  = () => call('/v1/seki/start',  { method: 'POST' });
+export const sekiBack   = () => call('/v1/seki/back',   { method: 'POST' });

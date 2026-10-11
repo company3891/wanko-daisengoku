@@ -6713,3 +6713,74 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .affi img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 1px 1px #000a)}
 .affi i{display:block;width:14px;height:14px;margin:4px;border-radius:50%;background:var(--ac);border:1px solid #fff8}
 @media (max-width:380px){ .affw{width:56px;height:56px} .affi{width:19px;height:19px} }
+
+/* ================= 関ヶ原の合戦（2026-10-11）================= */
+/* 地図の印。炎の上に「戦」の札。開いているあいだは大きく燃え、閉じているときは小さくくすぶる */
+.skmark{position:absolute;transform:translate(-50%,-50%);z-index:3;padding:0;border:0;background:none;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;width:58px}
+.skfl{position:absolute;left:50%;bottom:16px;width:52px;height:auto;transform:translateX(-50%) scale(.62);
+  transform-origin:50% 100%;opacity:.55;filter:saturate(.7);pointer-events:none}
+.skmark.on .skfl{transform:translateX(-50%) scale(1.25);opacity:1;filter:saturate(1.2) drop-shadow(0 0 8px #ff6a00)}
+.skfl0{position:absolute;left:50%;bottom:18px;width:26px;height:34px;transform:translateX(-50%);border-radius:50% 50% 40% 40%;
+  background:radial-gradient(circle at 50% 70%,#ffd36a,#ff6a00 55%,transparent 72%);opacity:.6}
+.skmark.on .skfl0{width:40px;height:56px;opacity:1;animation:skflk .5s ease-in-out infinite alternate}
+@keyframes skflk{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.08,1.15)}}
+.skmk{position:relative;width:34px;height:34px;object-fit:contain;z-index:1}
+.skmk0{position:relative;z-index:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mincho);font-weight:900;font-size:17px;color:#fff;background:radial-gradient(circle,#c0392b,#7d1d12);
+  border:2px solid #f5e2a8;box-shadow:0 2px 6px #000a}
+.skmark.on .skmk0{box-shadow:0 0 0 2px #ff9a3c,0 0 16px #ff6a00,0 2px 6px #000a}
+.skmn{position:relative;z-index:1;margin-top:2px;font-size:10px;font-weight:800;color:#fff;padding:1px 6px;border-radius:999px;
+  background:#7d1d12e6;border:1px solid #f5e2a8aa;white-space:nowrap}
+.skmark.on .skmn{background:#c0392b}
+
+/* 陣の札 */
+.skbox{display:flex;flex-direction:column;gap:10px}
+.skhead{display:flex;align-items:center;justify-content:center;position:relative}
+.skleft{position:absolute;right:12px;font-size:11px;color:#f5e2a8}
+.skleft b{font-size:14px;color:#fff}
+.skfoe{display:flex;justify-content:center;gap:4px}
+.skfc{width:48px;height:48px;border-radius:10px;background:#7d1d1222;border:1px solid #c0392b66;display:flex;align-items:center;justify-content:center}
+.skfc.gen{width:60px;height:60px;border-color:#c0392b;box-shadow:0 0 8px #c0392b66}
+.skfc img{width:100%;height:100%;object-fit:contain}
+.skwhen{text-align:center;font-size:13px}
+.skwhen b{font-family:var(--mincho);font-size:18px;color:#a8802c}
+.skbtns{display:flex;gap:8px;flex-wrap:wrap}
+.skbtns button{flex:1 1 0;min-width:0;padding:11px 8px;font-size:13px}
+.skbtns .ghost.on{border-color:var(--gold);background:#d8a94a22}
+.skh{font-size:12px;color:var(--text2);margin-top:4px}
+.sklist{display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow-y:auto}
+.skrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:var(--pop);border:1px solid var(--edge)}
+.skrow.away{opacity:.6}
+.ic.skf{width:36px;height:36px;flex:none;border-radius:8px}
+.skrn{flex:1;min-width:0;display:flex;flex-direction:column}
+.skrn b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skrn i{font-style:normal;font-size:10px;color:var(--text3)}
+.skrow .go.sm{flex:none;min-width:0;padding:8px 12px}
+.skseats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.skseat{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 3px;border-radius:10px;background:var(--pop);
+  border:1px solid var(--edge);min-width:0}
+.skseat.lead{border-color:var(--gold)}
+.skseat.me{box-shadow:0 0 0 2px #5aa9e666}
+.skseat.none{justify-content:center;border-style:dashed;min-height:96px}
+.skseat.none i{font-style:normal;font-size:11px;color:var(--text3)}
+.sknm{font-size:10.5px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skun{display:flex;gap:2px}
+.sku{width:26px;height:26px;border-radius:6px;background:#00000014;display:flex;align-items:center;justify-content:center}
+.sku img{width:100%;height:100%;object-fit:contain}
+.sku.off{opacity:.3}
+.skgo{padding:14px;font-size:16px}
+.skpick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:52vh;overflow-y:auto}
+.skpc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border-radius:10px;background:var(--pop);
+  border:1px solid var(--edge);cursor:pointer;min-width:0}
+.skpc img{width:100%;aspect-ratio:1;object-fit:contain}
+.skpc span{font-size:9.5px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skpc.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+
+/* 2026-10-11 関ヶ原：家康 対 西軍五将を一列に。393幅に収めるため敵は小さめ */
+.skvs{display:flex;align-items:center;justify-content:center;gap:6px}
+.skvs .skfoe{gap:3px}
+.skvs .skfoe .skfc{width:40px;height:40px}
+.skvs .skfoe .skfc.gen{width:52px;height:52px}
+.skfc.ally{width:56px;height:56px;background:#1d4d7d22;border-color:#5aa9e6;box-shadow:0 0 8px #5aa9e666}
+.skvsw{font-style:normal;font-family:var(--mincho);font-size:16px;color:#a8802c}

@@ -42,9 +42,10 @@ import { LK_TIES, LK_PASS_MIN, lkMakeCode, lkCodeOk, lkTidyCode, lkPassNg, lkPas
 import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce, revOf, setRev,
          duelOpen, duelJoin,
          palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel,
-         palGift, palGiftTake, palTeam, palRaid, palRaidTake } from './net.js';
+         palGift, palGiftTake, palTeam, palRaid, palRaidTake,
+         sekiLook, sekiMake, sekiJoin, sekiUnits, sekiLeave, sekiOpenSet, sekiInvite, sekiNpc, sekiStart, sekiBack } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
-         RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt,
+         RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt, rkName,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -2096,7 +2097,9 @@ function japanMap(maps, open, reg) {
       const b = flagBtn(p, open);
       b.onclick = () => { S.pref = p.id; S.screen = 'march'; SFX.pick(); draw(); };
       return b;
-    }));
+    }),
+    /* 関ヶ原の合戦の印（2026-10-11） */
+    sekiMark());
   const scroller = el('div', { class: 'jmap' }, inner);
   // 制覇の数・章のタブ・章の名は、地図の上に重ねる（2026-09-21）
   const tabs = el('div', { class: 'row chapters' }, REGION_ORDER.map(id => {
@@ -9056,6 +9059,16 @@ function resolve() {
   /* 果たし合い（2026-10-04）。両軍とも人が動かす。
      編成は座から降りてきたものをそのまま使う（自分の手元の S.picked は見ない）。
      ここを手元から組み立てると、二人の盤がずれる */
+  /* 関ヶ原の合戦（2026-10-11）。持ち寄りは配られたものをそのまま使う（手元の S.picked は見ない）。
+     必ずオート ── 誰か一人が手で動かすと、その人の盤だけ別の戦になる */
+  if (b.seki) {
+    b.res = runBattle(
+      { members: b.seki.A, generalNo: b.seki.gen, formation: b.seki.form,
+        manual: false, modeSwitches: [{ turn: 0, manual: false }] },
+      { members: b.B, generalNo: SEKI_FOE[0], formation: b.bForm },
+      b.rules, b.seed, { log: true, commands: [], weather: b.weather });
+    return;
+  }
   if (b.duel) {
     const side = t => ({ members: t.members || [], generalNo: t.generalNo,
       formation: t.formation, slots: t.slots,
@@ -9120,7 +9133,7 @@ function pendingSwitch() {
    ・手動→オート：そのターンにまだ指示を出していなければ即座、出していれば次のターンから
    ・オート→手動：必ず次のターンから（途中まで見せたターンをやり直さないため） */
 function toggleAuto() {
-  if (BATTLE && (BATTLE.spar || BATTLE.bout || BATTLE.away)) return;   // 稽古と番付は必ずオート
+  if (BATTLE && (BATTLE.spar || BATTLE.bout || BATTLE.away || BATTLE.seki)) return;   // 稽古と番付と関ヶ原は必ずオート
   /* はじめて挑む場は手でしか動かせない（2026-10-07・悠さんの指図） */
   if (BATTLE && BATTLE.firstTry) { S.res = S.res; return; }
   const b = BATTLE;
@@ -9678,7 +9691,8 @@ function drawBattle() {
       const paid = BATTLE.camp ? marchFood(BATTLE.camp.pref, BATTLE.camp.step)
                  : BATTLE.ev ? EV_FOOD[BATTLE.ev.rank]
                  : FOOD_COST;
-      BATTLE.reward = BATTLE.duel ? null       // 果たし合いに褒美は無い（2026-10-05）
+      BATTLE.reward = BATTLE.seki ? sekiReward(won0)     // 関ヶ原（2026-10-11）
+                    : BATTLE.duel ? null       // 果たし合いに褒美は無い（2026-10-05）
                     /* 友との手合わせは何度でもできるが、褒美はその日の一戦目だけ（2026-10-10）。
                        f.spar に今日を入れるのは下なので、ここではまだ「一戦目か」が読める */
                     : (BATTLE.bout && BATTLE.bout.friendly) ? (canSpar(BATTLE.bout.npc.id) ? sparReward(won0) : null)
@@ -10045,6 +10059,14 @@ function resSheet() {
       fxToken++; BATTLE = null; S.res = null; S.dmg = false;
       S.screen = 'home'; S.dl = 'room'; S.dlMsg = '';
       SFX.pick(); draw(); return;
+    }
+    /* 関ヶ原のあとは陣の札へ返す（2026-10-11）。呼んだ人は陣を「集まり」に戻して、もう一戦できるようにする */
+    if (BATTLE.seki) {
+      const lead = BATTLE.seki.lead;
+      fxToken++; BATTLE = null; S.res = null; S.dmg = false;
+      S.screen = 'map';
+      if (lead) { try { sekiBack(); } catch (_) {} }
+      sekiOpen(); return;
     }
     const twF = toTw ? BATTLE.tw.f : 0;
     const twW = BATTLE.twWon, twN = BATTLE.twNg;
@@ -12921,6 +12943,309 @@ function trResSheet() {
 /* 取引所も題の帯を出さない（2026-10-01）。語りの札がそのまま題になっている */
 const NO_TITLE = new Set(['title', 'home', 'battle', 'tutorial', 'gacha', 'gachalist', 'map', 'march', 'loading', 'tower', 'market', 'trfight']);
 
+
+/* ================= 関ヶ原の合戦（2026-10-11・悠さんの指図）=================
+   土日の 12:00／15:00／18:00／21:00 から30分だけ開く共闘。最大4人が一騎ずつ持ち寄り、
+   総大将の徳川家康（NPC）を立てて、西軍（大将＝石田三成）を討つ。1人では倒せない前提。
+   2026-10-11 改（悠さんの指図）：「1人1騎で4騎＋総大将はNPCの家康。こちらの兵量は総大将10000・残り4騎で10000」
+   設計は claude/わんこ大戦国_関ヶ原の合戦_設計_20261011.md。数値は sim/tools/seki_test.mjs で合わせた。
+
+   盤は送らない。陣の集まりはサーバー（/v1/seki）、出陣したら種と持ち寄りが配られ、
+   全員の端末で同じ戦を流す（果たし合いと同じ考え）。だから合戦は必ずオート ── 手で動かすと
+   その人の盤だけ別の戦になる */
+const SEKI_HOURS = [12, 15, 18, 21];
+const SEKI_MIN = 30;
+const SEKI_FOE = [61, 70, 62, 27, 80];            // 石田（大将）・大谷・島津義弘・宇喜多・小早川秀秋
+const SEKI_FOE_LV = 80, SEKI_FOE_SOUL = 500;       // seki_test.mjs で合わせた（4人Lv80で四割、Lv99で八割半、1人は5%）
+const SEKI_GEN = 23;                               // 東軍の総大将＝徳川イエヤスケ（SSR）。育ちは敵と同じ
+const SEKI_GEN_HP = 10000, SEKI_UNIT_HP = 2500;    // 総大将10000、ほかは一騎2500（防御で伸ばさない）
+const SEKI_NG_ORIGIN = ['徳川家康'];                 // 総大将と同じ人物は持ち寄れない
+const SEKI_PLACE = { vol: 2, x: 40, y: 52 };       // 関ヶ原（岐阜・不破郡）。岐阜と滋賀のあいだ
+const SEKI_POLL = 3000;
+let SEKI = { look: null, timer: 0, seenRound: 0, npcAt: 0, busy: false, msg: '', pick: false, inv: false };
+
+/* 開いているか（端末の時計で見る。決めるのはサーバー） */
+function sekiWin(t = Date.now()) {
+  const d = new Date(t + 9 * 3600 * 1000);
+  const day = d.getUTCDay(), h = d.getUTCHours(), m = d.getUTCMinutes();
+  const on = (day === 0 || day === 6) && SEKI_HOURS.includes(h) && m < SEKI_MIN;
+  const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}T${String(h).padStart(2, '0')}`;
+  return { on, key: on ? key : '', left: on ? (SEKI_MIN - m) * 60 - d.getUTCSeconds() : 0 };
+}
+/* 次に開く時（「土 15:00」のような字） */
+function sekiNext(t = Date.now()) {
+  for (let k = 0; k < 8 * 24 * 2; k++) {
+    const u = t + k * 30 * 60 * 1000;
+    const d = new Date(u + 9 * 3600 * 1000);
+    const day = d.getUTCDay(), h = d.getUTCHours();
+    if ((day === 0 || day === 6) && SEKI_HOURS.includes(h)) {
+      const w = '日月火水木金土'[day];
+      return `${w} ${h}:00`;
+    }
+  }
+  return '';
+}
+const sekiLeft = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+/* 持ち寄れる武将か。総大将（家康）と敵の顔ぶれと同じ人物は出せない */
+const sekiNgOrigin = () => new Set([...SEKI_NG_ORIGIN, ...SEKI_FOE.map(n => (charOf(n) || {}).origin).filter(Boolean)]);
+const sekiCanBring = c => !!c && !sekiNgOrigin().has(c.origin);
+/* 持ち寄る一騎。決めていなければ いちばん強い一騎 */
+function sekiMyUnits() {
+  const own = (P.own || []).filter(hasCard);
+  let u = ((P.seki && P.seki.units) || []).filter(n => own.includes(n) && sekiCanBring(charOf(n)));
+  if (!u.length) {
+    const best = own.map(charOf).filter(sekiCanBring).sort((a, b) => powerOf(b) - powerOf(a))[0];
+    if (best) u = [best.no];
+  }
+  return u.slice(0, 1);
+}
+const sekiPayload = () => ({ name: P.name || '名無し', title: P.title || '', lv: P.lv || 1,
+  face: sekiMyUnits()[0] ?? null, units: sekiMyUnits().map(n => grownFor(charOf(n))).filter(Boolean),
+  form: S.form || null });
+
+function sekiOpen() {
+  S.seki = true; SEKI.msg = ''; SEKI.pick = false; SEKI.inv = false;
+  sekiPoll();
+  if (!SEKI.timer) SEKI.timer = setInterval(() => { if (!S.seki) { clearInterval(SEKI.timer); SEKI.timer = 0; return; } sekiPoll(); }, SEKI_POLL);
+  SFX.pick(); draw();
+}
+function sekiClose() { S.seki = false; SEKI.pick = false; SEKI.inv = false; SFX.pick(); draw(); }
+
+async function sekiPoll() {
+  if (SEKI.busy) return;
+  if (!palOn()) { SEKI.look = { off: true }; draw(); return; }
+  SEKI.busy = true;
+  try {
+    const r = await sekiLook();
+    if (r && r.ok) {
+      SEKI.look = r;
+      const m = r.mine;
+      /* 出陣した。まだ見ていない回なら、この端末でも同じ戦を流す */
+      if (m && m.phase === 'fight' && m.round > SEKI.seenRound && m.fight) {
+        SEKI.seenRound = m.round;
+        if (S.seki) sekiFight(m);
+      }
+      /* 浪人が加わる（呼んだ人の端末だけが足す）。募っていて、しばらく誰も来ないとき。
+         待つ長さは人が入ってくるのと同じくらいにばらす（人か浪人か見分けがつかないように） */
+      if (m && m.phase === 'wait' && m.open && m.leader === sekiMe(m) && m.members.length < 4) {
+        if (!SEKI.npcAt) SEKI.npcAt = Date.now() + 20000 + Math.random() * 40000;
+        else if (Date.now() > SEKI.npcAt) { SEKI.npcAt = 0; await sekiNpc(sekiMakeNpc(m)); }
+      } else SEKI.npcAt = 0;
+    } else if (r && r.status === 401) SEKI.look = { off: true };
+  } catch (_) { }
+  SEKI.busy = false;
+  if (S.seki) draw();
+}
+/* 自分の印（サーバーが look のたびに返す me）。呼んだ人かどうかを見るのに使う */
+const sekiMe = () => (SEKI.look && SEKI.look.me) || '';
+/* 浪人の顔ぶれ。陣の平均の強さに寄せ、同じ武将はかぶらないようにする */
+function sekiMakeNpc(m) {
+  const used = new Set(), org = new Set();
+  for (const x of m.members) for (const u of x.units || []) { used.add(u.no); if (u.origin) org.add(u.origin); }
+  const seed = rkSeed(m.id + ':' + m.members.length);
+  const rnd = rkRand(seed);
+  const pool = C.filter(c => !used.has(c.no) && !(c.origin && org.has(c.origin)) && sekiCanBring(c)
+    && ['SR', 'SSR', 'UR'].includes(c.rarity));
+  const pick = [];
+  for (let g = 0; pick.length < 1 && g < 60; g++) {
+    const c = pool[Math.floor(rnd() * pool.length)];
+    if (c && !pick.some(p => p.no === c.no || (p.origin && p.origin === c.origin))) pick.push(c);
+  }
+  const lv = Math.max(30, Math.min(99, Math.round(m.members.reduce((a, x) => a + (x.lv || 1), 0) / m.members.length)));
+  const grow = c => { const st = {}; const mul = 1 + (lv - 1) * 0.02;
+    for (const k of SP_STATS) st[k] = Math.round((c.stats[k] || 0) * mul) + 200; return { ...c, stats: st }; };
+  return { id: String(seed), name: rkName(rnd), title: npcTitleOf(String(seed), npcTierOfPower(8000 + lv * 200)),
+           face: pick[0] ? pick[0].no : null, lv, units: pick.map(grow) };
+}
+
+async function sekiDo(fn, okMsg) {
+  if (SEKI.busy) return;
+  SEKI.busy = true; SEKI.msg = '';
+  try {
+    const r = await fn();
+    if (r && r.ok) {
+      if (r.party !== undefined && SEKI.look) SEKI.look.mine = r.party;
+      if (r.drop && r.drop.length) SEKI.msg = `${r.drop.map(n => (charOf(n) || {}).name).join('・')} はほかの者が出しておる。別の武将を選べ`;
+      else if (okMsg) SEKI.msg = okMsg;
+      SFX.pick();
+    } else SEKI.msg = (r && r.err) || 'サーバーにつながらなんだ';
+  } catch (_) { SEKI.msg = 'サーバーにつながらなんだ'; }
+  SEKI.busy = false;
+  await sekiPoll();
+}
+
+/* ---- 陣の札 ---- */
+function sekiSheet() {
+  if (SEKI.pick) return sekiPickSheet();
+  if (SEKI.inv) return sekiInvSheet();
+  const W = sekiWin();
+  const L = SEKI.look || {};
+  const m = L.mine || null;
+  const meId = m ? sekiMe(m) : '';
+  const lead = !!(m && m.leader === meId);
+  const body = [];
+  if (L.off) body.push(el('p', { class: 'note' }, 'サーバーにつながっておらぬ。関ヶ原は皆で挑む合戦なので、つながってから来るのじゃ'));
+  else if (!W.on) {
+    body.push(el('p', { class: 'skwhen' }, '次の合戦　', el('b', {}, sekiNext())));
+    body.push(el('p', { class: 'note' }, '土日の昼十二時・三時・夕六時・夜九時から、半刻（30分）だけ陣が開く'));
+  } else if (!m) {
+    body.push(el('div', { class: 'skbtns' },
+      el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, '陣を立てる'),
+      el('button', { class: 'ghost', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: true })) }, '陣を立てて募る')));
+    const inv = L.invites || [], op = L.open || [];
+    if (inv.length) body.push(el('b', { class: 'skh' }, '誘いが届いておる'),
+      el('div', { class: 'sklist' }, inv.map(x => sekiRow(x, '加わる', () => sekiDo(() => sekiJoin({ ...sekiPayload(), id: x.id }))))));
+    body.push(el('b', { class: 'skh' }, '募っている陣'),
+      op.length ? el('div', { class: 'sklist' }, op.map(x => sekiRow(x, '加わる', () => sekiDo(() => sekiJoin({ ...sekiPayload(), id: x.id })))))
+                : el('p', { class: 'note' }, 'いま募っている陣は無い'));
+  } else {
+    body.push(el('div', { class: 'skseats' }, [0, 1, 2, 3].map(i => {
+      const x = m.members[i];
+      if (!x) return el('div', { class: 'skseat none' }, el('i', {}, '空き'));
+      const fc = x.face != null ? charOf(x.face) : null;
+      return el('div', { class: 'skseat' + (x.pid === m.leader ? ' lead' : '') + (x.pid === meId ? ' me' : '') },
+        frFace(fc, 'skf', x.title),
+        el('b', { class: 'sknm' }, x.name),
+        el('div', { class: 'skun' }, (x.units || []).slice(0, 1).map(u => el('span', { class: 'sku' },
+          pawnUrl(u.no) ? el('img', { src: pawnUrl(u.no), alt: u.name }) : el('i', {}, (u.name || '?')[0])))));
+    })));
+    body.push(el('div', { class: 'skbtns' },
+      m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '出す武将') : null,
+      lead && m.phase === 'wait' ? el('button', { class: 'ghost' + (m.open ? ' on' : ''), onclick: () => sekiDo(() => sekiOpenSet(!m.open)) },
+        m.open ? '締め切る' : '募る') : null,
+      lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null));
+    if (lead) body.push(el('button', { class: 'go wide skgo', disabled: m.phase === 'wait' ? null : true,
+      onclick: () => sekiDo(() => sekiStart()) }, m.phase === 'wait' ? '出陣' : '合戦のさなか'));
+    else body.push(el('p', { class: 'note' }, m.phase === 'wait' ? '呼んだ人の出陣を待っておる' : '合戦のさなか'));
+    body.push(el('button', { class: 'ghost wide', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '陣をたたむ' : '陣を抜ける'));
+  }
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
+    el('div', { class: 'card2 skbox' },
+      el('div', { class: 'skhead' },
+        el('b', { class: 'mittl' }, '関ヶ原の合戦'),
+        W.on ? el('span', { class: 'skleft' }, '残り ', el('b', {}, sekiLeft(W.left))) : null),
+      /* 東軍の総大将（家康）と、西軍の顔ぶれ */
+      el('div', { class: 'skvs' },
+        el('span', { class: 'skfc gen ally' }, pawnUrl(SEKI_GEN) ? el('img', { src: pawnUrl(SEKI_GEN), alt: '' }) : el('i', {}, '家')),
+        el('em', { class: 'skvsw' }, '対'),
+        el('div', { class: 'skfoe' }, SEKI_FOE.map((n, i) => {
+          const c = charOf(n); if (!c) return null;
+          return el('span', { class: 'skfc' + (i === 0 ? ' gen' : '') }, pawnUrl(n) ? el('img', { src: pawnUrl(n), alt: c.name }) : el('i', {}, c.name[0]));
+        }))),
+      ...body,
+      SEKI.msg ? el('p', { class: 'mimsg' }, SEKI.msg) : null,
+      closeX(sekiClose)));
+}
+function sekiRow(x, word, go) {
+  const fc = x.leader.face != null ? charOf(x.leader.face) : null;
+  return el('div', { class: 'skrow' },
+    frFace(fc, 'skf', x.leader.title),
+    el('span', { class: 'skrn' }, el('b', {}, x.leader.name), el('i', {}, `${x.n} / 4`)),
+    el('button', { class: 'go sm', onclick: go }, word));
+}
+/* 出す武将をえらぶ（1騎だけ） */
+function sekiPickSheet() {
+  const cur = sekiMyUnits();
+  const list = (P.own || []).filter(hasCard).map(charOf).filter(sekiCanBring).sort((a, b) => powerOf(b) - powerOf(a));
+  const back = () => { SEKI.pick = false; SFX.pick(); draw(); };
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
+    el('div', { class: 'card2 skbox' },
+      el('b', { class: 'mittl' }, '出す武将（一騎）'),
+      el('div', { class: 'skpick' }, list.map(c => {
+        const on = cur.includes(c.no);
+        return el('button', { class: 'skpc' + (on ? ' on' : ''), onclick: () => {
+          P.seki = { ...(P.seki || {}), units: on ? [] : [c.no] }; savePlayer(); SFX.pick(); draw();
+        } }, pawnUrl(c.no) ? el('img', { src: pawnUrl(c.no), alt: c.name }) : el('i', {}, c.name[0]), el('span', {}, c.name));
+      })),
+      el('div', { class: 'tmfacts' },
+        el('button', { class: 'go', onclick: () => { SEKI.pick = false;
+          const m = SEKI.look && SEKI.look.mine;
+          if (m) sekiDo(() => sekiUnits(sekiPayload())); else draw(); } }, '決める'))));
+}
+/* 友を誘う */
+function sekiInvSheet() {
+  const back = () => { SEKI.inv = false; SFX.pick(); draw(); };
+  const pals = (PAL && PAL.pals) || [];
+  const m = (SEKI.look && SEKI.look.mine) || { invited: [], members: [] };
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
+    el('div', { class: 'card2 skbox' },
+      el('b', { class: 'mittl' }, '友を誘う'),
+      pals.length ? el('div', { class: 'sklist' }, pals.map(f => {
+        const sent = (m.invited || []).includes(f.id), inn = (m.members || []).some(x => x.pid === f.id);
+        const fc = f.face != null ? charOf(f.face) : null;
+        return el('div', { class: 'skrow' + (f.away ? ' away' : '') },
+          frFace(fc, 'skf', f.title),
+          el('span', { class: 'skrn' }, el('b', {}, f.name), el('i', {}, f.away ? '留守' : '城にいる')),
+          el('button', { class: 'go sm', disabled: (sent || inn) ? true : null,
+            onclick: () => sekiDo(() => sekiInvite(f.id), `${f.name} を誘った`) }, inn ? '陣にいる' : sent ? '誘った' : '誘う'));
+      })) : el('p', { class: 'note' }, 'まだ友がおらぬ。募れば、いま来ている誰かが加わる'),
+      closeX(back, 'もどる')));
+}
+
+/* ---- 合戦 ---- */
+function sekiGrow(c) {
+  const st = {}; const mul = 1 + (SEKI_FOE_LV - 1) * 0.02;
+  for (const k of SP_STATS) st[k] = Math.round((c.stats[k] || 0) * mul) + SEKI_FOE_SOUL;
+  return { ...c, stats: st };
+}
+function sekiFight(m) {
+  const f = m.fight || {};
+  const mem = (f.members || []).filter(x => (x.units || []).length);
+  if (!mem.length) return;
+  /* 総大将は東軍の家康（NPC）。そのあとに一人一騎ずつ、陣に入った順で並べる（4騎まで） */
+  const A = [sekiGrow(charOf(SEKI_GEN))];
+  for (const x of mem) { const u = (x.units || [])[0];
+    if (u && !A.some(a => a.no === u.no || (a.origin && a.origin === u.origin)) && A.length < 5) A.push(u); }
+  const B = SEKI_FOE.map(n => charOf(n)).filter(Boolean).map(sekiGrow);
+  const base = stageRules('草原', 0, false);
+  /* 兵量は 総大将10000・ほか一騎2500。重み4で割ると、何騎でも総大将がちょうど10000になる */
+  const rules = { ...base, holdWin: 'B',
+    troopsBySide: { A: { base: SEKI_GEN_HP + SEKI_UNIT_HP * (A.length - 1), generalHpWeight: SEKI_GEN_HP / SEKI_UNIT_HP, flat: true },
+                    B: { base: 20000, generalHpWeight: 4, flat: true } } };
+  BATTLE = {
+    seed: m.seed >>> 0, rules, B, bForm: '横一列', first: false, commands: [],
+    modes: [{ turn: 0, manual: false }],
+    shown: 0, live: null, playing: true, sel: null, busy: false,
+    camp: null, ev: null, spar: null, bout: null, tw: null,
+    seki: { id: m.id, round: m.round, win: sekiWin().key || m.win, A, gen: SEKI_GEN, form: f.form || '横一列',
+            lead: m.leader === sekiMe(m), n: mem.length },
+    weather: weatherOf(m.seed >>> 0, '草原'), useItems: [], prep: [],
+  };
+  resolve();
+  BATTLE.live = initLive(BATTLE.res);
+  preloadCutins([...A, ...B].map(x => x.no));
+  S.seki = false; S.res = null; S.dmg = false;
+  S.screen = 'battle';
+  S.vs = { ttlL: '関ヶ原', ttlR: '天下分け目', house: '石田家', foe: '石田ミツワン', w: BATTLE.weather };
+  SFX.start(); draw();
+  setTimeout(() => { S.vs = null; draw(); play(); }, 1200);
+}
+/* 褒美：勝つたびに小判。その時の初めての勝ちだけ 石・魂も */
+function sekiReward(won) {
+  if (!won || !BATTLE || !BATTLE.seki) return null;
+  P.seki = { ...(P.seki || {}) }; P.seki.won = { ...(P.seki.won || {}) };
+  const first = !P.seki.won[BATTLE.seki.win];
+  const r = first ? { stone: 300, koban: 30000, soul: 50 } : { koban: 10000 };
+  P.seki.won[BATTLE.seki.win] = 1;
+  if (r.stone) addFreeStones(r.stone);
+  P.koban += r.koban || 0; P.soul += r.soul || 0;
+  savePlayer();
+  return r;
+}
+
+/* ---- 地図の印（関ヶ原）。開いているあいだは炎を大きく、閉じているときは小さくくすぶる ---- */
+function sekiMark() {
+  const W = sekiWin();
+  const fl = fxUrl('flame_赤');
+  return el('button', { class: 'skmark' + (W.on ? ' on' : ''), title: '関ヶ原の合戦',
+    style: `left:${mapX(SEKI_PLACE)}%;top:${mapY(SEKI_PLACE)}%`,
+    onclick: e => { e.stopPropagation(); sekiOpen(); } },
+    fl ? keepImg({ class: 'skfl', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
+    uiUrl('seki_mark') ? keepImg({ class: 'skmk', src: uiUrl('seki_mark'), alt: '関ヶ原' }) : el('b', { class: 'skmk0' }, '戦'),
+    el('span', { class: 'skmn' }, '関ヶ原'));
+}
+
 const SCREENS = {
   title: screenTitle,
   tutorial: screenTutorial,
@@ -13058,6 +13383,7 @@ function draw() {
     S.rk ? rkSheet() : null,
     S.link ? linkSheet() : null,
     S.dl ? duelSheet() : null,
+    S.seki ? sekiSheet() : null,    // 関ヶ原の合戦（2026-10-11）
     S.offl ? offlineSheet() : null,
     S.kuWar ? kuWarSheet() : null,
     S.kuTake ? kuTakeSheet() : null,

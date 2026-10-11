@@ -6607,3 +6607,6 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 /* 札（明るい地）の中に入れた家の引き出しは、字を濃くする（2026-10-11） */
 .tmfbox .clansel{color:#3a2c12;background-color:#ffffffaa;border-color:#a8802c88}
 .tmfbox .clansel option{color:#3a2c12;background:#fff}
+/* お祭りの褒美の道具は、小判や魂と同じく地を敷かずに絵だけ（2026-10-11・悠さんの指図）。
+   .itic.art の白い地は、店の棚で絵を読みやすくするためのもの */
+.rc2 .itic.art,.evrw2 .itic.art,.evic .itic.art,.evbig .itic.art,.evrw .itic.art{background:none !important;border:0 !important;box-shadow:none !important}

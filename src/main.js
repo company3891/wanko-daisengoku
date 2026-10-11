@@ -122,6 +122,10 @@ function playOnce(v, capMs) {
   });
 }
 function keepImg(attrs) {
+  /* 画面を移ったとき、字や枠だけ先に出て絵が遅れて出る（iPhone の Safari・2026-10-11 悠さんの実測）。
+     Safari は絵を「あとでほどいて、ほどけたところから塗る」ので、半分だけ塗られた画面が見える。
+     sync を付けると、その絵がほどけるまで その一枚の塗りを待ち、画面がそろって出る */
+  if (attrs.decoding == null) attrs = { decoding: 'sync', ...attrs };
   const src = attrs.src;
   if (!src) return el('img', attrs);
   const key = src + '|' + (attrs.class || '');
@@ -618,6 +622,8 @@ function loadList() {
   /* 立ち絵の炎（2026-10-10）。ホームに入った瞬間から灯っているように先に読む */
   for (const n of ['虹', '赤', '黄', '青']) { const u = fxUrl('flame_' + n); if (u) out.push(u); }
   try { for (const c of adList()) { const u = adUrl(c.art); if (u) out.push(u); } } catch { }
+  /* 道中で連れている武将の横長の絵（2026-10-11）。道中を開くたびに一番大きな絵が遅れていた */
+  try { const tc = P.trail && P.trail.cur; if (tc) { const u = heroUrl(tc); if (u) out.push(u); } } catch { }
   /* いま出している部隊の子は、城でもすぐ出るので先に読む */
   const q = P.squads[P.active] || { nos: [] };
   for (const no of q.nos) {

@@ -6734,8 +6734,8 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
    前は .skfl を名に使っていて、立ち絵の炎（.skfl）と名が当たっていたので .skfire にした */
 .skmark{position:absolute;transform:translate(-50%,calc(-100% + 10px));z-index:3;padding:0;border:0;background:none;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;width:72px}
-.skfire{display:block;width:40px;height:auto;opacity:.7;filter:saturate(.75) brightness(.9);pointer-events:none;
-  transition:width .3s,opacity .3s}
+.skfire{display:block;width:26px;height:auto;opacity:.42;filter:grayscale(.55) brightness(.75);pointer-events:none;
+  transition:width .3s,opacity .3s}   /* 2026-10-12 閉じているあいだは種火ていどに。開いているかが一目で分かるように */
 .skmark.on .skfire{width:62px;opacity:1;filter:saturate(1.15) drop-shadow(0 0 10px #ff6a00)}
 .skfl0{display:block;width:26px;height:34px;border-radius:50% 50% 40% 40%;
   background:radial-gradient(circle at 50% 70%,#ffd36a,#ff6a00 55%,transparent 72%);opacity:.6}
@@ -6795,6 +6795,32 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .skvs .skfoe .skfc.gen{width:52px;height:52px}
 .skfc.ally{width:56px;height:56px;background:#1d4d7d22;border-color:#5aa9e6;box-shadow:0 0 8px #5aa9e666}
 .skvsw{font-style:normal;font-family:var(--mincho);font-size:16px;color:#a8802c}
+
+/* 2026-10-12 関ヶ原の札：副題・開く刻の一覧・褒美の限定札 */
+.skst{margin:-4px 0 0;text-align:center;font-size:12px;font-weight:800;letter-spacing:.3em;color:#a8802c}
+.skhours{list-style:none;margin:0;padding:8px 12px;border-radius:10px;background:#12100e0d;display:flex;flex-direction:column;gap:4px}
+.skhours li{display:flex;align-items:center;gap:10px;font-size:13px;color:#5c5042}
+.skhours li::before{content:"";width:6px;height:6px;border-radius:50%;background:#a8802c66}
+.skhours li span{font-size:11px}
+.skhours li b{font-family:var(--mincho);font-size:16px;color:#3a3128}
+.skhours li i{margin-left:auto;font-style:normal;font-size:11px;font-weight:800;color:#fff;background:#c0392b;padding:1px 8px;border-radius:999px}
+.skhours li.nx::before{background:#d8a94a;box-shadow:0 0 6px #d8a94a}
+.skhours li.nx b{color:#a8802c}
+.skprize{display:flex;align-items:center;gap:12px;width:100%;padding:8px 12px;border:1px solid #d8a94a;border-radius:12px;cursor:pointer;
+  background:linear-gradient(120deg,#2a1e3d,#12100e 70%);text-align:left;position:relative;overflow:hidden}
+.skprize::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,#ffffff22 45%,transparent 60%);
+  transform:translateX(-100%);animation:skshine 3.2s ease-in-out infinite}
+@keyframes skshine{to{transform:translateX(100%)}}
+.skpzc{flex:0 0 auto;width:58px;aspect-ratio:864/1280;border-radius:5px;overflow:hidden;box-shadow:0 0 0 1px #f5e2a8,0 0 12px #b06cff99}
+.skpzc img{width:100%;height:100%;object-fit:cover;display:block}
+.skpzt{display:flex;flex-direction:column;gap:2px;position:relative;flex:1;min-width:0}
+.skpzt em{font-style:normal;align-self:flex-start;font-size:10px;font-weight:800;color:#12100e;background:#d8a94a;padding:0 7px;border-radius:999px;letter-spacing:.2em}
+.skpzt b{font-family:var(--mincho);font-size:17px;color:#f5e2a8}
+.skpzt i{font-style:normal;font-size:11px;color:#e8dcc4cc}
+.skpzr{position:absolute;right:0;top:50%;transform:translateY(-50%);width:44px;height:44px;object-fit:contain}
+
+.skst .skleft{position:static;margin-left:12px;letter-spacing:0;font-size:11px;color:#c0392b}
+.skst .skleft b{font-size:14px;color:#c0392b}
 
 </style>
 </head>
@@ -41775,8 +41801,12 @@ function sekiSheet() {
   const body = [];
   if (L.off) body.push(el('p', { class: 'note' }, 'サーバーにつながっておらぬ。関ヶ原は皆で挑む合戦なので、つながってから来るのじゃ'));
   else if (!W.on) {
-    body.push(el('p', { class: 'skwhen' }, '次の合戦　', el('b', {}, sekiNext())));
-    body.push(el('p', { class: 'note' }, '土日の昼十二時・三時・夕六時・夜九時から、半刻（30分）だけ陣が開く'));
+    /* 開く刻を全部ならべる（2026-10-12 悠さんの指図「開催時間は全て箇条書きで」）。
+       次に開く刻だけ金で目立たせる */
+    const nx = sekiNext(), nh = +(String(nx).split(' ')[1] || '').split(':')[0];
+    body.push(el('ul', { class: 'skhours' }, SEKI_HOURS.map(h => el('li', { class: h === nh ? 'nx' : '' },
+      el('span', {}, '土・日'), el('b', {}, `${h}:00 〜 ${h}:${String(SEKI_MIN).padStart(2, '0')}`),
+      h === nh ? el('i', {}, `次は ${nx.split(' ')[0]}曜`) : null))));
   } else if (!m) {
     body.push(el('div', { class: 'skbtns' },
       el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, '陣を立てる'),
@@ -41811,7 +41841,9 @@ function sekiSheet() {
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
     el('div', { class: 'card2 skbox' },
       el('div', { class: 'skhead' },
-        el('b', { class: 'mittl' }, '関ヶ原の合戦'),
+        el('b', { class: 'mittl' }, '関ヶ原の戦い')),
+      /* 副題の横に残りの刻（2026-10-12）。前は題の帯の右に重なって読めなかった */
+      el('p', { class: 'skst' }, '協力バトル',
         W.on ? el('span', { class: 'skleft' }, '残り ', el('b', {}, sekiLeft(W.left))) : null),
       /* 東軍の総大将（家康）と、西軍の顔ぶれ */
       el('div', { class: 'skvs' },
@@ -41822,9 +41854,23 @@ function sekiSheet() {
           const u = pawnUrl(n) || faceUrl(n, '通常');   // コマ絵がまだ無い武将は顔で（2026-10-12 石田PR）
           return el('span', { class: 'skfc' + (i === 0 ? ' gen' : '') }, u ? el('img', { src: u, alt: c.name }) : el('i', {}, c.name[0]));
         }))),
+      sekiPrize(),
       ...body,
       SEKI.msg ? el('p', { class: 'mimsg' }, SEKI.msg) : null,
       closeX(sekiClose)));
+}
+/* 褒美の武将を「限定の札」として見せる（2026-10-12 悠さんの指図）。押せば札が開く */
+function sekiPrize() {
+  const c = charOf(SEKI_PRIZE); if (!c) return null;
+  const art = cardUrl(c.no, 'front') || pawnUrl(c.no);
+  return el('button', { class: 'skprize', onclick: () => {
+      S.detail = c.no; S.side = null; S.detailRO = true; S.detailBase = true; SFX.pick(); draw(); } },
+    el('span', { class: 'skpzc' }, art ? keepImg({ src: art, alt: c.name }) : el('i', {}, c.name[0])),
+    el('span', { class: 'skpzt' },
+      el('em', {}, '限定'),
+      el('b', {}, c.name),
+      el('i', {}, '討ち取れば この武将が加わる'),
+      rarUrl(c.rarity) ? keepImg({ class: 'skpzr', src: rarUrl(c.rarity), alt: c.rarity }) : null));
 }
 function sekiRow(x, word, go) {
   const fc = x.leader.face != null ? charOf(x.leader.face) : null;
@@ -41906,7 +41952,7 @@ function sekiFight(m) {
   preloadCutins([...A, ...B].map(x => x.no));
   S.seki = false; S.res = null; S.dmg = false;
   S.screen = 'battle';
-  S.vs = { ttlL: '関ヶ原', ttlR: '天下分け目', house: '石田家', foe: '石田ミツワン', w: BATTLE.weather };
+  S.vs = { ttlL: '関ヶ原', ttlR: '天下分け目', house: '豊臣家', foe: (charOf(SEKI_FOE[0]) || {}).name || '石田', w: BATTLE.weather };
   SFX.start(); draw();
   setTimeout(() => { S.vs = null; draw(); play(); }, 1200);
 }
@@ -41936,7 +41982,7 @@ function sekiMark() {
   /* 2026-10-12 悠さんの指図：印は燃える炎の動く絵だけにし、「戦」の札はやめた。
      炎は fx/seki_flame.webp（動く webp）。無ければ前の炎、それも無ければ色の玉に落ちる */
   const fl = fxUrl('seki_flame') || fxUrl('flame_赤');
-  return el('button', { class: 'skmark' + (W.on ? ' on' : ''), title: '関ヶ原の合戦',
+  return el('button', { class: 'skmark' + (W.on ? ' on' : ''), title: '関ヶ原の戦い',
     style: `left:${mapX(SEKI_PLACE)}%;top:${mapY(SEKI_PLACE)}%`,
     onclick: e => { e.stopPropagation(); sekiOpen(); } },
     fl ? keepImg({ class: 'skfire', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
@@ -42080,7 +42126,7 @@ function draw() {
     S.rk ? rkSheet() : null,
     S.link ? linkSheet() : null,
     S.dl ? duelSheet() : null,
-    S.seki ? sekiSheet() : null,    // 関ヶ原の合戦（2026-10-11）
+    S.seki && S.detail == null ? sekiSheet() : null,    // 関ヶ原（2026-10-11）。褒美の札を開いているあいだは引っ込める
     S.offl ? offlineSheet() : null,
     S.kuWar ? kuWarSheet() : null,
     S.kuTake ? kuTakeSheet() : null,

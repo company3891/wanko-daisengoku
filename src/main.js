@@ -13099,8 +13099,12 @@ function sekiSheet() {
   const body = [];
   if (L.off) body.push(el('p', { class: 'note' }, 'サーバーにつながっておらぬ。関ヶ原は皆で挑む合戦なので、つながってから来るのじゃ'));
   else if (!W.on) {
-    body.push(el('p', { class: 'skwhen' }, '次の合戦　', el('b', {}, sekiNext())));
-    body.push(el('p', { class: 'note' }, '土日の昼十二時・三時・夕六時・夜九時から、半刻（30分）だけ陣が開く'));
+    /* 開く刻を全部ならべる（2026-10-12 悠さんの指図「開催時間は全て箇条書きで」）。
+       次に開く刻だけ金で目立たせる */
+    const nx = sekiNext(), nh = +(String(nx).split(' ')[1] || '').split(':')[0];
+    body.push(el('ul', { class: 'skhours' }, SEKI_HOURS.map(h => el('li', { class: h === nh ? 'nx' : '' },
+      el('span', {}, '土・日'), el('b', {}, `${h}:00 〜 ${h}:${String(SEKI_MIN).padStart(2, '0')}`),
+      h === nh ? el('i', {}, `次は ${nx.split(' ')[0]}曜`) : null))));
   } else if (!m) {
     body.push(el('div', { class: 'skbtns' },
       el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, '陣を立てる'),
@@ -13135,7 +13139,9 @@ function sekiSheet() {
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
     el('div', { class: 'card2 skbox' },
       el('div', { class: 'skhead' },
-        el('b', { class: 'mittl' }, '関ヶ原の合戦'),
+        el('b', { class: 'mittl' }, '関ヶ原の戦い')),
+      /* 副題の横に残りの刻（2026-10-12）。前は題の帯の右に重なって読めなかった */
+      el('p', { class: 'skst' }, '協力バトル',
         W.on ? el('span', { class: 'skleft' }, '残り ', el('b', {}, sekiLeft(W.left))) : null),
       /* 東軍の総大将（家康）と、西軍の顔ぶれ */
       el('div', { class: 'skvs' },
@@ -13146,9 +13152,23 @@ function sekiSheet() {
           const u = pawnUrl(n) || faceUrl(n, '通常');   // コマ絵がまだ無い武将は顔で（2026-10-12 石田PR）
           return el('span', { class: 'skfc' + (i === 0 ? ' gen' : '') }, u ? el('img', { src: u, alt: c.name }) : el('i', {}, c.name[0]));
         }))),
+      sekiPrize(),
       ...body,
       SEKI.msg ? el('p', { class: 'mimsg' }, SEKI.msg) : null,
       closeX(sekiClose)));
+}
+/* 褒美の武将を「限定の札」として見せる（2026-10-12 悠さんの指図）。押せば札が開く */
+function sekiPrize() {
+  const c = charOf(SEKI_PRIZE); if (!c) return null;
+  const art = cardUrl(c.no, 'front') || pawnUrl(c.no);
+  return el('button', { class: 'skprize', onclick: () => {
+      S.detail = c.no; S.side = null; S.detailRO = true; S.detailBase = true; SFX.pick(); draw(); } },
+    el('span', { class: 'skpzc' }, art ? keepImg({ src: art, alt: c.name }) : el('i', {}, c.name[0])),
+    el('span', { class: 'skpzt' },
+      el('em', {}, '限定'),
+      el('b', {}, c.name),
+      el('i', {}, '討ち取れば この武将が加わる'),
+      rarUrl(c.rarity) ? keepImg({ class: 'skpzr', src: rarUrl(c.rarity), alt: c.rarity }) : null));
 }
 function sekiRow(x, word, go) {
   const fc = x.leader.face != null ? charOf(x.leader.face) : null;
@@ -13230,7 +13250,7 @@ function sekiFight(m) {
   preloadCutins([...A, ...B].map(x => x.no));
   S.seki = false; S.res = null; S.dmg = false;
   S.screen = 'battle';
-  S.vs = { ttlL: '関ヶ原', ttlR: '天下分け目', house: '石田家', foe: '石田ミツワン', w: BATTLE.weather };
+  S.vs = { ttlL: '関ヶ原', ttlR: '天下分け目', house: '豊臣家', foe: (charOf(SEKI_FOE[0]) || {}).name || '石田', w: BATTLE.weather };
   SFX.start(); draw();
   setTimeout(() => { S.vs = null; draw(); play(); }, 1200);
 }
@@ -13260,7 +13280,7 @@ function sekiMark() {
   /* 2026-10-12 悠さんの指図：印は燃える炎の動く絵だけにし、「戦」の札はやめた。
      炎は fx/seki_flame.webp（動く webp）。無ければ前の炎、それも無ければ色の玉に落ちる */
   const fl = fxUrl('seki_flame') || fxUrl('flame_赤');
-  return el('button', { class: 'skmark' + (W.on ? ' on' : ''), title: '関ヶ原の合戦',
+  return el('button', { class: 'skmark' + (W.on ? ' on' : ''), title: '関ヶ原の戦い',
     style: `left:${mapX(SEKI_PLACE)}%;top:${mapY(SEKI_PLACE)}%`,
     onclick: e => { e.stopPropagation(); sekiOpen(); } },
     fl ? keepImg({ class: 'skfire', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
@@ -13404,7 +13424,7 @@ function draw() {
     S.rk ? rkSheet() : null,
     S.link ? linkSheet() : null,
     S.dl ? duelSheet() : null,
-    S.seki ? sekiSheet() : null,    // 関ヶ原の合戦（2026-10-11）
+    S.seki && S.detail == null ? sekiSheet() : null,    // 関ヶ原（2026-10-11）。褒美の札を開いているあいだは引っ込める
     S.offl ? offlineSheet() : null,
     S.kuWar ? kuWarSheet() : null,
     S.kuTake ? kuTakeSheet() : null,

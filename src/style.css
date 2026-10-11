@@ -6636,3 +6636,18 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .trtipgo{min-height:40px;padding:6px 18px;border-radius:9px;cursor:pointer;
   font-size:13px;font-weight:700;letter-spacing:.06em;color:#2a1d07;
   background:linear-gradient(#f5e2a8,#d8a94a);border:1px solid #a8802c;box-shadow:0 3px 10px #000a}
+/* 戦の顔の列は盤より手前に（2026-10-11）。
+   盤（.boardwrap は position:relative）が上下にはみ出して、顔の下の兵量の数字を覆っていた。
+   手番の者だけ少し浮かせている（transform）ので、その一枚だけ数字が見えていた。
+   iPhone の Safari は、傾けた盤（3D の transform）を ほかの物の上に塗ってしまうことがあるので、
+   列そのものにも translateZ を付けて、手番の一枚と同じく別の層に上げる */
+.roster{position:relative;z-index:4;transform:translateZ(0)}
+/* 属性の巡り（2026-10-11）。盤の左上、兵量の帯と同じ段 */
+.affw{position:absolute;left:6px;top:2px;z-index:50;width:64px;height:64px;border-radius:50%;
+  background:radial-gradient(circle,#12100ecc 55%,#12100e99 70%,transparent 72%);pointer-events:none}
+.field.tilt .affw{top:4px;left:6px}
+.affarc,.affarc svg{position:absolute;inset:0;width:100%;height:100%}
+.affi{position:absolute;width:22px;height:22px;transform:translate(-50%,-50%);display:block}
+.affi img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 1px 1px #000a)}
+.affi i{display:block;width:14px;height:14px;margin:4px;border-radius:50%;background:var(--ac);border:1px solid #fff8}
+@media (max-width:380px){ .affw{width:56px;height:56px} .affi{width:19px;height:19px} }

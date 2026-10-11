@@ -11081,6 +11081,33 @@ function rwChips(rw) {
   return out;
 }
 
+/* 属性の巡り（2026-10-11・悠さんの指図）。盤の左上、兵量の帯と同じ段に絵だけで出す。
+   矢印は「強い → 弱い」。sim/rules.json の affinity.cycle（キー＝自分、値＝自分が弱い相手）から
+   組むので、巡りを変えても絵がついてくる。並びは時計回りに 猛将→神速→仁将→守将→智将→猛将 */
+function affWheel() {
+  const cyc = (RULES.affinity && RULES.affinity.cycle) || {};
+  /* beats[x] ＝ x が強く出られる相手 */
+  const beats = {}; for (const [me, weakTo] of Object.entries(cyc)) beats[weakTo] = me;
+  const order = []; let a = '猛将';
+  for (let i = 0; i < 5 && a && !order.includes(a); i++) { order.push(a); a = beats[a]; }
+  if (order.length !== 5) return null;
+  const R = 23, C = 32, IC = 22;
+  const pt = i => { const t = (-90 + i * 72) * Math.PI / 180; return [C + R * Math.cos(t), C + R * Math.sin(t)]; };
+  /* 矢印は二つの絵のあいだの弧。絵に重ならないよう、両端を少し削る */
+  const arcs = order.map((_, i) => {
+    const t0 = (-90 + i * 72 + 20) * Math.PI / 180, t1 = (-90 + (i + 1) * 72 - 20) * Math.PI / 180;
+    const x0 = C + R * Math.cos(t0), y0 = C + R * Math.sin(t0), x1 = C + R * Math.cos(t1), y1 = C + R * Math.sin(t1);
+    return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}" marker-end="url(#affh)"/>`;
+  }).join('');
+  const COL = { 猛将: '#d9544d', 智将: '#7a7ee0', 守将: '#4fa36b', 仁将: '#d98fc0', 神速: '#e0c04a' };
+  return el('div', { class: 'affw', 'aria-label': '属性の巡り' },
+    el('div', { class: 'affarc', html: `<svg viewBox="0 0 64 64"><defs><marker id="affh" viewBox="0 0 6 6" refX="4" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L6 3L0 6z" fill="#f5e2a8"/></marker></defs><g fill="none" stroke="#f5e2a8" stroke-width="1.6" stroke-linecap="round">${arcs}</g></svg>` }),
+    ...order.map((at, i) => {
+      const [x, y] = pt(i); const u = attrUrl(at);
+      return el('span', { class: 'affi', style: `left:${(x / 64 * 100).toFixed(1)}%;top:${(y / 64 * 100).toFixed(1)}%;--ac:${COL[at]}` },
+        u ? el('img', { src: u, alt: at }) : el('i'));
+    }));
+}
 function screenBattle() {
   /* 盤の向き（2026-10-05）。果たし合いで後手（B）に座ったときだけ半回転させ、
      自分の軍が手前に来るようにする。engine はそのまま ── 回すのは描く側だけ。
@@ -11096,6 +11123,7 @@ function screenBattle() {
     /* 手動オートと奥義のボタンは盤面そのものに対して置く（2026-09-21）。
        ステージ絵の余白ぶん枠が広がっても、盤面の角から離れないようにするため。 */
     el('div', { class: 'boardwrap' }, fieldEl(boardCache, stageArt(S.stage),
+      affWheel(),
       // 兵量は盤面の中、手動オートのボタンと同じ段の真ん中に（2026-09-23）
       el('div', { class: 'troop' },
         el('div', { class: 'fill fillA', id: 'barA' }),
@@ -11582,6 +11610,10 @@ function guidePaint() {
   /* 名乗りの一枚絵・盤面・天下の分け目のあいだは、指差しをまったく出さない（2026-09-30）。
      どれも読ませたい見せ場なので、重ねないし、縛りもしない */
   if (S.opening || S.screen === 'battle' || S.win || (S.screen === 'map' && !P.camp.intro)) return;
+  /* 初めの画面とロード中も出さない（2026-10-11）。
+     途中でアプリを閉じた人が開き直すと、「タップして開始」の上に
+     「育成を押すワン」が出て、押す先の無い語りが居座っていた */
+  if (S.screen === 'title' || S.screen === 'loading') return;
   const hit = g.find ? g.find() : null;
   /* 押せるもの：目当ての釦・三本線・戻る・閉じる。それ以外は薄くして触れなくする。
      free の歩（戦のさなか）と、差す先が見つからないときは 何も縛らない

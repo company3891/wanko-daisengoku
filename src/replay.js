@@ -791,6 +791,7 @@ export function describe(e, initial) {
     case 'counter': return { cls:'', s:`${n(e.src)} 反撃` };
     case 'cover': return { cls:'heal', s:`${n(e.src)} が ${n(e.tgt)} をかばう` };
     case 'eva': return { cls:'', s:`${n(e.tgt)} 回避` };
+    case 'dyingStrike': return { cls:'ult', s:`${n(e.src)} 最後の一撃 → ${n(e.tgt)}` };   // 2026-10-12
     case 'endure': return { cls:'heal', s:`${n(e.tgt)} 兵量1で耐える` };
     case 'revive': return { cls:'heal', s:`${n(e.tgt)} 復活` };
     case 'supportFire': return { cls:'', s:`${n(e.src)} 援護射撃` };

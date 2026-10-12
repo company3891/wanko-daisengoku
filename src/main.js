@@ -9480,6 +9480,14 @@ async function showEvent(e, my) {
       await sleep(90); return;
     }
 
+    /* 倒れぎわの一撃（2026-10-12・悠さんの見立て「鷹の目も発動してない気がする」）。
+       盤に何も出していなかったので、撃っても気づけなかった。倒れる者に一言、撃たれる者に光を出す */
+    case 'dyingStrike':
+      fxBurst(cellOf(e.src), 'shock', { ms: 420 });
+      popNumber(cellOf(e.src), '最後の一撃', 'crit');
+      await sleep(260);
+      fxBurst(cellOf(e.tgt), 'shock', { ms: 420 });
+      await sleep(120); return;
     case 'eva': SFX.eva(); popNumber(cellOf(e.tgt), '回避', ''); await sleep(140); return;
     case 'endure': SFX.heal(); fxBurst(cellOf(e.tgt), 'guard', { ms: 420 });
       popNumber(cellOf(e.tgt), '耐えた', 'heal'); await sleep(160); return;

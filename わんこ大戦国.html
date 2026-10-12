@@ -7196,7 +7196,10 @@ function parseSentence(s, out) {
      ただのダメージ技として宙に浮いていた（timing も常時だったので一度も出なかった） */
   if ((m = s.match(new RegExp('(?:自身が)?死亡時[^。]{0,24}?(火力|賢さ|知力|知略|防御|守備|回復|速さ)(?:ステータス)?を攻撃力とし[^。]{0,16}?' + N + '%のダメージ')))) {
     // 「◯◯を攻撃力とし」は正式記法なので statAsAttack を立てる（立てないと火力に倒される）
-    push({ kind: 'dyingStrike', stat: normalizeStat(m[1]), rate: +m[2] / 100, target: 'enemy1', statAsAttack: true });
+    /* 「敵総大将に」と書いてあれば、討った相手ではなく敵の総大将を撃つ（2026-10-12・悠さんの見立て
+       「鷹の目も発動してない気がする」。実測：60戦で2回出たが、2回とも討った相手に当たっていた） */
+    push({ kind: 'dyingStrike', stat: normalizeStat(m[1]), rate: +m[2] / 100,
+           target: /敵総大将/.test(s) ? 'enemyGeneral' : 'enemy1', statAsAttack: true });
   }
   // ② 通常攻撃の範囲を恒久的に変える
   {
@@ -8957,10 +8960,16 @@ function kill(src, tgt, ctx) {
   }
   // 道連れ反撃：戦闘不能になる「前に」1度だけ反撃する（固有の常時効果）
   const ds = dyingStrikeOf(tgt);
-  if (ds && !tgt._dyingUsed && src.alive && !ctx._inDying) {
+  /* 撃つ相手（2026-10-12）。ふつうは討った相手へ返す。
+     「敵総大将に」（雑賀マゴハウンドの鷹の目）は、討った相手ではなく敵の総大将へ。
+     総大将はどこにいても届く（離れた後ろから撃ち抜く技なので）。総大将がもう倒れていれば撃たない */
+  const dsFoe = !ds ? null
+    : ds.target === 'enemyGeneral' ? (foesOf(ctx, tgt).find(u => u.alive && u.isGeneral) || null)
+    : (src && src.alive ? src : null);
+  if (ds && !tgt._dyingUsed && dsFoe && !ctx._inDying) {
     tgt._dyingUsed = true; ctx._inDying = true;
-    if (log) log.push({ t: +t.toFixed(1), type: 'dyingStrike', src: tgt.id, tgt: src.id });
-    withVia(ctx, 'dying', () => dealDamage(tgt, src, ds.stat, ds.rate, ctx, tgt.attr));
+    if (log) log.push({ t: +t.toFixed(1), type: 'dyingStrike', src: tgt.id, tgt: dsFoe.id });
+    withVia(ctx, 'dying', () => dealDamage(tgt, dsFoe, ds.stat, ds.rate, ctx, tgt.attr));
     ctx._inDying = false;
     /* 道連れの一撃に反撃が返り、その中で先に倒れていることがある（2026-10-03）。
        道連れは「倒れる前の一撃」なので、もう済んでいる。ここで切り上げる */
@@ -11016,6 +11025,7 @@ function describe(e, initial) {
     case 'counter': return { cls:'', s:`${n(e.src)} 反撃` };
     case 'cover': return { cls:'heal', s:`${n(e.src)} が ${n(e.tgt)} をかばう` };
     case 'eva': return { cls:'', s:`${n(e.tgt)} 回避` };
+    case 'dyingStrike': return { cls:'ult', s:`${n(e.src)} 最後の一撃 → ${n(e.tgt)}` };   // 2026-10-12
     case 'endure': return { cls:'heal', s:`${n(e.tgt)} 兵量1で耐える` };
     case 'revive': return { cls:'heal', s:`${n(e.tgt)} 復活` };
     case 'supportFire': return { cls:'', s:`${n(e.src)} 援護射撃` };
@@ -35603,7 +35613,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/12 23:26 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/12 23:32 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -38326,6 +38336,14 @@ async function showEvent(e, my) {
       await sleep(90); return;
     }
 
+    /* 倒れぎわの一撃（2026-10-12・悠さんの見立て「鷹の目も発動してない気がする」）。
+       盤に何も出していなかったので、撃っても気づけなかった。倒れる者に一言、撃たれる者に光を出す */
+    case 'dyingStrike':
+      fxBurst(cellOf(e.src), 'shock', { ms: 420 });
+      popNumber(cellOf(e.src), '最後の一撃', 'crit');
+      await sleep(260);
+      fxBurst(cellOf(e.tgt), 'shock', { ms: 420 });
+      await sleep(120); return;
     case 'eva': SFX.eva(); popNumber(cellOf(e.tgt), '回避', ''); await sleep(140); return;
     case 'endure': SFX.heal(); fxBurst(cellOf(e.tgt), 'guard', { ms: 420 });
       popNumber(cellOf(e.tgt), '耐えた', 'heal'); await sleep(160); return;

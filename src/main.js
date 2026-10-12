@@ -13769,7 +13769,9 @@ function draw() {
     (nv ? Math.round(innerHeight - navTop) : 0) + 'px');
   /* 札（ポップアップ）の後ろに敷く絵（2026-09-24）。
      合戦の盤面だけは敷かない。勝敗の札の後ろに盤面が見えていてほしいので */
-  const sbg = S.screen === 'battle' ? null : bgUrl('home');
+  /* 道中（道の地図・戦）も敷かない（2026-10-12・悠さんの録画）。
+     手ほどきや宿場・商人の札の後ろが城下町の絵で埋まり、指している地図や手札が見えなかった */
+  const sbg = (S.screen === 'battle' || S.screen === 'trail' || S.screen === 'trfight') ? null : bgUrl('home');
   document.documentElement.style.setProperty('--scrbg', sbg ? `url("${sbg}")` : 'none');
   if (keepY) app.scrollTop = keepY;
   if (keepG) { const g2 = app.querySelector('.growbox'); if (g2) g2.scrollTop = keepG; }

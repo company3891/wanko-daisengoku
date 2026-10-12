@@ -6683,6 +6683,10 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .sheet.trtip{align-items:flex-end;justify-content:center;background:#0008;
   padding-bottom:calc(150px + env(safe-area-inset-bottom))}
 .sheet.trtip.k-fight{padding-bottom:calc(230px + env(safe-area-inset-bottom))}
+.sheet.trtip.k-item{padding-bottom:calc(290px + env(safe-area-inset-bottom))}
+/* 品の欄を指す光（2026-10-12）。札の暗幕の下でも見えるよう、強めの金で脈打たせる */
+.tritray.tiphi{box-shadow:0 0 0 2px #f5e2a8,0 0 18px 4px #d8a94a;animation:tiphi 1.2s ease-in-out infinite}
+@keyframes tiphi{50%{box-shadow:0 0 0 2px #fff,0 0 26px 8px #f5e2a8}}
 .sheet.trtip.k-spoil{align-items:flex-start;padding-top:calc(var(--safetop,0px) + 40px)}
 .trtipbox{width:calc(100% - 24px);max-width:440px;animation:adin .25s cubic-bezier(.2,.9,.3,1.1)}
 .trtipbox .gtalk{min-height:0;padding:6px 4px}

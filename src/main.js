@@ -12155,7 +12155,11 @@ const TR_TIPS = {
     ['札を敵へ引っ張って放すワン', '手札を指でつまんで、敵の上で放せば斬りかかるワン。守りや癒しの札は、場の上へ放せば効くワン。押すだけなら、下に札の中身が出るワン'],
     ['札の左上の数が、使う「気」だワン', '一手で使える気には限りがあるワン。足りない札は暗くなるワン。打ち終えたら右下の「ターン終了」を押すワン'],
     ['敵の頭の印は、次にしてくることだワン', '攻の印と数は斬りかかってくる強さ、守は身を固める、昂は力を溜めているワン。守るか、先に討つか、見て決めるワン'],
-    ['道中の品は下の欄から使うワン', '品を押すと中身と「使う」が出るワン。品は旅のあいだだけのものだワン'],
+  ],
+  /* 品の話は、品を初めて持って戦に入ったときに分けた（2026-10-12・悠さんの指図「下の欄とか表示されてない」）。
+     品が無いうちは欄に「品なし」としか出ないので、そこで語っても指す先が見えない */
+  item: [
+    ['道中の品は、手札の上の欄から使うワン', '持っている品がそこに並ぶワン。押すと中身と「使う」が出るワン。品は旅のあいだだけのものだワン'],
   ],
   deck: [
     ['武将の技が、そのまま札になるワン', '＋と−で枚数を決めて、山札を組むワン。同じ札は重ねられるワン（重ねられる数には限りがあるワン）'],
@@ -12170,7 +12174,12 @@ function trTipKey() {
   if (!P.name) return null;
   if (S.screen === 'trail' && S.trView === 'deck') return 'deck';
   if (S.trRes) return (S.trRes.win && S.trRes.spoil && S.trRes.spoil.cards.length && S.trRes.spoil.took == null) ? 'spoil' : null;
-  if (S.screen === 'trfight') return (S.trBanner || S.trBusy) ? null : 'fight';
+  if (S.screen === 'trfight') {
+    if (S.trBanner || S.trBusy) return null;
+    if (!(P.trTips || {}).fight) return 'fight';
+    const F = P.trail.fight, run = F ? trRunOf(F.no, F.tier || 0) : null;
+    return run && (run.items || []).length ? 'item' : null;
+  }
   if (S.screen === 'trail' && S.trView !== 'deck') {
     const run = trCur() ? trRunOf(trCur()) : null;
     if (S.trPick || S.trDeckView || S.trItem != null || (run && run.ev)) return null;
@@ -12759,7 +12768,8 @@ function screenTrFight() {
           el('b', {}, `${TR_KIND_NAME[selKd.kind]}　${trName(selKd.sk.name)}${selKd.up ? '＋' : ''}`),
           el('p', {}, trWords(trSpec(who, selKd, F)).join('・')))
           /* 何も選んでいないときは、ここに持っている品を並べる（押すと中身と「使う」） */
-          : el('div', { class: 'trdetail tritray' }, run.items.length
+          /* 品の手ほどきを読んでいるあいだは、欄を金に光らせて指す（2026-10-12） */
+          : el('div', { class: 'trdetail tritray' + (trTipKey() === 'item' && !(P.trTips || {}).item ? ' tiphi' : '') }, run.items.length
               ? run.items.map((nm, k) => el('button', { class: 'tritem',
                   onclick: () => { S.trItB = k; S.trSel = null; SFX.pick(); draw(); } }, itemIcon(nm)))
               : el('small', {}, '品なし')),

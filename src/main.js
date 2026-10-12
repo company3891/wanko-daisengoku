@@ -13176,7 +13176,7 @@ function sekiSheet() {
         el('b', { class: 'sknm' }, x.name));
     })));
     body.push(el('div', { class: 'skbtns' },
-      m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '出す武将') : null,
+      m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '武将選択') : null,   // 2026-10-12 悠さんの指図で「出す武将」から
       lead && m.phase === 'wait' ? el('button', { class: 'ghost' + (m.open ? ' on' : ''), onclick: () => sekiDo(() => sekiOpenSet(!m.open)) },
         m.open ? '締め切る' : '募る') : null,
       lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null));
@@ -13241,7 +13241,7 @@ function sekiPickSheet() {
   const back = () => { SEKI.pick = false; SFX.pick(); draw(); };
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
     el('div', { class: 'card2 skbox' },
-      el('b', { class: 'mittl' }, '出す武将（一騎）'),
+      el('b', { class: 'mittl' }, '武将選択（一騎）'),
       el('div', { class: 'skpick' }, list.map(c => {
         const on = cur.includes(c.no);
         return el('button', { class: 'skpc' + (on ? ' on' : ''), onclick: () => {

@@ -6748,6 +6748,15 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 /* 陣の札 */
 .skbox{display:flex;flex-direction:column;gap:10px}
 .skhead{display:flex;align-items:center;justify-content:center;position:relative}
+/* 関ヶ原の題の帯を札の端まで（2026-10-12・悠さんの指図「タイトルバーの背景色を端まで伸ばそう」）。
+   .skhead が帯を持たないと、中の .mittl の負の余白が flex の真ん中寄せで効かず、題の幅だけの帯になっていた。
+   番付（.rkttl）と同じく、帯は外の .skhead に持たせる */
+.card2:not(.winbox):not(.resbox):not(.growbox) .skhead{
+  margin:-14px -14px 2px;padding:12px 44px;
+  background:linear-gradient(180deg,#4a443a,#332e27);
+  border-radius:15px 15px 0 0;box-shadow:inset 0 -1px 0 #00000059}
+.card2:not(.winbox):not(.resbox):not(.growbox) .skhead .mittl{
+  margin:0;padding:0;background:none;box-shadow:none;border-radius:0}
 .skleft{position:absolute;right:12px;font-size:11px;color:#f5e2a8}
 .skleft b{font-size:14px;color:#fff}
 .skfoe{display:flex;justify-content:center;gap:4px}
@@ -41944,7 +41953,7 @@ function sekiSheet() {
         el('b', { class: 'sknm' }, x.name));
     })));
     body.push(el('div', { class: 'skbtns' },
-      m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '出す武将') : null,
+      m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '武将選択') : null,   // 2026-10-12 悠さんの指図で「出す武将」から
       lead && m.phase === 'wait' ? el('button', { class: 'ghost' + (m.open ? ' on' : ''), onclick: () => sekiDo(() => sekiOpenSet(!m.open)) },
         m.open ? '締め切る' : '募る') : null,
       lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null));
@@ -42009,7 +42018,7 @@ function sekiPickSheet() {
   const back = () => { SEKI.pick = false; SFX.pick(); draw(); };
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
     el('div', { class: 'card2 skbox' },
-      el('b', { class: 'mittl' }, '出す武将（一騎）'),
+      el('b', { class: 'mittl' }, '武将選択（一騎）'),
       el('div', { class: 'skpick' }, list.map(c => {
         const on = cur.includes(c.no);
         return el('button', { class: 'skpc' + (on ? ' on' : ''), onclick: () => {

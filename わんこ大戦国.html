@@ -8963,13 +8963,20 @@ function kill(src, tgt, ctx) {
   /* 撃つ相手（2026-10-12）。ふつうは討った相手へ返す。
      「敵総大将に」（雑賀マゴハウンドの鷹の目）は、討った相手ではなく敵の総大将へ。
      総大将はどこにいても届く（離れた後ろから撃ち抜く技なので）。総大将がもう倒れていれば撃たない */
-  const dsFoe = !ds ? null
-    : ds.target === 'enemyGeneral' ? (foesOf(ctx, tgt).find(u => u.alive && u.isGeneral) || null)
-    : (src && src.alive ? src : null);
-  if (ds && !tgt._dyingUsed && dsFoe && !ctx._inDying) {
+  /* 「自身の周囲1マスの敵に反撃」（直進の赤備え 72）は、周りの敵みなへ返す（2026-10-13・悠さんの指図）。
+     前は around1 と読めていたのに、ここが討った相手一体にしか返していなかった */
+  const dsFoes = !ds ? []
+    : ds.target === 'enemyGeneral' ? [foesOf(ctx, tgt).find(u => u.alive && u.isGeneral)].filter(Boolean)
+    : ds.target === 'around1' ? live(foesOf(ctx, tgt)).filter(e => chebyshev(e, tgt) === 1)
+    : (src && src.alive ? [src] : []);
+  if (ds && !tgt._dyingUsed && dsFoes.length && !ctx._inDying) {
     tgt._dyingUsed = true; ctx._inDying = true;
-    if (log) log.push({ t: +t.toFixed(1), type: 'dyingStrike', src: tgt.id, tgt: dsFoe.id });
-    withVia(ctx, 'dying', () => dealDamage(tgt, dsFoe, ds.stat, ds.rate, ctx, tgt.attr));
+    for (const dsFoe of dsFoes) {
+      if (!dsFoe.alive) continue;
+      if (log) log.push({ t: +t.toFixed(1), type: 'dyingStrike', src: tgt.id, tgt: dsFoe.id });
+      withVia(ctx, 'dying', () => dealDamage(tgt, dsFoe, ds.stat, ds.rate, ctx, tgt.attr));
+      if (!tgt.alive) break;
+    }
     ctx._inDying = false;
     /* 道連れの一撃に反撃が返り、その中で先に倒れていることがある（2026-10-03）。
        道連れは「倒れる前の一撃」なので、もう済んでいる。ここで切り上げる */
@@ -35613,7 +35620,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/12 23:32 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 08:18 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -38212,6 +38219,19 @@ async function showEvent(e, my) {
       SFX.move(); await sleep(260); return;
 
     case 'dmg': case 'supportFire': case 'counter': case 'dyingStrike': {
+      /* 倒れぎわの一撃（2026-10-12・悠さんの見立て「鷹の目も発動してない気がする」）。
+         撃つ前に、倒れる者へ「最後の一撃」の字と光を出す。
+         周りの敵みなへ返す技（直進の赤備え）は一騎ずつ記録が並ぶので、字は最初の一つだけ（2026-10-13）。
+         10/12 の版では同じ case を下にもう一つ書いてしまい、そちらは決して通らなかった */
+      if (e.type === 'dyingStrike') {
+        const k = e.src + '@' + e.t;
+        if (DS_SHOWN !== k) {
+          DS_SHOWN = k;
+          fxBurst(cellOf(e.src), 'shock', { ms: 420 });
+          popNumber(cellOf(e.src), '最後の一撃', 'crit');
+          await sleep(300);
+        }
+      }
       lunge(src, srcPos, tgtPos);
       await sleep(110);
       applyEvent(live, e); drawBattle();
@@ -38336,14 +38356,6 @@ async function showEvent(e, my) {
       await sleep(90); return;
     }
 
-    /* 倒れぎわの一撃（2026-10-12・悠さんの見立て「鷹の目も発動してない気がする」）。
-       盤に何も出していなかったので、撃っても気づけなかった。倒れる者に一言、撃たれる者に光を出す */
-    case 'dyingStrike':
-      fxBurst(cellOf(e.src), 'shock', { ms: 420 });
-      popNumber(cellOf(e.src), '最後の一撃', 'crit');
-      await sleep(260);
-      fxBurst(cellOf(e.tgt), 'shock', { ms: 420 });
-      await sleep(120); return;
     case 'eva': SFX.eva(); popNumber(cellOf(e.tgt), '回避', ''); await sleep(140); return;
     case 'endure': SFX.heal(); fxBurst(cellOf(e.tgt), 'guard', { ms: 420 });
       popNumber(cellOf(e.tgt), '耐えた', 'heal'); await sleep(160); return;
@@ -38360,6 +38372,7 @@ async function showEvent(e, my) {
     default: return;
   }
 }
+let DS_SHOWN = '';   // 最後の一撃の字を出した記録（2026-10-13）
 // 巻き戻し：指定のログ位置まで一気に進めて、演出なしで描く
 function seekTo(idx) {
   fxToken++; BATTLE.busy = false; BATTLE.playing = false;

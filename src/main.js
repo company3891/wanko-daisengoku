@@ -9356,6 +9356,19 @@ async function showEvent(e, my) {
       SFX.move(); await sleep(260); return;
 
     case 'dmg': case 'supportFire': case 'counter': case 'dyingStrike': {
+      /* 倒れぎわの一撃（2026-10-12・悠さんの見立て「鷹の目も発動してない気がする」）。
+         撃つ前に、倒れる者へ「最後の一撃」の字と光を出す。
+         周りの敵みなへ返す技（直進の赤備え）は一騎ずつ記録が並ぶので、字は最初の一つだけ（2026-10-13）。
+         10/12 の版では同じ case を下にもう一つ書いてしまい、そちらは決して通らなかった */
+      if (e.type === 'dyingStrike') {
+        const k = e.src + '@' + e.t;
+        if (DS_SHOWN !== k) {
+          DS_SHOWN = k;
+          fxBurst(cellOf(e.src), 'shock', { ms: 420 });
+          popNumber(cellOf(e.src), '最後の一撃', 'crit');
+          await sleep(300);
+        }
+      }
       lunge(src, srcPos, tgtPos);
       await sleep(110);
       applyEvent(live, e); drawBattle();
@@ -9480,14 +9493,6 @@ async function showEvent(e, my) {
       await sleep(90); return;
     }
 
-    /* 倒れぎわの一撃（2026-10-12・悠さんの見立て「鷹の目も発動してない気がする」）。
-       盤に何も出していなかったので、撃っても気づけなかった。倒れる者に一言、撃たれる者に光を出す */
-    case 'dyingStrike':
-      fxBurst(cellOf(e.src), 'shock', { ms: 420 });
-      popNumber(cellOf(e.src), '最後の一撃', 'crit');
-      await sleep(260);
-      fxBurst(cellOf(e.tgt), 'shock', { ms: 420 });
-      await sleep(120); return;
     case 'eva': SFX.eva(); popNumber(cellOf(e.tgt), '回避', ''); await sleep(140); return;
     case 'endure': SFX.heal(); fxBurst(cellOf(e.tgt), 'guard', { ms: 420 });
       popNumber(cellOf(e.tgt), '耐えた', 'heal'); await sleep(160); return;
@@ -9504,6 +9509,7 @@ async function showEvent(e, my) {
     default: return;
   }
 }
+let DS_SHOWN = '';   // 最後の一撃の字を出した記録（2026-10-13）
 // 巻き戻し：指定のログ位置まで一気に進めて、演出なしで描く
 function seekTo(idx) {
   fxToken++; BATTLE.busy = false; BATTLE.playing = false;

@@ -6845,3 +6845,36 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .skinm{font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .skist{font-style:normal;font-size:10px;color:var(--text3)}
 .skinv .go.sm{min-width:0;width:100%;padding:6px 0;margin-top:2px}
+
+/* 関ヶ原の出陣の数の帯（2026-10-12・悠さんの指図「上部の報酬バーみたいな感じで」）。
+   黒漆の帯に、左は金の出陣の数、右は節目の褒美を横に流す。届いた節目は金に光って押せる */
+.skcnt{display:flex;align-items:stretch;gap:0;background:#12100e;border:1px solid #a8802c;border-radius:12px;overflow:hidden;min-height:70px}
+.skcl{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:linear-gradient(180deg,#f5e2a8,#d8a94a 55%,#a8802c);color:#3a2a0e;
+  clip-path:polygon(0 0,86% 0,100% 50%,86% 100%,0 100%);padding-right:6px}
+.skcl i{font-style:normal;font-size:10px;letter-spacing:.1em;font-weight:700}
+.skcl b{font-family:var(--mincho);font-size:21px;line-height:1}
+.skcr{flex:1;min-width:0;display:flex;align-items:center;overflow-x:auto;padding:6px 8px 4px 2px;scrollbar-width:none}
+.skcr::-webkit-scrollbar{display:none}
+.skcstep{position:relative;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;padding-left:18px}
+.skcln{position:absolute;left:0;top:21px;width:22px;height:4px;background:#3a332a;border-radius:2px;overflow:hidden}
+.skcln i{display:block;height:100%;background:#d8a94a}
+.skcnode{position:relative;width:44px;height:44px;padding:0;border-radius:9px;
+  background:#2a241d;border:1px solid #5a4d3a;display:flex;align-items:center;justify-content:center}
+.skcnode .itic{width:28px;height:28px;font-size:13px}
+.skcnode.reach{border-color:#d8a94a}
+.skcnode.ready{background:radial-gradient(circle,#5a4214,#2a241d 75%);box-shadow:0 0 8px #f5e2a8aa;animation:skcglow 1.4s ease-in-out infinite}
+.skcnode.ready::after{content:'';position:absolute;right:-3px;top:-3px;width:10px;height:10px;border-radius:50%;background:#e0654f;border:1px solid #fff}
+.skcnode.took{opacity:.55}
+@keyframes skcglow{50%{box-shadow:0 0 14px #f5e2a8}}
+.skcnode.big{width:42px;height:54px;margin-top:-5px;border-color:#a77ad8;box-shadow:0 0 6px #a77ad888}
+.skcc{width:100%;height:100%;border-radius:8px;overflow:hidden;display:block}
+.skcc img{width:100%;height:100%;object-fit:cover}
+.skcq{position:absolute;right:2px;bottom:0;font-size:10px;color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.skcok{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mincho);
+  font-weight:700;font-size:16px;color:#e0654f;text-shadow:0 0 3px #fff}
+.skcat{font-style:normal;font-size:11px;color:#f5e2a8;margin-top:2px;font-weight:700}
+.skcstep:first-child{padding-left:12px}
+.skcstep:first-child .skcln{width:16px}
+/* 地図の印の朱の点。受け取れる節目があるとき */
+.skmdot{position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:#e0654f;border:1px solid #fff;z-index:3}

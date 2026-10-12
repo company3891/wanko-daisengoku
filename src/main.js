@@ -12981,6 +12981,23 @@ const SEKI_MIN = 30;
 /* 敵の総大将は関ヶ原の姿の石田（111・猛将PR）。勝つとこの武将がもらえる（2026-10-11 悠さんの指図） */
 const SEKI_FOE = [111, 70, 62, 27, 80];           // 石田（大将）・大谷・島津義弘・宇喜多・小早川秀秋
 const SEKI_PRIZE = 111;
+/* 出陣の数で配る褒美（2026-10-12・悠さんの指図）。
+   「負け続けて報酬貰えないのは悲しいから、出陣回数に応じてカウント報酬を出そう」
+   「10回ごとに報酬を出して、100回出陣でPRのキャラカード」「途中離脱はカウントしない」
+   勝ち負けは問わず、終わりまで居た戦だけを一つ数える。数えは消さない（時をまたいで積み上がる）。
+   card は武将の札そのもの。持っていれば重ねになる */
+const SEKI_CNT = [
+  { at: 10,  rw: { stone: 100 } },
+  { at: 20,  rw: { koban: 10000 } },
+  { at: 30,  rw: { items: { '稽古の書': 10 } } },
+  { at: 40,  rw: { stone: 200 } },
+  { at: 50,  rw: { soul: 100 } },
+  { at: 60,  rw: { items: { '特技の伝書': 5 } } },
+  { at: 70,  rw: { stone: 300 } },
+  { at: 80,  rw: { items: { '相伝の護符・中': 1 } } },
+  { at: 90,  rw: { items: { '道中手形': 20 } } },
+  { at: 100, rw: { card: SEKI_PRIZE } },
+];
 const SEKI_FOE_LV = 80, SEKI_FOE_SOUL = 500;       // seki_test.mjs で合わせた
 /* 敵だけにかける倍（2026-10-11）。大将が智将URの石田（61・総合4200）から猛将PRの石田（111・2900）に
    替わって敵が軽くなったので、敵の数値を1.5倍にして前と同じ手ごたえに戻した。
@@ -13200,6 +13217,7 @@ function sekiSheet() {
       /* 副題の横に残りの刻（2026-10-12）。前は題の帯の右に重なって読めなかった */
       el('p', { class: 'skst' }, '協力バトル',
         W.on ? el('span', { class: 'skleft' }, '残り ', el('b', {}, sekiLeft(W.left))) : null),
+      sekiCount(),
       /* 東軍の総大将（家康）と、西軍の顔ぶれ */
       el('div', { class: 'skvs' },
         el('span', { class: 'skfc gen ally' }, pawnUrl(SEKI_GEN) ? el('img', { src: pawnUrl(SEKI_GEN), alt: '' }) : el('i', {}, '家')),
@@ -13366,7 +13384,12 @@ function sekiHear(msg) {
     resolve(); play();
     return;
   }
-  if (msg.t === 'room') { b.here = msg.here || []; b.auto = new Set(msg.auto || []); drawBattle(); return; }
+  if (msg.t === 'room') {
+    b.here = msg.here || []; b.auto = new Set(msg.auto || []);
+    /* 間が「20秒戻らなかった」と記した人（2026-10-12）。戻ってきても その戦は出陣に数えない */
+    if ((msg.left || []).includes(b.me)) b.left = true;
+    drawBattle(); return;
+  }
   if (msg.t === 'beat') { b.beats[msg.pid] = Date.now(); return; }
   if (msg.t === 'down') {
     /* 自分の繋ぎが切れた。少し待って繋ぎ直す（間が resume で並びを渡し直す） */
@@ -13409,8 +13432,84 @@ function sekiTick() {
     sekiSend({ unit: a.unit, turn: a.turn, type: 'auto' });
   }
 }
+/* 出陣を一つ数える（2026-10-12）。勝ち負けを問わず、戦の終わりまで居たときだけ。
+   b.left は間（SekiRoom）が「20秒戻らなかった人」に付けた印。一度でも付いたら その戦は数えない。
+   同じ回を二度数えないよう、数えた回を P.seki.cntKey に残す */
+function sekiCountUp() {
+  const b = BATTLE && BATTLE.seki;
+  if (!b || b.left) return;
+  const key = b.id + ':' + b.round;
+  P.seki = { ...(P.seki || {}) };
+  if (P.seki.cntKey === key) return;
+  P.seki.cntKey = key;
+  P.seki.n = (P.seki.n || 0) + 1;
+  savePlayer();
+}
+/* 節目の褒美を受け取る。届いていない節目・受け取り済みは何もしない */
+function sekiCntTake(at) {
+  const t = SEKI_CNT.find(x => x.at === at);
+  const sk = P.seki || {}, got = sk.cntGot || [];
+  if (!t || (sk.n || 0) < at || got.includes(at)) return;
+  const rw = t.rw;
+  if (rw.koban) P.koban += rw.koban;
+  if (rw.soul) P.soul += rw.soul;
+  if (rw.stone) addFreeStones(rw.stone);
+  for (const [k, v] of Object.entries(rw.items || {})) P.items[k] = (P.items[k] || 0) + v;
+  let msg = miWords(rw);
+  if (rw.card && charOf(rw.card)) {
+    const had = P.own.includes(rw.card);
+    setCnt(rw.card, cntOf(rw.card) + 1);
+    if (!had) P.own.push(rw.card);
+    msg = charOf(rw.card).name + (had ? '（重ね）' : '');
+  }
+  P.seki = { ...sk, cntGot: got.concat(at) };
+  savePlayer();
+  SEKI.msg = msg + ' を受け取った';
+  SFX.pick(); draw();
+}
+const sekiCntReady = () => { const sk = P.seki || {}, got = sk.cntGot || [];
+  return SEKI_CNT.some(x => (sk.n || 0) >= x.at && !got.includes(x.at)); };
+/* 出陣の数の帯（2026-10-12・悠さんが見せてくれた絵の「上の褒美の帯」を手本に）。
+   左に出陣の数、右に節目の褒美が横に並ぶ。届いた節目は光り、押すと受け取れる */
+function sekiCount() {
+  const sk = P.seki || {}, n = sk.n || 0, got = sk.cntGot || [];
+  const cells = SEKI_CNT.map((x, i) => {
+    const prev = i ? SEKI_CNT[i - 1].at : 0;
+    const fill = Math.max(0, Math.min(1, (n - prev) / (x.at - prev)));
+    const reach = n >= x.at, took = got.includes(x.at);
+    let ic;
+    if (x.rw.card) {
+      const c = charOf(x.rw.card), u = c && (cardUrl(c.no, 'front') || pawnUrl(c.no));
+      ic = el('span', { class: 'skcc' }, u ? keepImg({ src: u, alt: c.name }) : el('i', {}, 'PR'));
+    } else ic = miIcon(x.rw);
+    return el('div', { class: 'skcstep' },
+      el('i', { class: 'skcln' }, el('i', { style: `width:${fill * 100}%` })),
+      el('button', {
+        class: 'skcnode' + (x.rw.card ? ' big' : '') + (reach ? ' reach' : '') + (took ? ' took' : '') + (reach && !took ? ' ready' : ''),
+        title: x.rw.card ? (charOf(x.rw.card) || {}).name : miWords(x.rw),
+        onclick: () => {
+          if (reach && !took) return sekiCntTake(x.at);
+          if (x.rw.card) { S.detail = x.rw.card; S.side = null; S.detailRO = true; S.detailBase = true; SFX.pick(); draw(); }
+        } },
+        ic,
+        x.rw.card ? null : el('b', { class: 'skcq' }, lbNum(x.rw)),
+        took ? el('span', { class: 'skcok' }, '済') : null),
+      el('em', { class: 'skcat' }, String(x.at)));
+  });
+  /* 札は3秒ごとに描き直されて横の送りが頭に戻るので、毎回「いちばん手前の受け取っていない節目」が
+     左から二つ目に来るよう送り直す */
+  let k = SEKI_CNT.findIndex(x => !got.includes(x.at) && n >= x.at);
+  if (k < 0) k = SEKI_CNT.findIndex(x => n < x.at);
+  if (k < 0) k = SEKI_CNT.length - 1;
+  const row = el('div', { class: 'skcr' }, cells);
+  requestAnimationFrame(() => { const c = row.children[Math.max(0, k - 1)]; if (c) row.scrollLeft = c.offsetLeft - 2; });
+  return el('div', { class: 'skcnt' },
+    el('div', { class: 'skcl' }, el('i', {}, '出陣'), el('b', {}, String(n))),
+    row);
+}
 /* 褒美：勝つたびに小判。その時の初めての勝ちだけ 石・魂も */
 function sekiReward(won) {
+  sekiCountUp();
   if (!won || !BATTLE || !BATTLE.seki) return null;
   P.seki = { ...(P.seki || {}) }; P.seki.won = { ...(P.seki.won || {}) };
   const first = !P.seki.won[BATTLE.seki.win];
@@ -13439,7 +13538,8 @@ function sekiMark() {
     style: `left:${mapX(SEKI_PLACE)}%;top:${mapY(SEKI_PLACE)}%`,
     onclick: e => { e.stopPropagation(); sekiEnter(); } },
     fl ? keepImg({ class: 'skfire', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
-    el('span', { class: 'skmn' }, '関ヶ原'));
+    el('span', { class: 'skmn' }, '関ヶ原'),
+    sekiCntReady() ? el('i', { class: 'skmdot' }) : null);   // 受け取れる節目がある（2026-10-12）
 }
 
 const SCREENS = {

@@ -6861,6 +6861,39 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .skist{font-style:normal;font-size:10px;color:var(--text3)}
 .skinv .go.sm{min-width:0;width:100%;padding:6px 0;margin-top:2px}
 
+/* 関ヶ原の出陣の数の帯（2026-10-12・悠さんの指図「上部の報酬バーみたいな感じで」）。
+   黒漆の帯に、左は金の出陣の数、右は節目の褒美を横に流す。届いた節目は金に光って押せる */
+.skcnt{display:flex;align-items:stretch;gap:0;background:#12100e;border:1px solid #a8802c;border-radius:12px;overflow:hidden;min-height:70px}
+.skcl{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:linear-gradient(180deg,#f5e2a8,#d8a94a 55%,#a8802c);color:#3a2a0e;
+  clip-path:polygon(0 0,86% 0,100% 50%,86% 100%,0 100%);padding-right:6px}
+.skcl i{font-style:normal;font-size:10px;letter-spacing:.1em;font-weight:700}
+.skcl b{font-family:var(--mincho);font-size:21px;line-height:1}
+.skcr{flex:1;min-width:0;display:flex;align-items:center;overflow-x:auto;padding:6px 8px 4px 2px;scrollbar-width:none}
+.skcr::-webkit-scrollbar{display:none}
+.skcstep{position:relative;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;padding-left:18px}
+.skcln{position:absolute;left:0;top:21px;width:22px;height:4px;background:#3a332a;border-radius:2px;overflow:hidden}
+.skcln i{display:block;height:100%;background:#d8a94a}
+.skcnode{position:relative;width:44px;height:44px;padding:0;border-radius:9px;
+  background:#2a241d;border:1px solid #5a4d3a;display:flex;align-items:center;justify-content:center}
+.skcnode .itic{width:28px;height:28px;font-size:13px}
+.skcnode.reach{border-color:#d8a94a}
+.skcnode.ready{background:radial-gradient(circle,#5a4214,#2a241d 75%);box-shadow:0 0 8px #f5e2a8aa;animation:skcglow 1.4s ease-in-out infinite}
+.skcnode.ready::after{content:'';position:absolute;right:-3px;top:-3px;width:10px;height:10px;border-radius:50%;background:#e0654f;border:1px solid #fff}
+.skcnode.took{opacity:.55}
+@keyframes skcglow{50%{box-shadow:0 0 14px #f5e2a8}}
+.skcnode.big{width:42px;height:54px;margin-top:-5px;border-color:#a77ad8;box-shadow:0 0 6px #a77ad888}
+.skcc{width:100%;height:100%;border-radius:8px;overflow:hidden;display:block}
+.skcc img{width:100%;height:100%;object-fit:cover}
+.skcq{position:absolute;right:2px;bottom:0;font-size:10px;color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.skcok{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mincho);
+  font-weight:700;font-size:16px;color:#e0654f;text-shadow:0 0 3px #fff}
+.skcat{font-style:normal;font-size:11px;color:#f5e2a8;margin-top:2px;font-weight:700}
+.skcstep:first-child{padding-left:12px}
+.skcstep:first-child .skcln{width:16px}
+/* 地図の印の朱の点。受け取れる節目があるとき */
+.skmdot{position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:#e0654f;border:1px solid #fff;z-index:3}
+
 </style>
 </head>
 <body>
@@ -12093,7 +12126,8 @@ const P = {
      P の既定値に並べておかないと loadPlayer が読み戻さない */
   trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {}, legacy: null },
   /* 関ヶ原の合戦（2026-10-11）。出す武将（二騎）と、時ごとの初めての勝ち */
-  seki: { units: [], won: {} },
+  /* n＝出陣の数（終わりまで居た戦だけ）／cntGot＝受け取った節目／cntKey＝最後に数えた回（2026-10-12） */
+  seki: { units: [], won: {}, n: 0, cntGot: [], cntKey: '' },
   /* runs＝武将ごとの道の途中（2026-10-09）。武将を替えると その武将の道に切り替わり、
      戻せば前の続きから。上限が開くのも、その道を抜けた武将だけ */
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
@@ -41758,6 +41792,23 @@ const SEKI_MIN = 30;
 /* 敵の総大将は関ヶ原の姿の石田（111・猛将PR）。勝つとこの武将がもらえる（2026-10-11 悠さんの指図） */
 const SEKI_FOE = [111, 70, 62, 27, 80];           // 石田（大将）・大谷・島津義弘・宇喜多・小早川秀秋
 const SEKI_PRIZE = 111;
+/* 出陣の数で配る褒美（2026-10-12・悠さんの指図）。
+   「負け続けて報酬貰えないのは悲しいから、出陣回数に応じてカウント報酬を出そう」
+   「10回ごとに報酬を出して、100回出陣でPRのキャラカード」「途中離脱はカウントしない」
+   勝ち負けは問わず、終わりまで居た戦だけを一つ数える。数えは消さない（時をまたいで積み上がる）。
+   card は武将の札そのもの。持っていれば重ねになる */
+const SEKI_CNT = [
+  { at: 10,  rw: { stone: 100 } },
+  { at: 20,  rw: { koban: 10000 } },
+  { at: 30,  rw: { items: { '稽古の書': 10 } } },
+  { at: 40,  rw: { stone: 200 } },
+  { at: 50,  rw: { soul: 100 } },
+  { at: 60,  rw: { items: { '特技の伝書': 5 } } },
+  { at: 70,  rw: { stone: 300 } },
+  { at: 80,  rw: { items: { '相伝の護符・中': 1 } } },
+  { at: 90,  rw: { items: { '道中手形': 20 } } },
+  { at: 100, rw: { card: SEKI_PRIZE } },
+];
 const SEKI_FOE_LV = 80, SEKI_FOE_SOUL = 500;       // seki_test.mjs で合わせた
 /* 敵だけにかける倍（2026-10-11）。大将が智将URの石田（61・総合4200）から猛将PRの石田（111・2900）に
    替わって敵が軽くなったので、敵の数値を1.5倍にして前と同じ手ごたえに戻した。
@@ -41977,6 +42028,7 @@ function sekiSheet() {
       /* 副題の横に残りの刻（2026-10-12）。前は題の帯の右に重なって読めなかった */
       el('p', { class: 'skst' }, '協力バトル',
         W.on ? el('span', { class: 'skleft' }, '残り ', el('b', {}, sekiLeft(W.left))) : null),
+      sekiCount(),
       /* 東軍の総大将（家康）と、西軍の顔ぶれ */
       el('div', { class: 'skvs' },
         el('span', { class: 'skfc gen ally' }, pawnUrl(SEKI_GEN) ? el('img', { src: pawnUrl(SEKI_GEN), alt: '' }) : el('i', {}, '家')),
@@ -42143,7 +42195,12 @@ function sekiHear(msg) {
     resolve(); play();
     return;
   }
-  if (msg.t === 'room') { b.here = msg.here || []; b.auto = new Set(msg.auto || []); drawBattle(); return; }
+  if (msg.t === 'room') {
+    b.here = msg.here || []; b.auto = new Set(msg.auto || []);
+    /* 間が「20秒戻らなかった」と記した人（2026-10-12）。戻ってきても その戦は出陣に数えない */
+    if ((msg.left || []).includes(b.me)) b.left = true;
+    drawBattle(); return;
+  }
   if (msg.t === 'beat') { b.beats[msg.pid] = Date.now(); return; }
   if (msg.t === 'down') {
     /* 自分の繋ぎが切れた。少し待って繋ぎ直す（間が resume で並びを渡し直す） */
@@ -42186,8 +42243,84 @@ function sekiTick() {
     sekiSend({ unit: a.unit, turn: a.turn, type: 'auto' });
   }
 }
+/* 出陣を一つ数える（2026-10-12）。勝ち負けを問わず、戦の終わりまで居たときだけ。
+   b.left は間（SekiRoom）が「20秒戻らなかった人」に付けた印。一度でも付いたら その戦は数えない。
+   同じ回を二度数えないよう、数えた回を P.seki.cntKey に残す */
+function sekiCountUp() {
+  const b = BATTLE && BATTLE.seki;
+  if (!b || b.left) return;
+  const key = b.id + ':' + b.round;
+  P.seki = { ...(P.seki || {}) };
+  if (P.seki.cntKey === key) return;
+  P.seki.cntKey = key;
+  P.seki.n = (P.seki.n || 0) + 1;
+  savePlayer();
+}
+/* 節目の褒美を受け取る。届いていない節目・受け取り済みは何もしない */
+function sekiCntTake(at) {
+  const t = SEKI_CNT.find(x => x.at === at);
+  const sk = P.seki || {}, got = sk.cntGot || [];
+  if (!t || (sk.n || 0) < at || got.includes(at)) return;
+  const rw = t.rw;
+  if (rw.koban) P.koban += rw.koban;
+  if (rw.soul) P.soul += rw.soul;
+  if (rw.stone) addFreeStones(rw.stone);
+  for (const [k, v] of Object.entries(rw.items || {})) P.items[k] = (P.items[k] || 0) + v;
+  let msg = miWords(rw);
+  if (rw.card && charOf(rw.card)) {
+    const had = P.own.includes(rw.card);
+    setCnt(rw.card, cntOf(rw.card) + 1);
+    if (!had) P.own.push(rw.card);
+    msg = charOf(rw.card).name + (had ? '（重ね）' : '');
+  }
+  P.seki = { ...sk, cntGot: got.concat(at) };
+  savePlayer();
+  SEKI.msg = msg + ' を受け取った';
+  SFX.pick(); draw();
+}
+const sekiCntReady = () => { const sk = P.seki || {}, got = sk.cntGot || [];
+  return SEKI_CNT.some(x => (sk.n || 0) >= x.at && !got.includes(x.at)); };
+/* 出陣の数の帯（2026-10-12・悠さんが見せてくれた絵の「上の褒美の帯」を手本に）。
+   左に出陣の数、右に節目の褒美が横に並ぶ。届いた節目は光り、押すと受け取れる */
+function sekiCount() {
+  const sk = P.seki || {}, n = sk.n || 0, got = sk.cntGot || [];
+  const cells = SEKI_CNT.map((x, i) => {
+    const prev = i ? SEKI_CNT[i - 1].at : 0;
+    const fill = Math.max(0, Math.min(1, (n - prev) / (x.at - prev)));
+    const reach = n >= x.at, took = got.includes(x.at);
+    let ic;
+    if (x.rw.card) {
+      const c = charOf(x.rw.card), u = c && (cardUrl(c.no, 'front') || pawnUrl(c.no));
+      ic = el('span', { class: 'skcc' }, u ? keepImg({ src: u, alt: c.name }) : el('i', {}, 'PR'));
+    } else ic = miIcon(x.rw);
+    return el('div', { class: 'skcstep' },
+      el('i', { class: 'skcln' }, el('i', { style: `width:${fill * 100}%` })),
+      el('button', {
+        class: 'skcnode' + (x.rw.card ? ' big' : '') + (reach ? ' reach' : '') + (took ? ' took' : '') + (reach && !took ? ' ready' : ''),
+        title: x.rw.card ? (charOf(x.rw.card) || {}).name : miWords(x.rw),
+        onclick: () => {
+          if (reach && !took) return sekiCntTake(x.at);
+          if (x.rw.card) { S.detail = x.rw.card; S.side = null; S.detailRO = true; S.detailBase = true; SFX.pick(); draw(); }
+        } },
+        ic,
+        x.rw.card ? null : el('b', { class: 'skcq' }, lbNum(x.rw)),
+        took ? el('span', { class: 'skcok' }, '済') : null),
+      el('em', { class: 'skcat' }, String(x.at)));
+  });
+  /* 札は3秒ごとに描き直されて横の送りが頭に戻るので、毎回「いちばん手前の受け取っていない節目」が
+     左から二つ目に来るよう送り直す */
+  let k = SEKI_CNT.findIndex(x => !got.includes(x.at) && n >= x.at);
+  if (k < 0) k = SEKI_CNT.findIndex(x => n < x.at);
+  if (k < 0) k = SEKI_CNT.length - 1;
+  const row = el('div', { class: 'skcr' }, cells);
+  requestAnimationFrame(() => { const c = row.children[Math.max(0, k - 1)]; if (c) row.scrollLeft = c.offsetLeft - 2; });
+  return el('div', { class: 'skcnt' },
+    el('div', { class: 'skcl' }, el('i', {}, '出陣'), el('b', {}, String(n))),
+    row);
+}
 /* 褒美：勝つたびに小判。その時の初めての勝ちだけ 石・魂も */
 function sekiReward(won) {
+  sekiCountUp();
   if (!won || !BATTLE || !BATTLE.seki) return null;
   P.seki = { ...(P.seki || {}) }; P.seki.won = { ...(P.seki.won || {}) };
   const first = !P.seki.won[BATTLE.seki.win];
@@ -42216,7 +42349,8 @@ function sekiMark() {
     style: `left:${mapX(SEKI_PLACE)}%;top:${mapY(SEKI_PLACE)}%`,
     onclick: e => { e.stopPropagation(); sekiEnter(); } },
     fl ? keepImg({ class: 'skfire', src: fl, alt: '' }) : el('i', { class: 'skfl0' }),
-    el('span', { class: 'skmn' }, '関ヶ原'));
+    el('span', { class: 'skmn' }, '関ヶ原'),
+    sekiCntReady() ? el('i', { class: 'skmdot' }) : null);   // 受け取れる節目がある（2026-10-12）
 }
 
 const SCREENS = {

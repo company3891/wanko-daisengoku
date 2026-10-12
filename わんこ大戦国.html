@@ -9606,7 +9606,7 @@ function fireSkills(u, timing, allies, enemies, target, ctx) {
      決めごとに合わせてこちらへ寄せた。
      撃つのは 常時の種類と仕込みの種類を除いたぶんだけ（それらは待たずに効いているので
      ここで撃つと二重になる）。ログは type:'unique' のまま残す ── 盤の見せ場がこれを見ている */
-  const ut = u.compiled.uniqueTrig;
+  for (const ut of [u.compiled.uniqueTrig, ...(u.compiled.uniqueTrigX || [])]) {
   if (ut && ut.timing === timing) {
     const effs = uniqFire(ut.effects);
     if (effs.length && !hitsNobody(effs, u, allies, enemies, target, ctx) && skillFires(u, ut, ctx)) {
@@ -9619,6 +9619,7 @@ function fireSkills(u, timing, allies, enemies, target, ctx) {
       const es2 = atStart ? stretchAtStart(effs, ctx) : effs;
       withVia(ctx, 'unique', () => applyEffects(es2, u, allies, enemies, target, ctx));
     }
+  }
   }
 }
 
@@ -9709,13 +9710,21 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       // 継承した◆（2026-09-21）。元から持っている◆と同じ扱いにするため、
       // 通常特技ではなく compiled.unique に足す（◆は複数持つと同時に発動する）
       if (Array.isArray(cell.char.uniqExtra) && cell.char.uniqExtra.length) {
-        const add = [];
+        const add = [], trigX = [];
         for (const k of cell.char.uniqExtra) {
           const eff = (parseEffect(k.text) || {}).effects || [];
           for (const e of eff) if (e.element == null) e.element = k.element || u.attr;
           add.push(...eff);
+          /* 継いだ◆も、書かれた発動タイミングで撃つ（2026-10-12・悠さんの見立て
+             「継承した三成の采配が機能してない」）。
+             前は compiled.unique に足すだけで、タイミングで撃つ道（uniqueTrig）は
+             その武将の元の◆ひとつしか見ていなかった。だから継いだ◆は
+             常時のしかけ・開戦の仕込み（奥義ゲージMAX など）だけ効き、
+             「味方にバフを掛ける」「開戦に斬りつける」のような撃つ効き目は一度も出ていなかった
+             （実測：豊臣ヒデヨシバに三成の采配を継がせて 回復のバフ 0回 → 直したあと 毎戦掛かる） */
+          if (k && k.name && eff.length) trigX.push({ name: k.name, timing: k.timing || '常時', rate: k.rate, effects: eff });
         }
-        if (add.length) u.compiled = { ...u.compiled, unique: u.compiled.unique.concat(add) };
+        if (add.length) u.compiled = { ...u.compiled, unique: u.compiled.unique.concat(add), uniqueTrigX: trigX };
       }
       /* 固有の名を控える（2026-10-01）。元から持っている◆と、継承で入れた◆の両方。
          カットインに「どの固有が出たか」を出すのに使う。

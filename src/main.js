@@ -13168,12 +13168,12 @@ function sekiSheet() {
     body.push(el('div', { class: 'skseats' }, [0, 1, 2, 3].map(i => {
       const x = m.members[i];
       if (!x) return el('div', { class: 'skseat none' }, el('i', {}, '空き'));
-      const fc = x.face != null ? charOf(x.face) : null;
+      /* 2026-10-12（悠さんの指図）：顔の額をやめ、出陣する武将のコマ絵を大きく＋その下に名だけ */
+      const u = (x.units || [])[0];
+      const pu = u ? (pawnUrl(u.no) || faceUrl(u.no, '通常')) : null;
       return el('div', { class: 'skseat' + (x.pid === m.leader ? ' lead' : '') + (x.pid === meId ? ' me' : '') },
-        frFace(fc, 'skf', x.title),
-        el('b', { class: 'sknm' }, x.name),
-        el('div', { class: 'skun' }, (x.units || []).slice(0, 1).map(u => el('span', { class: 'sku' },
-          pawnUrl(u.no) ? el('img', { src: pawnUrl(u.no), alt: u.name }) : el('i', {}, (u.name || '?')[0])))));
+        el('span', { class: 'skpawn' }, pu ? keepImg({ src: pu, alt: u.name }) : el('i', {}, u ? (u.name || '?')[0] : '？')),
+        el('b', { class: 'sknm' }, x.name));
     })));
     body.push(el('div', { class: 'skbtns' },
       m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '出す武将') : null,
@@ -13182,11 +13182,14 @@ function sekiSheet() {
       lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null));
     /* 戦のさなか（2026-10-12）。前は押せない「合戦のさなか」だけが出て、
        戦の画面を離れた人が戻れなかった。いつでも同じ戦に戻れるようにする（間が並びを渡し直す） */
-    if (m.phase === 'fight') body.push(el('button', { class: 'go wide skgo',
-      onclick: () => { if (m.fight) { SEKI.seenRound = m.round; sekiFight(m); } } }, '戦に戻る'));
-    else if (lead) body.push(el('button', { class: 'go wide skgo', onclick: () => sekiDo(() => sekiStart()) }, '出陣'));
-    else body.push(el('p', { class: 'note' }, '呼んだ人の出陣を待っておる'));
-    body.push(el('button', { class: 'ghost wide', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '陣をたたむ' : '陣を抜ける'));
+    /* 出陣と解散を一列に（2026-10-12・悠さんの指図「陣を畳むがわかりにくいので解散にして、小さくして出陣と同列に」）。
+       加わった人は「抜ける」 */
+    const quit = el('button', { class: 'ghost skquit', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '解散' : '抜ける');
+    const main = m.phase === 'fight'
+      ? el('button', { class: 'go skgo', onclick: () => { if (m.fight) { SEKI.seenRound = m.round; sekiFight(m); } } }, '戦に戻る')
+      : lead ? el('button', { class: 'go skgo', onclick: () => sekiDo(() => sekiStart()) }, '出陣')
+      : el('p', { class: 'note skwait' }, '呼んだ人の出陣を待っておる');
+    body.push(el('div', { class: 'skgorow' }, main, quit));
   }
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
     el('div', { class: 'card2 skbox' },
@@ -13258,12 +13261,13 @@ function sekiInvSheet() {
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
     el('div', { class: 'card2 skbox' },
       el('b', { class: 'mittl' }, '友を誘う'),
-      pals.length ? el('div', { class: 'sklist' }, pals.map(f => {
+      /* 横に並べる（2026-10-12・悠さんの指図「縦に伸びてるので横に同列で」）。入りきらなければ横に送る */
+      pals.length ? el('div', { class: 'skinvs' }, pals.map(f => {
         const sent = (m.invited || []).includes(f.id), inn = (m.members || []).some(x => x.pid === f.id);
         const fc = f.face != null ? charOf(f.face) : null;
-        return el('div', { class: 'skrow' + (f.away ? ' away' : '') },
+        return el('div', { class: 'skinv' + (f.away ? ' away' : '') },
           frFace(fc, 'skf', f.title),
-          el('span', { class: 'skrn' }, el('b', {}, f.name), el('i', {}, f.away ? '留守' : '城にいる')),
+          el('b', { class: 'skinm' }, f.name), el('i', { class: 'skist' }, f.away ? '留守' : '城にいる'),
           el('button', { class: 'go sm', disabled: (sent || inn) ? true : null,
             onclick: () => sekiDo(() => sekiInvite(f.id), `${f.name} を誘った`) }, inn ? '陣にいる' : sent ? '誘った' : '誘う'));
       })) : el('p', { class: 'note' }, 'まだ友がおらぬ。募れば、いま来ている誰かが加わる'),

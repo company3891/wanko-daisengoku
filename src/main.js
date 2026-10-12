@@ -12116,11 +12116,12 @@ function screenTrail() {
             el('button', { class: 'ghost', onclick: () => { P.trTips = {}; S.trTipPg = 0; savePlayer(); SFX.pick(); draw(); } }, '遊び方'),
             el('button', { class: 'ghost', onclick: () => { S.trView = 'deck'; S.trDraft = { ...trDeckOf(who, kinds) }; SFX.pick(); draw(); } },
               `山札（${TR_DECK}枚）`)))),
-      trTierRow(tier),
+      /* 段えらびは部の札の頭、階の左へ。手形は札束の左へ（2026-10-12・悠さんの指図「無駄なスペースが多い」） */
       el('div', { class: 'trrun' },
-        el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
-        el('span', {}, `${floorNow ? floorNow + '階' : '出立前'}`),
-        el('span', { class: 'trtix' }, itemIcon(TR_TICKET), `×${num(item(TR_TICKET))}`),
+        el('div', { class: 'trrunhd' },
+          el('b', {}, `${['一', '二', '三'][run.part]}の部　${TR_PARTS[run.part]}`),
+          trTierRow(tier),
+          el('span', { class: 'trfl' }, `${floorNow ? floorNow + '階' : '出立前'}`)),
         el('div', { class: 'trmebar' }, trBar(run.hp, mx, 0)),
         /* 道中の品と札束（2026-10-10）。旅のあいだだけのもの */
         el('div', { class: 'trbag' },
@@ -12128,6 +12129,7 @@ function screenTrail() {
           ...[0, 1, 2].map(k => run.items[k]
             ? el('button', { class: 'tritem', onclick: () => { S.trItem = k; SFX.pick(); draw(); } }, itemIcon(run.items[k]))
             : el('span', { class: 'tritem none' })),
+          el('span', { class: 'trtix' }, itemIcon(TR_TICKET), `×${num(item(TR_TICKET))}`),
           el('button', { class: 'trdeckb', onclick: () => { S.trDeckView = true; SFX.pick(); draw(); } },
             '札束 ', el('em', {}, String((run.cards || []).length)), '枚'))),
       el('div', { class: 'trlegend' }, ['戦', '強', '？', '宿', '商', '宝'].map(t =>
@@ -12215,8 +12217,7 @@ function trTipSheet() {
    全国の道えらびと同じ丸い切り替えを使う。前の段をどれか一体で30階まで抜けると次が開く。
    道は段ごとに別に持つので、切り替えても歩きかけの道は消えない */
 function trTierRow(cur) {
-  return el('div', { class: 'cmrow trtierrow' },
-    el('b', { class: 'trtierl' }, '道の険しさ'),
+  return el('div', { class: 'trtierrow' },
     el('div', { class: 'cmodes' }, TR_TIER.map((m, t) => {
       const ok = trTierOpen(t);
       return el('button', {

@@ -43,7 +43,7 @@ import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce,
          duelOpen, duelJoin,
          palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel,
          palGift, palGiftTake, palTeam, palRaid, palRaidTake,
-         sekiLook, sekiMake, sekiJoin, sekiUnits, sekiLeave, sekiOpenSet, sekiInvite, sekiNpc, sekiStart, sekiBack } from './net.js';
+         sekiLook, sekiMake, sekiJoin, sekiUnits, sekiLeave, sekiOpenSet, sekiInvite, sekiNpc, sekiStart, sekiBack, sekiRoom } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt, rkName,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -9068,13 +9068,16 @@ function resolve() {
      編成は座から降りてきたものをそのまま使う（自分の手元の S.picked は見ない）。
      ここを手元から組み立てると、二人の盤がずれる */
   /* 関ヶ原の合戦（2026-10-11）。持ち寄りは配られたものをそのまま使う（手元の S.picked は見ない）。
-     必ずオート ── 誰か一人が手で動かすと、その人の盤だけ別の戦になる */
+     2026-10-12 改（悠さんの指図「オートじゃなくてリアルタイムに」）：
+     一人一騎ずつ手で動かす。指図は協力戦の間（SekiRoom）が番号を打って皆に配る。
+     総大将の家康（NPC）だけはいつも AI（aiNos）。浪人・持ち時間ぎれ・落ちた人の駒は
+     「おまかせ」の指図で AI が動かす（engine の type:'auto'） */
   if (b.seki) {
     b.res = runBattle(
       { members: b.seki.A, generalNo: b.seki.gen, formation: b.seki.form,
-        manual: false, modeSwitches: [{ turn: 0, manual: false }] },
+        manual: true, modeSwitches: [{ turn: 0, manual: true }], aiNos: [b.seki.gen] },
       { members: b.B, generalNo: SEKI_FOE[0], formation: b.bForm },
-      b.rules, b.seed, { log: true, commands: [], weather: b.weather });
+      b.rules, b.seed, { log: true, commands: b.commands, weather: b.weather });
     return;
   }
   if (b.duel) {
@@ -9180,6 +9183,12 @@ function command(c) {
   if (BATTLE.duel) {
     if (!String(a.unit).startsWith(BATTLE.duel.side + '-')) return;   // 相手の手番
     if (DUEL && DUEL.ws) DUEL.ws.cmd({ unit: a.unit, turn: a.turn, ...c });
+    return;
+  }
+  /* 関ヶ原（2026-10-12）。自分の駒の番だけ。指図は間へ預け、降りてきたものだけを積む */
+  if (BATTLE.seki) {
+    if (BATTLE.seki.owners[a.unit] !== BATTLE.seki.me) return;
+    sekiSend({ unit: a.unit, turn: a.turn, ...c });
     return;
   }
   BATTLE.commands.push({ unit: a.unit, turn: a.turn, ...c });
@@ -9526,7 +9535,7 @@ function drawBattle() {
 
   // 盤面の右上：いまどちらで動いているか。予約中なら「次ターンから」を添える
   const ab = $('#autoBtn');
-  if (ab && (BATTLE.spar || BATTLE.bout || BATTLE.away)) ab.style.display = 'none';   // 稽古と番付は切り替えさせない
+  if (ab && (BATTLE.spar || BATTLE.bout || BATTLE.away || BATTLE.seki)) ab.style.display = 'none';   // 稽古と番付は切り替えさせない
   if (ab && !BATTLE.spar && !BATTLE.bout) {
     const man = manualNow(), pend = pendingSwitch();
     ab.className = 'autobtn' + (man ? ' man' : '');
@@ -9536,10 +9545,10 @@ function drawBattle() {
 
   // 手動操作のパネル
   /* 果たし合いでは、自分の駒の番でないと操れない（2026-10-04） */
-  const myTurn = !BATTLE.duel
-    || String((res.awaiting || {}).unit || '').startsWith(BATTLE.duel.side + '-');
+  const myTurn = BATTLE.seki ? BATTLE.seki.owners[(res.awaiting || {}).unit] === BATTLE.seki.me
+    : (!BATTLE.duel || String((res.awaiting || {}).unit || '').startsWith(BATTLE.duel.side + '-'));
   const waiting = res.awaiting && BATTLE.shown >= res.log.length && !BATTLE.busy && myTurn;
-  const foeTurn = !!BATTLE.duel && !!res.awaiting && BATTLE.shown >= res.log.length
+  const foeTurn = !!(BATTLE.duel || BATTLE.seki) && !!res.awaiting && BATTLE.shown >= res.log.length
                   && !BATTLE.busy && !myTurn;
   const panel = $('#manualBox');
   panel.innerHTML = '';
@@ -9660,10 +9669,14 @@ function drawBattle() {
     const a2 = res.awaiting;
     const pw = pawnCache.get(a2.unit);
     if (pw) { pw.style.outline = '2px dashed #5aa9e6'; pw.style.outlineOffset = '2px'; }
+    /* 関ヶ原では仲間の手番（2026-10-12）。誰が考えているかと、残りの秒を出す */
+    const sk = BATTLE.seki, ow = sk ? sk.owners[a2.unit] : '';
     panel.append(el('div', { class: 'foeturn' },
-      el('b', {}, '相手の手番'),
-      el('span', {}, (res.initial.find(u => u.id === a2.unit) || {}).name || '')));
+      el('b', {}, sk ? `${sk.names[ow] || '仲間'}の手番` : '相手の手番'),
+      el('span', {}, (res.initial.find(u => u.id === a2.unit) || {}).name || ''),
+      sk ? el('i', { class: 'sktime', id: 'skTimer' }, '') : null));
   }
+  if (waiting && BATTLE.seki) panel.append(el('i', { class: 'sktime mine', id: 'skTimer' }, ''));
 
   // 決着
   const done = !res.awaiting && BATTLE.shown >= res.log.length && !BATTLE.busy;
@@ -10072,6 +10085,7 @@ function resSheet() {
     /* 関ヶ原のあとは陣の札へ返す（2026-10-11）。呼んだ人は陣を「集まり」に戻して、もう一戦できるようにする */
     if (BATTLE.seki) {
       const lead = BATTLE.seki.lead;
+      sekiRoomEnd();
       fxToken++; BATTLE = null; S.res = null; S.dmg = false;
       S.screen = 'map';
       if (lead) { try { sekiBack(); } catch (_) {} }
@@ -13166,9 +13180,12 @@ function sekiSheet() {
       lead && m.phase === 'wait' ? el('button', { class: 'ghost' + (m.open ? ' on' : ''), onclick: () => sekiDo(() => sekiOpenSet(!m.open)) },
         m.open ? '締め切る' : '募る') : null,
       lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null));
-    if (lead) body.push(el('button', { class: 'go wide skgo', disabled: m.phase === 'wait' ? null : true,
-      onclick: () => sekiDo(() => sekiStart()) }, m.phase === 'wait' ? '出陣' : '合戦のさなか'));
-    else body.push(el('p', { class: 'note' }, m.phase === 'wait' ? '呼んだ人の出陣を待っておる' : '合戦のさなか'));
+    /* 戦のさなか（2026-10-12）。前は押せない「合戦のさなか」だけが出て、
+       戦の画面を離れた人が戻れなかった。いつでも同じ戦に戻れるようにする（間が並びを渡し直す） */
+    if (m.phase === 'fight') body.push(el('button', { class: 'go wide skgo',
+      onclick: () => { if (m.fight) { SEKI.seenRound = m.round; sekiFight(m); } } }, '戦に戻る'));
+    else if (lead) body.push(el('button', { class: 'go wide skgo', onclick: () => sekiDo(() => sekiStart()) }, '出陣'));
+    else body.push(el('p', { class: 'note' }, '呼んだ人の出陣を待っておる'));
     body.push(el('button', { class: 'ghost wide', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '陣をたたむ' : '陣を抜ける'));
   }
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
@@ -13273,23 +13290,120 @@ function sekiFight(m) {
   const rules = { ...base, holdWin: 'B',
     troopsBySide: { A: { base: SEKI_GEN_HP + SEKI_UNIT_HP * (A.length - 1), generalHpWeight: SEKI_GEN_HP / SEKI_UNIT_HP, flat: true },
                     B: { base: 20000, generalHpWeight: 4, flat: true } } };
+  /* 駒の持ち主（2026-10-12）。駒のid は engine と同じ「A-番号」。浪人は人ではないので はじめから おまかせ */
+  const owners = {}, names = {}, npcs = [];
+  for (const x of mem) {
+    names[x.pid] = x.name || '名無し';
+    if (x.npc || String(x.pid).startsWith('npc:')) npcs.push(x.pid);   // 浪人の印。古い机の記録には npc が無いので番号の頭でも見る
+    const u = (x.units || [])[0];
+    if (u && A.some(a => a.no === u.no)) owners['A-' + u.no] = x.pid;
+  }
+  const me = sekiMe(m);
+  sekiRoomEnd();
   BATTLE = {
     seed: m.seed >>> 0, rules, B, bForm: '横一列', first: false, commands: [],
-    modes: [{ turn: 0, manual: false }],
+    modes: [{ turn: 0, manual: true }],
     shown: 0, live: null, playing: true, sel: null, busy: false,
     camp: null, ev: null, spar: null, bout: null, tw: null,
     seki: { id: m.id, round: m.round, win: sekiWin().key || m.win, A, gen: SEKI_GEN, form: f.form || '横一列',
-            lead: m.leader === sekiMe(m), n: mem.length },
+            lead: m.leader === sekiMe(m), n: mem.length,
+            owners, names, me, npcs, auto: new Set(npcs), here: [], beats: {}, at: Date.now() },
     weather: weatherOf(m.seed >>> 0, '草原'), useItems: [], prep: [],
   };
   resolve();
   BATTLE.live = initLive(BATTLE.res);
   preloadCutins([...A, ...B].map(x => x.no));
+  sekiRoomStart(m);
   S.seki = false; S.res = null; S.dmg = false;
   S.screen = 'battle';
   S.vs = { ttlL: '関ヶ原', ttlR: '天下分け目', house: '豊臣家', foe: (charOf(SEKI_FOE[0]) || {}).name || '石田', w: BATTLE.weather };
   SFX.start(); draw();
   setTimeout(() => { S.vs = null; draw(); play(); }, 1200);
+}
+/* ===== 協力戦の間とのやりとり（2026-10-12）=====
+   10秒：自分の駒の番で10秒たったら「おまかせ」を出す（悠さんの指図）。
+   仲間の駒：持ち主が おまかせ（落ちた／浪人）なら、取りまとめ役（いま居る人のうち番号のいちばん小さい人）が
+            すぐに おまかせ を出す。持ち主が居るはずなのに13秒たっても来なければ、それも取りまとめ役が出す。
+   20秒：仲間の鼓動が20秒絶えたら間へ知らせる（間が その人を おまかせ に回す）。 */
+const SEKI_THINK = 10000, SEKI_FALLBACK = 13000, SEKI_GONE = 20000;
+const SK = { ws: null, tick: 0, key: '', at: 0, sent: {}, lostAt: {}, party: '', join: null };
+function sekiRoomStart(m) {
+  const b = BATTLE.seki;
+  SK.party = m.id; SK.key = ''; SK.sent = {}; SK.lostAt = {};
+  SK.join = { pid: b.me, name: P.name || '名無し', round: m.round, owners: b.owners, npcs: b.npcs };
+  SK.ws = sekiRoom(m.id, SK.join, sekiHear);
+  clearInterval(SK.tick);
+  SK.tick = setInterval(sekiTick, 400);
+}
+function sekiRoomEnd() {
+  clearInterval(SK.tick); SK.tick = 0;
+  if (SK.ws) { const w = SK.ws; SK.ws = null; w.close(); }
+}
+function sekiSend(c) {
+  const k = c.unit + ':' + c.turn;
+  if (SK.sent[k]) return;
+  SK.sent[k] = 1;
+  if (SK.ws) SK.ws.cmd(c);
+}
+function sekiHear(msg) {
+  const b = BATTLE && BATTLE.seki;
+  if (!b) return;
+  if (msg.t === 'resume') {
+    /* はじめから、または繋ぎ直したとき。配られた並びで盤を作り直す */
+    if ((msg.cmds || []).length > BATTLE.commands.length) {
+      BATTLE.commands = msg.cmds.slice();
+      resolve(); play();
+    }
+    return;
+  }
+  if (msg.t === 'cmd') {
+    if (msg.i !== BATTLE.commands.length) return;   // 並びが飛んだ。繋ぎ直しの resume を待つ
+    BATTLE.commands.push(msg.cmd);
+    resolve(); play();
+    return;
+  }
+  if (msg.t === 'room') { b.here = msg.here || []; b.auto = new Set(msg.auto || []); drawBattle(); return; }
+  if (msg.t === 'beat') { b.beats[msg.pid] = Date.now(); return; }
+  if (msg.t === 'down') {
+    /* 自分の繋ぎが切れた。少し待って繋ぎ直す（間が resume で並びを渡し直す） */
+    if (!SK.ws) return;
+    SK.ws = null;
+    setTimeout(() => {
+      if (!BATTLE || !BATTLE.seki || SK.ws || S.res) return;
+      SK.ws = sekiRoom(SK.party, SK.join, sekiHear);
+    }, 1500);
+  }
+}
+function sekiTick() {
+  const B0 = BATTLE;
+  if (!B0 || !B0.seki) { sekiRoomEnd(); return; }
+  const b = B0.seki, res = B0.res, now = Date.now();
+  if (!res || S.res) return;
+  /* 仲間の鼓動が20秒絶えたら知らせる（戦が始まって20秒たってから） */
+  if (now - b.at > SEKI_GONE) {
+    for (const pid of new Set(Object.values(b.owners))) {
+      if (pid === b.me || b.auto.has(pid)) continue;
+      const last = Math.max(b.beats[pid] || 0, b.at);
+      if (now - last > SEKI_GONE && now - (SK.lostAt[pid] || 0) > 10000 && SK.ws) { SK.lostAt[pid] = now; SK.ws.lost(pid); }
+    }
+  }
+  const a = res.awaiting;
+  const ready = a && B0.shown >= res.log.length && !B0.busy;
+  const tm = document.getElementById('skTimer');
+  if (!ready) { if (tm) tm.textContent = ''; return; }
+  const key = a.unit + ':' + a.turn;
+  /* 浪人・おまかせの人の駒も、人と同じくらい考えてから動く（1.5〜4秒）。
+     すぐ動くと、どれが人でないか見分けがついてしまう */
+  if (SK.key !== key) { SK.key = key; SK.at = now; SK.npcMs = 1500 + Math.random() * 2500; }
+  const el2 = now - SK.at, owner = b.owners[a.unit];
+  if (tm) tm.textContent = String(Math.max(0, Math.ceil((SEKI_THINK - el2) / 1000)));
+  const here = (b.here || []).slice().sort();
+  const host = (here[0] || b.me) === b.me;
+  if (owner === b.me) {
+    if (el2 >= SEKI_THINK) sekiSend({ unit: a.unit, turn: a.turn, type: 'auto' });
+  } else if (host && ((b.auto.has(owner) && el2 >= SK.npcMs) || el2 >= SEKI_FALLBACK || !owner)) {
+    sekiSend({ unit: a.unit, turn: a.turn, type: 'auto' });
+  }
 }
 /* 褒美：勝つたびに小判。その時の初めての勝ちだけ 石・魂も */
 function sekiReward(won) {

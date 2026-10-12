@@ -6813,3 +6813,9 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .skidots i.on{background:#d8a94a;box-shadow:0 0 6px #d8a94a}
 .skhelp{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;padding:0;
   border:1px solid #a8802c;background:#fbf4e3;color:#a8802c;font-weight:900;font-size:15px;cursor:pointer;line-height:1}
+
+/* 2026-10-12 関ヶ原の協力戦：手番の残り秒 */
+.sktime{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;margin-left:8px;border-radius:50%;
+  font-style:normal;font-weight:900;font-size:14px;color:#fff;background:#c0392b;box-shadow:0 0 0 2px #f5e2a8}
+.sktime:empty{display:none}
+.sktime.mine{display:flex;width:30px;height:30px;margin:6px auto 0}

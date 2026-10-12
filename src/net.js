@@ -164,3 +164,26 @@ export const sekiInvite = (to) => call('/v1/seki/invite', { method: 'POST', body
 export const sekiNpc    = (member) => call('/v1/seki/npc', { method: 'POST', body: { member } });
 export const sekiStart  = () => call('/v1/seki/start',  { method: 'POST' });
 export const sekiBack   = () => call('/v1/seki/back',   { method: 'POST' });
+
+/* 関ヶ原の協力戦の間に繋ぐ（2026-10-12）。果たし合い（duelJoin）と同じ作り。
+   名乗りに 持ち主の表（owners：駒のid→主の番号）と浪人の番号を添える。
+   3秒ごとに鼓動を打つ ── 間がほかの人へ「生きている」を配り、落ちた人に気づけるように */
+export function sekiRoom(party, { pid, name, round, owners, npcs }, on) {
+  if (!KURA) return null;
+  const ws = new WebSocket(KURA.replace(/^http/, 'ws') + `/v1/seki/ws/${party}`);
+  const send = (o) => { try { ws.send(JSON.stringify(o)); } catch (_) {} };
+  let beat = 0;
+  ws.addEventListener('open', () => {
+    send({ t: 'join', pid, name, round, owners, npcs });
+    beat = setInterval(() => send({ t: 'ping' }), 3000);
+  });
+  ws.addEventListener('message', (e) => { try { on(JSON.parse(e.data)); } catch (_) {} });
+  const down = () => { clearInterval(beat); try { on({ t: 'down' }); } catch (_) {} };
+  ws.addEventListener('close', down);
+  ws.addEventListener('error', down);
+  return {
+    cmd:   (c) => send({ t: 'cmd', cmd: c }),
+    lost:  (who) => send({ t: 'lost', pid: who }),
+    close: () => { clearInterval(beat); try { ws.close(); } catch (_) {} },
+  };
+}

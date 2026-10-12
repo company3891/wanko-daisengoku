@@ -71,7 +71,9 @@ const js = [
 ].join('\n\n')
   .replace('__RULES__', () => read('sim/rules.json'))
   .replace('__DB__', () => read('sim/data/characters.json'))
-  .replace('__MANIFEST__', () => JSON.stringify(manifest));
+  .replace('__MANIFEST__', () => JSON.stringify(manifest))
+  /* 束ねた時刻（2026-10-12）。メニューの下に出して、端末がどの版を開いているか見分ける */
+  .replace('__BUILT__', () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(5, 16).replace('-', '/').replace('T', ' '));
 
 const html = `<!doctype html>
 <html lang="ja">

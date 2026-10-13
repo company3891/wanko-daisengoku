@@ -35688,7 +35688,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 13:12 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 18:14 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -41991,7 +41991,7 @@ let SEKI = { look: null, timer: 0, seenRound: 0, npcAt: 0, busy: false, msg: '',
 /* 臨時に開く時（2026-10-12・悠さんの指図「一度内容を確認したいので、今日の10:00まで開催しといて」）。
    [始め, 終わり]（ミリ秒・UTC）。端末とサーバーの両方に同じものを置く（片方だけだと陣が立たない）。
    確かめ終えたら空にしてよい */
-const SEKI_EXTRA = [[Date.UTC(2026, 9, 11, 23, 40), Date.UTC(2026, 9, 12, 1, 0)]];   // 10/12 08:40〜10:00（日本）
+const SEKI_EXTRA = [[Date.UTC(2026, 9, 13, 9, 30), Date.UTC(2026, 9, 13, 10, 0)]];   // 10/13 18:30〜19:00（日本）検証のため（悠さんの指図 2026-10-13）
 function sekiWin(t = Date.now()) {
   const ex = SEKI_EXTRA.find(([a, b]) => t >= a && t < b);
   if (ex) return { on: true, key: 'X' + ex[0], left: Math.floor((ex[1] - t) / 1000) };

@@ -13141,7 +13141,7 @@ let SEKI = { look: null, timer: 0, seenRound: 0, npcAt: 0, busy: false, msg: '',
 /* 臨時に開く時（2026-10-12・悠さんの指図「一度内容を確認したいので、今日の10:00まで開催しといて」）。
    [始め, 終わり]（ミリ秒・UTC）。端末とサーバーの両方に同じものを置く（片方だけだと陣が立たない）。
    確かめ終えたら空にしてよい */
-const SEKI_EXTRA = [[Date.UTC(2026, 9, 13, 9, 30), Date.UTC(2026, 9, 13, 10, 0)]];   // 10/13 18:30〜19:00（日本）検証のため（悠さんの指図 2026-10-13）
+const SEKI_EXTRA = [[Date.UTC(2026, 9, 13, 13, 45), Date.UTC(2026, 9, 13, 14, 15)]];   // 10/13 22:45〜23:15（日本）検証のため（悠さんの指図 2026-10-13）
 function sekiWin(t = Date.now()) {
   const ex = SEKI_EXTRA.find(([a, b]) => t >= a && t < b);
   if (ex) return { on: true, key: 'X' + ex[0], left: Math.floor((ex[1] - t) / 1000) };

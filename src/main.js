@@ -6818,7 +6818,7 @@ const HELP = [
     '味方が斬りかかったとき、同じ相手へ追い撃ちをかける者もいる。',
   ] },
   { t: '奥義と固有の技', p: [
-    '奥義のゲージは、動いたり傷を受けたりして溜まる。満ちたら、使うまでそれ以上は溜まらない。',
+    '奥義のゲージは、手番ごと（攻める・待つ・動く）と、傷を受けたときに溜まる。満ちたら、使うまでそれ以上は溜まらない。',
     '固有の技は、戦のはじめ・味方が倒れたとき・瀕死のときなど、武将ごとに決まったときに ひとりでに出る。',
     '見せ場の絵（カットイン）は一度の戦につき一度だけ。二度目からは黙って効く。',
     '継いだ技も、戦ではそのまま使われる。',
@@ -11254,7 +11254,12 @@ const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '�
 function rosterRow(box, side) {
   if (!box) return;
   const units = liveUnits().filter(u => String(u.id).startsWith(side + '-'));
-  const genNo = side === 'A' ? S.general : (BATTLE.B && BATTLE.B[0] ? BATTLE.B[0].no : null);
+  /* 総大将は戦の記録（res.initial の isGeneral）から取る（2026-10-13・悠さんの指図「総大将は家康だね」）。
+     前は自軍を S.general（手元の部隊の総大将）で見ていたので、関ヶ原では
+     総大将の家康ではなく、自分の部隊の総大将だった武将に印が付いていた。記録に無いときは前のやり方に落とす */
+  const gi = ((BATTLE.res && BATTLE.res.initial) || []).find(x => x.isGeneral && String(x.id).startsWith(side + '-'));
+  const genNo = gi ? noOf(gi.id)
+    : side === 'A' ? S.general : (BATTLE.B && BATTLE.B[0] ? BATTLE.B[0].no : null);
   // 総大将の印は盤面のコマと同じ絵を使う（自軍は朱、敵軍は蒼）
   const gmark = uiUrl(side === 'B' ? 'general_mark_blue' : 'general_mark_red') || uiUrl('general_mark');
   box.innerHTML = '';

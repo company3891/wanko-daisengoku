@@ -9203,6 +9203,7 @@ function runCommand(u, cmd, allies, enemies, ctx) {
       if (!hitsNobody(u.compiled.ultimate, u, allies, enemies, tg0, ctx)) {
         const tg = tg0;
         u.ult = 0;
+        u._ultFired = true;
         if (log) log.push({ t: +t.toFixed(1), type: 'ult', src: u.id, name: u.name, manual: true });
         withVia(ctx, 'ult', () => applyEffects(u.compiled.ultimate, u, allies, enemies, tg, ctx));
         return;
@@ -9246,6 +9247,18 @@ function runCommand(u, cmd, allies, enemies, ctx) {
   }
 }
 
+/* 手番ひとつで奥義ゲージ+1（2026-10-13・悠さんの指図「すべて攻撃・待機・移動で +1に変更して」）。
+   前は「一マス動くごとに+1」で、その場で殴る・待つだけでは溜まらなかった。
+   いまは攻撃・待機・移動（後退・移動して攻撃も）のどれでも、手番を一つ使えば+1。何マス動いても+1。
+   奥義を撃った手番は足さない（撃てば0に戻る決まりなので、撃った直後に1が乗るのはおかしい）。
+   入力待ちで止まった手番もまだ動いていないので足さない。量は rules.ultimate.gainPerOwnAction */
+function actAndGain(u, allies, enemies, ctx) {
+  u._ultFired = false;
+  act(u, allies, enemies, ctx);
+  const add = ctx.rules.ultimate.gainPerOwnAction || 0;
+  if (add && u.alive && !u._ultFired && !(ctx.awaiting && ctx.awaiting.unit === u.id))
+    u.ult = Math.min(ultCapOf(u, ctx.rules), u.ult + add);
+}
 function act(u, allies, enemies, ctx) {
   /* 「おまかせ」の指図（2026-10-12・関ヶ原の協力戦）。
      手で操る部隊の一騎でも、この指図が来た手番だけは AI が動かす。
@@ -9324,6 +9337,7 @@ function act(u, allies, enemies, ctx) {
       && !hitsNobody(u.compiled.ultimate, u, allies, enemies, target, ctx)
       && !shouldHoldSkill(u.compiled.ultimate, u, allies, enemies, target, ctx)) {
     u.ult = 0;
+    u._ultFired = true;
     if (log) log.push({ t: +t.toFixed(1), type: 'ult', src: u.id, name: u.name });
     withVia(ctx, 'ult', () => applyEffects(u.compiled.ultimate, u, allies, enemies, target, ctx));
     return;
@@ -10185,7 +10199,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
         const wild = flip || !!u.statuses['混乱'];
         const keepManual = u.manualPlay;
         if (wild) u.manualPlay = false;
-        act(u, TEAM(effSide(u)), TEAM(effSide(u) === 'A' ? 'B' : 'A'), ctx);
+        actAndGain(u, TEAM(effSide(u)), TEAM(effSide(u) === 'A' ? 'B' : 'A'), ctx);
         u.manualPlay = keepManual;
         if (ctx.awaiting) break;             // 手動操作の入力待ち。ここで止める
         const ga = A.find(x => x.isGeneral), gb = B.find(x => x.isGeneral);
@@ -10262,7 +10276,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     for (const u of order) {
       if (!u.alive || u.statuses['ひるみ']) continue;
       u.gauge -= TH;
-      act(u, TEAM(effSide(u)), TEAM(effSide(u) === 'A' ? 'B' : 'A'), ctx);
+      actAndGain(u, TEAM(effSide(u)), TEAM(effSide(u) === 'A' ? 'B' : 'A'), ctx);
       const ga = A.find(x => x.isGeneral), gb = B.find(x => x.isGeneral);
       if (!ga?.alive) { winner = 'B'; reason = '総大将撃破'; break; }
       if (KEEP) { if (!KEEP.alive) { winner = 'A'; reason = '天守を落とした'; break; } }
@@ -16529,11 +16543,11 @@ const RULES = {
   },
   "ultimate": {
     "maxGauge": 5,
-    "gainPerMove": 1,
-    "gainPerOwnAction": 0,
+    "gainPerMove": 0,
+    "gainPerOwnAction": 1,
     "gainPerDamageTaken": 1,
     "defaultCost": 5,
-    "_note": "奥義ゲージ（2026-09-19 確定）。上限5。1マス移動するごとに+1、被弾するごとに+1。行動そのものでは溜まらない。奥義は必要ゲージ量（マスタの「奥義使用ゲージ」列、無ければ defaultCost）が溜まったら撃て、【撃つとゲージは0に戻る】。差し引きではなく初期化なので、必要量を超えて溜めても持ち越せず、溜めすぎは損になる。移動と被弾の両方で溜まるので、前に出て殴られる武将ほど早く回り、狙われない神速は移動で稼ぐ。"
+    "_note": "奥義ゲージ（2026-10-13 改）。上限5。手番を一つ使うごとに+1（攻撃・待機・移動のどれでも。何マス動いても+1）、被弾するごとに+1。奥義を撃った手番は足さない。奥義は必要ゲージ量（マスタの「奥義使用ゲージ」列、無ければ defaultCost）が溜まったら撃て、【撃つとゲージは0に戻る】。前（2026-09-19）は1マス移動ごとに+1で、行動では溜まらなかった。"
   },
   "uniqueSkill": {
     "activationRate": 1,
@@ -20677,8 +20691,7 @@ const RULES = {
     "_weather_note": "得意／苦手の天候。属性ごとの天候表（WEATHER_TABLE）とは別に、その武将だけ上下する。天候は「天候の品」で変えられるので、編成に合う空を自分で呼べる"
   },
   "_aoeTotalBonus_note": "広く当てるほど総量が増える（2026-10-03）。頭割りは (1 + b×(n-1)) ÷ n。b=0.2 なら 二体で各60%（合計120%）・三体で各47%（合計140%）・五体で各36%（合計180%）。b=0 だと何体に当てても合計は変わらず、範囲技の値打ちが出なかった。"
-}
-;
+};
 const DB = {
   "bonds": [
     {
@@ -35695,7 +35708,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 19:10 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 19:21 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -35749,7 +35762,7 @@ const HELP = [
     '味方が斬りかかったとき、同じ相手へ追い撃ちをかける者もいる。',
   ] },
   { t: '奥義と固有の技', p: [
-    '奥義のゲージは、動いたり傷を受けたりして溜まる。満ちたら、使うまでそれ以上は溜まらない。',
+    '奥義のゲージは、手番ごと（攻める・待つ・動く）と、傷を受けたときに溜まる。満ちたら、使うまでそれ以上は溜まらない。',
     '固有の技は、戦のはじめ・味方が倒れたとき・瀕死のときなど、武将ごとに決まったときに ひとりでに出る。',
     '見せ場の絵（カットイン）は一度の戦につき一度だけ。二度目からは黙って効く。',
     '継いだ技も、戦ではそのまま使われる。',
@@ -40185,7 +40198,12 @@ const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '�
 function rosterRow(box, side) {
   if (!box) return;
   const units = liveUnits().filter(u => String(u.id).startsWith(side + '-'));
-  const genNo = side === 'A' ? S.general : (BATTLE.B && BATTLE.B[0] ? BATTLE.B[0].no : null);
+  /* 総大将は戦の記録（res.initial の isGeneral）から取る（2026-10-13・悠さんの指図「総大将は家康だね」）。
+     前は自軍を S.general（手元の部隊の総大将）で見ていたので、関ヶ原では
+     総大将の家康ではなく、自分の部隊の総大将だった武将に印が付いていた。記録に無いときは前のやり方に落とす */
+  const gi = ((BATTLE.res && BATTLE.res.initial) || []).find(x => x.isGeneral && String(x.id).startsWith(side + '-'));
+  const genNo = gi ? noOf(gi.id)
+    : side === 'A' ? S.general : (BATTLE.B && BATTLE.B[0] ? BATTLE.B[0].no : null);
   // 総大将の印は盤面のコマと同じ絵を使う（自軍は朱、敵軍は蒼）
   const gmark = uiUrl(side === 'B' ? 'general_mark_blue' : 'general_mark_red') || uiUrl('general_mark');
   box.innerHTML = '';

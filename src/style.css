@@ -6959,3 +6959,10 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .resbox.unified.bare .utc{font-size:min(calc((100vw - 20px) / 4), 130px);line-height:1}
 .resbox.unified.bare .utmode{font-size:20px}
 .resbox.unified.bare .rtalk{font-size:14px;margin-top:10px}
+/* 関ヶ原の武将選択の頭（題と絞込みの釦）（2026-10-13） */
+/* 題の帯はそのまま端まで。釦は帯の右に重ねる */
+.card2 .mittl.skpkhd{position:relative}
+.skpkhd .skpkf{position:absolute;right:10px;top:50%;transform:translateY(-50%);min-width:0;padding:5px 12px;font-size:12px;letter-spacing:0;
+  font-family:var(--gothic,inherit);font-weight:700;color:#f5e2a8;border-color:#d8a94a88;background:#00000040}
+.skpkhd .skpkf.on{border-color:var(--gold);color:#12100e;background:linear-gradient(#f5e2a8,#d8a94a)}
+.skfsheet{z-index:60}

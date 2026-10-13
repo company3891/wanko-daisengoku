@@ -13363,11 +13363,17 @@ function sekiRow(x, word, go) {
 /* 出す武将をえらぶ（1騎だけ） */
 function sekiPickSheet() {
   const cur = sekiMyUnits();
-  const list = (P.own || []).filter(hasCard).map(charOf).filter(sekiCanBring).sort((a, b) => powerOf(b) - powerOf(a));
-  const back = () => { SEKI.pick = false; SFX.pick(); draw(); };
+  /* 絞込み（2026-10-13・悠さんの指図「関ヶ原の武将選択に絞込みつけよう」）。
+     中身は編成・図鑑と同じ pickRows。覚えは関ヶ原だけの箱（PF_SEKI）に置く。並びの初めは総合力 */
+  const list = pickApply((P.own || []).filter(hasCard).map(charOf).filter(sekiCanBring), PF_SEKI, { sort0: 'pow' });
+  const back = () => { SEKI.pick = false; S.skFilt = false; SFX.pick(); draw(); };
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) back(); } },
     el('div', { class: 'card2 skbox' },
-      el('b', { class: 'mittl' }, '武将選択（一騎）'),
+      /* 釦は題の帯の中、右に置く（帯の負の余白に頼らず、帯そのものを釦の拠りどころにする） */
+      el('b', { class: 'mittl skpkhd' }, '武将選択（一騎）',
+        el('button', { class: 'ghost sm skpkf' + (pfOnSeki() ? ' on' : ''),
+          onclick: () => { S.skFilt = true; SFX.pick(); draw(); } }, '絞込み')),
+      list.length ? null : el('p', { class: 'note' }, 'この絞り込みに当てはまる武将がいない'),
       el('div', { class: 'skpick' }, list.map(c => {
         const on = cur.includes(c.no);
         return el('button', { class: 'skpc' + (on ? ' on' : ''), onclick: () => {
@@ -13377,7 +13383,25 @@ function sekiPickSheet() {
       el('div', { class: 'tmfacts' },
         el('button', { class: 'go', onclick: () => { SEKI.pick = false;
           const m = SEKI.look && SEKI.look.mine;
-          if (m) sekiDo(() => sekiUnits(sekiPayload())); else draw(); } }, '決める'))));
+          if (m) sekiDo(() => sekiUnits(sekiPayload())); else draw(); } }, '決める'))),
+    S.skFilt ? sekiFiltSheet() : null);
+}
+/* 関ヶ原の武将選択の絞込み（2026-10-13）。編成の絞込みの札（tmFiltSheet）と同じ形。
+   武将選択の札の上に重ねる。外を押したときに下の札まで閉じないよう、押した知らせはここで止める */
+const PF_SEKI = { rar: 'skRar', att: 'skAttr', sort: 'skSort', asc: 'skAsc', sq: 'skSq', clan: 'skClan' };
+const pfOnSeki = () => pfGet(PF_SEKI, 'rar', 'すべて') !== 'すべて' || pfGet(PF_SEKI, 'att', 'すべて') !== 'すべて'
+  || pfGet(PF_SEKI, 'clan', 'すべて') !== 'すべて' || !!pfGet(PF_SEKI, 'sq', false);
+function sekiFiltSheet() {
+  const close = () => { S.skFilt = false; SFX.pick(); draw(); };
+  return el('div', { class: 'sheet skfsheet', onclick: e => { e.stopPropagation(); if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 tmfbox' },
+      el('b', { class: 'mittl' }, '絞込み'),
+      (r => [r[2], r[0], r[1], r[3]])(pickRows(PF_SEKI, { sort0: 'pow' })),
+      el('div', { class: 'tmfacts' },
+        el('button', { class: 'go', onclick: close }, 'とじる'),
+        el('button', { class: 'ghost', disabled: pfOnSeki() ? null : true, onclick: () => {
+          S[PF_SEKI.rar] = 'すべて'; S[PF_SEKI.att] = 'すべて'; S[PF_SEKI.clan] = 'すべて'; S[PF_SEKI.sq] = false;
+          SFX.pick(); draw(); } }, 'リセット'))));
 }
 /* 友を誘う */
 function sekiInvSheet() {
@@ -13741,6 +13765,10 @@ function draw() {
   const growKey = `${S.screen}:${S.ihc ?? ''}:${S.skc ?? ''}:${S.grow ?? ''}:${S.pw ?? ''}`;
   const gbox0 = document.querySelector('.growbox');
   const keepG = (LAST_GROW === growKey && gbox0) ? gbox0.scrollTop : 0;
+  /* 関ヶ原の武将選択の巻き位置（2026-10-13・悠さんの録画）。
+     陣の様子を3秒ごとに聞き直して描き直すたびに、下の武将まで巻いても頭に戻されて選べなかった */
+  const skp0 = document.querySelector('.skpick');
+  const keepK = skp0 ? skp0.scrollTop : 0;
   const v = (SCREENS[S.screen] || screenHome)();
   /* 立ち絵の燃え上がりの時計（2026-10-10）。炎の出ない画面に行ったら止めておき、
      ホーム・武将強化に戻ってきたときに また初めから燃え上がらせる */
@@ -13873,6 +13901,7 @@ function draw() {
   document.documentElement.style.setProperty('--scrbg', sbg ? `url("${sbg}")` : 'none');
   if (keepY) app.scrollTop = keepY;
   if (keepG) { const g2 = app.querySelector('.growbox'); if (g2) g2.scrollTop = keepG; }
+  if (keepK) { const k2 = document.querySelector('.skpick'); if (k2) k2.scrollTop = keepK; }
   /* 打っていた一行へ指を戻す（2026-10-05）。
      preventScroll を付けないと、画面が入れ物のところまで跳ぶ */
   if (keepIn) {

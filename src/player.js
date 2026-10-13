@@ -131,6 +131,8 @@ export const P = {
   gquit: 0,
   /* 手引きを画面ごとの段にした（2026-10-13）。glearn＝段を出す人か（新しく始めた人）。
      gdone＝済んだ段の印 { home:1, power:1, … }。どちらも P に並べないと保存から読み戻らない */
+  /* お気に入りの武将（2026-10-14・悠さんの指図）。番号の並び。P に並べないと保存から読み戻らない */
+  fav: [],
   glearn: false,
   gdone: {},
   gpause: {},      // 途中で画面を出た段の、つづきの歩 { squads: 5, … }
@@ -435,9 +437,15 @@ export function trBest(t) {
   const b = t ? ((P.trail.progT || {})[t] || {}) : (P.trail.prog || {});
   return Object.values(b).reduce((a, v) => Math.max(a, v || 0), 0);
 }
-/* 段は、前の段をどれか一体で30階まで抜けると開く */
-export const trTierOpen = t => !t || trBest(t - 1) >= 30;
-export const trTier = () => { const t = (P.trail && P.trail.tier) || 0; return trTierOpen(t) ? t : 0; };
+/* 段は **その武将で** 前の段を30階まで抜けると開く（2026-10-14・悠さんの指図
+   「一度クリアしてるとどのキャラでも難易度選べるので、キャラごとに初級クリアしたら中級と順に出る様に」）。
+   前は どれか一体が抜ければ皆に開いていた。そのころに別の段を歩き始めていた武将は、
+   その段の記録（1階でも）があれば開いたままにする（記録を取り上げない） */
+export const trTierOpen = (t, no) => !t || (!!no && (trProg(no, t - 1) >= 30 || trProg(no, t) > 0));
+/* その武将が挑めるいちばん上の段 */
+export const trTopTier = no => { let t = 0; while (t + 1 < TR_TIERS && trTierOpen(t + 1, no)) t++; return t; };
+/* いま選んでいる段。その武将に開いていなければ、開いている段まで下げる */
+export const trTier = no => { let t = (P.trail && P.trail.tier) || 0; while (t > 0 && !trTierOpen(t, no)) t--; return t; };
 export function trBonus(no) {
   let lv = 0, sp = 0;
   for (const m of TR_MILE) if (trProg(no, m.t) >= m.at) { lv += m.lv || 0; sp += m.sp || 0; }
@@ -584,7 +592,15 @@ export function skillLvOf(no) {
 /* 武将を解雇する（2026-09-21）。重ねもろとも手放して武士の魂に換える。
    部隊に入っているあいだは解雇できない（外せば解雇できる） */
 /* 解雇できる枚数。部隊に入っているあいだは最後の1枚を残す */
-export const fireMax = no => Math.max(0, cntOf(no) - (inSquad(no) ? 1 : 0));
+/* お気に入り（2026-10-14・悠さんの指図「ラスト一体の場合は解雇できない」） */
+export const isFav = no => Array.isArray(P.fav) && P.fav.includes(no);
+export function toggleFav(no) {
+  if (!Array.isArray(P.fav)) P.fav = [];
+  P.fav = isFav(no) ? P.fav.filter(x => x !== no) : [...P.fav, no];
+  savePlayer();
+}
+/* 部隊に入っている子とお気に入りの子は、最後の一枚を残す */
+export const fireMax = no => Math.max(0, cntOf(no) - ((inSquad(no) || isFav(no)) ? 1 : 0));
 export function dismiss(no, rarity, n = 1) {
   const k = Math.min(Math.max(1, Math.floor(n)), fireMax(no));
   if (k < 1) return null;

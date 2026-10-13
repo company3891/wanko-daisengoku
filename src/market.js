@@ -25,7 +25,7 @@
    「サーバーが無くても遊べる」は崩さない。 */
 
 import { P, savePlayer, SP_STATS, charState, cntOf, setCnt,
-         inSquad, hasCard } from './player.js';
+         inSquad, hasCard, isFav } from './player.js';
 import { rkName } from './rank.js';
 import { linked, mkShelf, mkMine, mkPut, mkBack, mkTake, mkPay } from './net.js';
 
@@ -317,7 +317,8 @@ export async function mkBuy(it) {
 /* ---- 出す ----
    手持ちの枚数と育ちを まるごと預かる。部隊に入っている武将は出せない
    （出陣の途中で消えると、何が起きたか分からなくなる） */
-export const mkCanList = no => hasCard(no) && !inSquad(no)
+/* お気に入りの武将も出せない（2026-10-14）。出すと手持ちを まるごと預けるので、最後の一体まで手元を離れる */
+export const mkCanList = no => hasCard(no) && !inSquad(no) && !isFav(no)
   && mkMyCount() < MK_MAX
   && !mkMyList().some(x => x.no === no);
 export async function mkList(no, price) {

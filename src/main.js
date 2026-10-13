@@ -23,7 +23,7 @@ import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TIC
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, campLv, campBox, campLvOpen, setCampLv, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
          ITEMS, ITEM_KINDS, item, addItem, charState, lvCapOf, spUsed, feedBook, awaken, addSp, commitSp, grownStats,
-         LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS, spMaxOf, trBonus, trProg, TR_MILE, trSetProg, trBest, trTierOpen, trTier,
+         LV_CAP, AWAKE_MAX, expToNext, SP_MAX, SP_STATS, spMaxOf, trBonus, trProg, TR_MILE, trSetProg, trBest, trTierOpen, trTier, trTopTier, isFav, toggleFav,
          dailyDeals, dealBought, buyItem, buyDeal, useFood,
          ATTRS, AWAKE_TIERS, BADGES, badgeMat, freeMat, awakeNeed, awakeCheck,
          BATTLE_STATS, WEATHERS, WEATHER_ITEM, useItem,
@@ -4652,7 +4652,10 @@ function screenPower() {
         el('div', { class: 'gxhead' },
           rarTag(c.rarity, 'gxic'),
           el('b', { class: 'gxname' }, c.name),
-          attrTag(c.attr, 'gxic')),
+          attrTag(c.attr, 'gxic'),
+          /* お気に入りの釦（2026-10-14・悠さんの指図）。押すたびに ☆ ⇄ ★。札の右上の隅に */
+          el('button', { class: 'gxfav' + (isFav(c.no) ? ' on' : ''), title: isFav(c.no) ? 'お気に入りを外す' : 'お気に入りにする',
+            onclick: () => { toggleFav(c.no); SFX.pick(); draw(); } }, isFav(c.no) ? '★' : '☆')),
         el('div', { class: 'gxmeta' },
           el('span', {}, `Lv.${st.lv} / ${cap}`),
           el('span', {}, '覚醒 ' + '◆'.repeat(st.awake) + '◇'.repeat(AWAKE_MAX - st.awake))),
@@ -4721,7 +4724,7 @@ function growPickPage(mode, onPick) {
       ...holdCard(ch),
       onclick: () => { if (heldJust()) return;
                        onPick(ch.no); S.gpop = true; SFX.pick(); draw(); },
-    }, cardImg(ch) || el('i', { style: chipStyle(ch) }),
+    }, cardImg(ch) || el('i', { style: chipStyle(ch) }), favMark(ch.no),
        /* 武将強化はレベル、特技強化と継承は重ねの数が選ぶ手がかり（2026-09-23） */
        mode === 'lv' ? el('span', { class: 'own lvb2' }, `Lv.${charState(ch.no).lv}`)
                      : el('span', { class: 'own' }, `×${num(cntOf(ch.no))}`)))));
@@ -4762,7 +4765,7 @@ function pickSheet() {
           onclick: () => { if (heldJust()) return;
                            const fn = S.cpFor; S.cp = false; S.cpFor = null; S.cpMode = null;
                            if (fn) fn(ch.no); SFX.pick(); draw(); },
-        }, cardImg(ch) || el('i', { style: chipStyle(ch) }),
+        }, cardImg(ch) || el('i', { style: chipStyle(ch) }), favMark(ch.no),
            /* 武将強化では「いま何レベルか」が選ぶ手がかりになるので、
               所持枚数ではなくレベルを出す（2026-09-23）。特技強化・継承は重ねが要るので枚数のまま */
            S.cpMode === 'lv'
@@ -5098,7 +5101,8 @@ function matChoices(target, sk) {
       S.skm = skBookCount() ? [] : [{ book: true }];
       S.skMsg = ''; SFX.pick(); draw();
     },
-  }, el('span', { class: 'itic k特技' }, '技'), el('span', { class: 'mcn' }, `×${num(bookLeft)}`)));
+    /* 伝書の絵を出す（2026-10-14・悠さんの指図）。前は「技」の一字だけだった。絵が無ければ一字に落ちる */
+  }, itemIcon(BOOK), el('span', { class: 'mcn' }, `×${num(bookLeft)}`)));
   if (!out.length) out.push(noMat(
     'この特技を上げる素材がない',
     `「${sk.name}」を持つ武将の**重ね**か、**${BOOK}**が要る。`));
@@ -5130,7 +5134,9 @@ function fireSheet() {
             el('span', {}, `手持ち ${num(cntOf(c.no))} 枚`)))),
       max < 1
         ? el('p', { class: 'note warn' },
-            busy ? 'この武将は部隊に入っている。部隊から外してから解雇する' : 'もう持っていない')
+            busy ? 'この武将は部隊に入っている。部隊から外してから解雇する'
+              : isFav(c.no) && cntOf(c.no) > 0 ? 'お気に入りの武将だワン。最後の一体は手放せぬ'
+              : 'もう持っていない')
         : el('div', {},
             el('div', { class: 'sprow on' },
               el('div', { class: 'spv' },
@@ -5791,7 +5797,9 @@ function pickApply(list, ks, opt) {
      「いま出している子だけ育てたい」ときに、位も属性も関係なく拾える */
   const sq = !!pfGet(ks, 'sq', false);
   const cl = pfGet(ks, 'clan', 'すべて');     // 家（2026-10-02）
+  const fv = !!pfGet(ks, 'fav', false);       // お気に入りだけ（2026-10-14）
   const out = list.filter(c =>
+    (!fv || isFav(c.no)) &&
     (rar === 'すべて' || c.rarity === rar) &&
     (att === 'すべて' || c.attr === att) &&
     (cl === 'すべて' || (cl === NOCLAN ? !c.clan : (c.clan || '') === cl)) &&
@@ -5847,12 +5855,18 @@ function pickRows(ks, opt) {
         title: '五つの部隊のどれかに入っている武将だけ',
         onclick: () => pfSet(ks, 'sq', !pfGet(ks, 'sq', false)),
       }, '編成中'),
+      /* お気に入りだけ（2026-10-14・悠さんの指図「お気に入り登録してる武将は絞込みなどでも表示したい」） */
+      ks.fav ? el('button', {
+        class: 'chip sqf favf' + (pfGet(ks, 'fav', false) ? ' on' : ''),
+        title: 'お気に入りの武将だけ',
+        onclick: () => pfSet(ks, 'fav', !pfGet(ks, 'fav', false)),
+      }, '★お気に入り') : null,
     ]),
   ];
 }
-const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq', clan: 'dexClan' };
-const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc',   sq: 'tSq',  clan: 'tClan' };
-const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc',  sq: 'cpSq', clan: 'cpClan' };
+const PF_DEX  = { rar: 'filter', att: 'afilter', sort: 'dexSort', asc: 'dexAsc', sq: 'dexSq', clan: 'dexClan', fav: 'dexFav' };
+const PF_TEAM = { rar: 'filter', att: 'tattr',   sort: 'tsort',   asc: 'tasc',   sq: 'tSq',  clan: 'tClan', fav: 'tFav' };
+const PF_GROW = { rar: 'cpRar',  att: 'cpAttr',  sort: 'cpSort',  asc: 'cpAsc',  sq: 'cpSq', clan: 'cpClan', fav: 'cpFav' };
 /* 図鑑の「育成武将」の棚（2026-10-03）。図鑑の棚とは別の覚えにして、
    行き来しても それぞれの絞込みが残るようにする */
 const PF_OWNC = { rar: 'doRar',  att: 'doAttr',  sort: 'doSort',  asc: 'doAsc',  sq: 'doSq', clan: 'doClan' };
@@ -5986,7 +6000,7 @@ function screenDex() {
             title: `${c.name}　Lv.${st.lv}`,
             onclick: () => { openCard(c); },      // 素ではなく、育てたままの姿で開く
           },
-            card ? cardImg(c) : el('span', { class: 'f', style: chipStyle(c) }),
+            card ? cardImg(c) : el('span', { class: 'f', style: chipStyle(c) }), favMark(c.no),
             el('span', { class: 'lvb' + (st.lv >= cap ? ' cap' : '') },
               el('em', {}, 'Lv.'), String(st.lv)),
             el('span', { class: 'own' + (cntOf(c.no) ? '' : ' zero') }, `×${num(cntOf(c.no))}`),
@@ -7433,7 +7447,8 @@ function artGo(name, label, cls, on, off) {
 function useItemBtn(tab, label, sample) {
   return el('button', {
     class: 'ghost wide useitem',
-    onclick: () => { S.bag = true; S.bagTab = tab; S.bagSel = null; S.bagMsg = ''; SFX.pick(); draw(); },
+    /* どの画面から開いたかを覚える（2026-10-14）。特技強化から開いたときは伝書を並べないため */
+    onclick: () => { S.bag = true; S.bagTab = tab; S.bagCtx = S.screen; S.bagSel = null; S.bagMsg = ''; SFX.pick(); draw(); },
   }, sample && ITEMS[sample] ? itemIcon(sample) : el('i', { class: 'uii' }, '袋'),
      label || 'アイテムを使う');
 }
@@ -7458,12 +7473,16 @@ function bagCell(name) {
   }, itemIcon(name), el('b', {}, num(n)));
 }
 function bagSheet() {
-  const close = () => { S.bag = false; S.bagSel = null; S.bagMsg = ''; draw(); };
+  const close = () => { S.bag = false; S.bagCtx = null; S.bagSel = null; S.bagMsg = ''; draw(); };
   const tab = S.bagTab || '稽古';
+  /* 特技強化の「アイテム」から開いたときは、特技の伝書を並べない（2026-10-14・悠さんの指図）。
+     伝書は上の「強化に使うカード」の欄で選ぶ品で、ここに出ると ここから使えるのかと迷う */
+  const skCtx = S.bagCtx === 'skillup' && tab === '特技';
   // 持っていないものは出さない（2026-09-21）
   const names = Object.keys(ITEMS)
-    .filter(k => itemKind(k) === tab && item(k) > 0).sort(bagOrder);
-  const t = BAG_TABS.find(x => x.key === tab) || BAG_TABS[0];
+    .filter(k => itemKind(k) === tab && item(k) > 0 && !(skCtx && k === BOOK)).sort(bagOrder);
+  const t0 = BAG_TABS.find(x => x.key === tab) || BAG_TABS[0];
+  const t = skCtx ? { ...t0, note: '特技強化の成功率を上げる護符' } : t0;
   const sel = S.bagSel && ITEMS[S.bagSel] ? S.bagSel : null;
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 bagbox' },
@@ -8127,7 +8146,7 @@ function disbandSheet() {
 
 /* 編成の絞込みが何か効いているか（2026-10-11）。並べ替えは数えない */
 const pfOnTeam = () => pfGet(PF_TEAM, 'rar', 'すべて') !== 'すべて' || pfGet(PF_TEAM, 'att', 'すべて') !== 'すべて'
-  || pfGet(PF_TEAM, 'clan', 'すべて') !== 'すべて' || !!pfGet(PF_TEAM, 'sq', false);
+  || pfGet(PF_TEAM, 'clan', 'すべて') !== 'すべて' || !!pfGet(PF_TEAM, 'sq', false) || !!pfGet(PF_TEAM, 'fav', false);
 /* 編成の絞込みの札（2026-10-11）。中身は図鑑・育成と同じ pickRows */
 function tmFiltSheet() {
   const close = () => { S.tmFilt = false; SFX.pick(); draw(); };
@@ -8141,7 +8160,7 @@ function tmFiltSheet() {
       el('div', { class: 'tmfacts' },
         el('button', { class: 'go', onclick: close }, 'とじる'),
         el('button', { class: 'ghost', disabled: pfOnTeam() ? null : true, onclick: () => {
-          S[PF_TEAM.rar] = 'すべて'; S[PF_TEAM.att] = 'すべて'; S[PF_TEAM.clan] = 'すべて'; S[PF_TEAM.sq] = false;
+          S[PF_TEAM.rar] = 'すべて'; S[PF_TEAM.att] = 'すべて'; S[PF_TEAM.clan] = 'すべて'; S[PF_TEAM.sq] = false; S[PF_TEAM.fav] = false;
           SFX.pick(); draw(); } }, 'リセット'))));
 }
 function screenTeam() {
@@ -8169,7 +8188,7 @@ function screenTeam() {
     ...holdCard(c),
    },
     ng ? el('span', { class: 'sameltag' + (foeNg(c) ? ' foe' : '') }, foeNg(c) ? '敵に出ている' : '同じ武将') : null,
-    art ? cardImg(c) : null,
+    art ? cardImg(c) : null, favMark(c.no),
     !art && S.general === c.no ? el('span', { class: 'gen' }, '大将') : null,
     art ? null : rarTag(c.rarity, 'sm corner'),
     art ? null : el('div', { class: 'nm' }, c.name),
@@ -8435,6 +8454,8 @@ function faceBtn(c) {
            顔の上に飾りを増やさない */
 }
 // カード1枚ぶんの絵。読み込めなかったら、その場で札に差し替える
+/* お気に入りの印（2026-10-14・悠さんの指図「お気に入り武将には⭐️などつけて」）。札の左上に小さく */
+const favMark = no => isFav(no) ? el('i', { class: 'favst', title: 'お気に入り' }, '★') : null;
 function cardImg(c) {
   return keepImg({
     /* iPhone の Safari は、大きな絵をたくさん並べると読み込みを投げ出す（2026-09-30）。
@@ -10612,13 +10633,13 @@ function mkBuyBar(c, it) {
 /* 出す札。どの武将を・いくらで */
 function mkPutSheet() {
   const close = () => { S.mkPut = null; S.mkMsg = ''; S.mkPEdit = false; draw(); };
-  const mine = P.own.filter(no => hasCard(no) && !inSquad(no)).map(charOf).filter(c => c && c.marketAllowed !== false);  // 出せない武将（PRなど）は並べない 2026-10-11
+  const mine = P.own.filter(no => hasCard(no) && !inSquad(no) && !isFav(no)).map(charOf).filter(c => c && c.marketAllowed !== false);  // 出せない武将（PRなど）は並べない 2026-10-11／お気に入りも 2026-10-14
   const c = S.mkPut === true ? null : charOf(S.mkPut);
   if (!c) {
     return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
       el('div', { class: 'card2 mkbox' },
         el('b', { class: 'mittl' }, 'どの武将を出すか'),
-        el('p', { class: 'note' }, '部隊に入っている武将は出せぬ。出すと手元から消え、売れるか二日たつまで戻らぬ'),
+        el('p', { class: 'note' }, '部隊に入っている武将とお気に入りの武将は出せぬ。出すと手元から消え、売れるか二日たつまで戻らぬ'),
         mine.length ? el('div', { class: 'mkpick' }, mine.map(o => el('button', {
           class: 'mkpc' + (cardArt(o) ? ' art' : ''),
           onclick: () => { S.mkPut = o.no; S.mkPrice = mkWorth(o, charState(o.no));
@@ -12167,7 +12188,15 @@ function screenTrail() {
   const who = trWho(no);
   const kinds = trKindsOf(who);
   if (S.trView === 'deck') return trDeckScreen(who, kinds);
-  const tier = trTier();
+  /* 段を自動で切り替える（2026-10-14・悠さんの指図）。
+     その武将に新しい段が開いたら（初級30階を抜けた直後など）、いちばん上の段へ移す。
+     覚えておくのは武将ごとの「前に見た いちばん上の段」。同じなら手で選んだ段のまま */
+  {
+    const top = trTopTier(no);
+    const seen = P.trail.tierTop || (P.trail.tierTop = {});
+    if (seen[no] !== top) { seen[no] = top; P.trail.tier = top; savePlayer(); }
+  }
+  const tier = trTier(trCur());
   const prog = trProg(no, tier);
   const run = trRunOf(no, tier);
   const mx = trMx(who);
@@ -12335,7 +12364,7 @@ function trTipSheet() {
 function trTierRow(cur) {
   return el('div', { class: 'trtierrow' },
     el('div', { class: 'cmodes' }, TR_TIER.map((m, t) => {
-      const ok = trTierOpen(t);
+      const ok = trTierOpen(t, trCur());
       return el('button', {
         class: 'cmode m' + t + (t === cur ? ' on' : '') + (ok ? '' : ' locked'),
         disabled: ok ? null : true,
@@ -12353,7 +12382,7 @@ const TR_TICKET = '道中手形';
 /* 武将ごとの道。無ければ敷く。抜けた階のぶんだけ先の部から始める（10階を抜けていれば二の部から） */
 /* 道は段ごとに別に持つ（2026-10-10）。初級は前からの置き場（番号だけ）、中級・上級は「番号@段」 */
 const trRK = (no, t) => t ? `${no}@${t}` : no;
-function trRunOf(no, t = trTier()) {
+function trRunOf(no, t = trTier(trCur())) {
   const who = trWho(no); const mx = trMx(who);
   let r = P.trail.runs[trRK(no, t)];
   if (!r || !r.map) {
@@ -12440,7 +12469,7 @@ function trEvSheet() {
   }
   if (S.screen !== 'trail') return null;
   const no = trCur(); if (!no) return null;
-  const run = P.trail.runs[trRK(no, trTier())]; if (!run) return null;
+  const run = P.trail.runs[trRK(no, trTier(trCur()))]; if (!run) return null;
   const who = trWho(no); const mx = trMx(who);
   if (S.trDeckView) return trDeckViewSheet(who, run);
   if (S.trItem != null) return trItemSheet(who, run, mx);
@@ -12583,7 +12612,7 @@ function trStart(no, i, o = {}) {
   const who = trWho(no); if (!who) return;
   const run = trRunOf(no);
   P.trail.cur = no;
-  const tier = trTier();
+  const tier = trTier(trCur());
   const F = trBattle(i, who, run.cards, C, (Date.now() ^ (no * 2654435761)) >>> 0, starOf, P.lv,
     { ...o, tier, hp: run.hp, ki: run.ki, guard: run.guard, seed: (run.seed ^ (i * 977)) >>> 0, trait: trTrait(who).fx, mx: trMx(who) });
   run.ki = 0; run.guard = 0;
@@ -12627,7 +12656,7 @@ function trDeckScreen(who, kinds) {
           onclick: () => {
             P.trail.deck[who.no] = { ...d };
             /* まだ歩き出していない道なら、札束も組み直した山札から写す（2026-10-10） */
-            const rn = P.trail.runs[trRK(who.no, trTier())];
+            const rn = P.trail.runs[trRK(who.no, trTier(trCur()))];
             if (rn && !rn.at && !(rn.path || []).length) rn.cards = trCardsFrom(d, kinds, who.no);
             S.trView = 'list'; S.trDraft = null; savePlayer(); SFX.get(); draw(); } }, 'この山札にする'),
         el('button', { class: 'ghost', onclick: () => { S.trView = 'list'; S.trDraft = null; SFX.pick(); draw(); } }, 'やめる'))),
@@ -12639,17 +12668,20 @@ function trDeckScreen(who, kinds) {
 function trPickSheet() {
   const close = () => { S.trPick = false; SFX.pick(); draw(); };
   const list = (P.own || []).filter(hasCard).map(charOf).filter(Boolean)
-    .sort((a, b) => (trProg(b.no, trTier()) - trProg(a.no, trTier())) || (a.no - b.no));
+    /* 段は武将ごとになったので、並びも札の字も その武将の いちばん上の段で（2026-10-14） */
+    .sort((a, b) => (trTopTier(b.no) - trTopTier(a.no)) || (trProg(b.no, trTopTier(b.no)) - trProg(a.no, trTopTier(a.no))) || (a.no - b.no));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 trpick' },
       el('b', { class: 'sqttl' }, '道中に連れていく武将'),
       el('div', { class: 'trpgrid' }, list.map(c => el('button', {
         class: 'trpc' + (c.no === trCur() ? ' on' : ''), style: `--ac:${TR_ATTR_COL[c.attr]}`,
-        onclick: () => { P.trail.cur = c.no; S.trPick = false; S.trScroll = true; SFX.pick(); draw(); },
+        /* 武将を替えたら、その武将が挑める いちばん上の段へ（2026-10-14） */
+        onclick: () => { P.trail.cur = c.no; P.trail.tier = trTopTier(c.no); (P.trail.tierTop || (P.trail.tierTop = {}))[c.no] = P.trail.tier;
+                         S.trPick = false; S.trScroll = true; savePlayer(); SFX.pick(); draw(); },
       },
-        keepImg({ src: pawnUrl(c.no), alt: c.name }),
+        keepImg({ src: pawnUrl(c.no), alt: c.name }), favMark(c.no),
         el('span', {}, c.name),
-        el('em', {}, `${trProg(c.no, trTier())}階`)))),
+        el('em', {}, `${trTopTier(c.no) ? TR_TIER[trTopTier(c.no)].n + ' ' : ''}${trProg(c.no, trTopTier(c.no))}階`)))),
       closeX(close)));
 }
 
@@ -13452,7 +13484,7 @@ function sekiPickSheet() {
         const on = cur.includes(c.no);
         return el('button', { class: 'skpc' + (on ? ' on' : ''), onclick: () => {
           P.seki = { ...(P.seki || {}), units: on ? [] : [c.no] }; savePlayer(); SFX.pick(); draw();
-        } }, pawnUrl(c.no) ? el('img', { src: pawnUrl(c.no), alt: c.name }) : el('i', {}, c.name[0]), el('span', {}, c.name));
+        } }, pawnUrl(c.no) ? el('img', { src: pawnUrl(c.no), alt: c.name }) : el('i', {}, c.name[0]), el('span', {}, c.name), favMark(c.no));
       })),
       el('div', { class: 'tmfacts' },
         el('button', { class: 'go', onclick: () => { SEKI.pick = false;
@@ -13462,9 +13494,9 @@ function sekiPickSheet() {
 }
 /* 関ヶ原の武将選択の絞込み（2026-10-13）。編成の絞込みの札（tmFiltSheet）と同じ形。
    武将選択の札の上に重ねる。外を押したときに下の札まで閉じないよう、押した知らせはここで止める */
-const PF_SEKI = { rar: 'skRar', att: 'skAttr', sort: 'skSort', asc: 'skAsc', sq: 'skSq', clan: 'skClan' };
+const PF_SEKI = { rar: 'skRar', att: 'skAttr', sort: 'skSort', asc: 'skAsc', sq: 'skSq', clan: 'skClan', fav: 'skFav' };
 const pfOnSeki = () => pfGet(PF_SEKI, 'rar', 'すべて') !== 'すべて' || pfGet(PF_SEKI, 'att', 'すべて') !== 'すべて'
-  || pfGet(PF_SEKI, 'clan', 'すべて') !== 'すべて' || !!pfGet(PF_SEKI, 'sq', false);
+  || pfGet(PF_SEKI, 'clan', 'すべて') !== 'すべて' || !!pfGet(PF_SEKI, 'sq', false) || !!pfGet(PF_SEKI, 'fav', false);
 function sekiFiltSheet() {
   const close = () => { S.skFilt = false; SFX.pick(); draw(); };
   return el('div', { class: 'sheet skfsheet', onclick: e => { e.stopPropagation(); if (e.target.classList.contains('sheet')) close(); } },
@@ -13474,7 +13506,7 @@ function sekiFiltSheet() {
       el('div', { class: 'tmfacts' },
         el('button', { class: 'go', onclick: close }, 'とじる'),
         el('button', { class: 'ghost', disabled: pfOnSeki() ? null : true, onclick: () => {
-          S[PF_SEKI.rar] = 'すべて'; S[PF_SEKI.att] = 'すべて'; S[PF_SEKI.clan] = 'すべて'; S[PF_SEKI.sq] = false;
+          S[PF_SEKI.rar] = 'すべて'; S[PF_SEKI.att] = 'すべて'; S[PF_SEKI.clan] = 'すべて'; S[PF_SEKI.sq] = false; S[PF_SEKI.fav] = false;
           SFX.pick(); draw(); } }, 'リセット'))));
 }
 /* 友を誘う */

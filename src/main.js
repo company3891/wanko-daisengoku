@@ -1909,6 +1909,7 @@ function screenHome() {
           el('span', {}, none ? 'わんこみくじで武将を集めよ' : '編成から武将を並べよ'));
       })(),
       homeMenu('TL'), homeMenu('BL'), homeMenu('BR'),
+      sekiAlarmPill(),                // 関ヶ原のお知らせ（2026-10-13）
       tebikiCard()),
     nav: true,
   };
@@ -13063,6 +13064,49 @@ function sekiNext(t = Date.now()) {
   return '';
 }
 const sekiLeft = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const sekiNotify = () => ((P.seki && P.seki.notify) || []).filter(h => SEKI_HOURS.includes(h));
+/* ---- 関ヶ原のお知らせの帯（2026-10-13・悠さんの指図）----
+   「お知らせを希望してる人には、開催の曜日になったら、後何分後ってのを通知しよう」
+   「このボタンはホーム画面のメニューバーの下に設置して。押したら関ヶ原の画面に移動して」
+   開催の日（土・日）に、印を付けた刻がまだ先にあれば「あと h:mm:ss」、開いているあいだは「開催中 残り m:ss」。
+   その日の印の刻がぜんぶ過ぎたら出さない。印を一つも付けていない人には出さない */
+function sekiAlarm(t = Date.now()) {
+  const nt = sekiNotify();
+  if (!nt.length) return null;
+  const W = sekiWin(t);
+  const d = new Date(t + 9 * 3600e3);
+  const day = d.getUTCDay();
+  if (W.on) {
+    const h = d.getUTCHours();
+    if (String(W.key).startsWith('X') || nt.includes(h)) return { on: true, sec: W.left };
+  }
+  if (day !== 0 && day !== 6) return null;
+  const now = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
+  const next = nt.map(h => h * 3600).filter(x => x > now).sort((a, b) => a - b)[0];
+  return next == null ? null : { on: false, sec: next - now };
+}
+const hms = s => `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+const sekiAlarmText = a => a.on ? '開催中 残り ' + sekiLeft(a.sec) : 'あと ' + hms(a.sec);
+let SK_ALARM_T = 0;
+function sekiAlarmPill() {
+  const a = sekiAlarm();
+  clearInterval(SK_ALARM_T); SK_ALARM_T = 0;
+  if (!a) return null;
+  /* 一秒ごとに字だけ書き換える。帯の出る・消えるが変わる境目だけ描き直す */
+  SK_ALARM_T = setInterval(() => {
+    const e = document.getElementById('skAlarm');
+    if (!e) { clearInterval(SK_ALARM_T); SK_ALARM_T = 0; return; }
+    const b = sekiAlarm();
+    if (!b || b.on !== a.on) { draw(); return; }
+    e.textContent = sekiAlarmText(b);
+  }, 1000);
+  const fl = fxUrl('seki_flame') || fxUrl('flame_赤');
+  return el('button', { class: 'skpill' + (a.on ? ' on' : ''), title: '関ヶ原の戦い',
+      onclick: () => { S.screen = 'map'; sekiEnter(); } },
+    el('i', { class: 'skpclock' }),
+    fl ? keepImg({ class: 'skpfire', src: fl, alt: '' }) : el('i', { class: 'skpfire0' }),
+    el('b', { id: 'skAlarm' }, sekiAlarmText(a)));
+}
 
 /* 持ち寄れる武将か。総大将（家康）と敵の顔ぶれと同じ人物は出せない */
 const sekiNgOrigin = () => new Set([...SEKI_NG_ORIGIN, ...SEKI_FOE.map(n => (charOf(n) || {}).origin).filter(Boolean)]);
@@ -13193,9 +13237,18 @@ function sekiSheet() {
     /* 開く刻を全部ならべる（2026-10-12 悠さんの指図「開催時間は全て箇条書きで」）。
        次に開く刻だけ金で目立たせる */
     const nx = sekiNext(), nh = +(String(nx).split(' ')[1] || '').split(':')[0];
+    /* 刻ごとにお知らせの印（2026-10-13・悠さんの指図「開催時間にお知らせチェックマーク」）。
+       印を付けた刻は、開催の日にホームの上へ「あと何分」が出る */
+    const nt = sekiNotify();
     body.push(el('ul', { class: 'skhours' }, SEKI_HOURS.map(h => el('li', { class: h === nh ? 'nx' : '' },
       el('span', {}, '土・日'), el('b', {}, `${h}:00 〜 ${h}:${String(SEKI_MIN).padStart(2, '0')}`),
-      h === nh ? el('i', {}, `次は ${nx.split(' ')[0]}曜`) : null))));
+      h === nh ? el('i', {}, `次は ${nx.split(' ')[0]}曜`) : null,
+      el('button', { class: 'skntf' + (nt.includes(h) ? ' on' : ''), title: 'お知らせ',
+        onclick: () => {
+          const cur = sekiNotify();
+          P.seki = { ...(P.seki || {}), notify: cur.includes(h) ? cur.filter(x => x !== h) : cur.concat(h).sort((a, b) => a - b) };
+          savePlayer(); SFX.pick(); draw();
+        } }, el('i', { class: 'skntb' }), 'お知らせ')))));
   } else if (!m) {
     body.push(el('div', { class: 'skbtns' },
       el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, '陣を立てる'),

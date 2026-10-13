@@ -6817,7 +6817,7 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .skst{margin:-4px 0 0;text-align:center;font-size:12px;font-weight:800;letter-spacing:.3em;color:#a8802c}
 .skhours{list-style:none;margin:0;padding:8px 12px;border-radius:10px;background:#12100e0d;display:flex;flex-direction:column;gap:4px}
 .skhours li{display:flex;align-items:center;gap:10px;font-size:13px;color:#5c5042}
-.skhours li::before{content:"";width:6px;height:6px;border-radius:50%;background:#a8802c66}
+.skhours li::before{content:"";flex:0 0 auto;width:6px;height:6px;border-radius:50%;background:#a8802c66}
 .skhours li span{font-size:11px}
 .skhours li b{font-family:var(--mincho);font-size:16px;color:#3a3128}
 .skhours li i{margin-left:auto;font-style:normal;font-size:11px;font-weight:800;color:#fff;background:#c0392b;padding:1px 8px;border-radius:999px}
@@ -6914,6 +6914,30 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .trbag .trtix{grid-column:auto;margin-left:auto;font-size:13px;gap:2px}
 .trbag .trtix .itic.art{width:30px;height:30px}
 .trbag .trtix + .trdeckb{margin-left:4px}
+
+/* 関ヶ原のお知らせ（2026-10-13）
+   刻の並びの右に「お知らせ」の印。付けると金の箱に朱の印 */
+.skhours li .skntf{margin-left:auto;display:flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;white-space:nowrap;flex:0 0 auto;
+  border:1px solid #a8802c66;background:#fff8;color:#7a6a52;font-size:10px;font-weight:700;cursor:pointer}
+.skhours li i + .skntf{margin-left:6px}
+/* .skhours li i（「次は」の朱の札）に当たらないよう、印は一段強く書く */
+.skhours li .skntf .skntb{width:13px;height:13px;margin:0;padding:0;border-radius:3px;border:1.5px solid #a8802c;background:#fff;position:relative;flex:0 0 auto}
+.skhours li .skntf.on{background:#d8a94a;border-color:#a8802c;color:#2a1d07}
+.skhours li .skntf.on .skntb{background:#e0654f;border-color:#fff}
+.skhours li .skntf.on .skntb::after{content:"";position:absolute;left:3px;top:0px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.skhours li span,.skhours li b,.skhours li > i{white-space:nowrap}
+.skhours li > i{padding:1px 6px}
+/* ホームの帯（悠さんの見せてくれた絵の「時計＋印＋残り時間」の形）。左の縦列と並ぶ高さ、右寄せ */
+.skpill{position:fixed;right:62px;top:calc(var(--mefoot,95px) + 9px);z-index:6;display:flex;align-items:center;gap:4px;
+  padding:4px 12px 4px 6px;border-radius:12px;border:1px solid #d8a94a99;cursor:pointer;
+  background:linear-gradient(180deg,#2a2018ee,#12100eee);box-shadow:0 3px 10px #0008}
+.skpill b{font-family:var(--mincho);font-size:15px;color:#f5e2a8;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.skpill.on{border-color:#e0654f;box-shadow:0 0 10px #e0654faa}
+.skpill.on b{color:#fff}
+.skpclock{width:14px;height:14px;border-radius:50%;border:2px solid #f5e2a8;position:relative;align-self:flex-start;margin-top:-2px;background:#12100e}
+.skpclock::after{content:"";position:absolute;left:4px;top:1px;width:3px;height:5px;border:solid #f5e2a8;border-width:0 0 2px 2px}
+.skpfire{width:30px;height:30px;object-fit:contain;margin:-6px -2px -6px 0}
+.skpfire0{width:14px;height:14px;border-radius:50%;background:radial-gradient(#ffd27a,#e0654f)}
 
 </style>
 </head>
@@ -12178,7 +12202,8 @@ const P = {
   trail: { prog: {}, deck: {}, cur: 0, fight: null, runs: {}, tier: 0, progT: {}, legacy: null },
   /* 関ヶ原の合戦（2026-10-11）。出す武将（二騎）と、時ごとの初めての勝ち */
   /* n＝出陣の数（終わりまで居た戦だけ）／cntGot＝受け取った節目／cntKey＝最後に数えた回（2026-10-12） */
-  seki: { units: [], won: {}, n: 0, cntGot: [], cntKey: '' },
+  /* notify＝お知らせを望んだ開催の刻（時の数の並び。例 [12, 21]）（2026-10-13） */
+  seki: { units: [], won: {}, n: 0, cntGot: [], cntKey: '', notify: [] },
   /* runs＝武将ごとの道の途中（2026-10-09）。武将を替えると その武将の道に切り替わり、
      戻せば前の続きから。上限が開くのも、その道を抜けた武将だけ */
   /* ショップ（2026-09-21）。day=振り売りの日付 ／ bought={品名:買った数} */
@@ -30772,6 +30797,7 @@ function screenHome() {
           el('span', {}, none ? 'わんこみくじで武将を集めよ' : '編成から武将を並べよ'));
       })(),
       homeMenu('TL'), homeMenu('BL'), homeMenu('BR'),
+      sekiAlarmPill(),                // 関ヶ原のお知らせ（2026-10-13）
       tebikiCard()),
     nav: true,
   };
@@ -35620,7 +35646,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 08:18 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 09:45 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -41926,6 +41952,49 @@ function sekiNext(t = Date.now()) {
   return '';
 }
 const sekiLeft = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const sekiNotify = () => ((P.seki && P.seki.notify) || []).filter(h => SEKI_HOURS.includes(h));
+/* ---- 関ヶ原のお知らせの帯（2026-10-13・悠さんの指図）----
+   「お知らせを希望してる人には、開催の曜日になったら、後何分後ってのを通知しよう」
+   「このボタンはホーム画面のメニューバーの下に設置して。押したら関ヶ原の画面に移動して」
+   開催の日（土・日）に、印を付けた刻がまだ先にあれば「あと h:mm:ss」、開いているあいだは「開催中 残り m:ss」。
+   その日の印の刻がぜんぶ過ぎたら出さない。印を一つも付けていない人には出さない */
+function sekiAlarm(t = Date.now()) {
+  const nt = sekiNotify();
+  if (!nt.length) return null;
+  const W = sekiWin(t);
+  const d = new Date(t + 9 * 3600e3);
+  const day = d.getUTCDay();
+  if (W.on) {
+    const h = d.getUTCHours();
+    if (String(W.key).startsWith('X') || nt.includes(h)) return { on: true, sec: W.left };
+  }
+  if (day !== 0 && day !== 6) return null;
+  const now = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
+  const next = nt.map(h => h * 3600).filter(x => x > now).sort((a, b) => a - b)[0];
+  return next == null ? null : { on: false, sec: next - now };
+}
+const hms = s => `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+const sekiAlarmText = a => a.on ? '開催中 残り ' + sekiLeft(a.sec) : 'あと ' + hms(a.sec);
+let SK_ALARM_T = 0;
+function sekiAlarmPill() {
+  const a = sekiAlarm();
+  clearInterval(SK_ALARM_T); SK_ALARM_T = 0;
+  if (!a) return null;
+  /* 一秒ごとに字だけ書き換える。帯の出る・消えるが変わる境目だけ描き直す */
+  SK_ALARM_T = setInterval(() => {
+    const e = document.getElementById('skAlarm');
+    if (!e) { clearInterval(SK_ALARM_T); SK_ALARM_T = 0; return; }
+    const b = sekiAlarm();
+    if (!b || b.on !== a.on) { draw(); return; }
+    e.textContent = sekiAlarmText(b);
+  }, 1000);
+  const fl = fxUrl('seki_flame') || fxUrl('flame_赤');
+  return el('button', { class: 'skpill' + (a.on ? ' on' : ''), title: '関ヶ原の戦い',
+      onclick: () => { S.screen = 'map'; sekiEnter(); } },
+    el('i', { class: 'skpclock' }),
+    fl ? keepImg({ class: 'skpfire', src: fl, alt: '' }) : el('i', { class: 'skpfire0' }),
+    el('b', { id: 'skAlarm' }, sekiAlarmText(a)));
+}
 
 /* 持ち寄れる武将か。総大将（家康）と敵の顔ぶれと同じ人物は出せない */
 const sekiNgOrigin = () => new Set([...SEKI_NG_ORIGIN, ...SEKI_FOE.map(n => (charOf(n) || {}).origin).filter(Boolean)]);
@@ -42056,9 +42125,18 @@ function sekiSheet() {
     /* 開く刻を全部ならべる（2026-10-12 悠さんの指図「開催時間は全て箇条書きで」）。
        次に開く刻だけ金で目立たせる */
     const nx = sekiNext(), nh = +(String(nx).split(' ')[1] || '').split(':')[0];
+    /* 刻ごとにお知らせの印（2026-10-13・悠さんの指図「開催時間にお知らせチェックマーク」）。
+       印を付けた刻は、開催の日にホームの上へ「あと何分」が出る */
+    const nt = sekiNotify();
     body.push(el('ul', { class: 'skhours' }, SEKI_HOURS.map(h => el('li', { class: h === nh ? 'nx' : '' },
       el('span', {}, '土・日'), el('b', {}, `${h}:00 〜 ${h}:${String(SEKI_MIN).padStart(2, '0')}`),
-      h === nh ? el('i', {}, `次は ${nx.split(' ')[0]}曜`) : null))));
+      h === nh ? el('i', {}, `次は ${nx.split(' ')[0]}曜`) : null,
+      el('button', { class: 'skntf' + (nt.includes(h) ? ' on' : ''), title: 'お知らせ',
+        onclick: () => {
+          const cur = sekiNotify();
+          P.seki = { ...(P.seki || {}), notify: cur.includes(h) ? cur.filter(x => x !== h) : cur.concat(h).sort((a, b) => a - b) };
+          savePlayer(); SFX.pick(); draw();
+        } }, el('i', { class: 'skntb' }), 'お知らせ')))));
   } else if (!m) {
     body.push(el('div', { class: 'skbtns' },
       el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, '陣を立てる'),

@@ -6802,7 +6802,7 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .skst{margin:-4px 0 0;text-align:center;font-size:12px;font-weight:800;letter-spacing:.3em;color:#a8802c}
 .skhours{list-style:none;margin:0;padding:8px 12px;border-radius:10px;background:#12100e0d;display:flex;flex-direction:column;gap:4px}
 .skhours li{display:flex;align-items:center;gap:10px;font-size:13px;color:#5c5042}
-.skhours li::before{content:"";width:6px;height:6px;border-radius:50%;background:#a8802c66}
+.skhours li::before{content:"";flex:0 0 auto;width:6px;height:6px;border-radius:50%;background:#a8802c66}
 .skhours li span{font-size:11px}
 .skhours li b{font-family:var(--mincho);font-size:16px;color:#3a3128}
 .skhours li i{margin-left:auto;font-style:normal;font-size:11px;font-weight:800;color:#fff;background:#c0392b;padding:1px 8px;border-radius:999px}
@@ -6899,3 +6899,27 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .trbag .trtix{grid-column:auto;margin-left:auto;font-size:13px;gap:2px}
 .trbag .trtix .itic.art{width:30px;height:30px}
 .trbag .trtix + .trdeckb{margin-left:4px}
+
+/* 関ヶ原のお知らせ（2026-10-13）
+   刻の並びの右に「お知らせ」の印。付けると金の箱に朱の印 */
+.skhours li .skntf{margin-left:auto;display:flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;white-space:nowrap;flex:0 0 auto;
+  border:1px solid #a8802c66;background:#fff8;color:#7a6a52;font-size:10px;font-weight:700;cursor:pointer}
+.skhours li i + .skntf{margin-left:6px}
+/* .skhours li i（「次は」の朱の札）に当たらないよう、印は一段強く書く */
+.skhours li .skntf .skntb{width:13px;height:13px;margin:0;padding:0;border-radius:3px;border:1.5px solid #a8802c;background:#fff;position:relative;flex:0 0 auto}
+.skhours li .skntf.on{background:#d8a94a;border-color:#a8802c;color:#2a1d07}
+.skhours li .skntf.on .skntb{background:#e0654f;border-color:#fff}
+.skhours li .skntf.on .skntb::after{content:"";position:absolute;left:3px;top:0px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.skhours li span,.skhours li b,.skhours li > i{white-space:nowrap}
+.skhours li > i{padding:1px 6px}
+/* ホームの帯（悠さんの見せてくれた絵の「時計＋印＋残り時間」の形）。左の縦列と並ぶ高さ、右寄せ */
+.skpill{position:fixed;right:62px;top:calc(var(--mefoot,95px) + 9px);z-index:6;display:flex;align-items:center;gap:4px;
+  padding:4px 12px 4px 6px;border-radius:12px;border:1px solid #d8a94a99;cursor:pointer;
+  background:linear-gradient(180deg,#2a2018ee,#12100eee);box-shadow:0 3px 10px #0008}
+.skpill b{font-family:var(--mincho);font-size:15px;color:#f5e2a8;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.skpill.on{border-color:#e0654f;box-shadow:0 0 10px #e0654faa}
+.skpill.on b{color:#fff}
+.skpclock{width:14px;height:14px;border-radius:50%;border:2px solid #f5e2a8;position:relative;align-self:flex-start;margin-top:-2px;background:#12100e}
+.skpclock::after{content:"";position:absolute;left:4px;top:1px;width:3px;height:5px;border:solid #f5e2a8;border-width:0 0 2px 2px}
+.skpfire{width:30px;height:30px;object-fit:contain;margin:-6px -2px -6px 0}
+.skpfire0{width:14px;height:14px;border-radius:50%;background:radial-gradient(#ffd27a,#e0654f)}

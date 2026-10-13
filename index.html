@@ -6943,6 +6943,38 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
   padding:1px 6px;border-radius:999px;background:#12100ecc;border:1px solid #d8a94a66}
 .skpill.on b{color:#fff;border-color:#e0654f}
 
+/* 天下統一の大きな字（2026-10-13）。一字ずつ大きく落ちてきて判のように据わり、四字そろうと金に光る */
+.resbox.unified .rttl.utt{display:flex;flex-direction:column;align-items:center;gap:2px;margin:6px 0 10px;letter-spacing:0}
+.utmode{font-size:15px;letter-spacing:.3em;color:#8f6a1c;font-weight:700}
+.utrow{display:flex;justify-content:center;gap:2px}
+.utc{display:inline-block;font-family:var(--mincho);font-size:60px;line-height:1.05;font-weight:700;color:#8f2a1a;opacity:0;
+  text-shadow:0 2px 0 #f5e2a8,0 3px 6px #0004;
+  animation:utdrop .34s cubic-bezier(.2,1.5,.4,1) forwards, utglow 1.4s ease-in-out var(--utend,1.1s) 1 forwards}
+.utrow{--utend:1.1s}
+@keyframes utdrop{0%{opacity:0;transform:scale(2.4) translateY(-6px);filter:blur(3px)}
+  70%{opacity:1;transform:scale(.94);filter:none}100%{opacity:1;transform:none}}
+@keyframes utglow{0%{text-shadow:0 2px 0 #f5e2a8,0 3px 6px #0004}
+  45%{text-shadow:0 2px 0 #f5e2a8,0 0 18px #d8a94a,0 0 30px #f5e2a8}
+  100%{text-shadow:0 2px 0 #f5e2a8,0 0 8px #d8a94a88}}
+
+/* 天下統一の一枚は札の地も縁も無し（2026-10-13）。暗い地の上に金の大きな字だけ */
+.utsheet{cursor:pointer}
+.resbox.unified.bare{background:none;border:0;box-shadow:none;padding:0}
+.resbox.unified.bare .utc{color:#f5e2a8;text-shadow:0 2px 0 #7a1d12,0 4px 10px #000c}
+.resbox.unified.bare .utmode{color:#f5e2a8}
+.resbox.unified.bare .rtalk{color:#f2ece0;text-shadow:0 1px 3px #000}
+.resbox.unified.bare .rsub{color:#d8cfbe;text-shadow:0 1px 3px #000}
+@keyframes utglowB{0%{text-shadow:0 2px 0 #7a1d12,0 4px 10px #000c}
+  45%{text-shadow:0 2px 0 #7a1d12,0 0 22px #d8a94a,0 0 40px #f5e2a8}
+  100%{text-shadow:0 2px 0 #7a1d12,0 0 12px #d8a94acc}}
+.resbox.unified.bare .utc{animation:utdrop .34s cubic-bezier(.2,1.5,.4,1) forwards, utglowB 1.4s ease-in-out var(--utend,1.1s) 1 forwards}
+/* 字を画面の幅いっぱいに（2026-10-13・悠さんの指図）。四字で幅を割る。大きな画面では 130px で止める */
+.resbox.unified.bare{width:100%;max-width:none}
+.resbox.unified.bare .utrow{gap:0;width:100%}
+.resbox.unified.bare .utc{font-size:min(calc((100vw - 20px) / 4), 130px);line-height:1}
+.resbox.unified.bare .utmode{font-size:20px}
+.resbox.unified.bare .rtalk{font-size:14px;margin-top:10px}
+
 </style>
 </head>
 <body>
@@ -35650,7 +35682,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 09:51 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/13 12:12 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -39126,9 +39158,30 @@ function resSheet() {
                 '——魔王の夜は明けた。その名は、いまやそなたのもの。'];
     box = el('div', { class: 'card2 resbox unified m' + lvU },
       el('div', { class: 'wray' }),
-      el('b', { class: 'rttl' }, lvU ? `${CAMP_MODE[lvU].short}　天下統一` : '天下統一'),
+      /* 大きな「天下統一」を一字ずつ（2026-10-13・悠さんの指図「天出したら0.2秒後に下みたいな感じ」）。
+         字ごとに animation-delay をずらし、判を押す音も字に合わせて一度だけ鳴らす。
+         札は描き直されるたびに作り直されるので、音は BATTLE に印を付けて二度鳴らさない */
+      (() => {
+        const D0 = 0.3, STEP = 0.2;
+        if (BATTLE && !BATTLE._utSnd) {
+          BATTLE._utSnd = true;
+          [...'天下統一'].forEach((_, i) => setTimeout(() => { try { SFX.hanko(); } catch (_) {} }, (D0 + i * STEP) * 1000 + 120));
+        }
+        return el('b', { class: 'rttl utt' },
+          lvU ? el('small', { class: 'utmode' }, CAMP_MODE[lvU].short) : null,
+          el('span', { class: 'utrow', style: `--utend:${D0 + 4 * STEP}s` },
+            [...'天下統一'].map((ch, i) => el('span', { class: 'utc', style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch))));
+      })(),
       el('p', { class: 'rtalk' }, UT[lvU] || UT[0]),
       mr && mr.unifyRw ? el('p', { class: 'rsub' }, giftWords(mr.unifyRw)) : null);
+  }
+  /* 天下統一の一枚は札も釦も出さず、字だけを画面に据える（2026-10-13・悠さんの指図
+     「報酬を受け取るボタンもなくして、ポップアップ背景も削除。画面タップで次に進む。説明はいらない」）。
+     字が出そろう前（1.3秒）の指はうけない ── 開いた勢いの指で見逃さないように */
+  if (kind === 'unified') {
+    box.classList.add('bare');
+    const at = (S.res._utAt = S.res._utAt || Date.now());
+    return el('div', { class: 'sheet ressheet utsheet', onclick: () => { if (Date.now() - at >= 1300) next(); } }, box);
   }
   box.append(el('button', { class: 'go wide', onclick: next },
     kind === 'lose' ? '受け取る' : '報酬を受け取る'));

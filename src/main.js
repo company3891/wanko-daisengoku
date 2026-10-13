@@ -10234,9 +10234,30 @@ function resSheet() {
                 '——魔王の夜は明けた。その名は、いまやそなたのもの。'];
     box = el('div', { class: 'card2 resbox unified m' + lvU },
       el('div', { class: 'wray' }),
-      el('b', { class: 'rttl' }, lvU ? `${CAMP_MODE[lvU].short}　天下統一` : '天下統一'),
+      /* 大きな「天下統一」を一字ずつ（2026-10-13・悠さんの指図「天出したら0.2秒後に下みたいな感じ」）。
+         字ごとに animation-delay をずらし、判を押す音も字に合わせて一度だけ鳴らす。
+         札は描き直されるたびに作り直されるので、音は BATTLE に印を付けて二度鳴らさない */
+      (() => {
+        const D0 = 0.3, STEP = 0.2;
+        if (BATTLE && !BATTLE._utSnd) {
+          BATTLE._utSnd = true;
+          [...'天下統一'].forEach((_, i) => setTimeout(() => { try { SFX.hanko(); } catch (_) {} }, (D0 + i * STEP) * 1000 + 120));
+        }
+        return el('b', { class: 'rttl utt' },
+          lvU ? el('small', { class: 'utmode' }, CAMP_MODE[lvU].short) : null,
+          el('span', { class: 'utrow', style: `--utend:${D0 + 4 * STEP}s` },
+            [...'天下統一'].map((ch, i) => el('span', { class: 'utc', style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch))));
+      })(),
       el('p', { class: 'rtalk' }, UT[lvU] || UT[0]),
       mr && mr.unifyRw ? el('p', { class: 'rsub' }, giftWords(mr.unifyRw)) : null);
+  }
+  /* 天下統一の一枚は札も釦も出さず、字だけを画面に据える（2026-10-13・悠さんの指図
+     「報酬を受け取るボタンもなくして、ポップアップ背景も削除。画面タップで次に進む。説明はいらない」）。
+     字が出そろう前（1.3秒）の指はうけない ── 開いた勢いの指で見逃さないように */
+  if (kind === 'unified') {
+    box.classList.add('bare');
+    const at = (S.res._utAt = S.res._utAt || Date.now());
+    return el('div', { class: 'sheet ressheet utsheet', onclick: () => { if (Date.now() - at >= 1300) next(); } }, box);
   }
   box.append(el('button', { class: 'go wide', onclick: next },
     kind === 'lose' ? '受け取る' : '報酬を受け取る'));

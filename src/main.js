@@ -13086,7 +13086,8 @@ function sekiAlarm(t = Date.now()) {
   return next == null ? null : { on: false, sec: next - now };
 }
 const hms = s => `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-const sekiAlarmText = a => a.on ? '開催中 残り ' + sekiLeft(a.sec) : 'あと ' + hms(a.sec);
+/* 丸の下に収まるよう字は短く。開催中は「開催中」と残りを二段に（2026-10-13） */
+const sekiAlarmText = a => a.on ? '開催中 ' + sekiLeft(a.sec) : hms(a.sec);
 let SK_ALARM_T = 0;
 function sekiAlarmPill() {
   const a = sekiAlarm();
@@ -13101,10 +13102,12 @@ function sekiAlarmPill() {
     e.textContent = sekiAlarmText(b);
   }, 1000);
   const fl = fxUrl('seki_flame') || fxUrl('flame_赤');
+  /* 形は丸い座に炎、その下に時間（2026-10-13・悠さんの指図「炎アイコンを使ってメニューバーの下に。形は円形、その下に時間」） */
   return el('button', { class: 'skpill' + (a.on ? ' on' : ''), title: '関ヶ原の戦い',
       onclick: () => { S.screen = 'map'; sekiEnter(); } },
-    el('i', { class: 'skpclock' }),
-    fl ? keepImg({ class: 'skpfire', src: fl, alt: '' }) : el('i', { class: 'skpfire0' }),
+    el('span', { class: 'skpcir' },
+      fl ? keepImg({ class: 'skpfire', src: fl, alt: '' }) : el('i', { class: 'skpfire0' }),
+      el('em', { class: 'skpname' }, '関ヶ原')),   // 炎に被せて名（2026-10-13・悠さんの指図）
     el('b', { id: 'skAlarm' }, sekiAlarmText(a)));
 }
 

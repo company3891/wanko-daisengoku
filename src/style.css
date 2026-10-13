@@ -6912,14 +6912,18 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
 .skhours li .skntf.on .skntb::after{content:"";position:absolute;left:3px;top:0px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 .skhours li span,.skhours li b,.skhours li > i{white-space:nowrap}
 .skhours li > i{padding:1px 6px}
-/* ホームの帯（悠さんの見せてくれた絵の「時計＋印＋残り時間」の形）。左の縦列と並ぶ高さ、右寄せ */
-.skpill{position:fixed;right:62px;top:calc(var(--mefoot,95px) + 9px);z-index:6;display:flex;align-items:center;gap:4px;
-  padding:4px 12px 4px 6px;border-radius:12px;border:1px solid #d8a94a99;cursor:pointer;
-  background:linear-gradient(180deg,#2a2018ee,#12100eee);box-shadow:0 3px 10px #0008}
-.skpill b{font-family:var(--mincho);font-size:15px;color:#f5e2a8;letter-spacing:.02em;font-variant-numeric:tabular-nums}
-.skpill.on{border-color:#e0654f;box-shadow:0 0 10px #e0654faa}
-.skpill.on b{color:#fff}
-.skpclock{width:14px;height:14px;border-radius:50%;border:2px solid #f5e2a8;position:relative;align-self:flex-start;margin-top:-2px;background:#12100e}
-.skpclock::after{content:"";position:absolute;left:4px;top:1px;width:3px;height:5px;border:solid #f5e2a8;border-width:0 0 2px 2px}
-.skpfire{width:30px;height:30px;object-fit:contain;margin:-6px -2px -6px 0}
-.skpfire0{width:14px;height:14px;border-radius:50%;background:radial-gradient(#ffd27a,#e0654f)}
+/* ホームの関ヶ原の座（2026-10-13 改）。右上の三本線のすぐ下に、丸い座の炎と、その下に残り時間 */
+.skpill{position:fixed;right:12px;top:calc(var(--mefoot,95px) + 46px);z-index:6;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:0;border:0;background:none;cursor:pointer;width:64px}
+.skpcir{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  background:radial-gradient(circle at 50% 60%,#5a2a14,#12100e 72%);border:2px solid #d8a94a;box-shadow:0 3px 10px #000a,inset 0 0 8px #000}
+.skpill.on .skpcir{border-color:#e0654f;box-shadow:0 0 12px #e0654fcc,inset 0 0 8px #000;animation:skpbeat 1.2s ease-in-out infinite}
+@keyframes skpbeat{50%{box-shadow:0 0 20px #ff8a5c,inset 0 0 8px #000}}
+.skpfire{width:46px;height:46px;object-fit:contain;margin-top:-4px}
+.skpfire0{width:22px;height:22px;border-radius:50%;background:radial-gradient(#ffd27a,#e0654f)}
+.skpcir{position:relative}
+.skpname{position:absolute;left:0;right:0;bottom:7px;text-align:center;font-style:normal;font-family:var(--mincho);font-weight:800;
+  font-size:12px;letter-spacing:.04em;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000}
+.skpill b{font-family:var(--mincho);font-size:12px;line-height:1.1;color:#f5e2a8;font-variant-numeric:tabular-nums;white-space:nowrap;
+  padding:1px 6px;border-radius:999px;background:#12100ecc;border:1px solid #d8a94a66}
+.skpill.on b{color:#fff;border-color:#e0654f}

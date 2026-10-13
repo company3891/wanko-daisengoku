@@ -6966,3 +6966,13 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
   font-family:var(--gothic,inherit);font-weight:700;color:#f5e2a8;border-color:#d8a94a88;background:#00000040}
 .skpkhd .skpkf.on{border-color:var(--gold);color:#12100e;background:linear-gradient(#f5e2a8,#d8a94a)}
 .skfsheet{z-index:60}
+/* ---- 閉じている座を必ず灰色に（2026-10-13・悠さんの指図「グレーアウトになってないのでグレーアウトにしよう」）----
+   大きい座（塔・取引所）は .hmb.big.art .hmi img{filter:none} が後ろで灰色を打ち消していた。
+   正方形の座（旅）も含めて、閉じているあいだはここで必ず沈める */
+.hmb.locked .hmi,.hmb.big.art.locked .hmi,.hmsq .hmb.locked .hmi{filter:none}
+.hmb.locked .hmi img,.hmb.big.art.locked .hmi img,.hmsq .hmb.locked .hmi img{filter:grayscale(1) brightness(.5)}
+.hmb.locked .hmi i{filter:grayscale(1) brightness(.6)}
+/* 札の字は二行（全国モード／第1章クリアで解放） */
+.hmlock b{display:block;font-weight:700}
+.hmlock b:first-child{font-size:.92em;color:#d8c9a0}
+.home .hmenu .hmsq .hmb .hmlock{font-size:7.5px;width:auto;white-space:nowrap;padding:3px 4px;letter-spacing:-.03em}

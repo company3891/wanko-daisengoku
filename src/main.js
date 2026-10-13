@@ -1754,7 +1754,10 @@ const HOME_MENU = [
      69角に「落ち延び道中」は収まらないので「道中」にしてある。
      ui/home_trail.png を置けば、名札そのものが消える */
   /* 絵（ui/home_trail.png・2026-10-09 悠さん作）に「旅」が入っているので、下の名札は出さない */
+  /* 旅と取引所も、全国の第1章を平定するまで閉じる（2026-10-13・悠さんの指図
+     「初めてプレイする人には機能が多すぎるので、旅と取引所も第1章クリアで解放しようか！」） */
   { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, noname: true,
+    lock: () => towerOpen() ? null : LOCK_CH1,
     go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; S.trScroll = true; } },
   { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
@@ -1783,15 +1786,19 @@ const HOME_MENU = [
      noname は 絵が見つからなかったときの備え。札に「市」の一字が出るだけで、
      下の名札は出さない（塔と高さがそろわず、字が二度出て見苦しいため） */
   { side: 'BL', name: '取引所', mark: '市', file: 'home_market', big: true, noname: true,
+    lock: () => towerOpen() ? null : LOCK_CH1,
     go: () => { S.screen = 'market'; S.mkTab = 'buy'; S.mkPut = null;
                 S.mkQ = ''; S.mkMsg = ''; },
     badge: () => mkUnread() },
   { side: 'BL', name: '試練の塔', mark: '塔', file: 'home_tower', big: true,
     /* 全国の第1章（出発した章）を平定するまでは開かない（2026-10-01）。
        いきなり しばり付きの戦に来ても、手持ちが足りず「読み」にならない */
-    lock: () => towerOpen() ? null : '第1章クリアで解放',
+    lock: () => towerOpen() ? null : LOCK_CH1,
     go: () => { S.screen = 'tower'; S.twMsg = ''; S.twSel = null; } },
 ];
+/* 閉じている座の札の字（2026-10-13・悠さんの指図）。
+   「第1章クリアで解放」だけでは何の第1章か分からないので、上に「全国モード」を添えて二行に */
+const LOCK_CH1 = '全国モード\n第1章クリアで解放';
 /* 第1章＝出発した章。そこを取りきると試練の塔が開く（2026-10-01） */
 /* 塔・友・称号・お役目は 並の進み具合で決める（2026-10-10）。修羅に入って振り出しに戻っても閉じない */
 const towerOpen = () => regionTaken((PREF[(P.camp && P.camp.start) || 'aichi'] || {}).region, 0);
@@ -1803,11 +1810,11 @@ function homeMenuBtn(m) {
   return el('button', {
     class: (wide ? 'hmw' : 'hmb') + (art ? ' art' : '') + (m.soon ? ' soon' : '')
          + (lk ? ' locked' : '') + (m.big ? ' big' : ''),
-    title: m.soon ? `${m.name}（近日）` : lk ? `${m.name}　${lk}` : m.name,
+    title: m.soon ? `${m.name}（近日）` : lk ? `${m.name}　${lk.replace(/\n/g, '　')}` : m.name,
     disabled: (m.soon || lk) ? true : null,
     onclick: (m.soon || lk) ? null : () => { m.go(); SFX.pick(); draw(); },
   },
-    lk ? el('span', { class: 'hmlock' }, lk) : null,
+    lk ? el('span', { class: 'hmlock' }, lk.split('\n').map(t => el('b', {}, t))) : null,
     el('span', { class: 'hmi' }, art ? keepImg({ src: art, alt: '' }) : el('i', {}, m.mark)),
     /* 絵が無くて、名が一字の印とおなじなら、下の名札は出さない（2026-09-26）。
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
@@ -4203,7 +4210,7 @@ function screenMarch() {
   /* 敵の陣立てを先に見て、同じ人物が両軍に出ないようにする（2026-09-23） */
   /* 初陣の手前と初陣の歩では、敵の陣立ても一騎だけ見せる（2026-10-11）。
      実際の戦は一騎打ち（startBattle の first）なのに、ここに四騎並んでいて食い違っていた */
-  const firstGo = guideOn() && (P.gstep === GUIDE_FIGHT - 1 || P.gstep === GUIDE_FIGHT);
+  const firstGo = ['march', 'fight'].includes(gdId()) && gdLs() === 'map';   // 2026-10-13 段の形に
   const foes = firstGo ? campFoes(p, step).slice(0, 1) : campFoes(p, step);
   const clash = foeClash(q.nos, foes);
   S.foe = { pref: p.id, step, origins: [...foeOriginSet(foes)] };   // 編成画面でも灰色にする
@@ -6758,8 +6765,10 @@ function menuSheet() {
            手引きの中の「やめる」を押すと、これまでは二度と出てこなかった。
            やめた歩（P.gquit）を覚えてあれば そのつづきから、
            無ければ はじめから。手引きの最中は、語りの中に「やめる」があるので出さない */
-        guideOn() ? null : row('はじめての手引き', P.gquit > 0 ? 'つづきから' : 'はじめから', () => {
-          P.gstep = P.gquit > 0 ? P.gquit : 1; P.gquit = 0; savePlayer();
+        /* 2026-10-13：手引きは画面ごとの段になったので、「もう一度」で全部の段を出し直す。
+           それぞれの画面を次に開いたときに、その段がまた出る */
+        row('手引き', 'もう一度見る', () => {
+          P.glearn = true; P.gdone = {}; P.gpause = {}; P.gstep = 0; P.gquit = 0; savePlayer();
           S.menu = false; SFX.pick(); draw();
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
@@ -8939,7 +8948,7 @@ function startBattle(camp, evb, spar, bout, tw, away) {
   /* 初陣だけは一対一（2026-09-30）。
      こちらは一騎しかいないのに相手が五騎では、手ざわりを覚える前に押し切られる。
      手引きの「初陣」の歩にいるあいだだけ、相手も総大将ひとりにする */
-  const first = camp && guideOn() && P.gstep === GUIDE_FIGHT;
+  const first = camp && gdLs() === 'map' && gdId() === 'fight';   // 2026-10-13 段の形に
   if (first && B.length > 1) B = B.slice(0, 1);
   /* 初陣は必ず勝てるようにする（2026-10-02）。
      はじめての一戦でつまずくと、手引きの道すじがそこで切れてしまう。
@@ -11549,27 +11558,129 @@ function levinEl(w) {
 
    各歩は find() で「いま指す釦」を返す。その画面にいなければ、そこへ行く釦を返す。
    返した釦を押すと、次の歩へ進む（auto があれば、その条件で勝手に進む）。 */
-const GUIDE_FIGHT = 10;                // 初陣の歩（GUIDE の何番目か。1 はじまり）
-const guideOn = () => P.gstep > 0 && P.gstep <= GUIDE.length;
+/* ---- 手引きを「押した所ごと」に分けた（2026-10-13・悠さんの指図）----
+   「周りから長いとゆう声があったので、一気に全部説明するんじゃなくて
+    各種ボタン押した時に説明するようにしようか！」
+   前は 一騎えらび → 育成 → … → くじ の十五歩を、城に入るなり一本道で通させていた。
+   いまは GUIDE を「段（ls）」で区切り、その段の画面を **はじめて開いたとき** だけ、
+   その画面の分の歩を出す。済んだ段は P.gdone[段] に印を付け、二度と出さない。
+   よその画面へ移ったら その段は休む（縛らない・語りも出さない）。戻ればつづきから。
+   P.gstep は「いま出している段の、GUIDE の何番目か（1 はじまり）」。0＝何も出していない。
+   P.glearn が立っている人（新しく始めた人・手引きをもう一度にした人）にだけ出す */
+const GD_LESSONS = {
+  /* 城に着いたとき。押す所は指さず、ひとこと添えるだけ */
+  /* お知らせ札（S.ad）や他の札が開いているあいだは待つ。札の上に語りが重なるため */
+  home:    { start: () => S.screen === 'home' && !S.mi && !S.menu && S.ad == null && !S.rk && !S.detail,
+             on: () => S.screen === 'home' && !S.mi && S.ad == null },
+  grow:    { start: () => S.screen === 'grow', on: () => S.screen === 'grow' },
+  power:   { start: () => S.screen === 'power', on: () => S.screen === 'power',
+             skip: () => Object.values(P.chars || {}).some(c => (c.lv || 1) > 1) },
+  squads:  { start: () => S.screen === 'squads', on: () => ['squads', 'team', 'form'].includes(S.screen) },
+  /* 全国。勝ったことのある人には出さない（初陣の一騎打ちは手引きのあいだだけなので） */
+  map:     { start: () => S.screen === 'map' && P.camp.intro, on: () => ['map', 'march', 'battle'].includes(S.screen),
+             skip: () => (P.wins || 0) >= 1 },
+  mission: { start: () => S.screen === 'home' && !!S.mi, on: () => S.screen === 'home' && !!S.mi },
+  skillup: { start: () => S.screen === 'skillup', on: () => S.screen === 'skillup',
+             skip: () => Object.values(P.chars || {}).some(c => (c.sk || []).some(v => v > 1)) },
+  inherit: { start: () => S.screen === 'inherit', on: () => S.screen === 'inherit',
+             skip: () => Object.values(P.chars || {}).some(c => (c.inh || []).some(Boolean)) },
+  gacha:   { start: () => S.screen === 'gachalist' || S.screen === 'gacha',
+             on: () => S.screen === 'gachalist' || S.screen === 'gacha', skip: () => !P.firstFree },
+};
+const gdLs = () => { const g = P.gstep > 0 ? GUIDE[P.gstep - 1] : null; return g ? g.ls : ''; };
+/* いま段が開いていて、しかもその段の画面にいるか。よその画面では休む */
+const guideOn = () => {
+  if (!(P.gstep > 0 && P.gstep <= GUIDE.length)) return false;
+  const L = GD_LESSONS[gdLs()];
+  return !!(L && L.on());
+};
 const gdNow = () => (guideOn() ? GUIDE[P.gstep - 1] : null);
+const gdId = () => (P.gstep > 0 && GUIDE[P.gstep - 1] ? GUIDE[P.gstep - 1].id || '' : '');
+/* 次の歩へ。段の終わりなら、その段に済みの印を付けて閉じる */
+function gdAdvance() {
+  const ls = gdLs();
+  const nx = P.gstep + 1;
+  if (nx > GUIDE.length || GUIDE[nx - 1].ls !== ls) {
+    P.gdone = { ...(P.gdone || {}), [ls]: 1 };
+    P.gstep = 0;
+  } else P.gstep = nx;
+  savePlayer();
+}
+/* 段をやめる（語りの「やめる」）。その段だけ済みにする。ほかの段はそのまま出る */
+function gdQuit() {
+  const ls = gdLs();
+  if (ls) P.gdone = { ...(P.gdone || {}), [ls]: 1 };
+  P.gstep = 0; savePlayer();
+}
+/* はじめて開いた画面の段を立てる。draw() の最後（guidePaint）から呼ぶ */
+function gdTrigger() {
+  /* 古い保存（一本道の十五歩の途中）を段の形に移す（2026-10-13）。
+     前の歩の並び：1 育成／2 武将強化／3〜6 部隊／7〜10 全国・初陣／11 お役目／12 特技強化／13 特技継承／14 くじ／15 締め。
+     通り過ぎた段は済みにして、残りは画面を開いたときに出す */
+  if (!P.glearn && (P.gstep > 0 || P.gquit > 0)) {
+    const old = P.gstep > 0 ? P.gstep : P.gquit;
+    const d = { home: 1 };
+    if (old >= 2) d.grow = 1;
+    if (old >= 3) d.power = 1;
+    if (old >= 7) d.squads = 1;
+    if (old >= 11) d.map = 1;
+    if (old >= 12) d.mission = 1;
+    if (old >= 13) d.skillup = 1;
+    if (old >= 14) d.inherit = 1;
+    if (old >= 15) d.gacha = 1;
+    P.glearn = true; P.gdone = d; P.gstep = 0; P.gquit = 0; savePlayer();
+  }
+  if (!P.glearn) return;
+  if (P.gstep > GUIDE.length) P.gstep = 0;
+  if (S.opening || S.win || S.screen === 'battle' || S.screen === 'title' || S.screen === 'loading') return;
+  /* 段の画面から出たら、その段は閉じて、どこまで進んだかだけ覚えておく（2026-10-13）。
+     開いたままだと、次に開いた画面の段が立たない。
+     済みにはしないので、またその画面を開けば つづきの歩から出る（「やめる」「心得た」で済みになる） */
+  if (P.gstep > 0 && GUIDE[P.gstep - 1]) {
+    const L = GD_LESSONS[gdLs()];
+    if (L && L.on()) {
+      /* 段の中で画面を行き来したとき（戻るで一つ前の画面へ、など）、
+         いまの歩が別の画面の歩なら、いまの画面の歩へ寄せる。前を先に探し、無ければ後ろ */
+      const g = GUIDE[P.gstep - 1];
+      if (g.scr && !g.scr.includes(S.screen)) {
+        const ls = g.ls;
+        const fit = j => GUIDE[j - 1] && GUIDE[j - 1].ls === ls && (!GUIDE[j - 1].scr || GUIDE[j - 1].scr.includes(S.screen));
+        let k = 0;
+        for (let j = P.gstep - 1; j >= 1 && GUIDE[j - 1].ls === ls; j--) if (fit(j)) { k = j; break; }
+        if (!k) for (let j = P.gstep + 1; j <= GUIDE.length && GUIDE[j - 1].ls === ls; j++) if (fit(j)) { k = j; break; }
+        if (k && k !== P.gstep) { P.gstep = k; savePlayer(); }
+      }
+      return;
+    }
+    P.gpause = { ...(P.gpause || {}), [gdLs()]: P.gstep };
+    P.gstep = 0; savePlayer();
+  }
+  for (const [ls, L] of Object.entries(GD_LESSONS)) {
+    if ((P.gdone || {})[ls] || !L.start()) continue;
+    if (L.skip && L.skip()) { P.gdone = { ...(P.gdone || {}), [ls]: 1 }; savePlayer(); continue; }
+    const i = GUIDE.findIndex(g => g.ls === ls);
+    if (i < 0) continue;
+    /* つづきから。ただし その歩の画面（scr）にいなければ、いまの画面の歩まで戻る。
+       部隊の段で「武将えらび」の途中に出て、部隊の一覧から入り直したときは「編成する」から */
+    const pz = (P.gpause || {})[ls];
+    let k = (pz && GUIDE[pz - 1] && GUIDE[pz - 1].ls === ls) ? pz : i + 1;
+    while (k > i + 1 && GUIDE[k - 1].scr && !GUIDE[k - 1].scr.includes(S.screen)) k--;
+    P.gstep = k; savePlayer();
+    return;
+  }
+}
+/* 手ほどき用のもう一騎＝いちばん若い番号のN（絵が無くても動く） */
 const gq = sel => document.querySelector(sel);
 const gdNav = lbl => [...document.querySelectorAll('.nav button')]
   .find(b => (b.textContent || '').trim() === lbl) || null;
-const gdGm = name => [...document.querySelectorAll('.gm')]
-  .find(b => (b.title || '') === name) || null;
-/* 回り道の印（2026-09-30）。
-   目当ての画面にいないとき「そこへ行く釦」を差すが、それを押しても歩は進めない。
-   印を付けておかないと、帯を押すだけで先へ飛んでしまう */
+/* 回り道の印（2026-09-30）。押しても歩は進めない釦に付ける */
 const gdVia = n => { if (n) n.dataset.gdvia = '1'; return n; };
-const gdToGrow = () => gdVia(gdNav('育成'));
-const gdToSquads = () => (S.screen === 'grow' ? gdVia(gdGm('部隊編成')) : gdVia(gdNav('育成')));
 /* 目当ての釦。使えなければ、その手前に押すもの（素材えらびなど）を差す */
 const gdAct = (title, pickSel) => {
   const b = [...document.querySelectorAll('button')].find(x => (x.title || '') === title);
   if (b && !b.disabled) return b;
   return gq(pickSel) || null;
 };
-/* 手ほどき用のもう一騎＝いちばん若い番号のN（絵が無くても動く） */
 const guideMate = () => {
   const list = (POOL.N || []).slice().sort((a, b) => a.no - b.no);
   return list.length ? list[0].no : null;
@@ -11585,47 +11696,38 @@ const gdFirstFlag = () => {
   return [...document.querySelectorAll('.flag, .pc')]
     .find(b => !b.disabled && (b.title || b.textContent || '').includes(fp.pref.name)) || null;
 };
+/* 歩の並び。ls が同じ歩どうしが一つの段。段の中は上から順に進む。
+   各歩の find() は「いま指す釦」を返す。段の画面の外を指すことはしない（前は回り道をさせていた） */
 const GUIDE = [
-  // ── 城で、まず鍛える ──
-  { say: ['まずは武将を鍛えるワン！', '下の帯の「育成」を押すワン'],
-    find: () => gdNav('育成') },
-  /* 稽古はひと続きの手順なので、押すたびに歩を進めず「位が上がったら」次へ */
-  /* 2026-10-11：一つの言葉で四つの手順を言っていたので、いま押す所に合わせて言い分ける。
-     書を食わせる段だけ「書 → 位が上がる」の図を添える（押すと一冊・長押しでまとめて） */
-  { say: () => S.screen !== 'power' ? ['稽古をつけるワン！', '「武将強化」を押すワン']
-      : !S.gpop ? ['鍛える武将をえらぶワン！', '札を押すワン']
+  { ls: 'home', say: ['ここが城だワン！', '気になる所を押してみるワン。はじめて開く所では、そのつど手ほどきするワン'],
+    done: '心得た', find: () => null },
+  { ls: 'grow', say: ['育成だワン！', '「武将強化」で位を上げ、「部隊編成」で出す武将を組むワン。技を磨くのも継がせるのもここだワン'],
+    done: '心得た', find: () => null },
+  /* 稽古はひと続きの手順なので、押すたびに歩を進めず「位が上がったら」閉じる */
+  { ls: 'power',
+    say: () => !S.gpop ? ['鍛える武将をえらぶワン！', '札を押すワン']
       : S.pw !== '稽古' ? ['稽古をつけるワン！', '「稽古」を押すワン']
       : ['稽古の書を食わせるワン！', '書を押すと一冊ずつ、長押しでまとめて食わせるワン'],
-    pic: () => (S.screen === 'power' && S.pw === '稽古') ? gdFigFeed() : null,
+    pic: () => (S.pw === '稽古' && S.gpop) ? gdFigFeed() : null,
     auto: () => Object.values(P.chars || {}).some(c => (c.lv || 1) > 1),
     find: () => {
-      if (S.screen !== 'power') return S.screen === 'grow' ? gdVia(gdGm('武将強化')) : gdToGrow();
       if (!S.gpop) return gq('.pickgrid .pg');
       if (S.pw !== '稽古') return gq('.pwb[title="稽古"]');
       return gq('.fdm:not(.off)');
     } },
-  // ── 部隊を組む ──
-  { say: ['つぎは部隊だワン！', '育成の「部隊編成」を押すワン'],
-    find: () => S.screen === 'grow' ? gdGm('部隊編成') : gdToGrow() },
-  { say: ['出す部隊をえらぶワン！', '「編成する」を押すワン'],
-    find: () => S.screen === 'squads' ? gq('.footrow .go') : gdToSquads() },
-  { say: ['出す武将をえらぶワン！', '札を押すと出陣に入るワン。決まったら下の「陣形へ」を押すワン'],
+  { ls: 'squads', scr: ['squads'], say: ['部隊を組むワン！', '「編成する」を押すワン'],
+    find: () => S.screen === 'squads' ? gq('.footrow .go') : null },
+  { ls: 'squads', scr: ['team'], say: ['出す武将をえらぶワン！', '札を押すと出陣に入るワン。決まったら下の「陣形へ」を押すワン'],
     find: () => {
-      if (S.screen !== 'team') return gdToSquads();
-      /* まず一枚 押させてから陣形へ（2026-09-30）。
-         はじめから入っている一騎だけだと、札を押す手ざわりを覚える場が無かった */
+      if (S.screen !== 'team') return null;
       const un = document.querySelector('.tgrid .card:not(.on):not(.samelord)');
       if (un && S.picked.length < 2) return gdVia(un);
       return gq('.acts .go');
     },
-    /* 札を差しているあいだも「陣形へ」は押せるままにする（行き止まりを作らない） */
     also: '.acts .go' },
-  /* 2026-10-07（悠さんの指図）：「武将を枠に引いて置く」が伝わらなかったので
-     「武士をドラッグして配置する」に書き替えた。
-     カタカナの専門語は避ける決まりだが、ここは伝わるほうを取る */
-  /* 2026-10-11：語りが「配置」の枠の上にかぶって、置く先が見えなかった。
-     この歩だけ語りを画面の上に逃がし、肉球が武将を枠まで引いて見せる（at・drag） */
-  { say: ['陣を敷くワン！', '武士をドラッグして配置するワン！置けたら「保存して部隊へ」だワン'],
+  /* 2026-10-07：「武士をドラッグして配置する」（伝わるほうを取った）。
+     2026-10-11：語りを画面の上へ逃がし、肉球が武将を枠まで引いて見せる */
+  { ls: 'squads', scr: ['form'], say: ['陣を敷くワン！', '武士をドラッグして配置するワン！置けたら「保存して部隊へ」だワン'],
     at: 'top',
     drag: () => {
       if (S.screen !== 'form') return null;
@@ -11634,102 +11736,73 @@ const GUIDE = [
       return a && b ? [a, b] : null;
     },
     find: () => {
-      if (S.screen !== 'form') return gdToSquads();
-      /* 枠に入れていない武将が居るあいだは、その子を差す（2026-09-30）。
-         引いて置く仕草を一度やってもらう。押しても歩は進めない（回り道あつかい） */
+      if (S.screen !== 'form') return null;
       const u = document.querySelector('.bench .u');
       if (u) return gdVia(u);
       return gq('.acts .go');
     },
-    /* 引いて置けなくても先へ進めるように、「保存して部隊へ」は押せるままにする。
-       枠に入れなかった武将は、どのみち自動で空いた枠に入る */
     also: '.acts .go' },
-  // ── 初陣 ──
-  { say: ['いざ出陣だワン！', '部隊一の右の「出陣」を押して、全国へ出るワン'],
-    find: () => S.screen === 'squads' ? gq('.sqedit.out') : gdToSquads() },
-  { say: ['となりの国へ攻めるワン！', '光っている国を押すワン'],
-    find: () => S.screen === 'map' ? gdFirstFlag() : gdVia(gdNav('全国')) },
-  { say: ['ここが初陣だワン！', '「出陣」を押すワン。相手は物見の一騎、一騎打ちだワン'],
-    find: () => S.screen === 'march' ? gq('.marchgo .go') : gdVia(gdNav('全国')) },
+  { ls: 'squads', scr: ['squads'], say: ['部隊ができたワン！', '部隊の右の「出陣」を押すと、全国へ出られるワン'],
+    done: '心得た',
+    find: () => S.screen === 'squads' ? gq('.sqedit.out') : null },
+  // ── 全国（初陣）──
+  { ls: 'map', scr: ['map'], say: ['全国だワン！', '国を攻めて天下を目指すワン。まずは光っている国を押すワン'],
+    find: () => S.screen === 'map' ? gdFirstFlag() : null },
+  { ls: 'map', id: 'march', scr: ['march'], say: ['ここが初陣だワン！', '「出陣」を押すワン。相手は物見の一騎、一騎打ちだワン'],
+    find: () => S.screen === 'march' ? gq('.marchgo .go') : null },
   /* 初陣。盤面のあいだは何も出さず、何も縛らない（guidePaint が盤面では早じまいする）。
-     勝つまでが手ほどきなので、負けて戻ってきたら もう一度「出陣」を差す（2026-09-30）。
-     前は戦の語りが城や地図にまで出たうえ、負けると先へ進めなくなっていた */
-  { say: ['勝つまでが手ほどきだワン！', 'もう一度「出陣」を押すワン。負けても減るのは兵糧だけだワン'],
+     勝つまでが手ほどき。負けて戻ってきたら もう一度「出陣」を差す */
+  { ls: 'map', id: 'fight', scr: ['map', 'march'], say: ['勝つまでが手ほどきだワン！', 'もう一度「出陣」を押すワン。負けても減るのは兵糧だけだワン'],
     free: true, auto: () => (P.wins || 0) >= 1,
-    find: () => S.screen === 'march' ? gq('.marchgo .go')
-              : S.screen === 'map' ? gdFirstFlag()
-              : gdVia(gdNav('全国')) },
-  // ── 城に戻って、残りをひと通り ──
-  { say: () => S.mi ? ['褒美を頂くワン！', '光っている「頂戴」を押すワン']
-      : ['お役目の褒美を受け取るワン！', '城に戻って「任」を押して、たまった褒美を頂くワン'],
-    /* 受け取ったら次へ。もらえるものが一つも無いときは、札を開いた時点で次へ（2026-09-30） */
-    auto: () => ['gd', 'gw', 'ge', 'gt', 'gf'].some(k => ((P.mi || {})[k] || []).length > 0)
-      || (S.mi && !document.querySelector('.mig.on')),
-    find: () => {
-      if (S.screen !== 'home') return gdVia(gdNav('ホーム'));
-      if (!S.mi) return gq('.hmb[title*="お役目"]');
-      return gq('.mig.on') || gq('.sheet .go.wide:not([disabled])');
-    } },
+    find: () => S.screen === 'march' ? gq('.marchgo .go') : S.screen === 'map' ? gdFirstFlag() : null },
+  // ── お役目 ──
+  /* 開いたタグに受け取れる褒美が無いことがある（門出のタグが先頭）。
+     そのときは赤丸の付いたタグを差す。どこにも無ければ「心得た」で閉じる */
+  { ls: 'mission',
+    say: () => miReadyCount() ? ['お役目だワン！', '務めを果たすと褒美が出るワン。光っている「頂戴」を押すワン']
+      : ['お役目だワン！', '務めを果たすと褒美が出るワン。たまったら、ここで頂戴するワン'],
+    done: '心得た',
+    auto: () => ['gd', 'gw', 'ge', 'gt', 'gf'].some(k => ((P.mi || {})[k] || []).length > 0),
+    find: () => gq('.mig.on') || gdVia([...document.querySelectorAll('.mitab')].find(b => b.querySelector('em')) || null) },
   /* 2026-10-11：「重ね」が何かが伝わりにくいので、同じ武将の札どうしを足す図を添える */
-  { say: () => S.screen !== 'skillup' ? ['つぎは技を磨くワン！', '「特技強化」を押すワン']
-      : !S.gpop ? ['技を磨く武将をえらぶワン！', '札を押すワン']
+  { ls: 'skillup',
+    say: () => !S.gpop ? ['技を磨く武将をえらぶワン！', '札を押すワン']
       : !gdReady('強化する') ? ['重ねを食わせるワン！', '同じ武将の札（重ね）を押すワン。食わせると技の位が上がるワン']
       : ['技を磨くワン！', '「特技強化」を押すワン'],
-    pic: () => (S.screen === 'skillup' && S.gpop) ? gdFigSkill() : null,
+    pic: () => S.gpop ? gdFigSkill() : null,
     auto: () => Object.values(P.chars || {}).some(c => (c.sk || []).some(v => v > 1)),
     find: () => {
-      if (S.screen !== 'skillup') return S.screen === 'grow' ? gdVia(gdGm('特技強化')) : gdToGrow();
       if (!S.gpop) return gq('.pickgrid .pg');
       return gdAct('強化する', '.matpick .mc:not(.off)');
     } },
-  { id: 'inh',
-    say: () => S.screen !== 'inherit' ? ['技を継がせるワン！', '「特技継承」を押すワン']
-      : !S.gpop ? ['技を受け継ぐ武将をえらぶワン！', '札を押すワン']
+  { ls: 'inherit', id: 'inh',
+    say: () => !S.gpop ? ['技を受け継ぐ武将をえらぶワン！', '札を押すワン']
       : !gdReady('技を継承する') ? ['継ぎ元をえらぶワン！', 'ほかの武将の札を押すと、その子の技をひとつ受け継げるワン']
       : ['技を継がせるワン！', '「特技継承」を押すワン'],
-    pic: () => (S.screen === 'inherit' && S.gpop) ? gdFigInherit() : null,
+    pic: () => S.gpop ? gdFigInherit() : null,
     auto: () => Object.values(P.chars || {}).some(c => (c.inh || []).some(Boolean)),
     find: () => {
-      if (S.screen !== 'inherit') return S.screen === 'grow' ? gdVia(gdGm('特技継承')) : gdToGrow();
       if (!S.gpop) return gq('.pickgrid .pg');
       if (gdReady('技を継承する')) return gdAct('技を継承する', '.matpick .mc');
-      /* 継ぎ元は「ほかの武将」を差す（2026-10-11）。
-         前は並びの先頭＝自分自身を差していて、「ほかの子の技を受け継ぐ」と言いながら
-         自分の重ねから継がせていた。継げる技を持つほかの子がいなければ、先頭に落とす */
+      /* 継ぎ元は「ほかの武将」を差す（2026-10-11） */
       if (S.ihsrc == null) {
         const btns = [...document.querySelectorAll('.matpick .mc')];
         const i = ihList(inhTarget()).indexOf(gdInhPick());
         return btns[i] || btns[0] || null;
       }
-      /* 継ぎ元を選んだのに押せない＝先頭の技が継げない◆のとき。継げる技の行を差す */
       const box = document.querySelectorAll('.growbox .sklist')[1];
       return (box && box.querySelector('.skrow:not(.max):not(.borrowed)')) || gq('.matpick .mc.on');
     } },
-  /* 2026-10-07（悠さんの指図）三つ直した。
-     ・「締めはくじ」が何のことか分からないので「祈りおみくじ」に
-     ・一祈りの説明は要らない。**十連だけ**差せば引き方は伝わる
-     ・くじの画面に入ったら吹き出しは出さない（押したあとに同じ説明が残っていた）。
-       差す丸だけ残して、言葉は引っ込める */
-  { say: ['祈りおみくじだワン！', '下の帯の「ガチャ」を押すワン。初回の十連はただだワン'],
-    quiet: () => S.screen === 'gacha' || S.screen === 'gachalist',
-    /* 引き終わるまで続ける（2026-09-30）。帯をえらんで、十連を押すまで */
+  /* くじ。一覧では語り、くじの画面に入ったら言葉は引っ込めて差す丸だけ（2026-10-07 の指図） */
+  { ls: 'gacha', say: ['祈りおみくじだワン！', '「門出」のくじを押すワン。初回の十連はただだワン'],
+    quiet: () => S.screen === 'gacha',
     auto: () => !P.firstFree,
     find: () => {
       if (S.screen === 'gacha') return gq('.pulls .pull.ten') || gq('.pulls .pull.free');
-      if (S.screen === 'gachalist') {
-        /* 門出のくじ（信わんが出るのはここだけ）を名指しで差す */
-        const i = GACHAS.findIndex(x => x.id === 'release');
-        const rows = [...document.querySelectorAll('.glrow')];
-        return rows[i >= 0 ? i : 0] || null;
-      }
-      return gdVia(gdNav('ガチャ'));
+      const i = GACHAS.findIndex(x => x.id === 'release');
+      const rows = [...document.querySelectorAll('.glrow')];
+      return rows[i >= 0 ? i : 0] || null;
     } },
-  /* 締め（2026-10-11）。前はくじを引いた途端に黙って終わり、手引きが済んだのか分からなかった。
-     どこも指さず、何も縛らない。「心得た」で閉じる。くじの画面では出さない */
-  { say: ['手ほどきはここまでだワン！', 'あとは国を攻めて、天下を目指すワン。城のまわりの札も、のぞいてみるとよいワン'],
-    quiet: () => S.screen === 'gacha' || S.screen === 'gachalist' || !!(S.gbox || S.gboxing || S.rv || S.rvall),
-    done: '心得た',
-    find: () => null },
 ];
 /* ---- 手引きに添える小さな図（2026-10-11）----
    言葉だけでは伝わりにくい所に、ゲームの絵で組んだ図を語りの下に添える。
@@ -11780,6 +11853,7 @@ function guidePaint() {
   /* 歩が最後を越えたら 0 に戻す（2026-09-30）。
      0 でないあいだは「強化は必ず成功」が効きっぱなしになるので、必ず片づける */
   if (P.gstep > GUIDE.length) { P.gstep = 0; savePlayer(); }
+  gdTrigger();                                     // はじめて開いた画面なら、その段を立てる（2026-10-13）
   for (const n of document.querySelectorAll('.gdsay, .gdarw, .gdpaw')) n.remove();
   for (const n of document.querySelectorAll('.gdhit')) n.classList.remove('gdhit', 'gdrel');
   for (const n of document.querySelectorAll('[data-gdvia]')) delete n.dataset.gdvia;
@@ -11787,10 +11861,7 @@ function guidePaint() {
   for (const n of document.querySelectorAll('.gdlock')) n.classList.remove('gdlock');
   document.body.classList.toggle('gdon', guideOn());
   const g = gdNow(); if (!g) return;
-  if (g.auto && g.auto()) {
-    P.gstep++; if (P.gstep > GUIDE.length) P.gstep = 0;
-    savePlayer(); setTimeout(draw, 0); return;
-  }
+  if (g.auto && g.auto()) { gdAdvance(); setTimeout(draw, 0); return; }
   /* 名乗りの一枚絵・盤面・天下の分け目のあいだは、指差しをまったく出さない（2026-09-30）。
      どれも読ませたい見せ場なので、重ねないし、縛りもしない */
   if (S.opening || S.screen === 'battle' || S.win || (S.screen === 'map' && !P.camp.intro)) return;
@@ -11881,14 +11952,14 @@ function gdBubble(g, hit) {
       })(),
       /* 締めの歩だけ「心得た」で閉じる（2026-10-11） */
       g.done ? el('button', { class: 'gddone',
-        onclick: () => { P.gstep++; if (P.gstep > GUIDE.length) P.gstep = 0; savePlayer(); SFX.pick(); draw(); } }, g.done) : null,
+        onclick: () => { gdAdvance(); SFX.pick(); draw(); } }, g.done) : null,
       /* 逃げ道（2026-09-30）。戻るなどで思わぬ画面へ行くと、
          指す先が別の画面にあって進めなくなることがあった。いつでも降りられるようにする */
       /* やめた歩を覚えておく（2026-10-02）。
          前は 0 に戻すだけだったので、途中でやめると二度と出てこなかった。
          三本線（環境設定）から、やめた所のつづきに戻れるようにする */
       el('button', { class: 'gdquit', title: '手引きをやめる',
-        onclick: () => { P.gquit = P.gstep; P.gstep = 0; savePlayer(); SFX.pick(); draw(); } }, 'やめる'));
+        onclick: () => { gdQuit(); SFX.pick(); draw(); } }, 'やめる'));
     if (g.done) say.classList.add('fin');
     document.body.append(say);
   }
@@ -11975,9 +12046,7 @@ document.addEventListener('click', e => {
   const onHit = hit && (e.target === hit || hit.contains(e.target));
   if (!ok && !onHit) return;
   if (!ok && hit.dataset.gdvia) return;           // 回り道の釦では進めない
-  P.gstep++;
-  if (P.gstep > GUIDE.length) P.gstep = 0;         // 手引きはここまで
-  savePlayer();
+  gdAdvance();                                     // 段の終わりなら、その段を済みにして閉じる
 }, true);
 
 const PAGE_TALK = {

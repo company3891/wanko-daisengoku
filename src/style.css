@@ -7147,3 +7147,6 @@ div:has(> .go.twgo){justify-content:center}
 .evskip{width:34px;height:34px}
 .evskip i{font-size:13px;font-weight:700;letter-spacing:-.55em;margin-left:-.45em;transform:scaleY(.9)}
 .evskip i{font-size:15px;font-weight:900;-webkit-text-stroke:.6px currentColor}
+/* 〉〉 は字の箱の左に寄って描かれるので、右へ戻して丸の真ん中に（2026-10-14） */
+.evskip i{margin-left:0;transform:translateX(3px) scaleY(.9)}
+.evskip i{transform:translateY(1px) scaleY(.9)}

@@ -9143,6 +9143,27 @@ const weatherNow = () => (BATTLE ? BATTLE.weather : '晴');
 /* 育てたぶん（レベル・魂・特技レベル）と、継承で入れ替えた特技を乗せる（2026-09-21）。
    コストは変えない。敵（NPC）はマスタの素の値のまま。
    お祭りの早送りからも使うので、resolve の外に出した（2026-09-23） */
+/* 継いだ特技を、いまのマスタの姿に引き直す（2026-10-15・悠さんの見立て
+   「秀吉に継承した三成の采配だけど、手動の時だけ出てないかも。カットインも入ってる感じないし」）。
+   継承は、そのときの特技を写しとって保存している（inh[枠].sk）。
+   マスタに「発動タイミング」（timing）が入ったのは 9/28 より後なので、それより前に継いだ特技は
+   timing を持っておらず、エンジンは「常時」とみなして、開戦の一撃・味方へのバフを一度も撃っていなかった。
+   奥義ゲージMAX のような「仕込み」だけはタイミングを見ずに効くので、そこだけ出ていた。
+   名前でマスタを引き、見つかればマスタの中身（timing・rate・text）を上にかぶせる。
+   見つからなければ保存されたまま（名前を変えた技などで戦が壊れないように） */
+let SK_MASTER = null;
+function freshSk(sk) {
+  if (!sk || !sk.name) return sk;
+  if (!SK_MASTER) {
+    SK_MASTER = new Map();
+    for (const c of C) {
+      if (c.unique && c.unique.name && !SK_MASTER.has(c.unique.name)) SK_MASTER.set(c.unique.name, c.unique);
+      for (const n of (c.normals || [])) if (n && n.name && !SK_MASTER.has(n.name)) SK_MASTER.set(n.name, n);
+    }
+  }
+  const m = SK_MASTER.get(sk.name);
+  return m ? { ...sk, ...m } : sk;
+}
 function grownFor(m) {
     // 一の枠が元の固有のままなら char.unique を使う。
     // 上書きしていたら元の固有は消える（unique を null にする）
@@ -9155,9 +9176,9 @@ function grownFor(m) {
       ...m,
       unique: keepOwn ? m.unique : null,
       stats: grownStats(m),
-      normals: norm.map(x => x.sk),
+      normals: norm.map(x => x.inherited ? freshSk(x.sk) : x.sk),
       skillLv: norm.map(x => lv[x.slot] || 1),
-      uniqExtra: rest.filter(x => x.uniq).map(x => x.sk),   // 継承した◆
+      uniqExtra: rest.filter(x => x.uniq).map(x => freshSk(x.sk)),   // 継承した◆（いまのマスタで引き直す）
     };
 }
 function resolve() {

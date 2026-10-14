@@ -11956,8 +11956,9 @@ const gdMate = () => (P.own || []).find(no => no !== gdMe()) ?? guideMate();
 function gdFigFeed() {
   return el('div', { class: 'gdfig' },
     el('span', { class: 'gdchip book' }, itemIcon('稽古の書'), el('em', {}, '稽古の書')),
-    gdOp('→'), gdChip(gdMe(), '位が上がる'),
-    el('span', { class: 'gdtap' }, el('b', {}, 'ちょん'), '一冊', el('b', {}, 'ながおし'), 'まとめて'));
+    /* 2026-10-14（悠さんの指図）：「位が上がる」→「レベル」、ちょん／ながおしの二段は「長押しでまとめてUP」一つに */
+    gdOp('→'), gdChip(gdMe(), 'レベルUP'),
+    el('span', { class: 'gdtap one' }, el('b', {}, '長押し'), 'でまとめてUP'));
 }
 function gdFigSkill() {
   const me = gdMe();

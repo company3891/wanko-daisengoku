@@ -7052,3 +7052,33 @@ button.go.big:not(.pic):not(.art):not(.danger):not(:disabled)::after{
   content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;transform:skewX(-20deg);pointer-events:none;
   background:linear-gradient(90deg,transparent,#ffffff55,transparent);animation:btnSheen 3.2s ease-in-out infinite}
 @keyframes btnSheen{0%,60%{left:-60%}100%{left:130%}}
+/* 全国の制覇の数を金の帯に（2026-10-14）。端の絵は 78×192 → 高さ34pxで幅は約14px */
+.unibar.gfr{position:relative;height:34px;padding:0 6px;margin-left:15px;margin-right:15px;
+  border:0;border-radius:0;backdrop-filter:none;-webkit-backdrop-filter:none;
+  background:var(--fmid) repeat-x center/auto 100%;filter:drop-shadow(0 2px 3px #000a)}
+.unibar.gfr::before,.unibar.gfr::after{content:"";position:absolute;top:0;bottom:0;width:14px;
+  background:var(--fcap) no-repeat center/100% 100%}
+.unibar.gfr::before{left:-13.5px}
+.unibar.gfr::after{right:-13.5px;transform:scaleX(-1)}
+.unibar.gfr b{color:#3a1f05;text-shadow:0 1px 0 #fff3c0;font-family:var(--mincho,serif);font-weight:800;
+  font-size:14px;letter-spacing:.08em;white-space:nowrap}
+
+/* 丸い×（戻る・閉じる）も立体の金に（2026-10-14・悠さんの指図） */
+.ghost.back{border:0 !important;
+  background:radial-gradient(circle at 50% 30%,#fff1c0 0,#f0cd6a 28%,#d4a23e 58%,#a8782a 100%) !important;
+  box-shadow:inset 0 1px 0 #fff8d8,inset 0 -3px 0 #8a5e18,0 0 0 1.5px #6b4a12,0 4px 0 #4a320c,0 7px 10px #0009 !important}
+.ghost.back:active{transform:translateY(3px) !important;filter:none;
+  box-shadow:inset 0 2px 5px #0007,0 0 0 1.5px #6b4a12,0 1px 0 #4a320c !important}
+
+/* お役目の「頂戴」も立体に（2026-10-14・悠さんの指図）。受け取れるもの（.on）は金、まだのものは灰の板 */
+.mig{position:relative;isolation:isolate;border:0 !important;font-weight:800;margin-bottom:4px;
+  color:#8a8176 !important;text-shadow:none !important;
+  background:linear-gradient(180deg,#e9e3d6 0%,#d6cfc0 50%,#c8c0b0 51%,#d3ccbd 100%) !important;
+  box-shadow:inset 0 1px 0 #fff,inset 0 -3px 0 #a99f8c,0 0 0 1px #9d937f,0 3px 0 #8a8070 !important}
+.mig.on{color:#3a1f05 !important;text-shadow:0 1px 0 #fff6d0 !important;
+  background:linear-gradient(180deg,#fbeab0 0%,#e8bf5c 45%,#c8952e 55%,#e2b453 100%) !important;
+  box-shadow:inset 0 1px 0 #fff8d8,inset 0 -3px 0 #9a6d1e,0 0 0 1.5px #6b4a12,0 4px 0 #4a320c,0 6px 8px #0006 !important}
+.mig.on::before{content:"";position:absolute;inset:2px 2px 52% 2px;border-radius:6px 6px 40% 40%/6px 6px 10px 10px;
+  background:linear-gradient(#ffffff66,#ffffff08);z-index:-1;pointer-events:none}
+.mig.on:active{transform:translateY(3px) !important;
+  box-shadow:inset 0 2px 5px #0007,0 0 0 1.5px #6b4a12,0 1px 0 #4a320c !important}

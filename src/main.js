@@ -1796,6 +1796,15 @@ const HOME_MENU = [
     lock: () => towerOpen() ? null : LOCK_CH1,
     go: () => { S.screen = 'tower'; S.twMsg = ''; S.twSel = null; } },
 ];
+/* 全国の制覇の数の帯（2026-10-14・悠さんの指図「制覇カウントのフレームにこれ使ってみて」）。
+   金の端（ui/frame_cap_gold・左。右は左右反転）と、端の右はしを一筋切り出した中の帯（ui/frame_mid_gold）で組む。
+   幅がいくつでも中の帯が伸びるだけで、端の飾りは崩れない。絵が無ければ前の黒い帯のまま */
+function uniBar() {
+  const cap = uiUrl('frame_cap_gold'), mid = uiUrl('frame_mid_gold');
+  return el('div', { class: 'unibar' + (cap && mid ? ' gfr' : ''),
+    style: cap && mid ? `--fcap:url("${cap}");--fmid:url("${mid}")` : null },
+    el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`));
+}
 /* 閉じている座の札の字（2026-10-13・悠さんの指図）。
    「第1章クリアで解放」だけでは何の第1章か分からないので、上に「全国モード」を添えて二行に */
 const LOCK_CH1 = '全国モード\n第1章クリアで解放';
@@ -2137,7 +2146,7 @@ function japanMap(maps, open, reg) {
   });
   const over = el('div', { class: 'jover' },
     el('div', { class: 'cmrow' },
-      el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
+      uniBar(),
       campModeRow()),
     tabs,
     // 章の題。絵（app/assets/ui/title_九州.png など）があれば文字の代わりに出す
@@ -4077,7 +4086,7 @@ function screenMap() {
   return {
     body: el('div', {},
       el('div', { class: 'cmrow' },
-        el('div', { class: 'unibar' }, el('b', {}, `制覇 ${takenCount()} / ${PREFS.length}`)),
+        uniBar(),
         campModeRow()),
       el('div', { class: 'row chapters' }, REGION_ORDER.map(id => {
         const ok = open.includes(id), done = regionTaken(id);

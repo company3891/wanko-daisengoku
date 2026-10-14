@@ -1992,7 +1992,9 @@ function sqSheet() {
             : el('span', { class: 'mgsp' }));
       })(),
       a.edit ? null : prepTags(),
-      el('button', { class: 'ghost wide', onclick: close }, 'やめる')),
+      /* 下の釦はほかの札の「閉じる」と同じ形に（2026-10-14・悠さんの指図「やめるがデカすぎる」）。
+         字は「戻る」。押すと札を閉じて、出陣を選んでいた一覧へ戻る（動きはこれまでと同じ） */
+      closeX(close, '戻る')),
     S.prepBox ? prepSheet() : null);
 }
 /* ---------------- 全国（ステージと部隊を選んで出陣）---------------- */

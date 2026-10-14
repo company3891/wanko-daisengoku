@@ -7230,6 +7230,13 @@ div:has(> .go.twgo){justify-content:center}
 /* 勝利の札の戦いぶりの印は、地の丸を外して絵だけに（2026-10-14 悠さんの指図） */
 .wptrow .infomark,.wptrow .infomark.art{background:none;border:0;box-shadow:none;padding:0}
 .wptrow .infomark.art img{filter:drop-shadow(0 2px 4px #000a)}
+/* 戦いぶりの印を一回り小さく、受け取る釦の顔（下の厚みを除いた面）と高さをそろえる（2026-10-14） */
+.wptrow{align-items:center}
+.wptrow .infomark,.wptrow .infomark.art{width:36px;height:36px;align-self:center;margin-top:-5px}
+.wptrow .wptsp{flex-basis:36px;width:36px}
+/* 制覇の褒美の地も白に（2026-10-14 悠さんの指図）。ほかの褒美の粒（.pzi）と同じ白地・金の縁 */
+.tksheet .tkpz .pzi,.tksheet .tkpz .pzm{background:#fff;border:1px solid #a8802c}
+.tksheet .tkpz .pzm{color:#8f6a1c}
 
 </style>
 </head>
@@ -36052,7 +36059,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 16:29 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 16:41 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

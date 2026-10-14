@@ -7224,6 +7224,12 @@ div:has(> .go.twgo){justify-content:center}
 .wptrow .wptsp{flex:0 0 44px;width:44px}
 .wptrow .infomark:not(.art){width:44px;height:44px}
 .wptrow .wptake{width:min(220px,calc(100vw - 150px))}
+/* 制覇の一枚目は字だけを画面の幅いっぱいに（2026-10-14） */
+.tkttl.big{margin:0}
+.tkttl.big .utc{font-size:min(calc((100vw - 24px) / (var(--n) + .35)), 130px)}
+/* 勝利の札の戦いぶりの印は、地の丸を外して絵だけに（2026-10-14 悠さんの指図） */
+.wptrow .infomark,.wptrow .infomark.art{background:none;border:0;box-shadow:none;padding:0}
+.wptrow .infomark.art img{filter:drop-shadow(0 2px 4px #000a)}
 
 </style>
 </head>
@@ -36046,7 +36052,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 15:50 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 16:29 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -39561,11 +39567,20 @@ function resSheet() {
       BATTLE._tkSnd = S.res.i;
       word.forEach((_, i) => setTimeout(() => { try { SFX.hanko(); } catch (_) {} }, (D0 + i * STEP) * 1000 + 120));
     }
-    const ttl = el('div', { class: 'tkttl', style: `--n:${word.length};--utend:${(D0 + word.length * STEP).toFixed(2)}s` },
-      word.map((ch, i) => el('span', { class: 'utc' + (i === gapAt ? ' tkgap' : ''),
-        style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch)));
+    /* 2026-10-14 改（悠さんの指図「先に制覇を表示して、その後ポップアップで報酬受け取り」）。
+       一枚目＝札なしで「〇〇 制覇」の字だけ（天下統一と同じく、画面を押して次へ）。
+       二枚目＝これまでの札（一言・制覇の数・褒美・受け取る）。題は二枚目には出さない */
+    if (S.res._tkSeen !== S.res.i) {
+      const ttl = el('div', { class: 'tkttl big', style: `--n:${word.length};--utend:${(D0 + word.length * STEP).toFixed(2)}s` },
+        word.map((ch, i) => el('span', { class: 'utc' + (i === gapAt ? ' tkgap' : ''),
+          style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch)));
+      const at = (S.res._tkAt = S.res._tkAt || Date.now());
+      const minMs = (D0 + word.length * STEP) * 1000 + 200;   // 字が出そろう前の指はうけない
+      return el('div', { class: 'sheet ressheet utsheet tksheet',
+        onclick: () => { if (Date.now() - at < minMs) return; S.res._tkSeen = S.res.i; S.res._tkAt = 0; SFX.pick(); draw(); } }, ttl);
+    }
     box.append(el('button', { class: 'go wide', onclick: next }, '報酬を受け取る'));
-    return el('div', { class: 'sheet ressheet tksheet' }, el('div', { class: 'tkwrap' }, ttl, box));
+    return el('div', { class: 'sheet ressheet tksheet' }, el('div', { class: 'tkwrap' }, box));
   }
   if (kind === 'unified') {
     box.classList.add('bare');

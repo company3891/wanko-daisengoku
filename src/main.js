@@ -10313,11 +10313,20 @@ function resSheet() {
       BATTLE._tkSnd = S.res.i;
       word.forEach((_, i) => setTimeout(() => { try { SFX.hanko(); } catch (_) {} }, (D0 + i * STEP) * 1000 + 120));
     }
-    const ttl = el('div', { class: 'tkttl', style: `--n:${word.length};--utend:${(D0 + word.length * STEP).toFixed(2)}s` },
-      word.map((ch, i) => el('span', { class: 'utc' + (i === gapAt ? ' tkgap' : ''),
-        style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch)));
+    /* 2026-10-14 改（悠さんの指図「先に制覇を表示して、その後ポップアップで報酬受け取り」）。
+       一枚目＝札なしで「〇〇 制覇」の字だけ（天下統一と同じく、画面を押して次へ）。
+       二枚目＝これまでの札（一言・制覇の数・褒美・受け取る）。題は二枚目には出さない */
+    if (S.res._tkSeen !== S.res.i) {
+      const ttl = el('div', { class: 'tkttl big', style: `--n:${word.length};--utend:${(D0 + word.length * STEP).toFixed(2)}s` },
+        word.map((ch, i) => el('span', { class: 'utc' + (i === gapAt ? ' tkgap' : ''),
+          style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch)));
+      const at = (S.res._tkAt = S.res._tkAt || Date.now());
+      const minMs = (D0 + word.length * STEP) * 1000 + 200;   // 字が出そろう前の指はうけない
+      return el('div', { class: 'sheet ressheet utsheet tksheet',
+        onclick: () => { if (Date.now() - at < minMs) return; S.res._tkSeen = S.res.i; S.res._tkAt = 0; SFX.pick(); draw(); } }, ttl);
+    }
     box.append(el('button', { class: 'go wide', onclick: next }, '報酬を受け取る'));
-    return el('div', { class: 'sheet ressheet tksheet' }, el('div', { class: 'tkwrap' }, ttl, box));
+    return el('div', { class: 'sheet ressheet tksheet' }, el('div', { class: 'tkwrap' }, box));
   }
   if (kind === 'unified') {
     box.classList.add('bare');

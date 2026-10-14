@@ -7118,3 +7118,16 @@ button.go.wide:not(.pic){display:block;width:auto;min-width:180px;max-width:min(
 /* 試練の塔の出陣：脇の額二つで挟んで真ん中に */
 div:has(> .go.twgo){justify-content:center}
 .go.twgo{flex:0 1 180px}
+
+/* 関ヶ原の告知の帯（2026-10-14）。絵をそのまま横幅いっぱいに。押すと石田の札が開く */
+.skbanner{display:block;width:100%;padding:0;margin:0;border:0;background:none;border-radius:12px;overflow:hidden;
+  box-shadow:0 3px 10px #0007}
+.skbanner img{display:block;width:100%;height:auto}
+.skbanner:active{transform:scale(.985)}
+/* 敵陣だけの並び（2026-10-14）。家康を外した分、一人ずつ少し大きく */
+.skvs.foeonly .skfoe{gap:6px}
+.skvs.foeonly .skfoe .skfc{width:48px;height:48px}
+.skvs.foeonly .skfoe .skfc.gen{width:60px;height:60px}
+/* 敵陣の顔は枠なしで、コマ絵だけを立たせる（2026-10-14 悠さんの指図） */
+.skvs.foeonly .skfc,.skvs.foeonly .skfc.gen{background:none;border:0;box-shadow:none;border-radius:0}
+.skvs.foeonly .skfc img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 3px #0006)}

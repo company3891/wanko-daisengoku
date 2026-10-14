@@ -13441,17 +13441,18 @@ function sekiSheet() {
       /* 副題の横に残りの刻（2026-10-12）。前は題の帯の右に重なって読めなかった */
       el('p', { class: 'skst' }, '協力バトル',
         W.on ? el('span', { class: 'skleft' }, '残り ', el('b', {}, sekiLeft(W.left))) : null),
-      sekiCount(),
+      /* 出陣の数の帯は待ち合わせ（ルームの中）だけに（2026-10-14 悠さんの指図「ルーム作成画面には報酬バーはいらない」） */
+      m ? sekiCount() : null,
       /* 東軍の総大将（家康）と、西軍の顔ぶれ */
-      el('div', { class: 'skvs' },
-        el('span', { class: 'skfc gen ally' }, pawnUrl(SEKI_GEN) ? el('img', { src: pawnUrl(SEKI_GEN), alt: '' }) : el('i', {}, '家')),
-        el('em', { class: 'skvsw' }, '対'),
+      /* 家康と「対」は外して、敵陣だけを並べる（2026-10-14 悠さんの指図） */
+      el('div', { class: 'skvs foeonly' },
         el('div', { class: 'skfoe' }, SEKI_FOE.map((n, i) => {
           const c = charOf(n); if (!c) return null;
           const u = pawnUrl(n) || faceUrl(n, '通常');   // コマ絵がまだ無い武将は顔で（2026-10-12 石田PR）
           return el('span', { class: 'skfc' + (i === 0 ? ' gen' : '') }, u ? el('img', { src: u, alt: c.name }) : el('i', {}, c.name[0]));
         }))),
-      sekiPrize(),
+      /* 褒美の札はルーム作成の画面だけに。待ち合わせからは外す（2026-10-14 悠さんの指図） */
+      m ? null : sekiPrize(),
       ...body,
       SEKI.msg ? el('p', { class: 'mimsg' }, SEKI.msg) : null,
       closeX(sekiClose)));
@@ -13459,6 +13460,12 @@ function sekiSheet() {
 /* 褒美の武将を「限定の札」として見せる（2026-10-12 悠さんの指図）。押せば札が開く */
 function sekiPrize() {
   const c = charOf(SEKI_PRIZE); if (!c) return null;
+  /* 告知の帯の絵（ui/seki_banner）があれば、それを一枚で見せる（2026-10-14 悠さんの指図）。
+     押せば札が開く。絵が無ければこれまでの札に落ちる */
+  const bn = uiUrl('seki_banner');
+  if (bn) return el('button', { class: 'skbanner', title: c.name, onclick: () => {
+      S.detail = c.no; S.side = null; S.detailRO = true; S.detailBase = true; SFX.pick(); draw(); } },
+    keepImg({ src: bn, alt: c.name }));
   const art = cardUrl(c.no, 'front') || pawnUrl(c.no);
   return el('button', { class: 'skprize', onclick: () => {
       S.detail = c.no; S.side = null; S.detailRO = true; S.detailBase = true; SFX.pick(); draw(); } },

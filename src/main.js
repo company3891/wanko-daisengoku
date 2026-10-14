@@ -11158,7 +11158,7 @@ function screenEvent() {
             !opened ? el('p', { class: 'note' }, `${EV_RANKS[r - 1]} を取ると開く`)
             : (done && !open.repeat)
               ? el('p', { class: 'note' }, open.kind === 'weekly' ? '今週はもう取った' : '今日はもう取った')
-            : el('div', { class: 'acts2' },
+            : el('div', { class: 'acts2 evacts' },
                 el('button', {
                   class: 'go sm', disabled: P.stamina < EV_FOOD[r] ? null : null,
                   onclick: () => evGo(open.id, r, false),
@@ -11167,9 +11167,11 @@ function screenEvent() {
                    二日で何度も回る祭りなので、毎回盤面を見るのはかえって重い */
                 /* 2026-10-07（悠さんの指図）：**はじめて挑む級は早送りできない**。
                    土日の二つ（allRanks）も、取るまでは盤を見てもらう */
+                /* 2026-10-14（悠さんの指図）：早送りは挑むと同じ列の右端に、丸い「≫」で。
+                   早送りが無い級は挑むだけが真ん中に立つ */
                 cleared ? el('button', {
-                  class: 'ghost sm', onclick: () => evGo(open.id, r, true),
-                }, 'スキップ') : null,
+                  class: 'evskip', title: 'スキップ', 'aria-label': 'スキップ', onclick: () => evGo(open.id, r, true),
+                }, el('i', {}, '≫')) : null,
                 /* 二度目からは品だけ、という断りをその場に出す（2026-10-01）。
                    数は出さない（「説明しすぎない」の決まり）ので、何が無いかだけ書く */
                 (done && open.repeat)

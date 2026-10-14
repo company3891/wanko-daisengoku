@@ -2879,7 +2879,7 @@ function rkPodium(top, r) {
     if (!x) return el('div', { class: 'rkpc none' });
     const ch = x.me ? faceChar() : rkGenOf(x);
     const ttl = x.me ? P.title : (x.title || npcTitleOf(x.id, npcTierOfPower(x.power)));
-    const bg = ttl ? fxUrl('tbg_' + ttl) : null;
+    const bg = HERO_ACC.bg && ttl ? fxUrl('tbg_' + ttl) : null;   // 飾りの元栓（2026-10-14）
     const pw = ch ? pawnUrl(ch.no) : null;
     return el('button', {
       class: 'rkpc r' + x.rank + (x.me ? ' me' : ''),
@@ -3737,7 +3737,7 @@ function frSquadSheet() {
         const fig = (m, big) => {
           const ch = charOf(m.no);
           const pw = pawnUrl(m.no);
-          const bg = big && sq.title ? fxUrl('tbg_' + sq.title) : null;
+          const bg = HERO_ACC.bg && big && sq.title ? fxUrl('tbg_' + sq.title) : null;   // 飾りの元栓（2026-10-14）
           return el('button', { class: 'frsqf' + (big ? ' big' : ''), title: ch.name, onclick: () => peek(m) },
             bg ? keepImg({ class: 'frsqbg', src: bg, alt: '' }) : null,
             pw ? keepImg({ class: 'frsqpw', src: pw, alt: ch.name })
@@ -8398,8 +8398,19 @@ const cardRaw = () => S.detailBase;
    出すのは ホームの立ち絵と武将強化の立ち絵だけ。合戦のコマには出さない。
    炎はその武将じしんの枠と位から決めるので、武将ごとに違う。
    絵は assets/fx/flame_<色>.webp（1秒の動くwebp）。無ければ何も出さない */
+/* ---- 立ち絵の飾りの元栓（2026-10-14・悠さんの指図「キャラの背景、足元、火の玉、一旦外そうか。
+   今後アクセサリーとして報酬で出す」）----
+   三つとも仕組みと絵（assets/fx/tbg_*・aura_*・flame_*）は残したまま、ここで止めている。
+   true にすれば 2026-10-10 の姿にそのまま戻る。
+   のちに「飾り（アクセサリー）」を持ち物にするときは、ここを
+     HERO_ACC.bg    → P.acc に「背景の飾り」を持っているか
+     HERO_ACC.aura  → 「足元の飾り」
+     HERO_ACC.flame → 「火の玉の飾り」
+   のように差し替える（作り方は claude/わんこ大戦国_立ち絵の飾りを外した・アクセサリーの作り方_20261014.md） */
+const HERO_ACC = { bg: false, aura: false, flame: false };
 const FLAME_LV = ['赤', '赤', '黄', '青'];   // 位 → 色（位0は無いが念のため赤）
 function skillFlames(c) {
+  if (!HERO_ACC.flame) return null;
   if (!c || !P.own.includes(c.no)) return null;
   const sl = slotsOf(c), lv = skillLvOf(c.no) || [];
   const out = [];
@@ -8438,6 +8449,7 @@ function fxDelay(key, hold) {
    無い称号は何も敷かない ── 絵を置いた称号から順に灯っていく。
    重なり：背景（z0）＜ 輪の奥（z1）＜ 立ち絵（z2）＜ 輪の手前・炎（z3） */
 function titleBg(c) {
+  if (!HERO_ACC.bg) return null;
   if (!c || !P.own.includes(c.no) || !P.title) return null;
   const u = fxUrl('tbg_' + P.title);
   return u ? keepImg({ class: 'ttlbg', src: u, alt: '' }) : null;
@@ -8446,6 +8458,7 @@ function footAura(c, side) {
   /* 2026-10-10 悠さんの指図「足元のエフェクトはキャラより背面にした方がよさそう」。
      手前の半分はやめ、輪まるごとを立ち絵のうしろに置く（back だけ出す） */
   if (side === 'front') return null;
+  if (!HERO_ACC.aura) return null;
   if (!c || !P.own.includes(c.no)) return null;
   const aw = Math.max(0, Math.min(5, charState(c.no).awake || 0));
   const col = AURA_COL[aw];

@@ -8761,6 +8761,17 @@ const teamOf = (ctx, side) => ctx.A.concat(ctx.B).filter(x => effSide(x) === sid
 const mineOf = (ctx, u) => teamOf(ctx, effSide(u));
 const foesOf = (ctx, u) => teamOf(ctx, effSide(u) === 'A' ? 'B' : 'A');
 
+/* 「敵の回復効果を無効にする」（豊後の祈り◆）が効いているか（2026-10-15・悠さんの見立て
+   「豊後の祈りが発動してない気がする」）。
+   前は 'heal'（回復力で癒す技）の一か所でしか見ておらず、次の癒しは素通りしていた
+   （実測：大友ソウプードルを置いても 敵の回復 430回／止めたのは 187回）。
+     ・毎ターン確率で味方全員を癒す（一期一会など healEveryTurn）
+     ・最大兵量の割合で癒す（healPctMaxHp）
+     ・攻撃されたらそのダメージを回復する（三成の采配など damageToHeal）
+     ・敵が回復したとき自身も同量回復する（mirrorHeal）
+   癒される者（who）から見た敵の側に、生きている healBlock 持ちが一人でも居れば止める */
+const healBanned = (ctx, who) =>
+  live(foesOf(ctx, who)).some(f => (f.passives || []).some(p => p.kind === 'healBlock' && condOk(f, p)));
 const facing = (u) => (u.side === 'A' ? -1 : 1);
 
 /* 薙ぎ払いの巻き添えを選ぶ（2026-10-03）。
@@ -8908,11 +8919,12 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
       }
         // 敵に「敵が回復したとき自身も同量回復する」持ちが居れば、その者も回復する
         for (const f of live(foes))
-          if ((f.passives || []).some(p => p.kind === 'mirrorHeal' && condOk(f, p)))
+          if ((f.passives || []).some(p => p.kind === 'mirrorHeal' && condOk(f, p)) && !healBanned(ctx, f))
             f.hp = Math.min(f.maxHp, f.hp + amt);
         break;
       }
       case 'healPctMaxHp':
+        if (healBanned(ctx, self)) { if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'healBlocked', src: self.id }); break; }
         for (const e of tg) {
           const was = e.hp;                                   // 癒した量を控える（2026-10-01）
           e.hp = Math.min(e.maxHp, e.hp + e.maxHp * eff.pct * (ctx.rules.damage.healScale ?? 1));
@@ -9180,7 +9192,9 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
   d = Number.isFinite(d) ? Math.max(rules.damage.minDamage, Math.round(d)) : rules.damage.minDamage;
   tgt.hp -= d; src.dmgDealt += d; tgt.dmgTaken += d; if (crit) src.crits++;
   // 「攻撃されたらそのダメージを回復する」バフ（2026-09-19）。受けた分をそのまま戻す
-  if (tgt.damageToHeal && tgt.damageToHeal > 0) {
+  if (tgt.damageToHeal && tgt.damageToHeal > 0 && healBanned(ctx, tgt)) {
+    if (log) log.push({ t: +t.toFixed(1), type: 'healBlocked', tgt: tgt.id });
+  } else if (tgt.damageToHeal && tgt.damageToHeal > 0) {
     tgt.hp = Math.min(tgt.maxHp, tgt.hp + d);
     if (log) log.push({ t: +t.toFixed(1), type: 'damageToHeal', tgt: tgt.id, v: d });
   }
@@ -10485,6 +10499,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
             }
           } else if (e.kind === 'healEveryTurn') {
             if (!rng.chance(e.chance)) continue;
+            if (healBanned(ctx, u)) { if (log) log.push({ t: +t.toFixed(1), type: 'healBlocked', src: u.id }); continue; }
             const mine = TEAM(effSide(u));
             const amt = stat(u, '回復') * (e.rate || 1) * (rules.damage.healScale ?? 1);
             for (const a of live(mine)) a.hp = Math.min(a.maxHp, a.hp + amt);
@@ -36171,7 +36186,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 08:25 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 08:46 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

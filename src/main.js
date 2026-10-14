@@ -11214,7 +11214,8 @@ function screenEvent() {
                 el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
               el('div', { class: 'evcrow' },
                 el('div', { class: 'evtiles' }, evTiles(rw))),
-              (done && open.repeat) ? el('p', { class: 'note evagain' }, '二度目からは、この品だけ') : null),
+              /* 「二度目からは、この品だけ」は外した（2026-10-14・悠さんの指図） */
+              null),
             /* 開いていない級は灰色に沈めるだけ。「〇級を取ると開く」の帯は出さない（2026-10-14・悠さんの指図） */
             !opened ? null
             : (done && !open.repeat) ? el('div', { class: 'evdone' },

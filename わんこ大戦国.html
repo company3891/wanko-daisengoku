@@ -36111,7 +36111,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 20:00 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 20:04 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -40521,7 +40521,8 @@ function screenEvent() {
                 el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
               el('div', { class: 'evcrow' },
                 el('div', { class: 'evtiles' }, evTiles(rw))),
-              (done && open.repeat) ? el('p', { class: 'note evagain' }, '二度目からは、この品だけ') : null),
+              /* 「二度目からは、この品だけ」は外した（2026-10-14・悠さんの指図） */
+              null),
             /* 開いていない級は灰色に沈めるだけ。「〇級を取ると開く」の帯は出さない（2026-10-14・悠さんの指図） */
             !opened ? null
             : (done && !open.repeat) ? el('div', { class: 'evdone' },

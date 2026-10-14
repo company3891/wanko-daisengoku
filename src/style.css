@@ -7173,3 +7173,39 @@ div:has(> .go.twgo){justify-content:center}
 .mgrow .evskip.mchskip2{margin:0 7px;flex:0 0 auto}
 .mgrow .evskip.mchskip2:disabled{opacity:.35;pointer-events:none}
 .mgrow .mgsp{flex:0 0 48px;width:48px}
+
+/* 制覇の札（2026-10-14 悠さんの指図）。
+   題「〇〇制覇」を札の上に、天下統一と同じく大きな金の字で一字ずつ落とす。
+   褒美の絵が小さすぎたので倍ほどに、字も少し大きく */
+.tksheet .tkwrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:400px}
+.tkttl{display:flex;justify-content:center;width:100%;margin-bottom:10px;pointer-events:none}
+.tkttl .utc{color:#f5e2a8;text-shadow:0 2px 0 #7a1d12,0 4px 10px #000c;
+  font-size:min(calc((100vw - 40px) / (var(--n) + .5)), 84px);line-height:1;
+  animation:utdrop .34s cubic-bezier(.2,1.5,.4,1) forwards, utglowB 1.4s ease-in-out var(--utend,1.1s) 1 forwards}
+.tkttl .utc.tkgap{margin-left:.35em}
+.tksheet .resbox.taken{width:100%}
+.tksheet .tkbal{font-size:13px}
+.tksheet .rsub{font-size:14px}
+.tksheet .tkpz{gap:10px;margin-top:12px}
+.tksheet .tkpz .pz{width:52px;gap:3px}
+.tksheet .tkpz .pzi,.tksheet .tkpz .pzm{width:52px;height:52px;border-radius:10px;padding:4px}
+.tksheet .tkpz .pzm{font-size:22px}
+.tksheet .tkpz .pzn{top:34px;right:-4px;font-size:12px;padding:0 4px}
+.tksheet .tkpz .pzt{font-size:10px;max-width:56px;overflow:hidden;text-overflow:ellipsis}
+/* 六つ並んでも一列に収まる大きさ（2026-10-14 実測：52pxでは二段に割れた） */
+.tksheet .tkpz{gap:6px;flex-wrap:nowrap}
+.tksheet .tkpz .pz{width:46px}
+.tksheet .tkpz .pzi,.tksheet .tkpz .pzm{width:46px;height:46px;padding:3px}
+.tksheet .tkpz .pzn{top:29px;font-size:11px}
+.tksheet .tkpz .pzt{font-size:9.5px;max-width:50px}
+/* 題を札の外へ出したので、札の上の空き（題のぶん）を詰める */
+.tksheet .resbox.taken{padding-top:18px;padding-bottom:18px;min-height:0}
+
+/* 勝利の札：受け取る釦の右に戦いぶりの印（2026-10-14 悠さんの指図）。
+   左に同じ幅の空きを置いて、受け取るは真ん中のまま */
+.wptrow{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:2px}
+.wptrow .wptake{margin:0}
+.wptrow .infomark{position:static;flex:0 0 auto}
+.wptrow .wptsp{flex:0 0 44px;width:44px}
+.wptrow .infomark:not(.art){width:44px;height:44px}
+.wptrow .wptake{width:min(220px,calc(100vw - 150px))}

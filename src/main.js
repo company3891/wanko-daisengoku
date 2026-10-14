@@ -10215,7 +10215,8 @@ function resSheet() {
        そのときは釦を出さず、画面を押して閉じる（2026-09-29） */
     return el('div', { class: 'sheet winsheet' + (pz ? '' : ' tap'), onclick: pz ? null : next },
       el('div', { class: 'winpop', style: `background-image:url("${uiUrl('pop_勝利')}")` },
-        infoMark(),
+        /* 戦いぶりの印は、受け取る釦があるときは釦の右へ（2026-10-14・悠さんの指図「わかりづらい」） */
+        pz ? null : infoMark(),
         /* 中の金の面は絵の 47.5%（中心は横 49.9%・縦 51.4%） */
         el('div', { class: 'wpin' },
           uiUrl('title_勝利')
@@ -10226,7 +10227,10 @@ function resSheet() {
             el('span', {}, '撃破', el('b', {}, n(st.ko))),
             el('span', {}, '逃走', el('b', {}, n(st.lost))),
             el('span', {}, '手数', el('b', {}, n(st.turn)))))),
-      pz ? el('button', { class: 'go wide wptake', onclick: next }, '受け取る') : null);
+      pz ? el('div', { class: 'wptrow' },
+        el('span', { class: 'wptsp' }),
+        el('button', { class: 'go wide wptake', onclick: next }, '受け取る'),
+        infoMark()) : null);
   }
   let box;
   if (kind === 'win' || kind === 'lose') {
@@ -10251,8 +10255,7 @@ function resSheet() {
        降した総大将の顔と、そのときどきで変わる一言を添えた */
     const foeGen = (BATTLE.B && BATTLE.B[0]) || null;
     const fArt = foeGen ? (faceUrl(foeGen.no, '驚き') || faceUrl(foeGen.no, '通常') || pawnUrl(foeGen.no)) : null;
-    box = el('div', { class: 'card2 resbox taken' },
-      el('b', { class: 'rttl' }, `${p ? p.name : ''} 制覇`),
+    box = el('div', { class: 'card2 resbox taken tkbox' },
       el('div', { class: 'tkline' },
         el('span', { class: 'tkf' },
           fArt ? keepImg({ src: fArt, alt: foeGen ? foeGen.name : '' })
@@ -10301,6 +10304,21 @@ function resSheet() {
   /* 天下統一の一枚は札も釦も出さず、字だけを画面に据える（2026-10-13・悠さんの指図
      「報酬を受け取るボタンもなくして、ポップアップ背景も削除。画面タップで次に進む。説明はいらない」）。
      字が出そろう前（1.3秒）の指はうけない ── 開いた勢いの指で見逃さないように */
+  /* 制覇の題は札の上に大きく、一字ずつ（2026-10-14・悠さんの指図「天下統一みたいに新潟制覇ってポップアップ上で」）。
+     天下統一と同じ落ち方・同じ判の音。字の数で画面の幅を割るので、三字の国（鹿児島）でも収まる */
+  if (kind === 'taken') {
+    const word = [...`${p ? p.name : ''}制覇`];
+    const D0 = 0.25, STEP = 0.16, gapAt = word.length - 2;
+    if (BATTLE && BATTLE._tkSnd !== S.res.i) {
+      BATTLE._tkSnd = S.res.i;
+      word.forEach((_, i) => setTimeout(() => { try { SFX.hanko(); } catch (_) {} }, (D0 + i * STEP) * 1000 + 120));
+    }
+    const ttl = el('div', { class: 'tkttl', style: `--n:${word.length};--utend:${(D0 + word.length * STEP).toFixed(2)}s` },
+      word.map((ch, i) => el('span', { class: 'utc' + (i === gapAt ? ' tkgap' : ''),
+        style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch)));
+    box.append(el('button', { class: 'go wide', onclick: next }, '報酬を受け取る'));
+    return el('div', { class: 'sheet ressheet tksheet' }, el('div', { class: 'tkwrap' }, ttl, box));
+  }
   if (kind === 'unified') {
     box.classList.add('bare');
     const at = (S.res._utAt = S.res._utAt || Date.now());

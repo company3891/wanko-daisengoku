@@ -11171,7 +11171,7 @@ function screenEvent() {
                    早送りが無い級は挑むだけが真ん中に立つ */
                 cleared ? el('button', {
                   class: 'evskip', title: 'スキップ', 'aria-label': 'スキップ', onclick: () => evGo(open.id, r, true),
-                }, el('i', {}, '≫')) : null,
+                }, el('i', {}, '〉〉')) : null,
                 /* 二度目からは品だけ、という断りをその場に出す（2026-10-01）。
                    数は出さない（「説明しすぎない」の決まり）ので、何が無いかだけ書く */
                 (done && open.repeat)

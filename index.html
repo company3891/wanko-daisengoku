@@ -7296,6 +7296,23 @@ main{position:relative;z-index:0}
 .evti .itic{width:34px;height:34px;border:0;background:none !important;box-shadow:none;border-radius:0}
 .evti .itic img{width:100%;height:100%;object-fit:contain}
 
+/* お祭りの級の札を詰める（2026-10-14 悠さんの指図「敵のアイコンがデカ過ぎて間延び」
+   「報酬の背景を外して前みたいに小さく、右に数」） */
+.evrank.evcard{padding:7px 10px 7px 7px;gap:9px;align-items:center}
+.evcf{flex-basis:56px;width:56px;height:56px;border-radius:8px}
+.evcb{gap:5px}
+.evcard .evhd{padding-bottom:3px}
+.evcard .evhd b{font-size:15px}
+.evcard .evfood{font-size:13px}
+.evtiles{gap:10px;flex-wrap:wrap}
+.evt{flex-direction:row;align-items:center;gap:3px;min-width:0}
+.evti{width:22px;height:22px;border:0;background:none;box-shadow:none;border-radius:0}
+.evti img{width:22px;height:22px}
+.evti i{font-size:13px}
+.evti .itic{width:22px;height:22px}
+.evti .itic .iat{display:none}
+.evt b{font-size:12.5px;color:#3a2a10}
+
 </style>
 </head>
 <body>
@@ -36123,7 +36140,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 21:17 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 21:32 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -40504,9 +40521,11 @@ function screenEvent() {
                取ったあとに「今日はもう取った」と出るので、二重に言わなくてよい */
             el('div', { class: 'meta' },
               el('span', {}, `部隊 ${q.nos.length}体　コスト ${squadCost(q)}`)))),
+        /* 「小判が出る。兵糧のつづく限り」などの一文は外した（2026-10-14・悠さんの指図）。
+           覚醒の祭りの「今日の軍配は〇〇」は、その日しか分からない手がかりなので残す */
         open.id === 'awake'
           ? el('p', { class: 'note' }, `今日の軍配は ${awakeAttrsToday().join('・')}`)
-          : el('p', { class: 'note' }, open.note),
+          : null,
         S.evMsg ? el('div', { class: 'shopmsg' }, S.evMsg) : null,
         /* 級の札（2026-10-14・悠さんの指図「デュエルカップみたいに」）。
            挑むの釦は外し、札そのものを押して出陣する。

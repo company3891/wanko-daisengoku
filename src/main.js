@@ -11185,9 +11185,11 @@ function screenEvent() {
                取ったあとに「今日はもう取った」と出るので、二重に言わなくてよい */
             el('div', { class: 'meta' },
               el('span', {}, `部隊 ${q.nos.length}体　コスト ${squadCost(q)}`)))),
+        /* 「小判が出る。兵糧のつづく限り」などの一文は外した（2026-10-14・悠さんの指図）。
+           覚醒の祭りの「今日の軍配は〇〇」は、その日しか分からない手がかりなので残す */
         open.id === 'awake'
           ? el('p', { class: 'note' }, `今日の軍配は ${awakeAttrsToday().join('・')}`)
-          : el('p', { class: 'note' }, open.note),
+          : null,
         S.evMsg ? el('div', { class: 'shopmsg' }, S.evMsg) : null,
         /* 級の札（2026-10-14・悠さんの指図「デュエルカップみたいに」）。
            挑むの釦は外し、札そのものを押して出陣する。

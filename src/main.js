@@ -4833,7 +4833,7 @@ function spPanel(c) {
       el('button', {
         class: 'ghost sm', disabled: total ? null : true,
         onclick: () => { S.sp = null; S.spEdit = null; SFX.pick(); draw(); },
-      }, 'はじめに戻す'),
+      }, 'キャンセル'),   // 2026-10-14 悠さんの指図（前は「はじめに戻す」）
       el('button', {
         /* 念押しの札はやめて、その場で確定する（2026-09-26）。
            ＋−で積んでいる時点で本人は決めている。もう一枚はさむと手が止まるだけ。

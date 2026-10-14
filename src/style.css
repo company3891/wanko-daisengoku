@@ -7165,3 +7165,5 @@ div:has(> .go.twgo){justify-content:center}
 .go.twgo em{font-size:14px;margin:0}
 .go.twgo em .ci,.go.twgo em i{width:18px;height:18px}
 .acts2.mkacts > button.go.sm,.acts2.mkacts > button.ghost.sm{flex:0 0 128px;width:128px;min-width:0;padding:11px 0;font-size:13px}
+/* 総合力の上の線がコマ絵の足元に被っていた（2026-10-14 悠さんの指図）。線ごと少し下げる */
+.card2.gxbox .gxtot{margin-top:18px}

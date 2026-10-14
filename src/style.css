@@ -7082,3 +7082,39 @@ button.go.big:not(.pic):not(.art):not(.danger):not(:disabled)::after{
   background:linear-gradient(#ffffff66,#ffffff08);z-index:-1;pointer-events:none}
 .mig.on:active{transform:translateY(3px) !important;
   box-shadow:inset 0 2px 5px #0007,0 0 0 1.5px #6b4a12,0 1px 0 #4a320c !important}
+
+/* 関ヶ原の待ち合わせの釦（2026-10-14 悠さんの指図）。
+   上の段＝武将選択・友を誘う・解散の三つを同じ幅で。出陣は細く高くして真ん中に */
+.skbtns .skquit{flex:1 1 0;width:auto;padding:11px 8px;font-size:13px}
+.skgorow{justify-content:center}
+.skgorow .skgo{flex:0 0 auto;width:200px;padding:19px 0;font-size:18px;letter-spacing:.2em}
+.skgorow .skwait{flex:1 1 auto}
+/* 出陣の数の帯を細く（2026-10-14 悠さんの指図）。70px → 50px ほど */
+.skcnt{min-height:0}
+.skcl{flex-basis:50px}
+.skcl i{font-size:9px}
+.skcl b{font-size:18px}
+.skcr{padding:4px 8px 3px 2px}
+.skcnode{width:32px;height:32px;border-radius:7px}
+.skcnode .itic{width:22px;height:22px;font-size:11px}
+.skcnode.big{width:32px;height:40px;margin-top:-4px}
+.skcln{top:14px;height:3px}
+.skcat{font-size:10px;margin-top:1px;line-height:1}
+.skcq{font-size:9px}
+.skcok{font-size:13px}
+
+/* 横に長すぎた釦をそろえる（2026-10-14 悠さんの指図）。
+   ・字の少ない釦は 180px ほどで真ん中寄せ。長い字（まとめて頂戴いたす 等）は字に合わせて伸び、260px で止まる
+   ・絵の釦（.pic）と、横幅いっぱいが見せ場の関ヶ原の出陣（.skgo）は触らない */
+button.go.wide:not(.pic){display:block;width:auto;min-width:180px;max-width:min(260px,100%);
+  margin-left:auto;margin-right:auto;padding-left:30px;padding-right:30px}
+/* お祭りの「挑む」等：一列の中で伸びきらず、真ん中に集める */
+.acts2{justify-content:center}
+.acts2 > .go.sm,.acts2 > .ghost.sm{flex:0 1 170px}
+/* 部隊の「もどる」「編成する」：同じ幅で真ん中に */
+.footrow{display:flex;justify-content:center;gap:12px}
+.footrow > button{flex:0 1 160px}
+.footrow .go.big{width:auto;padding-left:10px;padding-right:10px}
+/* 試練の塔の出陣：脇の額二つで挟んで真ん中に */
+div:has(> .go.twgo){justify-content:center}
+.go.twgo{flex:0 1 180px}

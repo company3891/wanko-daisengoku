@@ -7098,6 +7098,42 @@ button.go.big:not(.pic):not(.art):not(.danger):not(:disabled)::after{
 .mig.on:active{transform:translateY(3px) !important;
   box-shadow:inset 0 2px 5px #0007,0 0 0 1.5px #6b4a12,0 1px 0 #4a320c !important}
 
+/* 関ヶ原の待ち合わせの釦（2026-10-14 悠さんの指図）。
+   上の段＝武将選択・友を誘う・解散の三つを同じ幅で。出陣は細く高くして真ん中に */
+.skbtns .skquit{flex:1 1 0;width:auto;padding:11px 8px;font-size:13px}
+.skgorow{justify-content:center}
+.skgorow .skgo{flex:0 0 auto;width:200px;padding:19px 0;font-size:18px;letter-spacing:.2em}
+.skgorow .skwait{flex:1 1 auto}
+/* 出陣の数の帯を細く（2026-10-14 悠さんの指図）。70px → 50px ほど */
+.skcnt{min-height:0}
+.skcl{flex-basis:50px}
+.skcl i{font-size:9px}
+.skcl b{font-size:18px}
+.skcr{padding:4px 8px 3px 2px}
+.skcnode{width:32px;height:32px;border-radius:7px}
+.skcnode .itic{width:22px;height:22px;font-size:11px}
+.skcnode.big{width:32px;height:40px;margin-top:-4px}
+.skcln{top:14px;height:3px}
+.skcat{font-size:10px;margin-top:1px;line-height:1}
+.skcq{font-size:9px}
+.skcok{font-size:13px}
+
+/* 横に長すぎた釦をそろえる（2026-10-14 悠さんの指図）。
+   ・字の少ない釦は 180px ほどで真ん中寄せ。長い字（まとめて頂戴いたす 等）は字に合わせて伸び、260px で止まる
+   ・絵の釦（.pic）と、横幅いっぱいが見せ場の関ヶ原の出陣（.skgo）は触らない */
+button.go.wide:not(.pic){display:block;width:auto;min-width:180px;max-width:min(260px,100%);
+  margin-left:auto;margin-right:auto;padding-left:30px;padding-right:30px}
+/* お祭りの「挑む」等：一列の中で伸びきらず、真ん中に集める */
+.acts2{justify-content:center}
+.acts2 > .go.sm,.acts2 > .ghost.sm{flex:0 1 170px}
+/* 部隊の「もどる」「編成する」：同じ幅で真ん中に */
+.footrow{display:flex;justify-content:center;gap:12px}
+.footrow > button{flex:0 1 160px}
+.footrow .go.big{width:auto;padding-left:10px;padding-right:10px}
+/* 試練の塔の出陣：脇の額二つで挟んで真ん中に */
+div:has(> .go.twgo){justify-content:center}
+.go.twgo{flex:0 1 180px}
+
 </style>
 </head>
 <body>
@@ -35897,7 +35933,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 10:25 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 12:19 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -42497,14 +42533,14 @@ function sekiSheet() {
         } }, el('i', { class: 'skntb' }), 'お知らせ')))));
   } else if (!m) {
     body.push(el('div', { class: 'skbtns' },
-      el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, '陣を立てる'),
-      el('button', { class: 'ghost', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: true })) }, '陣を立てて募る')));
+      el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, 'ルーム作成'),   // 2026-10-14 悠さんの指図（前は「陣を立てる」）
+      el('button', { class: 'ghost', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: true })) }, '募集する')));   // 2026-10-14 悠さんの指図（前は「陣を立てて募る」）
     const inv = L.invites || [], op = L.open || [];
     if (inv.length) body.push(el('b', { class: 'skh' }, '誘いが届いておる'),
       el('div', { class: 'sklist' }, inv.map(x => sekiRow(x, '加わる', () => sekiDo(() => sekiJoin({ ...sekiPayload(), id: x.id }))))));
-    body.push(el('b', { class: 'skh' }, '募っている陣'),
+    body.push(el('b', { class: 'skh' }, '募集中のルーム'),
       op.length ? el('div', { class: 'sklist' }, op.map(x => sekiRow(x, '加わる', () => sekiDo(() => sekiJoin({ ...sekiPayload(), id: x.id })))))
-                : el('p', { class: 'note' }, 'いま募っている陣は無い'));
+                : el('p', { class: 'note' }, 'いま募集中のルームは無い'));
   } else {
     body.push(el('div', { class: 'skseats' }, [0, 1, 2, 3].map(i => {
       const x = m.members[i];
@@ -42518,19 +42554,20 @@ function sekiSheet() {
     })));
     body.push(el('div', { class: 'skbtns' },
       m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '武将選択') : null,   // 2026-10-12 悠さんの指図で「出す武将」から
-      lead && m.phase === 'wait' ? el('button', { class: 'ghost' + (m.open ? ' on' : ''), onclick: () => sekiDo(() => sekiOpenSet(!m.open)) },
-        m.open ? '締め切る' : '募る') : null,
-      lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null));
+      /* 「締め切る／募る」は外した（2026-10-14 悠さんの指図）。出陣すれば一覧から消えるので
+         締め切る意味がなく、募るかどうかは陣を立てるときに選んでいる */
+      lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null,
+      el('button', { class: 'ghost skquit', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '解散' : '抜ける')));
     /* 戦のさなか（2026-10-12）。前は押せない「合戦のさなか」だけが出て、
        戦の画面を離れた人が戻れなかった。いつでも同じ戦に戻れるようにする（間が並びを渡し直す） */
     /* 出陣と解散を一列に（2026-10-12・悠さんの指図「陣を畳むがわかりにくいので解散にして、小さくして出陣と同列に」）。
        加わった人は「抜ける」 */
-    const quit = el('button', { class: 'ghost skquit', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '解散' : '抜ける');
+    /* 解散は上の段へ移し、出陣は真ん中に一つだけ（2026-10-14 悠さんの指図） */
     const main = m.phase === 'fight'
       ? el('button', { class: 'go skgo', onclick: () => { if (m.fight) { SEKI.seenRound = m.round; sekiFight(m); } } }, '戦に戻る')
       : lead ? el('button', { class: 'go skgo', onclick: () => sekiDo(() => sekiStart()) }, '出陣')
       : el('p', { class: 'note skwait' }, '呼んだ人の出陣を待っておる');
-    body.push(el('div', { class: 'skgorow' }, main, quit));
+    body.push(el('div', { class: 'skgorow' }, main));
   }
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
     el('div', { class: 'card2 skbox' },
@@ -42636,7 +42673,7 @@ function sekiInvSheet() {
           el('b', { class: 'skinm' }, f.name), el('i', { class: 'skist' }, f.away ? '留守' : '城にいる'),
           el('button', { class: 'go sm', disabled: (sent || inn) ? true : null,
             onclick: () => sekiDo(() => sekiInvite(f.id), `${f.name} を誘った`) }, inn ? '陣にいる' : sent ? '誘った' : '誘う'));
-      })) : el('p', { class: 'note' }, 'まだ友がおらぬ。募れば、いま来ている誰かが加わる'),
+      })) : el('p', { class: 'note' }, 'まだ友がおらぬ。募集すれば、いま来ている誰かが加わる'),
       closeX(back, 'もどる')));
 }
 

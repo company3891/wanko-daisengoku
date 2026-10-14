@@ -13396,14 +13396,14 @@ function sekiSheet() {
         } }, el('i', { class: 'skntb' }), 'お知らせ')))));
   } else if (!m) {
     body.push(el('div', { class: 'skbtns' },
-      el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, '陣を立てる'),
-      el('button', { class: 'ghost', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: true })) }, '陣を立てて募る')));
+      el('button', { class: 'go', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: false })) }, 'ルーム作成'),   // 2026-10-14 悠さんの指図（前は「陣を立てる」）
+      el('button', { class: 'ghost', onclick: () => sekiDo(() => sekiMake({ ...sekiPayload(), open: true })) }, '募集する')));   // 2026-10-14 悠さんの指図（前は「陣を立てて募る」）
     const inv = L.invites || [], op = L.open || [];
     if (inv.length) body.push(el('b', { class: 'skh' }, '誘いが届いておる'),
       el('div', { class: 'sklist' }, inv.map(x => sekiRow(x, '加わる', () => sekiDo(() => sekiJoin({ ...sekiPayload(), id: x.id }))))));
-    body.push(el('b', { class: 'skh' }, '募っている陣'),
+    body.push(el('b', { class: 'skh' }, '募集中のルーム'),
       op.length ? el('div', { class: 'sklist' }, op.map(x => sekiRow(x, '加わる', () => sekiDo(() => sekiJoin({ ...sekiPayload(), id: x.id })))))
-                : el('p', { class: 'note' }, 'いま募っている陣は無い'));
+                : el('p', { class: 'note' }, 'いま募集中のルームは無い'));
   } else {
     body.push(el('div', { class: 'skseats' }, [0, 1, 2, 3].map(i => {
       const x = m.members[i];
@@ -13417,19 +13417,20 @@ function sekiSheet() {
     })));
     body.push(el('div', { class: 'skbtns' },
       m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.pick = true; SFX.pick(); draw(); } }, '武将選択') : null,   // 2026-10-12 悠さんの指図で「出す武将」から
-      lead && m.phase === 'wait' ? el('button', { class: 'ghost' + (m.open ? ' on' : ''), onclick: () => sekiDo(() => sekiOpenSet(!m.open)) },
-        m.open ? '締め切る' : '募る') : null,
-      lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null));
+      /* 「締め切る／募る」は外した（2026-10-14 悠さんの指図）。出陣すれば一覧から消えるので
+         締め切る意味がなく、募るかどうかは陣を立てるときに選んでいる */
+      lead && m.phase === 'wait' ? el('button', { class: 'ghost', onclick: () => { SEKI.inv = true; SFX.pick(); draw(); } }, '友を誘う') : null,
+      el('button', { class: 'ghost skquit', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '解散' : '抜ける')));
     /* 戦のさなか（2026-10-12）。前は押せない「合戦のさなか」だけが出て、
        戦の画面を離れた人が戻れなかった。いつでも同じ戦に戻れるようにする（間が並びを渡し直す） */
     /* 出陣と解散を一列に（2026-10-12・悠さんの指図「陣を畳むがわかりにくいので解散にして、小さくして出陣と同列に」）。
        加わった人は「抜ける」 */
-    const quit = el('button', { class: 'ghost skquit', onclick: () => sekiDo(() => sekiLeave()) }, lead ? '解散' : '抜ける');
+    /* 解散は上の段へ移し、出陣は真ん中に一つだけ（2026-10-14 悠さんの指図） */
     const main = m.phase === 'fight'
       ? el('button', { class: 'go skgo', onclick: () => { if (m.fight) { SEKI.seenRound = m.round; sekiFight(m); } } }, '戦に戻る')
       : lead ? el('button', { class: 'go skgo', onclick: () => sekiDo(() => sekiStart()) }, '出陣')
       : el('p', { class: 'note skwait' }, '呼んだ人の出陣を待っておる');
-    body.push(el('div', { class: 'skgorow' }, main, quit));
+    body.push(el('div', { class: 'skgorow' }, main));
   }
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) sekiClose(); } },
     el('div', { class: 'card2 skbox' },
@@ -13535,7 +13536,7 @@ function sekiInvSheet() {
           el('b', { class: 'skinm' }, f.name), el('i', { class: 'skist' }, f.away ? '留守' : '城にいる'),
           el('button', { class: 'go sm', disabled: (sent || inn) ? true : null,
             onclick: () => sekiDo(() => sekiInvite(f.id), `${f.name} を誘った`) }, inn ? '陣にいる' : sent ? '誘った' : '誘う'));
-      })) : el('p', { class: 'note' }, 'まだ友がおらぬ。募れば、いま来ている誰かが加わる'),
+      })) : el('p', { class: 'note' }, 'まだ友がおらぬ。募集すれば、いま来ている誰かが加わる'),
       closeX(back, 'もどる')));
 }
 

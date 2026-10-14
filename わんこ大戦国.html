@@ -36111,7 +36111,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 19:27 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 20:00 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -38115,7 +38115,7 @@ function enemyTeam(rng) {
 /* お祭りの敵（2026-09-26 に育ちを持たせた）。
    級ごとに Lv・魂・特技レベルが上がる。超級は Lv99・魂999・特技レベル3＝こちらの上限と同じ。
    前は素の値のままで、育てた部隊には手応えが無かった */
-function evEnemy(rank, rng) {
+function evEnemy(rank, rng, lead) {
   const want = EV_POWER[rank] || 500;
   const mine = new Set(((P.squads[P.active] || {}).nos || [])
     .map(n => (charOf(n) || {}).origin).filter(Boolean));
@@ -38145,7 +38145,13 @@ function evEnemy(rank, rng) {
     const c = best[Math.floor(rng() * best.length)];
     t.push(c); sum += c.cost;
   }
-  const out = t.length ? t : C.slice(0, 5);
+  let out = t.length ? t : C.slice(0, 5);
+  /* 総大将は札ごとに決めた者に差し替える（2026-10-14・悠さんの指図「敵キャラ被りすぎ。全部バラバラに」）。
+     同じ者・同じ元武将は外し、先頭に据えて五人に詰める */
+  if (lead) {
+    const same = c => c.no === lead.no || (c.origin && lead.origin && c.origin === lead.origin);
+    out = [lead, ...out.filter(c => !same(c))].slice(0, 5);
+  }
   return out.map(c => foeGrown(c, EV_LV[rank] || 1, EV_SOUL[rank] || 0, EV_SKILL[rank] || 1));
 }
 
@@ -38286,7 +38292,7 @@ function startBattle(camp, evb, spar, bout, tw, away) {
   let B = camp ? campEnemy(camp.pref, camp.step, rng)
             : spar ? campEnemy(spar.pref, spar.pref.battles - 1, rng)
             : bout ? rkTeamOf(bout.npc)
-            : evb ? evEnemy(evb.rank, evRng(evb.id, evb.rank))   // 札の顔と同じ顔ぶれ（2026-10-14）
+            : evb ? evEnemy(evb.rank, evRng(evb.id, evb.rank), evLeadOf(evb.id, evb.rank))   // 札の顔と同じ顔ぶれ（2026-10-14）
             : tw ? twEnemy(tw.f, rng)
             : away ? ((away.team || {}).members || [])
             : enemyTeam(rng);
@@ -40339,7 +40345,7 @@ function evSkip(id, rank) {
   const seed = (Math.random() * 1e9) | 0;
   let s2 = seed >>> 0;
   const rng = () => { s2 = (s2 + 0x6D2B79F5) >>> 0; let x = Math.imul(s2 ^ (s2 >>> 15), 1 | s2); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
-  const B = evEnemy(rank, evRng(id, rank));   // 札の顔と同じ顔ぶれ（2026-10-14）
+  const B = evEnemy(rank, evRng(id, rank), evLeadOf(id, rank));   // 札の顔と同じ顔ぶれ（2026-10-14）
   S.stage = EV_STAGE[rank] || '草原';                  // 早送りでも級の場所で戦う（2026-09-28）
   S.stageV = rank % stageVarCount(S.stage);            // 盤面ちがいも級で固定（2026-09-28）
   S.stageFlip = false;                                 // お祭りは相手が国なので入れ替えない
@@ -40548,10 +40554,35 @@ function evFaceIcon(ev) {
    札に顔を出すため、その日・その級の顔ぶれは日付から決まる乱数で組む（evEnemy の一人目＝総大将）。
    戦でも同じ乱数を使うので、札の顔と戦の相手が食い違わない */
 function evRng(id, rank) { return rkRand(rkSeed(`ev:${id}:${rank}:${today()}`)); }
-function evLeadOf(id, rank) {
-  try { const B = evEnemy(rank, evRng(id, rank)); return B && B[0] ? charOf(B[0].no) || B[0] : null; }
-  catch (_) { return null; }
+/* お祭りの札ごとの敵総大将（2026-10-14・悠さんの指図「全部バラバラに」）。
+   前は「兵力に収まるいちばん重い将」を一人目にしていたので、上級・超級はいつも明智、
+   初級は兵力が足りず決まった五人に落ちて、どの祭りも同じ顔が並んでいた。
+   いまはその日の乱数で武将を混ぜ、級ごとのコストの幅から、祭り×級で一人ずつ配る。
+   同じ元武将（別の札）も重ねない。手薄な上の級から先に配る */
+const EV_LEAD_COST = [[150, 200], [250, 300], [350, 400], [400, 500]];
+let EV_LEAD_MEMO = null;
+function evLeadMap() {
+  const mine = new Set(((P.squads[P.active] || {}).nos || []).map(n => (charOf(n) || {}).origin).filter(Boolean));
+  const key = today() + '|' + [...mine].sort().join(',');
+  if (EV_LEAD_MEMO && EV_LEAD_MEMO.key === key) return EV_LEAD_MEMO.map;
+  const rnd = rkRand(rkSeed('evlead:' + today()));
+  const pool = CR.filter(c => !(c.origin && mine.has(c.origin)));
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const used = new Set(), map = {};
+  const tag = c => c.origin || ('#' + c.no);
+  for (let r = EV_RANKS.length - 1; r >= 0; r--) {
+    const [lo, hi] = EV_LEAD_COST[r] || [0, 999];
+    for (const ev of EVENTS) {
+      const c = pool.find(x => x.cost >= lo && x.cost <= hi && !used.has(tag(x)))
+             || pool.find(x => !used.has(tag(x)));
+      if (!c) continue;
+      used.add(tag(c)); map[ev.id + ':' + r] = c;
+    }
+  }
+  EV_LEAD_MEMO = { key, map };
+  return map;
 }
+function evLeadOf(id, rank) { return evLeadMap()[id + ':' + rank] || null; }
 /* 褒美を絵で並べる。数は絵の下（2026-10-14） */
 function evTiles(rw) {
   const t = [];

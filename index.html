@@ -36143,7 +36143,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 23:13 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 23:28 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -39332,6 +39332,15 @@ function rewardRow(o, exp) {
 /* 褒美をひとつの札にする（2026-09-29）。
    絵があれば絵、無ければ字。数は右下に重ねる。
    遊ぶ人には「何が、いくつ」だけを見せたいので、名は下に小さく添えるだけ */
+/* 品の絵の在りか（2026-10-14・悠さんの指図「報酬の配のアイコンがでてない」）。
+   軍配は「木の軍配・猛将」のように属性つきの名なので、itemUrl に直に渡すと絵が無く「配」の字に落ちていた。
+   属性ごとの絵が無ければ、段の絵（木／鉄／金の軍配）を借りる ── itemIcon と同じ借り方 */
+function itemArt(name) {
+  const own = itemUrl(name);
+  if (own) return own;
+  const it = ITEMS[name] || {};
+  return it.badge != null ? itemUrl(BADGES[it.badge]) : null;
+}
 function prizeTile(art, mark, name, count) {
   return el('div', { class: 'pz' },
     el('span', { class: 'pzw' },
@@ -39355,7 +39364,7 @@ function prizeRow(rw, ev) {
     add(uiUrl('coin_石'), '勾', '勾玉', ev.stone);
     add(uiUrl('coin_小判'), '判', '小判', ev.koban);
     add(uiUrl('coin_魂'), '魂', '魂', ev.soul);
-    for (const [k, n] of Object.entries(ev.items || {})) add(itemUrl(k), '具', k, n);
+    for (const [k, n] of Object.entries(ev.items || {})) add(itemArt(k), '具', k, n);
     /* 称号も粒で見せる（2026-10-01）。塔の節目でもらえる。
        数ではなく名を下に添えるので、prizeTile の数の枠には入れない */
     if (ev.title) t.push(prizeTile(frameUrl(ev.title), '称', ev.title, null));
@@ -39476,8 +39485,8 @@ function bonusRow(b) {
   if (b.koban) t.push(prizeTile(uiUrl('coin_小判'), '判', '小判', b.koban));
   if (b.soul)  t.push(prizeTile(uiUrl('coin_魂'), '魂', '魂', b.soul));
   if (b.book)  t.push(prizeTile(itemUrl('大稽古の書'), '書', '大稽古の書', b.book));
-  if (b.gear)  t.push(prizeTile(itemUrl(b.gear), '具', b.gear, b.gearN));
-  if (b.badge) t.push(prizeTile(itemUrl(b.badge), '配', b.badge, b.badgeN));
+  if (b.gear)  t.push(prizeTile(itemArt(b.gear), '具', b.gear, b.gearN));
+  if (b.badge) t.push(prizeTile(itemArt(b.badge), '配', b.badge, b.badgeN));
   if (!t.length) return null;
   return el('div', { class: 'pzrow tkpz' }, t);
 }

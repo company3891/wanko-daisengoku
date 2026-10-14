@@ -36143,7 +36143,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 22:41 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 22:51 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -40163,6 +40163,8 @@ function screenMarket() {
   return {
     body: el('div', { class: 'mkpage' + (bg ? ' art' : '') },
       keepBg(bg, 'bgfull'),
+      /* 戻る（2026-10-14・悠さんの指図「取引所に戻るボタンがない」）。ほかの画面と同じ丸い × で城へ */
+      el('button', { class: 'ghost back', onclick: () => { S.mkPut = null; S.mkMsg = ''; S.screen = 'home'; SFX.pick(); draw(); } }, '← 城へ'),
       el('div', { class: 'gtalk' + (tart ? ' art' : '') },
         tart ? keepImg({ class: 'gtface', src: tart, alt: tc ? tc.name : '' })
              : el('i', { class: 'gtface' }, '犬'),

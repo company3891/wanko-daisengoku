@@ -10826,6 +10826,8 @@ function screenMarket() {
   return {
     body: el('div', { class: 'mkpage' + (bg ? ' art' : '') },
       keepBg(bg, 'bgfull'),
+      /* 戻る（2026-10-14・悠さんの指図「取引所に戻るボタンがない」）。ほかの画面と同じ丸い × で城へ */
+      el('button', { class: 'ghost back', onclick: () => { S.mkPut = null; S.mkMsg = ''; S.screen = 'home'; SFX.pick(); draw(); } }, '← 城へ'),
       el('div', { class: 'gtalk' + (tart ? ' art' : '') },
         tart ? keepImg({ class: 'gtface', src: tart, alt: tc ? tc.name : '' })
              : el('i', { class: 'gtface' }, '犬'),

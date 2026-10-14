@@ -7007,6 +7007,67 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
    勝利の札の中身が長いと、縦並びの中でこの札だけ縮められ、overflow:hidden で字が欠けた。縮ませない */
 .trlimit { flex-shrink: 0; min-height: max-content; }
 
+/* ================= 釦を立体に（2026-10-14・悠さんの指図「この感じにすべて変えて」）=================
+   絵を使わず、照り（上半分の白い透け）・厚み（上の明るい縁と下の濃い縁）・台座の段差と影で立体に見せる。
+   幅も高さも自由に変わるので、どの画面の釦にも同じ見た目が当たる。
+     金（.go）       … 主役。決める・挑む・出陣
+     黒漆（.ghost）  … 脇役。とじる・スキップ・戻る
+     朱（.go.danger）… 取り返しがつかないもの
+   各所に散らばっていた色の上書き（.card2 … button.go など）より必ず勝つよう !important を使う。
+   絵の釦（.pic・.art）、丸い戻る（.back）、札の下ぎわの閉じる（.sheetclose）、盤面の操作（.go-*）は外す。
+   位置（position）は :where で一番弱くし、もとから absolute などを決めている釦はそちらを残す */
+:where(button.go, button.ghost){position:relative}
+button.go:not(.pic):not(.art):not(.danger),
+button.ghost:not(.pic):not(.art):not(.back):not(.sheetclose),
+button.go.danger:not(.pic):not(.art){
+  isolation:isolate;border:0 !important;font-weight:800;
+  transition:transform .06s ease-out, box-shadow .06s ease-out, filter .12s}
+/* 照り：上半分に白い透け */
+button.go:not(.pic):not(.art)::before,
+button.ghost:not(.pic):not(.art):not(.back):not(.sheetclose)::before{
+  content:"";position:absolute;inset:2px 2px 52% 2px;border-radius:inherit;
+  border-bottom-left-radius:40% 12px;border-bottom-right-radius:40% 12px;
+  background:linear-gradient(#ffffff66,#ffffff08);z-index:-1;pointer-events:none}
+button.ghost:not(.pic):not(.art):not(.back):not(.sheetclose)::before{background:linear-gradient(#ffffff26,#ffffff00)}
+/* 金 */
+button.go:not(.pic):not(.art):not(.danger){
+  color:#3a1f05 !important;text-shadow:0 1px 0 #fff6d0 !important;
+  background:linear-gradient(180deg,#fbeab0 0%,#e8bf5c 45%,#c8952e 55%,#e2b453 100%) !important;
+  box-shadow:inset 0 1px 0 #fff8d8,inset 0 -3px 0 #9a6d1e,0 0 0 1.5px #6b4a12,0 4px 0 #4a320c,0 7px 10px #0009 !important;
+  margin-bottom:4px}
+/* 黒漆 */
+button.ghost:not(.pic):not(.art):not(.back):not(.sheetclose){
+  color:#f5e2a8 !important;text-shadow:0 1px 2px #000 !important;
+  background:linear-gradient(180deg,#3d3329 0%,#1d1814 50%,#120f0c 51%,#231c16 100%) !important;
+  box-shadow:inset 0 1px 0 #ffffff2a,inset 0 -3px 0 #000,0 0 0 1.5px #a8802c,0 4px 0 #050403,0 7px 10px #0009 !important;
+  margin-bottom:4px}
+/* 朱 */
+button.go.danger:not(.pic):not(.art){
+  color:#fff1e6 !important;text-shadow:0 1px 2px #5a120a !important;
+  background:linear-gradient(180deg,#f6a08c 0%,#e0654f 45%,#b8402e 55%,#d45843 100%) !important;
+  box-shadow:inset 0 1px 0 #ffd6cc,inset 0 -3px 0 #7c2416,0 0 0 1.5px #5a160c,0 4px 0 #3a0e07,0 7px 10px #0009 !important;
+  margin-bottom:4px}
+/* 選ばれている黒漆の釦（.on）は金の縁を太く光らせる */
+button.ghost.on:not(.pic):not(.art):not(.back):not(.sheetclose){
+  box-shadow:inset 0 1px 0 #ffffff2a,inset 0 -3px 0 #000,0 0 0 2px #f5e2a8,0 0 10px #d8a94a88,0 4px 0 #050403 !important}
+/* 押した瞬間：3px沈み、段差が消えて内側に影 */
+button.go:not(.pic):not(.art):not(:disabled):active,
+button.ghost:not(.pic):not(.art):not(.back):not(.sheetclose):not(:disabled):active{
+  transform:translateY(3px) !important;
+  box-shadow:inset 0 2px 5px #0007,0 0 0 1.5px #6b4a12,0 1px 0 #4a320c !important}
+/* 押せない：灰色に沈める */
+button.go:not(.pic):not(.art):disabled,
+button.ghost:not(.pic):not(.art):not(.back):not(.sheetclose):disabled{
+  filter:grayscale(1) brightness(.62);cursor:default}
+/* 光が流れる：主役の大きい金の釦だけ（横いっぱい・大）。脇役は静かにしておく */
+button.go.wide:not(.pic):not(.art):not(.danger):not(:disabled),
+button.go.big:not(.pic):not(.art):not(.danger):not(:disabled){overflow:hidden}
+button.go.wide:not(.pic):not(.art):not(.danger):not(:disabled)::after,
+button.go.big:not(.pic):not(.art):not(.danger):not(:disabled)::after{
+  content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;transform:skewX(-20deg);pointer-events:none;
+  background:linear-gradient(90deg,transparent,#ffffff55,transparent);animation:btnSheen 3.2s ease-in-out infinite}
+@keyframes btnSheen{0%,60%{left:-60%}100%{left:130%}}
+
 </style>
 </head>
 <body>
@@ -35797,7 +35858,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 10:03 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 10:18 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

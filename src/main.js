@@ -1808,6 +1808,28 @@ function uniBar() {
 /* 閉じている座の札の字（2026-10-13・悠さんの指図）。
    「第1章クリアで解放」だけでは何の第1章か分からないので、上に「全国モード」を添えて二行に */
 const LOCK_CH1 = '全国モード\n第1章クリアで解放';
+/* 章の番号（2026-10-15・悠さんの指図「天下の分け目とかのサブタイトルに〜第1章〜とかつけたら？」）。
+   章そのものには番号を持たせていない（攻める順は出発した武将しだいなので・2026-09-21）。
+   そこで**その人が攻めた順**で数える：
+     出発した章 … いつでも 第一章
+     平定した章 … 平定し終えた順（box.got＝初めて取った国の並び。章の最後の一国が入った位置で比べる）
+     開いていてまだの章 … 次の番号（左右どちらへ攻めても、そこが次の章）
+   古い保存は got の並びが本当の順でないことがあるが、そのときも数が飛んだり重なったりはしない。
+   鍵の字「第1章クリアで解放」と、ここの「第一章」が同じものを指すようにするのが狙い */
+const KANSUJI = ['', '一', '二', '三', '四', '五', '六', '七'];
+function chapterNo(id) {
+  const home = (PREF[(P.camp && P.camp.start) || 'aichi'] || {}).region;
+  if (id === home) return 1;
+  const box = campBox(), got = Array.isArray(box.got) ? box.got : [];
+  const keyOf = r => {
+    const idx = prefsOf(r).map(p => got.indexOf(p.id));
+    return idx.some(i => i < 0) ? 1e6 + chapterRank(r, home) : Math.max(...idx);
+  };
+  const done = REGION_ORDER.filter(r => r !== home && regionTaken(r)).sort((a, b) => keyOf(a) - keyOf(b));
+  const k = done.indexOf(id);
+  return k >= 0 ? k + 2 : done.length + 2;
+}
+const chapterTag = id => el('span', { class: 'jchno' }, `〜 第${KANSUJI[chapterNo(id)] || chapterNo(id)}章 〜`);
 /* 第1章＝出発した章。そこを取りきると試練の塔が開く（2026-10-01） */
 /* 塔・友・称号・お役目は 並の進み具合で決める（2026-10-10）。修羅に入って振り出しに戻っても閉じない */
 const towerOpen = () => regionTaken((PREF[(P.camp && P.camp.start) || 'aichi'] || {}).region, 0);
@@ -2161,7 +2183,8 @@ function japanMap(maps, open, reg) {
     (() => {
       const art = uiUrl('title_' + reg.name);
       return el('div', { class: 'jttl' + (art ? ' art' : '') },
-        art ? el('img', { src: art, alt: reg.label }) : reg.label);
+        chapterTag(reg.id),
+        art ? el('img', { src: art, alt: reg.label }) : el('span', { class: 'jttlt' }, reg.label));
     })());
   /* 道ごとに地図の色を変える（2026-10-10）。修羅は血の気、魔王は夜。
      filter は絵（.jm）だけに掛ける ── 親に掛けると旗まで染まる */
@@ -4105,7 +4128,7 @@ function screenMap() {
           onclick: () => { S.region = id; S.pref = null; SFX.pick(); draw(); },
         }, ok ? r.name : '？');
       })),
-      el('h2', {}, reg.label),
+      el('h2', {}, chapterTag(reg.id), reg.label),
       el('div', { class: 'prefs' }, prefsOf(S.region).map(p => {
         const b = prefCard(p);
         b.onclick = () => { S.pref = p.id; S.screen = 'march'; SFX.pick(); draw(); };

@@ -10,7 +10,7 @@
    ・どちらも駄目なときだけ「つながりませぬ」の紙を出す。
 
    直したら CACHE の数を上げること。上げないと古い覚えが残る。 */
-const CACHE = 'wanko-v156';
+const CACHE = 'wanko-v157';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

@@ -7292,6 +7292,9 @@ div:has(> .go.twgo){justify-content:center}
    ・地紋は translate を使わずに真ん中へ寄せ、余計な層を作らない */
 main{position:relative;z-index:0}
 .bgfull{left:0;right:0;margin:0 auto;transform:none}
+/* お祭りの級の札の道具の絵（itemIcon）を白い升に収める（2026-10-14） */
+.evti .itic{width:34px;height:34px;border:0;background:none !important;box-shadow:none;border-radius:0}
+.evti .itic img{width:100%;height:100%;object-fit:contain}
 
 </style>
 </head>
@@ -36120,7 +36123,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 20:13 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 21:17 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -40602,7 +40605,11 @@ function evTiles(rw) {
   if (rw.stone) add(uiUrl('coin_石'), '勾', '勾玉', num(rw.stone));
   if (rw.koban) add(uiUrl('coin_小判'), '判', '小判', num(rw.koban));
   if (rw.soul)  add(uiUrl('coin_魂'), '魂', '魂', num(rw.soul));
-  for (const [k, n] of Object.entries(rw.items || {})) if (n > 0) add(itemUrl(k), k[0], k, `×${num(n)}`);
+  /* 道具は itemIcon を通す（2026-10-14）。軍配のように属性ごとに名が分かれた品は、
+     専用の絵が無ければ段の絵を借りる決まりが itemIcon の中にある。itemUrl を直に引くと
+     その借りが効かず「木・鉄・金」の字に落ちていた */
+  for (const [k, n] of Object.entries(rw.items || {})) if (n > 0)
+    t.push(el('span', { class: 'evt', title: k }, el('span', { class: 'evti' }, itemIcon(k)), el('b', {}, `×${num(n)}`)));
   for (const no of (rw.chars || [])) {
     const o = charOf(no); if (!o) continue;
     add(faceUrl(o.no, '通常') || pawnUrl(o.no), o.name[0], o.name, '武将');

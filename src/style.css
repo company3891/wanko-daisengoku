@@ -7277,3 +7277,6 @@ div:has(> .go.twgo){justify-content:center}
    ・地紋は translate を使わずに真ん中へ寄せ、余計な層を作らない */
 main{position:relative;z-index:0}
 .bgfull{left:0;right:0;margin:0 auto;transform:none}
+/* お祭りの級の札の道具の絵（itemIcon）を白い升に収める（2026-10-14） */
+.evti .itic{width:34px;height:34px;border:0;background:none !important;box-shadow:none;border-radius:0}
+.evti .itic img{width:100%;height:100%;object-fit:contain}

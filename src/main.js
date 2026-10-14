@@ -11286,7 +11286,11 @@ function evTiles(rw) {
   if (rw.stone) add(uiUrl('coin_石'), '勾', '勾玉', num(rw.stone));
   if (rw.koban) add(uiUrl('coin_小判'), '判', '小判', num(rw.koban));
   if (rw.soul)  add(uiUrl('coin_魂'), '魂', '魂', num(rw.soul));
-  for (const [k, n] of Object.entries(rw.items || {})) if (n > 0) add(itemUrl(k), k[0], k, `×${num(n)}`);
+  /* 道具は itemIcon を通す（2026-10-14）。軍配のように属性ごとに名が分かれた品は、
+     専用の絵が無ければ段の絵を借りる決まりが itemIcon の中にある。itemUrl を直に引くと
+     その借りが効かず「木・鉄・金」の字に落ちていた */
+  for (const [k, n] of Object.entries(rw.items || {})) if (n > 0)
+    t.push(el('span', { class: 'evt', title: k }, el('span', { class: 'evti' }, itemIcon(k)), el('b', {}, `×${num(n)}`)));
   for (const no of (rw.chars || [])) {
     const o = charOf(no); if (!o) continue;
     add(faceUrl(o.no, '通常') || pawnUrl(o.no), o.name[0], o.name, '武将');

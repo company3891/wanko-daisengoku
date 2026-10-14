@@ -7261,3 +7261,7 @@ div:has(> .go.twgo){justify-content:center}
 .evrank.evcard.done:not(.again) > .evcf,.evrank.evcard.done:not(.again) > .evcb{filter:grayscale(.5);opacity:.75}
 .evdone{color:#f5e2a8;font-family:var(--mincho)}
 .evcard .evclr{background:#3f8f5a;color:#fff;border-color:#2f6f45;letter-spacing:.06em}
+/* 部隊の札の出陣の行（2026-10-14）：道具・挑む・早送り（または空き）の三つ。挑むは縮める */
+.sqbox .mgrow.sqgo button.go{flex:1 1 auto;min-width:0}
+.sqbox .mgrow.sqgo .evskip.mchskip2{margin:0 5px}
+.sqbox .mgrow.sqgo .mgsp{flex:0 0 44px;width:44px}

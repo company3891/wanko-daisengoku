@@ -1974,16 +1974,22 @@ function sqSheet() {
         if (a.edit) return el('div', { class: 'mgrow sqgo' },
           el('button', { class: 'go',
             onclick: () => { const g = a.go; S.sqp = null; g(); } }, 'この部隊を編む'));
+        /* 2026-10-14（悠さんの指図）：道具は挑むの左へ。右には早送りの丸（お祭りの取った級だけ）。
+           早送りが無いときは同じ幅の空きを置いて、挑むを真ん中に保つ */
         return el('div', { class: 'mgrow sqgo' },
-          el('button', { class: 'go', disabled: ok ? null : true,
-            onclick: () => { const g = a.go; S.sqp = null; g(); } },
-            a.edit ? 'この部隊を編む' : 'この部隊で挑む'),
           el('button', {
             class: 'prepcir' + (prepN ? ' on' : '') + (part ? ' art' : ''), title: '道具を使う',
             onclick: () => { S.prepBox = true; SFX.pick(); draw(); },
             /* 数（0/3）は出さない（2026-10-07・悠さんの指図）。
                戦に持ち込めるのは一つという前提なので、分母を見せても意味が無い */
-          }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具')));
+          }, part ? keepImg({ src: part, alt: '道具' }) : el('i', {}, '具')),
+          el('button', { class: 'go', disabled: ok ? null : true,
+            onclick: () => { const g = a.go; S.sqp = null; g(); } },
+            a.edit ? 'この部隊を編む' : 'この部隊で挑む'),
+          a.skip ? el('button', { class: 'evskip mchskip2', disabled: ok ? null : true,
+              title: 'スキップ', 'aria-label': 'スキップ',
+              onclick: () => { const g = a.skip; S.sqp = null; g(); } }, el('i', {}, '〉〉'))
+            : el('span', { class: 'mgsp' }));
       })(),
       a.edit ? null : prepTags(),
       el('button', { class: 'ghost wide', onclick: close }, 'やめる')),
@@ -11003,6 +11009,8 @@ function evGo(id, rank, skip) {
   sqAsk(`${skip ? '早送り' : 'お祭り'}に出す部隊`,
         `${ev ? ev.name : 'お祭り'}　${EV_RANKS[rank]}`,
         () => evGo2(id, rank, skip));
+  /* 取った級は、部隊の札で早送りも選べる（2026-10-14・級の札から移した） */
+  if (!skip && evCleared(id, rank) && S.sqp) { S.sqp.skip = () => evGo2(id, rank, true); draw(); }
 }
 function evGo2(id, rank, skip) {
   const q = P.squads[P.active];
@@ -11199,14 +11207,10 @@ function screenEvent() {
                 cleared ? el('span', { class: 'evclr' }, 'CLEAR') : null,
                 el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
               el('div', { class: 'evcrow' },
-                el('div', { class: 'evtiles' }, evTiles(rw)),
-                /* 早送りは札の右下に丸く。押しても札の出陣には落ちない */
-                playable && cleared ? el('button', {
-                  class: 'evskip', title: 'スキップ', 'aria-label': 'スキップ',
-                  onclick: e => { e.stopPropagation(); evGo(open.id, r, true); },
-                }, el('i', {}, '〉〉')) : null),
+                el('div', { class: 'evtiles' }, evTiles(rw))),
               (done && open.repeat) ? el('p', { class: 'note evagain' }, '二度目からは、この品だけ') : null),
-            !opened ? el('div', { class: 'evlock' }, `${EV_RANKS[r - 1]} を取ると開く`)
+            /* 開いていない級は灰色に沈めるだけ。「〇級を取ると開く」の帯は出さない（2026-10-14・悠さんの指図） */
+            !opened ? null
             : (done && !open.repeat) ? el('div', { class: 'evdone' },
                 open.kind === 'weekly' ? '今週は取った' : '今日は取った') : null);
         })))),

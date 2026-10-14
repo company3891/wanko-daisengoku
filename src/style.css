@@ -6988,3 +6988,6 @@ main.hasnav:has(.tmpk){padding-bottom:calc(var(--nav,104px) + 128px)}
   font-size:24px;line-height:1;cursor:pointer;color:#a8802c;min-width:0}
 .gxfav.on{color:#d8a94a;text-shadow:0 0 6px #f5e2a8aa}
 .chip.favf.on{border-color:var(--gold);color:#12100e;background:linear-gradient(#f5e2a8,#d8a94a)}
+/* 限界突破の札が下で切れていた（2026-10-14・悠さんの指図）。
+   勝利の札の中身が長いと、縦並びの中でこの札だけ縮められ、overflow:hidden で字が欠けた。縮ませない */
+.trlimit { flex-shrink: 0; min-height: max-content; }

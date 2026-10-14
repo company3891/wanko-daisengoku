@@ -12561,7 +12561,7 @@ function trPrizes(o) {
   for (const [nm, n] of Object.entries(o.books || {})) add(itemUrl(nm), '書', nm, n);
   add(uiUrl('coin_魂'), '魂', '武士の魂', o.soul);
   for (const nm of (o.items || [])) add(itemUrl(nm), '品', nm, 1);
-  add(null, '兵', '兵量', o.heal);
+  add(uiUrl('trail_heal'), '兵', '兵量', o.heal);   // おにぎりの絵（2026-10-14・悠さん作）。無ければ「兵」の一字
   return t.length ? el('div', { class: 'pzrow trpz' }, t) : null;
 }
 /* 宝箱の絵の上に、出てきた品を浮かせる */

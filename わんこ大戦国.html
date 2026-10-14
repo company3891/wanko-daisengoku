@@ -7238,6 +7238,45 @@ div:has(> .go.twgo){justify-content:center}
 .tksheet .tkpz .pzi,.tksheet .tkpz .pzm{background:#fff;border:1px solid #a8802c}
 .tksheet .tkpz .pzm{color:#8f6a1c}
 
+/* ---- お祭りの級の札（2026-10-14 悠さんの指図「デュエルカップみたいに」）----
+   クリームの札に金の縁。左に敵総大将の顔、右に「級・CLEAR・兵糧」と褒美の絵。札ごと押して出陣 */
+.evcards{gap:10px}
+.evrank.evcard{position:relative;display:flex;align-items:stretch;gap:10px;padding:8px 10px 8px 8px;
+  border-radius:12px;background:linear-gradient(180deg,#fbf5e6,#efe4ca);border:2px solid #c8952e;
+  box-shadow:inset 0 1px 0 #fff,0 3px 0 #7a5418,0 5px 10px #0008;overflow:hidden}
+.evrank.evcard.go{cursor:pointer}
+.evrank.evcard.go:active{transform:translateY(2px);box-shadow:inset 0 1px 0 #fff,0 1px 0 #7a5418,0 2px 6px #0008}
+.evcf{flex:0 0 76px;width:76px;height:76px;border-radius:9px;overflow:hidden;
+  background:radial-gradient(circle at 50% 35%,#fff,#e6d6b2);border:1px solid #c8a35a;display:flex;align-items:center;justify-content:center}
+.evcf img{width:100%;height:100%;object-fit:cover}
+.evcf i{font-style:normal;font-family:var(--mincho);font-size:26px;color:#8f6a1c}
+.evcb{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:4px}
+.evcard .evhd{margin:0;padding-bottom:4px;border-bottom:1.5px solid #c8952e66}
+.evcard .evhd b{font-size:17px;color:#5a3a12;letter-spacing:.12em}
+.evcard .evfood{color:#5a3a12;font-size:14px;font-weight:700;gap:3px;display:inline-flex;align-items:center}
+.evcard .evfood .ci.cur{width:18px;height:18px}
+.evcard .evclr{font-size:9px}
+.evcrow{display:flex;align-items:flex-end;gap:6px}
+.evtiles{flex:1;min-width:0;display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden}
+.evt{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:40px}
+.evti{width:38px;height:38px;border-radius:8px;background:#fff;border:1px solid #a8802c;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px #0003}
+.evti img{width:32px;height:32px;object-fit:contain}
+.evti i{font-style:normal;font-family:var(--mincho);font-size:16px;color:#8f6a1c}
+.evt b{font-size:11px;line-height:1.1;color:#3a2a10;font-weight:800;white-space:nowrap}
+.evcard .evskip{flex:0 0 auto;margin-bottom:2px}
+.evcard .evagain{margin:0;font-size:10px;color:#8a6a3a}
+/* 開いていない級／取り終えた級 */
+.evrank.evcard.locked{opacity:1;filter:none}
+.evrank.evcard.locked > .evcf,.evrank.evcard.locked > .evcb{filter:grayscale(.85) brightness(.75);opacity:.7}
+.evlock,.evdone{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  padding:6px 0;text-align:center;font-weight:800;font-size:15px;letter-spacing:.08em;color:#fff;
+  background:linear-gradient(90deg,#0000,#000b 12%,#000b 88%,#0000);text-shadow:0 1px 3px #000;pointer-events:none}
+.evrank.evcard.done:not(.again){filter:none;opacity:1}
+.evrank.evcard.done:not(.again) > .evcf,.evrank.evcard.done:not(.again) > .evcb{filter:grayscale(.5);opacity:.75}
+.evdone{color:#f5e2a8;font-family:var(--mincho)}
+.evcard .evclr{background:#3f8f5a;color:#fff;border-color:#2f6f45;letter-spacing:.06em}
+
 </style>
 </head>
 <body>
@@ -36059,7 +36098,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 16:41 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 19:18 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -38234,7 +38273,7 @@ function startBattle(camp, evb, spar, bout, tw, away) {
   let B = camp ? campEnemy(camp.pref, camp.step, rng)
             : spar ? campEnemy(spar.pref, spar.pref.battles - 1, rng)
             : bout ? rkTeamOf(bout.npc)
-            : evb ? evEnemy(evb.rank, rng)
+            : evb ? evEnemy(evb.rank, evRng(evb.id, evb.rank))   // 札の顔と同じ顔ぶれ（2026-10-14）
             : tw ? twEnemy(tw.f, rng)
             : away ? ((away.team || {}).members || [])
             : enemyTeam(rng);
@@ -40285,7 +40324,7 @@ function evSkip(id, rank) {
   const seed = (Math.random() * 1e9) | 0;
   let s2 = seed >>> 0;
   const rng = () => { s2 = (s2 + 0x6D2B79F5) >>> 0; let x = Math.imul(s2 ^ (s2 >>> 15), 1 | s2); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
-  const B = evEnemy(rank, rng);
+  const B = evEnemy(rank, evRng(id, rank));   // 札の顔と同じ顔ぶれ（2026-10-14）
   S.stage = EV_STAGE[rank] || '草原';                  // 早送りでも級の場所で戦う（2026-09-28）
   S.stageV = rank % stageVarCount(S.stage);            // 盤面ちがいも級で固定（2026-09-28）
   S.stageFlip = false;                                 // お祭りは相手が国なので入れ替えない
@@ -40436,38 +40475,40 @@ function screenEvent() {
           ? el('p', { class: 'note' }, `今日の軍配は ${awakeAttrsToday().join('・')}`)
           : el('p', { class: 'note' }, open.note),
         S.evMsg ? el('div', { class: 'shopmsg' }, S.evMsg) : null,
-        el('div', { class: 'evranks' }, EV_RANKS.map((rk, r) => {
+        /* 級の札（2026-10-14・悠さんの指図「デュエルカップみたいに」）。
+           挑むの釦は外し、札そのものを押して出陣する。
+           左＝その級の敵総大将の顔／右上＝級の名・CLEAR・兵糧／右下＝褒美の絵（数は絵の下）。
+           まだ開いていない級は暗くして「〇級を取ると開く」の帯、取り終えた級は「取った」の判 */
+        el('div', { class: 'evranks evcards' }, EV_RANKS.map((rk, r) => {
           const opened = evOpen(open.id, r), cleared = evCleared(open.id, r), done = evDone(open.id, r);
           const rw = open.reward(r) || {};
-          return el('div', { class: 'evrank' + (opened ? '' : ' locked') + (done ? ' done' : '')
-            + (done && open.repeat ? ' again' : '') },
-            el('div', { class: 'evhd' },
-              el('b', {}, rk),
-              cleared ? el('span', { class: 'evclr' }, 'CLEAR') : null,
-              el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
-            el('div', { class: 'evrw2' }, rwChips(rw)),
-            !opened ? el('p', { class: 'note' }, `${EV_RANKS[r - 1]} を取ると開く`)
-            : (done && !open.repeat)
-              ? el('p', { class: 'note' }, open.kind === 'weekly' ? '今週はもう取った' : '今日はもう取った')
-            : el('div', { class: 'acts2 evacts' },
-                el('button', {
-                  class: 'go sm', disabled: P.stamina < EV_FOOD[r] ? null : null,
-                  onclick: () => evGo(open.id, r, false),
-                }, '挑む'),
-                /* 土日の二つ（allRanks）は、まだ取っていなくても早送りできる（2026-09-29）。
-                   二日で何度も回る祭りなので、毎回盤面を見るのはかえって重い */
-                /* 2026-10-07（悠さんの指図）：**はじめて挑む級は早送りできない**。
-                   土日の二つ（allRanks）も、取るまでは盤を見てもらう */
-                /* 2026-10-14（悠さんの指図）：早送りは挑むと同じ列の右端に、丸い「≫」で。
-                   早送りが無い級は挑むだけが真ん中に立つ */
-                cleared ? el('button', {
-                  class: 'evskip', title: 'スキップ', 'aria-label': 'スキップ', onclick: () => evGo(open.id, r, true),
-                }, el('i', {}, '〉〉')) : null,
-                /* 二度目からは品だけ、という断りをその場に出す（2026-10-01）。
-                   数は出さない（「説明しすぎない」の決まり）ので、何が無いかだけ書く */
-                (done && open.repeat)
-                  ? el('p', { class: 'note evagain' }, '二度目からは、この品だけ')
-                  : null));
+          const playable = opened && !(done && !open.repeat);
+          const lead = evLeadOf(open.id, r);
+          const face = lead ? (faceUrl(lead.no, '通常') || pawnUrl(lead.no)) : null;
+          return el('div', {
+            class: 'evrank evcard' + (opened ? '' : ' locked') + (done ? ' done' : '')
+              + (done && open.repeat ? ' again' : '') + (playable ? ' go' : ''),
+            role: playable ? 'button' : null,
+            onclick: playable ? () => evGo(open.id, r, false) : null,
+          },
+            el('span', { class: 'evcf' },
+              face ? keepImg({ src: face, alt: lead.name }) : el('i', {}, lead ? lead.name[0] : '？')),
+            el('div', { class: 'evcb' },
+              el('div', { class: 'evhd' },
+                el('b', {}, rk),
+                cleared ? el('span', { class: 'evclr' }, 'CLEAR') : null,
+                el('span', { class: 'evfood' }, curIcon('food'), `${EV_FOOD[r]}`)),
+              el('div', { class: 'evcrow' },
+                el('div', { class: 'evtiles' }, evTiles(rw)),
+                /* 早送りは札の右下に丸く。押しても札の出陣には落ちない */
+                playable && cleared ? el('button', {
+                  class: 'evskip', title: 'スキップ', 'aria-label': 'スキップ',
+                  onclick: e => { e.stopPropagation(); evGo(open.id, r, true); },
+                }, el('i', {}, '〉〉')) : null),
+              (done && open.repeat) ? el('p', { class: 'note evagain' }, '二度目からは、この品だけ') : null),
+            !opened ? el('div', { class: 'evlock' }, `${EV_RANKS[r - 1]} を取ると開く`)
+            : (done && !open.repeat) ? el('div', { class: 'evdone' },
+                open.kind === 'weekly' ? '今週は取った' : '今日は取った') : null);
         })))),
     nav: true,
   };
@@ -40491,6 +40532,30 @@ function evFaceIcon(ev) {
   if (rw.soul)  return curIcon('soul');
   if (rw.stone) return curIcon('stone');
   return el('i', {}, ev.mark);
+}
+/* お祭りの級の敵総大将（2026-10-14）。
+   札に顔を出すため、その日・その級の顔ぶれは日付から決まる乱数で組む（evEnemy の一人目＝総大将）。
+   戦でも同じ乱数を使うので、札の顔と戦の相手が食い違わない */
+function evRng(id, rank) { return rkRand(rkSeed(`ev:${id}:${rank}:${today()}`)); }
+function evLeadOf(id, rank) {
+  try { const B = evEnemy(rank, evRng(id, rank)); return B && B[0] ? charOf(B[0].no) || B[0] : null; }
+  catch (_) { return null; }
+}
+/* 褒美を絵で並べる。数は絵の下（2026-10-14） */
+function evTiles(rw) {
+  const t = [];
+  const add = (art, mark, name, n) => t.push(el('span', { class: 'evt', title: name },
+    el('span', { class: 'evti' }, art ? keepImg({ src: art, alt: name }) : el('i', {}, mark)),
+    el('b', {}, n)));
+  if (rw.stone) add(uiUrl('coin_石'), '勾', '勾玉', num(rw.stone));
+  if (rw.koban) add(uiUrl('coin_小判'), '判', '小判', num(rw.koban));
+  if (rw.soul)  add(uiUrl('coin_魂'), '魂', '魂', num(rw.soul));
+  for (const [k, n] of Object.entries(rw.items || {})) if (n > 0) add(itemUrl(k), k[0], k, `×${num(n)}`);
+  for (const no of (rw.chars || [])) {
+    const o = charOf(no); if (!o) continue;
+    add(faceUrl(o.no, '通常') || pawnUrl(o.no), o.name[0], o.name, '武将');
+  }
+  return t;
 }
 function rwChips(rw) {
   const out = [];

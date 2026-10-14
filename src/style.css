@@ -7222,3 +7222,42 @@ div:has(> .go.twgo){justify-content:center}
 /* 制覇の褒美の地も白に（2026-10-14 悠さんの指図）。ほかの褒美の粒（.pzi）と同じ白地・金の縁 */
 .tksheet .tkpz .pzi,.tksheet .tkpz .pzm{background:#fff;border:1px solid #a8802c}
 .tksheet .tkpz .pzm{color:#8f6a1c}
+
+/* ---- お祭りの級の札（2026-10-14 悠さんの指図「デュエルカップみたいに」）----
+   クリームの札に金の縁。左に敵総大将の顔、右に「級・CLEAR・兵糧」と褒美の絵。札ごと押して出陣 */
+.evcards{gap:10px}
+.evrank.evcard{position:relative;display:flex;align-items:stretch;gap:10px;padding:8px 10px 8px 8px;
+  border-radius:12px;background:linear-gradient(180deg,#fbf5e6,#efe4ca);border:2px solid #c8952e;
+  box-shadow:inset 0 1px 0 #fff,0 3px 0 #7a5418,0 5px 10px #0008;overflow:hidden}
+.evrank.evcard.go{cursor:pointer}
+.evrank.evcard.go:active{transform:translateY(2px);box-shadow:inset 0 1px 0 #fff,0 1px 0 #7a5418,0 2px 6px #0008}
+.evcf{flex:0 0 76px;width:76px;height:76px;border-radius:9px;overflow:hidden;
+  background:radial-gradient(circle at 50% 35%,#fff,#e6d6b2);border:1px solid #c8a35a;display:flex;align-items:center;justify-content:center}
+.evcf img{width:100%;height:100%;object-fit:cover}
+.evcf i{font-style:normal;font-family:var(--mincho);font-size:26px;color:#8f6a1c}
+.evcb{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:4px}
+.evcard .evhd{margin:0;padding-bottom:4px;border-bottom:1.5px solid #c8952e66}
+.evcard .evhd b{font-size:17px;color:#5a3a12;letter-spacing:.12em}
+.evcard .evfood{color:#5a3a12;font-size:14px;font-weight:700;gap:3px;display:inline-flex;align-items:center}
+.evcard .evfood .ci.cur{width:18px;height:18px}
+.evcard .evclr{font-size:9px}
+.evcrow{display:flex;align-items:flex-end;gap:6px}
+.evtiles{flex:1;min-width:0;display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden}
+.evt{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:40px}
+.evti{width:38px;height:38px;border-radius:8px;background:#fff;border:1px solid #a8802c;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px #0003}
+.evti img{width:32px;height:32px;object-fit:contain}
+.evti i{font-style:normal;font-family:var(--mincho);font-size:16px;color:#8f6a1c}
+.evt b{font-size:11px;line-height:1.1;color:#3a2a10;font-weight:800;white-space:nowrap}
+.evcard .evskip{flex:0 0 auto;margin-bottom:2px}
+.evcard .evagain{margin:0;font-size:10px;color:#8a6a3a}
+/* 開いていない級／取り終えた級 */
+.evrank.evcard.locked{opacity:1;filter:none}
+.evrank.evcard.locked > .evcf,.evrank.evcard.locked > .evcb{filter:grayscale(.85) brightness(.75);opacity:.7}
+.evlock,.evdone{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  padding:6px 0;text-align:center;font-weight:800;font-size:15px;letter-spacing:.08em;color:#fff;
+  background:linear-gradient(90deg,#0000,#000b 12%,#000b 88%,#0000);text-shadow:0 1px 3px #000;pointer-events:none}
+.evrank.evcard.done:not(.again){filter:none;opacity:1}
+.evrank.evcard.done:not(.again) > .evcf,.evrank.evcard.done:not(.again) > .evcb{filter:grayscale(.5);opacity:.75}
+.evdone{color:#f5e2a8;font-family:var(--mincho)}
+.evcard .evclr{background:#3f8f5a;color:#fff;border-color:#2f6f45;letter-spacing:.06em}

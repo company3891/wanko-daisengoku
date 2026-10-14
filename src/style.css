@@ -7265,3 +7265,6 @@ div:has(> .go.twgo){justify-content:center}
 .sqbox .mgrow.sqgo button.go{flex:1 1 auto;min-width:0}
 .sqbox .mgrow.sqgo .evskip.mchskip2{margin:0 5px}
 .sqbox .mgrow.sqgo .mgsp{flex:0 0 44px;width:44px}
+/* 「この部隊で挑む」を短く（2026-10-14 悠さんの指図）。道具・挑む・早送りを真ん中に寄せて並べる */
+.sqbox .mgrow.sqgo{justify-content:center;gap:14px}
+.sqbox .mgrow.sqgo button.go{flex:0 0 auto;width:200px;max-width:calc(100% - 120px)}

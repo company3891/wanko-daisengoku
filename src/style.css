@@ -7268,3 +7268,12 @@ div:has(> .go.twgo){justify-content:center}
 /* 「この部隊で挑む」を短く（2026-10-14 悠さんの指図）。道具・挑む・早送りを真ん中に寄せて並べる */
 .sqbox .mgrow.sqgo{justify-content:center;gap:14px}
 .sqbox .mgrow.sqgo button.go{flex:0 0 auto;width:200px;max-width:calc(100% - 120px)}
+
+/* お祭り・ショップで、字と枠が出ず絵だけが出ていた（2026-10-14・悠さんの iPhone）。
+   見立て：後ろの地紋（.bgfull）は position:fixed・z-index:-1 に translateX を掛けていて、
+   Safari はこれを別の層に上げる。すると、位置を持たない本文（字・枠・地の色）が
+   その層の下に回ってしまい、層を持つ絵や position:relative の札だけが見えていた。
+   ・main を position:relative＋z-index:0 にして、本文ごと一つの重なりにまとめて地紋の上に置く
+   ・地紋は translate を使わずに真ん中へ寄せ、余計な層を作らない */
+main{position:relative;z-index:0}
+.bgfull{left:0;right:0;margin:0 auto;transform:none}

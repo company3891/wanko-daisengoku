@@ -7166,6 +7166,21 @@ div:has(> .go.twgo){justify-content:center}
 .evskip i{margin-left:0;transform:translateX(3px) scaleY(.9)}
 .evskip i{transform:translateY(1px) scaleY(.9)}
 
+/* 取引所の「出す」札（2026-10-14 悠さんの指図）。
+   字がぼけて見えたのは、取引所の頁（.mkpage.art）の地の絵の上で読ませるための黒い影が、
+   白い札の中の字にまで効いていたから。札の中では影を消す */
+.mkpage.art .mkbox :is(p,span,b,i,div):not(button *){text-shadow:none}
+/* 釦は横並び・同じ幅・真ん中寄せ */
+.acts2.mkacts{display:flex;flex-wrap:nowrap;justify-content:center;gap:12px;margin-top:10px}
+.acts2.mkacts > button{flex:0 0 128px;width:128px;min-width:0;padding:11px 0;font-size:13px}
+
+/* 試練の塔の出陣（2026-10-14 悠さんの指図）。縦二段だと字がはみ出たので、
+   「出陣＋兵糧の印＋数」を横一列に */
+.go.twgo{flex-direction:row;gap:8px;padding:12px 10px}
+.go.twgo em{font-size:14px;margin:0}
+.go.twgo em .ci,.go.twgo em i{width:18px;height:18px}
+.acts2.mkacts > button.go.sm,.acts2.mkacts > button.ghost.sm{flex:0 0 128px;width:128px;min-width:0;padding:11px 0;font-size:13px}
+
 </style>
 </head>
 <body>
@@ -35965,7 +35980,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 14:12 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 15:33 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -39878,8 +39893,8 @@ function mkPutSheet() {
         `　（手数料 ${num(mkFee(price))} を引く）`),
       el('p', { class: 'note' }, '安く出すほど早く売れる。二日たっても売れなければ戻ってくる'),
       el('p', { class: 'note warn' }, '出すと、手持ちの枚数も育ちも まるごと預かる'),
-      el('div', { class: 'acts2' },
-        el('button', { class: 'ghost sm', onclick: close }, 'やめる'),
+      /* 2026-10-14（悠さんの指図）：横並び・同じ大きさ・真ん中寄せ。並びは「取引に出す」「やめる」 */
+      el('div', { class: 'acts2 mkacts' },
         el('button', {
           class: 'go sm', disabled: mkCanList(c.no) ? null : true,
           onclick: () => {
@@ -39896,7 +39911,8 @@ function mkPutSheet() {
               draw();
             });
           },
-        }, '取引に出す')),
+        }, '取引に出す'),
+        el('button', { class: 'ghost sm', onclick: close }, 'やめる')),
       closeX(close)));
 }
 /* ---- サーバーの取引所に声を掛ける（2026-10-05）----

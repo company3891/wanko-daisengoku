@@ -10709,8 +10709,8 @@ function mkPutSheet() {
         `　（手数料 ${num(mkFee(price))} を引く）`),
       el('p', { class: 'note' }, '安く出すほど早く売れる。二日たっても売れなければ戻ってくる'),
       el('p', { class: 'note warn' }, '出すと、手持ちの枚数も育ちも まるごと預かる'),
-      el('div', { class: 'acts2' },
-        el('button', { class: 'ghost sm', onclick: close }, 'やめる'),
+      /* 2026-10-14（悠さんの指図）：横並び・同じ大きさ・真ん中寄せ。並びは「取引に出す」「やめる」 */
+      el('div', { class: 'acts2 mkacts' },
         el('button', {
           class: 'go sm', disabled: mkCanList(c.no) ? null : true,
           onclick: () => {
@@ -10727,7 +10727,8 @@ function mkPutSheet() {
               draw();
             });
           },
-        }, '取引に出す')),
+        }, '取引に出す'),
+        el('button', { class: 'ghost sm', onclick: close }, 'やめる')),
       closeX(close)));
 }
 /* ---- サーバーの取引所に声を掛ける（2026-10-05）----

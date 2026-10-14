@@ -7150,3 +7150,18 @@ div:has(> .go.twgo){justify-content:center}
 /* 〉〉 は字の箱の左に寄って描かれるので、右へ戻して丸の真ん中に（2026-10-14） */
 .evskip i{margin-left:0;transform:translateX(3px) scaleY(.9)}
 .evskip i{transform:translateY(1px) scaleY(.9)}
+
+/* 取引所の「出す」札（2026-10-14 悠さんの指図）。
+   字がぼけて見えたのは、取引所の頁（.mkpage.art）の地の絵の上で読ませるための黒い影が、
+   白い札の中の字にまで効いていたから。札の中では影を消す */
+.mkpage.art .mkbox :is(p,span,b,i,div):not(button *){text-shadow:none}
+/* 釦は横並び・同じ幅・真ん中寄せ */
+.acts2.mkacts{display:flex;flex-wrap:nowrap;justify-content:center;gap:12px;margin-top:10px}
+.acts2.mkacts > button{flex:0 0 128px;width:128px;min-width:0;padding:11px 0;font-size:13px}
+
+/* 試練の塔の出陣（2026-10-14 悠さんの指図）。縦二段だと字がはみ出たので、
+   「出陣＋兵糧の印＋数」を横一列に */
+.go.twgo{flex-direction:row;gap:8px;padding:12px 10px}
+.go.twgo em{font-size:14px;margin:0}
+.go.twgo em .ci,.go.twgo em i{width:18px;height:18px}
+.acts2.mkacts > button.go.sm,.acts2.mkacts > button.ghost.sm{flex:0 0 128px;width:128px;min-width:0;padding:11px 0;font-size:13px}

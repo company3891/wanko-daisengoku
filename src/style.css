@@ -7167,3 +7167,9 @@ div:has(> .go.twgo){justify-content:center}
 .acts2.mkacts > button.go.sm,.acts2.mkacts > button.ghost.sm{flex:0 0 128px;width:128px;min-width:0;padding:11px 0;font-size:13px}
 /* 総合力の上の線がコマ絵の足元に被っていた（2026-10-14 悠さんの指図）。線ごと少し下げる */
 .card2.gxbox .gxtot{margin-top:18px}
+
+/* 全国の出陣の行（2026-10-14 悠さんの指図）。左＝道具、真ん中＝出陣、右＝丸い早送り。
+   早送りの丸は道具の絵（48px）と同じ幅を取り、出陣が真ん中からずれないようにする */
+.mgrow .evskip.mchskip2{margin:0 7px;flex:0 0 auto}
+.mgrow .evskip.mchskip2:disabled{opacity:.35;pointer-events:none}
+.mgrow .mgsp{flex:0 0 48px;width:48px}

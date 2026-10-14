@@ -7183,6 +7183,12 @@ div:has(> .go.twgo){justify-content:center}
 /* 総合力の上の線がコマ絵の足元に被っていた（2026-10-14 悠さんの指図）。線ごと少し下げる */
 .card2.gxbox .gxtot{margin-top:18px}
 
+/* 全国の出陣の行（2026-10-14 悠さんの指図）。左＝道具、真ん中＝出陣、右＝丸い早送り。
+   早送りの丸は道具の絵（48px）と同じ幅を取り、出陣が真ん中からずれないようにする */
+.mgrow .evskip.mchskip2{margin:0 7px;flex:0 0 auto}
+.mgrow .evskip.mchskip2:disabled{opacity:.35;pointer-events:none}
+.mgrow .mgsp{flex:0 0 48px;width:48px}
+
 </style>
 </head>
 <body>
@@ -33504,24 +33510,26 @@ function screenMarch() {
           if (!canMarch(p, step)) { S.foodAfter = run; S.foodNeed = food; S.food = true; SFX.pick(); draw(); return; }
           run();
         };
+        /* 2026-10-14 改その三（悠さんの指図）：道具と入れ替えて**出陣の右**へ。
+           お祭りと同じ丸い「〉〉」にそろえる。早送りが無い国では同じ幅の空きを置き、出陣を真ん中に保つ */
         const skipBtn = taken ? el('button', {
-          class: 'ghost sm mchskip', disabled: can ? null : true,
-          title: `早送りで決着　兵糧 ${food}`, onclick: skipGo,
-        }, 'スキップ') : null;
+          class: 'evskip mchskip2', disabled: can ? null : true,
+          title: `スキップ　兵糧 ${food}`, 'aria-label': 'スキップ', onclick: skipGo,
+        }, el('i', {}, '〉〉')) : el('span', { class: 'mgsp' });
         if (!art) {
           return el('div', { class: 'marchgo' },
             el('div', { class: 'mgrow' },
-              skipBtn,
-              el('button', { class: 'go big out', disabled: can ? null : true, onclick: go }, word), pbtn),
+              pbtn,
+              el('button', { class: 'go big out', disabled: can ? null : true, onclick: go }, word), skipBtn),
             prepTags());
         }
         return el('div', { class: 'marchgo' },
           el('div', { class: 'mgrow' },
-            skipBtn,
+            pbtn,
             el('button', {
               class: 'go big out pic', disabled: can ? null : true, title: word, onclick: go,
             }, keepImg({ src: art, alt: '出陣' })),
-            pbtn),
+            skipBtn),
           el('p', { class: 'marchsub' },
             canMarch(p, step) ? (taken ? `もう一度戦う　兵糧 ${food}` : `兵糧 ${food}`)
                        : `兵糧をもどして出陣（要 ${food}）`),
@@ -35982,7 +35990,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 15:37 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/14 15:41 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

@@ -4318,24 +4318,26 @@ function screenMarch() {
           if (!canMarch(p, step)) { S.foodAfter = run; S.foodNeed = food; S.food = true; SFX.pick(); draw(); return; }
           run();
         };
+        /* 2026-10-14 改その三（悠さんの指図）：道具と入れ替えて**出陣の右**へ。
+           お祭りと同じ丸い「〉〉」にそろえる。早送りが無い国では同じ幅の空きを置き、出陣を真ん中に保つ */
         const skipBtn = taken ? el('button', {
-          class: 'ghost sm mchskip', disabled: can ? null : true,
-          title: `早送りで決着　兵糧 ${food}`, onclick: skipGo,
-        }, 'スキップ') : null;
+          class: 'evskip mchskip2', disabled: can ? null : true,
+          title: `スキップ　兵糧 ${food}`, 'aria-label': 'スキップ', onclick: skipGo,
+        }, el('i', {}, '〉〉')) : el('span', { class: 'mgsp' });
         if (!art) {
           return el('div', { class: 'marchgo' },
             el('div', { class: 'mgrow' },
-              skipBtn,
-              el('button', { class: 'go big out', disabled: can ? null : true, onclick: go }, word), pbtn),
+              pbtn,
+              el('button', { class: 'go big out', disabled: can ? null : true, onclick: go }, word), skipBtn),
             prepTags());
         }
         return el('div', { class: 'marchgo' },
           el('div', { class: 'mgrow' },
-            skipBtn,
+            pbtn,
             el('button', {
               class: 'go big out pic', disabled: can ? null : true, title: word, onclick: go,
             }, keepImg({ src: art, alt: '出陣' })),
-            pbtn),
+            skipBtn),
           el('p', { class: 'marchsub' },
             canMarch(p, step) ? (taken ? `もう一度戦う　兵糧 ${food}` : `兵糧 ${food}`)
                        : `兵糧をもどして出陣（要 ${food}）`),

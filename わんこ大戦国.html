@@ -8506,7 +8506,7 @@ function groundPct(u, key) {
   if ((g.bad || []).includes(t)) p += (r.ground.badPct || {})[key] || 0;
   return p;
 }
-function stat(u, key) {
+function stat(u, key, noShare) {
   let pct = u.stacks[key] || 0;
   pct += u.weatherPct || 0;             // 天候による全ステータスの上下（2026-09-21）
   pct += u.formPct || 0;                // 得意／苦手の陣形（2026-09-24）
@@ -8515,7 +8515,13 @@ function stat(u, key) {
   for (const m of u.mods) if (m.stat === key && condOk(u, m)) pct += m.pct;
   if (u.scaleOnHpLost && u.scaleOnHpLost.stat === key)
     pct += u.scaleOnHpLost.max * (1 - u.hp / u.maxHp);
-  return Math.max(1, u.base[key] * (1 + pct) * (1 - aff));
+  let v = Math.max(1, u.base[key] * (1 + pct) * (1 - aff));
+  /* 「Nターンの間 自身と同じにする」（雷華の采配◆ など・2026-10-15）。
+     掛けた者の いまの値 に、そのあいだずっと合わせる（掛けた者が強化されれば、こちらもついていく）。
+     掛けた者が倒れたら、もとの値に戻る。合わせ先の合わせ先は見ない（ぐるぐる回らないように） */
+  if (!noShare) for (const m of u.mods)
+    if (m.share && m.stat === key && m.share !== u && m.share.alive) v = Math.max(v, stat(m.share, key, true));
+  return v;
 }
 /* ---------------- 天候（2026-09-21） ----------------
    晴を平常（全属性0）とし、ほかの天候は属性ごとに上下する。
@@ -9078,11 +9084,14 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         } else {
           picks = [pool.slice().sort((a, b) => (a.base[k] || 0) - (b.base[k] || 0))[0]];
         }
+        /* 「Nターンの間 自身と同じにする」（2026-10-15・悠さんの見立て「雷華の采配って稼働してる？」）。
+           前は素の値（base）を書き換えていたので、書いてあるターン数が過ぎても戻らなかった。
+           合わせる印（share）を時限で置き、stat() がそのあいだ掛けた者の値に合わせる（dur が無い技は いつまでも） */
         for (const low of picks) {
-          if (low && (low.base[k] || 0) < (self.base[k] || 0)) {
-            low.base[k] = self.base[k];
-            if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'shareStat', src: self.id, tgt: low.id, stat: k });
-          }
+          if (!low || stat(low, k) >= stat(self, k)) continue;
+          low.mods.push({ stat: k, pct: 0, share: self, left: eff.dur != null ? eff.dur : Infinity });
+          if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'shareStat', src: self.id, tgt: low.id, stat: k });
+          if (ctx.log && eff.dur != null) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'buff', tgt: low.id, stat: k, up: true });
         }
         break;
       }
@@ -10080,7 +10089,9 @@ const ALWAYS_TIMINGS = new Set(['常時', '条件成立中ずっと', '常時（
    常時の側に入れていたせいで uniqFire が落としてしまい、
    掛ける者がどこにも居なかった（石田ミツワン 61 の三成の采配が一度も効かず・悠さんの見立て）。
    常時の読み出し（activePassives）も damageToHeal は一度も見ていない */
-const PASSIVE = new Set(['dyingStrike', 'attackShape', 'attackStatus', 'empowerNext', 'shareStat', 'supportFire', 'slayer', 'execute', 'openingBurst', 'taunt', 'stackOnAttack', 'hideForTurns',
+/* shareStat を外した（2026-10-15）。味方に掛ける「撃つ」技なのに常時の側に入っていて、
+   固有（雷華の采配◆）として撃つときに uniqFire が落とし、一度も効いていなかった */
+const PASSIVE = new Set(['dyingStrike', 'attackShape', 'attackStatus', 'empowerNext', 'supportFire', 'slayer', 'execute', 'openingBurst', 'taunt', 'stackOnAttack', 'hideForTurns',
   'endure', 'healShape', 'mirrorHeal', 'healBlock', 'cleanse', 'untargetable', 'moveTiles',
   'durPlus', 'critTurn', 'healEveryTurn', 'focusTurn', 'matchStat', 'charm', 'rewardMul']);
 /* 戦闘開始時に一度だけ仕込む種類（2026-10-02）。下の「開戦の仕込み」で読む */
@@ -36299,7 +36310,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:45 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:49 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

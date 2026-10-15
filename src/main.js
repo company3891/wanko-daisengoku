@@ -8124,7 +8124,14 @@ async function openBox() {
      4秒流して最後のコマで止まり、そのまま札の背景になる。
      動画が無ければ、これまでどおり短く光らせるだけ */
   const mv = bgVideoUrl('gacha_chest') || bgVideoUrl('gacha_open');
-  if (mv && GVID) {
+  if (mv && GVID && chestU) {
+    /* 社殿の宝箱（2026-10-16・Grok で作り直した gacha_chest）。巻物が飛び出すのは動画の 1.75秒。
+       箱の音の山（ぱっと開く）は 2.60秒なので、音を先に鳴らして 0.85秒あとに絵を動かす。
+       動画は先に取り込んであるので、動き出しの待ちはほぼ無い */
+    SFX.box();
+    await hold(850);
+    await playOnce(GVID, 4300);
+  } else if (mv && GVID) {
     /* 箱の音は、箱の絵が動き出した瞬間に鳴らす（2026-10-16）。先に鳴らすと読み込みの待ちぶん ずれる */
     const pl = playOnce(GVID, 5000);
     await whenPlaying(GVID, 700); SFX.box();

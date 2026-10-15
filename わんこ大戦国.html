@@ -7319,6 +7319,14 @@ main{position:relative;z-index:0}
 .jttl.art .jchno{line-height:1.3;margin-bottom:2px}
 h2 .jchno{font-size:11px;margin-bottom:2px}
 
+/* お知らせ札の下の二つの釦を立体に・小さく（2026-10-15・悠さんの指図）。
+   色と照りは共通の立体の釦（.go 金／.ghost 黒漆）に任せ、ここでは大きさだけ決める。
+   .go の flex:1・min-width:120px は打ち消す */
+.adbtns{gap:14px;margin-top:6px}
+.adbtns .adbtn{flex:0 0 auto !important;min-width:0 !important;width:auto;height:38px;min-height:0;
+  padding:0 16px;border-radius:10px;font-size:13px;letter-spacing:.04em;white-space:nowrap;flex-direction:row}
+.adbtns .adbtn.go{padding:0 26px}
+
 </style>
 </head>
 <body>
@@ -36287,7 +36295,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:32 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:42 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -36646,11 +36654,12 @@ function adSheet() {
       /* 釦は札の下に二つ（2026-10-09・悠さんの指図）。
          stopPropagation を付けないと、上の adsheet の onclick（次へ）も一緒に走る */
       el('div', { class: 'adbtns' },
-        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); hideToday(); } },
-          el('span', {}, '今日は'), el('span', {}, '表示しない')),
+        /* 立体の釦に（2026-10-15・悠さんの指図「ここのボタンも立体感のやつに。サイズももう少しコンパクトに」）。
+           脇役の「今日は表示しない」は黒漆、主役の「とじる」は金。字は一行に */
+        el('button', { class: 'adbtn ghost', onclick: e => { e.stopPropagation(); hideToday(); } }, '今日は表示しない'),
         /* 「とじる」は画面を触ったときと同じ＝次の札へ（2026-10-10・悠さんの指図
            「閉じると画面タップは同じ動きね！」）。前は全部まとめて閉じていた */
-        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); next(); } }, 'とじる'))));
+        el('button', { class: 'adbtn go', onclick: e => { e.stopPropagation(); next(); } }, 'とじる'))));
 }
 const newsOf = id => NEWS.find(n => n.id === id) || null;
 const newsRead = n => (P.newsRead || []).includes(n.id);

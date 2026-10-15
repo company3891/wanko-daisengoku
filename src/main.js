@@ -7188,11 +7188,12 @@ function adSheet() {
       /* 釦は札の下に二つ（2026-10-09・悠さんの指図）。
          stopPropagation を付けないと、上の adsheet の onclick（次へ）も一緒に走る */
       el('div', { class: 'adbtns' },
-        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); hideToday(); } },
-          el('span', {}, '今日は'), el('span', {}, '表示しない')),
+        /* 立体の釦に（2026-10-15・悠さんの指図「ここのボタンも立体感のやつに。サイズももう少しコンパクトに」）。
+           脇役の「今日は表示しない」は黒漆、主役の「とじる」は金。字は一行に */
+        el('button', { class: 'adbtn ghost', onclick: e => { e.stopPropagation(); hideToday(); } }, '今日は表示しない'),
         /* 「とじる」は画面を触ったときと同じ＝次の札へ（2026-10-10・悠さんの指図
            「閉じると画面タップは同じ動きね！」）。前は全部まとめて閉じていた */
-        el('button', { class: 'adbtn', onclick: e => { e.stopPropagation(); next(); } }, 'とじる'))));
+        el('button', { class: 'adbtn go', onclick: e => { e.stopPropagation(); next(); } }, 'とじる'))));
 }
 const newsOf = id => NEWS.find(n => n.id === id) || null;
 const newsRead = n => (P.newsRead || []).includes(n.id);

@@ -8416,7 +8416,12 @@ async function doPull(count, noDup) {
   /* 宝箱があるときは、そちらに預けて手を止める（2026-09-26） */
   /* みくじの音（SFX.pull）だけでよい。ここで SFX.pick を重ねると、
      画面が切り替わった直後に「かちっ」と鳴って耳につく（2026-09-30 に外した） */
-  if (uiUrl('gacha_box')) { S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; draw(); return; }
+  if (uiUrl('gacha_box')) {
+    /* 二度目に引くと、前に開いた箱の最後のコマ（光の柱）のまま止まっていた（2026-10-16・実機の録画）。
+       動画の節は使い回すので、頭に巻き戻してから宝の前に立たせる */
+    if (GVID) { try { GVID.pause(); GVID.currentTime = 0; } catch { /* まだ読めていない */ } }
+    S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; draw(); return;
+  }
   S.gacha = null; draw();
   // 巻物が飛んで開く
   const best = r.items.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');

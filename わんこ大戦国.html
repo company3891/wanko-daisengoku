@@ -36712,7 +36712,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 01:27 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 08:03 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -38075,7 +38075,12 @@ async function doPull(count, noDup) {
   /* 宝箱があるときは、そちらに預けて手を止める（2026-09-26） */
   /* みくじの音（SFX.pull）だけでよい。ここで SFX.pick を重ねると、
      画面が切り替わった直後に「かちっ」と鳴って耳につく（2026-09-30 に外した） */
-  if (uiUrl('gacha_box')) { S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; draw(); return; }
+  if (uiUrl('gacha_box')) {
+    /* 二度目に引くと、前に開いた箱の最後のコマ（光の柱）のまま止まっていた（2026-10-16・実機の録画）。
+       動画の節は使い回すので、頭に巻き戻してから宝の前に立たせる */
+    if (GVID) { try { GVID.pause(); GVID.currentTime = 0; } catch { /* まだ読めていない */ } }
+    S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; draw(); return;
+  }
   S.gacha = null; draw();
   // 巻物が飛んで開く
   const best = r.items.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');

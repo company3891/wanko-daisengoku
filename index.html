@@ -7698,6 +7698,14 @@ function parseSentence(s, out) {
            to: normalizeStat(m[2].replace('攻撃力', '火力').replace('防御力', '防御')),
            from: normalizeStat(m[4].replace('攻撃力', '火力').replace('防御力', '防御')) });
   }
+  /* ⑦の二 確率なしで、いつも合わせる（2026-10-15）。相模の獅子壁◆
+     「自身の回復ステータスを自身の防御と同じ数値にし」── 読めておらず、回復は上がっていなかった。
+     毎ターン頭で合わせ直す（1ターンの強化を毎ターン置き直す）ので、防御が上がれば回復もついてくる */
+  else if ((m = s.match(/自身の(火力|攻撃力|賢さ|防御|防御力|回復|速さ)(?:ステータス)?を[、,]?\s*自身の(火力|攻撃力|賢さ|防御|防御力|回復|速さ)と同じ(?:数値)?に/))) {
+    push({ kind: 'matchStat', chance: 1, turns: 1,
+           to: normalizeStat(m[1].replace('攻撃力', '火力').replace('防御力', '防御')),
+           from: normalizeStat(m[2].replace('攻撃力', '火力').replace('防御力', '防御')) });
+  }
   // ⑧ 洗脳（姫の魅力）。相手を1体、こちら側として動かす
   if ((m = s.match(new RegExp(N + '%の確率で敵(?:武将)?' + N + '体を[^。]{0,10}?洗脳')))) {
     const tm = s.match(new RegExp(N + 'ターン'));
@@ -9062,15 +9070,17 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         uniqProc(self, 'cleanse', ctx);
         break;
       case 'debuffClear':
-        /* 弱体効果（数値の下げ）を各自 count だけ消す（2026-10-15）。榊原・朝倉の奥義。
-           下げ＝ mods のうち pct が負で、時限のもの。いちばん重いものから消す */
+        /* 弱体効果を「一種類」消す（2026-10-15・悠さんの決まり）。
+           一種類＝ひとつの数値。防御の下げが二つ掛かっていれば、二つとも消す。
+           どの種類を消すかは、いちばん重く下がっている数値から。
+           下げ＝ mods のうち pct が負で、時限のもの（常時の苦手などは消さない） */
         for (const e of tg) {
-          for (let i = 0; i < (eff.count || 1); i++) {
-            let w = -1;
-            e.mods.forEach((m, j) => { if (m.pct < 0 && m.left !== Infinity && (w < 0 || m.pct < e.mods[w].pct)) w = j; });
-            if (w < 0) break;
-            e.mods.splice(w, 1);
-          }
+          const isDown = m => m.pct < 0 && Number.isFinite(m.left);
+          const kindOf = m => m.stat || m.key;
+          const sum = {};
+          for (const m of e.mods) if (isDown(m)) sum[kindOf(m)] = (sum[kindOf(m)] || 0) + m.pct;
+          const worst = Object.keys(sum).sort((a, b) => sum[a] - sum[b])[0];
+          if (worst) e.mods = e.mods.filter(m => !(isDown(m) && kindOf(m) === worst));
         }
         if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'cleanse', src: self.id, n: tg.length });
         break;
@@ -10366,8 +10376,13 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     /* 固有が「常時」なら、ここで一度だけ数値に乗せる（2026-10-02）。
        前は8秒おきの発動のたびに乗っていたので、「自身の火力+10%」が
        戦の終わりには +30% まで積み上がっていた（実測 1030→1309） */
+    /* 継いだ◆（uniqueTrigX）も入れる（2026-10-15・悠さんの見立て
+       「まつわんの防御は常に+25%（築城の策）＋兵量50%以下で+15%なのに、上がり方が合わない」）。
+       ここは元の◆（uniqueTrig）しか見ておらず、継いだ◆の「常時 自身の防御+25%」は一度も乗っていなかった
+       （実測：築城の策を継いだまつわんと 素のまつわんで 防御の増減が同じ −75） */
     const trigs = (u.compiled.normalTriggers || [])
-      .concat(u.compiled.uniqueTrig ? [u.compiled.uniqueTrig] : []);
+      .concat(u.compiled.uniqueTrig ? [u.compiled.uniqueTrig] : [])
+      .concat(u.compiled.uniqueTrigX || []);
     for (const t of trigs) {
       if (!ALWAYS_TIMINGS.has(t.timing)) continue;
       for (const e of t.effects) {
@@ -36236,7 +36251,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 09:34 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 09:47 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

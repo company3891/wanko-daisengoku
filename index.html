@@ -8954,14 +8954,16 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         // 強化（プラス）だけ、かけた側の「能力解放」ぶん長持ちする（2026-09-28）
         const plus = (eff.kind === 'buff' && eff.pct > 0 && self._durPlus)
           ? self._durPlus * (ctx.rules.time?.secPerTurn ?? 2) : 0;
-        for (const e of tg) e.mods.push({ stat: eff.stat, pct: eff.pct * k,
+        // 敵への下げは、かばわれていれば身代わりへ（2026-10-15）
+        const tgB = eff.pct < 0 ? tg.map(e => coverRedirect(self, e, ctx)) : tg;
+        for (const e of tgB) e.mods.push({ stat: eff.stat, pct: eff.pct * k,
           left: eff.dur != null ? eff.dur + plus : Infinity, cond: eff.cond });
         /* 掛かった その場で矢印を出す（2026-10-04）。
            矢印はターンの頭の写しにしか乗っていなかったので、
            技が光ってから次のターンまで、誰に効いたのか分からなかった。
            持続時間のあるものだけ（常時のものは全員が持っていて印にならない） */
         if (ctx.log && eff.dur != null)
-          for (const e of tg) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'buff',
+          for (const e of tgB) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'buff',
             tgt: e.id, stat: eff.stat, up: eff.pct > 0 });
         break;
       }
@@ -8988,7 +8990,7 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         break;
       }
       case 'status':
-        for (const e of tg) applyStatus(self, e, eff, ctx);
+        for (const e of tg) applyStatus(self, coverRedirect(self, e, ctx), eff, ctx);
         break;
       case 'barrier':
         for (const e of tg) e.barrier = 1;
@@ -9135,6 +9137,12 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
   }
 }
 
+/* その行動でかばわれた者なら、身代わりを返す（2026-10-15）。状態異常と弱体を身代わりへ回すのに使う */
+function coverRedirect(src, tgt, ctx) {
+  const c = tgt && tgt._covAct;
+  if (c && c.id === ctx._actionId && c.src === src.id && c.by && c.by.alive) return c.by;
+  return tgt;
+}
 function applyStatus(src, tgt, eff, ctx) {
   const { rules, rng, log, t } = ctx;
   if (!tgt.alive || rules.v21Concepts === false) return;
@@ -9168,32 +9176,45 @@ function dealDamage(src, tgt, statName, rate, ctx, element) {
   const { rules, rng, log, t } = ctx;
   if (!tgt.alive) return null;
   // かばう: 総大将への攻撃を、かばう持ちの味方が肩代わりする。
-  // 「味方全員の攻撃をかばう」持ちは、総大将以外への攻撃も肩代わりする（守将の固有）
+  /* かばうの数え方（2026-10-15・悠さんの決まり）
+       味方全員をかばう … 1ターンのあいだ、味方1体につき1回かばう（確率は書いてあればそれ、無ければ必ず）
+       味方1体をかばう  … 1ターンに1人だけかばう（その手番で最初に斬られた味方）
+       守将の地の力     … これまでどおり、総大将への攻撃を 30% で肩代わり
+     前は「全員」が35%・一戦3回まで、「1体」は読めていても戦の中で扱う所が無く、何もしていなかった */
   {
     const team = mineOf(ctx, tgt);
+    const turnNow = tgt._turn ?? 0;
+    let how = null;
+    /* 混乱・洗脳・ひるみ・感電（麻痺）のように、自分で動けない者はかばわない（2026-10-15・悠さんの決まり） */
+    const NO_GUARD = ['混乱', '洗脳', 'ひるみ', '感電'];
     const guard = team.find(u => {
       if (!u.alive || u === tgt) return false;
-      const all = u.cover && u.cover.who === 'allAllies' && u.cover.left > 0;
-      if (!all && !tgt.isGeneral) return false;
-      const hasSkill = u.cover && (u.cover.who === 'general' || all) && u.cover.left > 0;
-      // 全員かばうは効果が極端に強いので、効果文に発動率が無ければ rules の既定値を使う（100%固定にしない）
-      const allRate = rules.coverProc?.allAlliesRate ?? 0.35;
-      const rate = all ? (u.coverRate || allRate)
-                 : hasSkill ? (u.coverRate || u.coverRateBase || 0)
-                 : (u.coverRateBase || 0);
-      return rate > 0 && rng.chance(rate);
+      if (NO_GUARD.some(k => u.statuses && u.statuses[k])) return false;
+      const cv = u.cover && u.cover.left > 0 ? u.cover : null;
+      if (cv && cv.who === 'allAllies') {
+        if (u._covT !== turnNow) { u._covT = turnNow; u._covSet = new Set(); }
+        if (u._covSet.has(tgt.id)) return false;
+        if (rng.chance(u.coverRate || (rules.coverProc?.allAlliesRate ?? 1))) { how = 'all'; return true; }
+        return false;
+      }
+      if (cv && cv.who === 'lowestAlly') {
+        if (u._cov1T === turnNow) return false;
+        if (rng.chance(u.coverRate || (rules.coverProc?.oneAllyRate ?? 1))) { how = 'one'; return true; }
+        return false;
+      }
+      if (!tgt.isGeneral) return false;
+      const rate = cv && cv.who === 'general' ? (u.coverRate || u.coverRateBase || 0) : (u.coverRateBase || 0);
+      if (rate > 0 && rng.chance(rate)) { how = 'gen'; return true; }
+      return false;
     });
     if (guard) {
-      // 全員かばうは回数で縛る（発動率だけでは抑えられない。実測で12%でも勝率76.7%）
-      if (guard.cover && guard.cover.who === 'allAllies') {
-        const cap = rules.coverProc?.allAlliesUsesPerBattle ?? Infinity;
-        guard._coverUses = (guard._coverUses || 0) + 1;
-        if (guard._coverUses > cap) { /* 打ち止め。肩代わりしない */ }
-        else { if (log) log.push({ t: +t.toFixed(1), type: 'cover', src: guard.id, tgt: tgt.id }); tgt = guard; }
-      } else {
-        if (log) log.push({ t: +t.toFixed(1), type: 'cover', src: guard.id, tgt: tgt.id });
-        tgt = guard;
-      }
+      if (how === 'all') guard._covSet.add(tgt.id);
+      if (how === 'one') guard._cov1T = turnNow;
+      if (log) log.push({ t: +t.toFixed(1), type: 'cover', src: guard.id, tgt: tgt.id });
+      /* かばった者は、その一撃に付いてくる状態異常・弱体もいっしょに受ける（2026-10-15・悠さんの決まり）。
+         同じ行動のあいだ、もとの的に掛かるはずのものを身代わりへ回す（coverRedirect が見る） */
+      tgt._covAct = { id: ctx._actionId, src: src.id, by: guard };
+      tgt = guard;
     }
   }
   // 1) 回避
@@ -20499,9 +20520,11 @@ const RULES = {
     "maxRate": 1,
     "_note": "かばうは守将のみ基本発動率30%。他属性は0%で、かばう系スキルを継承した場合のみ発動する",
     "allAlliesRate": 0.35,
-    "_allAlliesRate_note": "「味方全員の攻撃をかばう」で発動率を書いていないときの既定値（2026-09-19）。100%固定だと猛将編成の対智将勝率が17.7%→98.7%まで跳ね、守将1体で試合が決まってしまう。効果文に『N%の確率で味方全員の攻撃をかばう』と書けばそちらが優先。",
+    "_allAlliesRate_note": "「味方全員の攻撃をかばう」（1ターンのあいだ味方1体につき1回）で発動率を書いていないときの既定値（2026-10-15 改）。書いてあればそちら",
     "allAlliesUsesPerBattle": 3,
-    "_allAliasUses_note": "「味方全員の攻撃をかばう」の1戦あたり肩代わり回数の上限（2026-09-19）。発動率だけでは抑えられず（12%まで下げても勝率76.7%）、守将1体で試合が決まってしまうため回数で縛る。"
+    "_allAliasUses_note": "使っていない（2026-10-15）。一戦3回の上限は、1ターン1体1回の決まりに替えた",
+    "oneAllyRate": 0.35,
+    "_oneAllyRate_note": "「味方への攻撃をかばう」（1ターンに1人）で発動率を書いていないときの既定値（2026-10-15）。100%だと身代わりが2〜3ターンで倒れ、勝率が下がった（北条40→30%・馬場56→18%）"
   },
   "grantSkills": {
     "守将": [
@@ -36264,7 +36287,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 09:55 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:32 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

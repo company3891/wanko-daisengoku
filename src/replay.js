@@ -1324,6 +1324,16 @@ const RARE_SYNTH = {
   UR:  () => { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone({ f, dur: .38, type: 'triangle', gain: .055, delay: i * .08 }));
                noise({ dur: .8, gain: .03, hp: 2000 }); tone({ f: 65, dur: .9, type: 'sine', gain: .05 }); },
 };
+/* 狼煙の前触れの音（2026-10-16・試し）。se_omen_<色>.mp3 を置いたときだけ鳴る。
+   ふれて飛ばしたら止める。無ければ鳴らさない（煙だけで進む） */
+let omenNow = null;
+SFX.omen = (color) => {
+  if (!SOUND_ON) return;
+  if (hasAudio('se_omen_' + color + '.mp3')) omenNow = playFile('se_omen_' + color, { keep: true }) || null;
+};
+SFX.omenStop = () => {
+  if (omenNow) { try { omenNow.pause(); omenNow.currentTime = 0; } catch { /* まだ鳴っていない */ } omenNow = null; }
+};
 /* 位の音は一本きり（2026-09-29）。
    UR は 6.6秒あるので、十連で次の札へ送ると前の音が鳴り残って重なる。
    新しい位の音を鳴らすときは、前の位の音を止めてから鳴らす */

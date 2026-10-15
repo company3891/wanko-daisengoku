@@ -6921,8 +6921,12 @@ function gachaBgEl(inBox) {
   const own = (pc && bgUrl('gacha_' + curGacha().id + '_' + String(pc.no).padStart(3, '0')))
             || (pc && bgUrl('gacha_' + curGacha().id + '_' + pc.no))
             || bgUrl('gacha_' + curGacha().id);
-  const still = (inBox && bgUrl('gacha_open')) || own || bgUrl('gacha');
-  const mv = inBox ? bgVideoUrl('gacha_open') : null;
+  /* 新しい宝箱の動画（2026-10-16・Grok で作った試し）。bg/gacha_chest.mp4 があればそちらを流す。
+     箱そのものが動画に映っているので、上に重ねていた ui/gacha_box の絵は出さない（gachaBox で外す）。
+     置かなければ これまでの gacha_open に戻る。試しをやめるときは gacha_chest を退けるだけでよい */
+  const chest = inBox ? bgVideoUrl('gacha_chest') : null;
+  const still = (chest && bgUrl('gacha_chest')) || (inBox && bgUrl('gacha_open')) || own || bgUrl('gacha');
+  const mv = chest || (inBox ? bgVideoUrl('gacha_open') : null);
   if (mv) {
     return el('div', { class: 'bgstack' },
       gachaVid(mv, still),
@@ -8058,18 +8062,29 @@ function pullBtn(kind, label, price, can, on, ptext) {
    引いたらすぐ札を見せず、宝の前に立たせる。押して開けた瞬間に出るほうが、
    引いた手ごたえが残る。絵（ui/gacha_box）が無ければ、これまでの巻物に落ちる。
    背景は bg/gacha_open。札が出たあとも、同じ景色を敷いたままにする */
+/* 画面を描き直すと 動画の節が付け替わり、ブラウザが止めてしまう。止まっていたら続きから流し直す */
+function omenEl() {
+  const v = OMV;
+  queueMicrotask(() => { if (v && v === OMV && v.paused && !v.ended) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } });
+  return el('div', { class: 'gomen', onclick: e => { e.stopPropagation(); if (omenSkip) omenSkip(); } }, v);
+}
 function gachaBox() {
-  const art = uiUrl('gacha_box');
+  /* 動画に箱が映っているときは、絵の箱を重ねない（2026-10-16） */
+  const vid = !!bgVideoUrl('gacha_chest');
+  const art = vid ? null : uiUrl('gacha_box');
   return el('div', {
-    class: 'gbox' + (S.gboxing ? ' opening' : ''),
+    class: 'gbox' + (S.gboxing ? ' opening' : '') + (vid ? ' vid' : ''),
     onclick: S.gboxing ? null : openBox,
   },
+    /* 狼煙の前触れ（2026-10-16）。箱を開ける前に、遠くの物見櫓から煙が上がる。
+       ふれると飛ばせる（毎回3秒待たされるのはつらい） */
+    S.gomen && OMV ? omenEl() : null,
     el('div', { class: 'gblight' }),
     /* 字は宝箱の絵の上に重ねる（2026-09-26）。帯を敷くと札が増えて見え、
        景色のにぎやかさに負ける。金字に濃い影だけで読ませる */
     el('div', { class: 'gbwrap' },
       art ? keepImg({ class: 'gbart', src: art, alt: '宝箱' })
-          : el('div', { class: 'gbfall' }, '宝'),
+          : vid ? null : el('div', { class: 'gbfall' }, '宝'),
       S.gboxing ? null : el('b', { class: 'gbtxt' }, '宝箱を開く')));
 }
 async function openBox() {
@@ -8078,11 +8093,30 @@ async function openBox() {
   /* 宝箱の音は 箱の芝居と同じ長さで作ってある（2026-09-28）。
      音の山が二つあり、0.25秒＝箱が揺れる／2.60秒＝ぱっと開く。
      動画で箱が開くのは 2.65秒（実測）なので、ずれは0.05秒。そのまま頭から鳴らす */
-  S.gbox = null; S.gboxing = true; SFX.box(); draw();
+  S.gbox = null; S.gboxing = true;
+  /* 狼煙の前触れ（2026-10-16・試し）。fx/omen_<色>.mp4 があるときだけ。
+     煙の色は引いた中でいちばん良い位から決める。数は画面に出さない */
+  const om = omenColor(r);
+  const ov = om && fxVideoUrl('omen_' + om);
+  if (ov) {
+    OMV = el('video', { class: 'omenvid', src: ov, autoplay: true, muted: true,
+      playsinline: true, preload: 'auto', tabindex: -1, 'aria-hidden': 'true' });
+    OMV.muted = true; OMV.defaultMuted = true;
+    S.gomen = om; draw(); SFX.omen(om);
+    await new Promise(done => {
+      let fin = false;
+      const end = () => { if (fin) return; fin = true; omenSkip = null; done(); };
+      omenSkip = () => { SFX.omenStop(); end(); };
+      OMV.addEventListener('ended', end);
+      setTimeout(end, 3100);
+    });
+    S.gomen = null; OMV = null;
+  }
+  SFX.box(); draw();
   /* 動く景色があるときは、それが箱の開く芝居そのもの（2026-09-26）。
      4秒流して最後のコマで止まり、そのまま札の背景になる。
      動画が無ければ、これまでどおり短く光らせるだけ */
-  const mv = bgVideoUrl('gacha_open');
+  const mv = bgVideoUrl('gacha_chest') || bgVideoUrl('gacha_open');
   if (mv && GVID) await playOnce(GVID, 4300);
   else {
     const best = r.items.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');
@@ -8102,6 +8136,20 @@ async function openBox() {
    URが入っていても前触れは金のまま。だから最後の一枚の直前に
    金が虹へ割れる瞬間が生まれる。嘘はついていないのに裏切れる、というのが狙い。
    SSR止まりのときも同じ間で金が燃え上がるので、燃え上がったこと自体は手がかりにならない。 */
+/* 狼煙の色（2026-10-16・試し）。白＝ふつう／紫＝SSR以上／金＝UR／赤い煙二本＝UR二体以上。
+   嘘はつかないが、言い切りもしない。SSR でも4回に1回は白、UR でも2回に1回は紫にとどめる。
+   煙が紫でも「まだ上があるかも」が残る。御籤番号から決めるので、同じ番号なら同じ煙 */
+let OMV = null, omenSkip = null;
+function omenColor(r) {
+  const items = (r && r.items) || [];
+  const ur = items.filter(x => x.rarity === 'UR').length;
+  const top = items.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');
+  const h = idHash('omen' + (r && r.ticket));
+  if (ur >= 2) return 'red2';
+  if (top === 'UR') return h % 2 ? 'purple' : 'gold';
+  if (top === 'SSR') return h % 4 === 0 ? 'white' : 'purple';
+  return 'white';
+}
 const RAR_TOP = list => list.reduce((a, x) => (RAR.indexOf(x.rarity) < RAR.indexOf(a) ? x.rarity : a), 'N');
 // 素の待ち（合戦の速さに引きずられたくないので sleep は使わない）
 const hold = ms => new Promise(r => setTimeout(r, ms));
@@ -8171,13 +8219,15 @@ function revealView(rv, bgEl) {
   /* 位ごとの見せ場の動画（2026-09-26）。fx/rar_<位>.mp4 を置くとそちらが出る。
      黒地の絵を screen で重ねるので、透けた動画でなくてよい。
      置いていない位は これまでの CSS の光のまま（絵が無くても動く） */
-  const fxv = fxVideoUrl('rar_' + x.rarity);
+  /* 新しい輪の動画（2026-10-16・試し）。fx/rar2_<位>.mp4 は継ぎ目なしの4秒なので、くり返して流す */
+  const fx2 = fxVideoUrl('rar2_' + x.rarity);
+  const fxv = fx2 || fxVideoUrl('rar_' + x.rarity);
   /* 前触れ：まだ最後の一枚に着いていないあいだ、画面のふちに金のもやを残す */
   const omen = rv.omen && rv.i < rv.list.length - 1 ? ' omen' : '';
   return el('div', { class: 'reveal lv-' + x.rarity + (fxv ? ' movie' : '') + omen, onclick: nextReveal },
     bgEl || null,
     /* 節は毎回あたらしく作る。使い回すと頭から流れ直さないため */
-    fxv ? el('video', { class: 'rvfx', src: fxv, autoplay: true, muted: true,
+    fxv ? el('video', { class: 'rvfx', src: fxv, autoplay: true, muted: true, loop: fx2 ? true : null,
       playsinline: true, preload: 'auto', tabindex: -1, 'aria-hidden': 'true' }) : null,
     /* 位ごとの一閃（SSR以上だけ。画面ぜんぶが一瞬光る） */
     el('div', { class: 'rvflash' }),

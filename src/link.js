@@ -82,11 +82,13 @@ export function lkSalt() {
   } catch { return Math.random().toString(16).slice(2, 18); }
 }
 
-/* アカウント連携。いまはどれも準備中。
+/* アカウント連携。LINE と Apple は動く（2026-10-15）。Play ゲームはまだ準備中。
    ひとつの外部idはひとつのIDにしか結び付かない／同じ種類の連携は一つまで、が決めごと */
 export const LK_TIES = [
   { id: 'line', name: 'LINE', note: 'どの端末でも使えます' },
-  { id: 'gamecenter', name: 'Game Center', note: 'iPhone / iPad' },
+  /* Game Center の枠を Apple に替えた（2026-10-15）。iPhone の審査は「外のログインを使うなら
+     Apple でサインインも並べる」を求めるため。Game Center は遊びの記録で、引き継ぎの鍵には向かない */
+  { id: 'apple', name: 'Apple', note: 'iPhone / iPad / Mac' },
   { id: 'playgames', name: 'Play ゲーム', note: 'Android' },
 ];
 export const lkTied = P => LK_TIES.filter(t => (P.link && P.link.ties || {})[t.id]).length;

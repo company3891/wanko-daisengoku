@@ -44,7 +44,7 @@ import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce,
          palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel,
          palGift, palGiftTake, palTeam, palRaid, palRaidTake,
          sekiLook, sekiMake, sekiJoin, sekiUnits, sekiLeave, sekiOpenSet, sekiInvite, sekiNpc, sekiStart, sekiBack, sekiRoom,
-         lineStart, lineTake, lineOff } from './net.js';
+         tieStart, tieTake, tieOff } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt, rkName,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -198,8 +198,8 @@ setTimeout(() => {
     }
   }).catch(() => { /* 繋がらなくても端末の中だけで遊べる */ });
 }, 0);
-/* LINE から戻ってきたかを見る（2026-10-15）。S ができてから動かす */
-setTimeout(() => lineListen(), 0);
+/* LINE・Apple から戻ってきたかを見る（2026-10-15）。S ができてから動かす */
+setTimeout(() => tieListen(), 0);
 soundEnabled(!!P.sound);   // 覚えている音の入り切りを渡す（2026-09-28）
 setMix({ bgm: sndOf('bgm'), amb: sndOf('amb'), se: sndOf('se') });
 const saveSquads = savePlayer;
@@ -743,6 +743,22 @@ function screenTitle() {
         (() => { const g = uiUrl('title_go');
           return el('button', { class: 'ttlgo' + (g ? ' pic' : ''), onclick: go },
             g ? keepImg({ src: g, alt: 'タップして開始' }) : 'タップして開始'); })(),
+        /* 前の端末のデータで続ける（2026-10-15・悠さんの指図）。
+           入れ直したまっさらな端末のときだけ出す。メニュー→引き継ぎ→別の端末から→LINE の4手を1手にする。
+           ★ここも引き継ぎまわりなので現代語で書く */
+        (KURA && !P.link.code && (P.tutorial || 0) < 2 && (P.lv || 1) <= 1)
+          ? el('div', { class: 'ttlcont' },
+              el('span', {}, '前の端末のデータで続ける'),
+              el('div', {},
+                el('button', { class: 'ttlln', onclick: e => {
+                  e.stopPropagation(); SFX.pick(); S.link = 'claim'; S.kuMsg = ''; tieGo('line', 'login'); } },
+                  el('i', {}, 'L'), 'LINE'),
+                el('button', { class: 'ttlap', onclick: e => {
+                  e.stopPropagation(); SFX.pick(); S.link = 'claim'; S.kuMsg = ''; tieGo('apple', 'login'); } },
+                  APPLE_MARK ? el('i', {}, APPLE_MARK) : null, 'Apple'),
+                el('button', { class: 'ttlid', onclick: e => {
+                  e.stopPropagation(); SFX.pick(); S.link = 'claim'; S.kuMsg = ''; S.lkP1 = ''; S.kuCode = ''; draw(); } },
+                  'IDで'))) : null,
         /* 下の二つは絵の札（2026-09-25）。
            絵が無ければ字の札に落ちる（置くだけで反映の決まりを崩さない） */
         el('div', { class: 'ttlsub' },
@@ -776,21 +792,25 @@ function lkOpen() {
 }
 const lkClose = () => { S.link = null; S.lkMsg = ''; S.lkP1 = ''; S.lkP2 = ''; S.kuMsg = ''; S.kuCode = ''; draw(); };
 
-/* ---- LINE 連携（2026-10-15・悠さんの指図「アプリ化するにあたってライン連携とかも作ろうか」）----
+/* ---- アカウント連携 LINE・Apple（2026-10-15・悠さんの指図
+   「アプリ化するにあたってライン連携とかも作ろうか」「（Appleでサインインも）足しといて」）----
    ★ここの言葉も戦国口調にしない（データ引き継ぎの決め）。
-   tie   … いまの引き継ぎIDに LINE を結ぶ。バックアップに接続済みであることが前提
-   login … 別の端末で LINE だけで入り直す。パスワードを忘れても戻れる道
-   LINE の頁へ行って戻ってくる。戻り先は ウェブなら同じ頁（?line=引換札）、
-   アプリなら wankodaisengoku://line?line=引換札（下の lineListen が受ける） */
-async function lineGo(mode) {
+   tie   … いまの引き継ぎIDに結ぶ。バックアップに接続済みであることが前提
+   login … 別の端末で それだけで入り直す。パスワードを忘れても戻れる道
+   向こうの頁へ行って戻ってくる。戻り先は ウェブなら同じ頁（?tie=引換札）、
+   アプリなら wankodaisengoku://tie?tie=引換札（下の tieListen が受ける） */
+const TIE_NAME = { line: 'LINE', apple: 'Apple' };
+/* Apple の印（）は Apple の機器の字にしか入っていない。ほかの機器では空にして、印なしで出す */
+const APPLE_MARK = /iPhone|iPad|Macintosh/.test(navigator.userAgent || '') ? '\uF8FF' : '';
+async function tieGo(kind, mode) {
   const say = m => { if (mode === 'login') S.kuMsg = m; else S.lkMsg = m; draw(); };
   if (mode === 'tie' && !linked()) { say('先に「バックアップ」の接続を済ませてください'); return; }
-  if (S.lineBusy) return;
-  S.lineBusy = true; say('LINEを開いています…');
-  const r = await lineStart(mode, IN_APP() ? 'app' : 'web');
-  S.lineBusy = false;
+  if (S.tieBusy) return;
+  S.tieBusy = true; say(`${TIE_NAME[kind]}を開いています…`);
+  const r = await tieStart(kind, mode, IN_APP() ? 'app' : 'web');
+  S.tieBusy = false;
   if (!r.ok || !r.url) {
-    say(r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || 'LINE連携を始められませんでした'));
+    say(r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || '連携を始められませんでした'));
     return;
   }
   say('');
@@ -802,64 +822,64 @@ async function lineGo(mode) {
   savePlayer();                 // 頁を離れるので、念のため書いておく
   location.href = r.url;
 }
-/* LINE から戻ってきた。引換札を出して、結果を受け取る */
-async function lineBack(ticket, err) {
-
+/* 向こうから戻ってきた。引換札を出して、結果を受け取る */
+async function tieBack(ticket, err) {
   S.link = P.link.code ? 'main' : 'claim';
-  if (err || !ticket) { S.lkMsg = S.kuMsg = err || 'LINE連携に失敗しました'; draw(); return; }
+  if (err || !ticket) { S.lkMsg = S.kuMsg = err || '連携に失敗しました'; draw(); return; }
   S.lkMsg = S.kuMsg = '確かめています…'; draw();
-  const r = await lineTake(ticket);
+  const r = await tieTake(ticket);
   S.lkMsg = S.kuMsg = '';
   if (!r.ok) {
-    const m = r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || 'LINE連携に失敗しました');
+    const m = r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || '連携に失敗しました');
     S.lkMsg = S.kuMsg = m; draw(); return;
   }
+  const kind = r.kind === 'apple' ? 'apple' : 'line';
   if (r.mode === 'tie') {
-    P.link.ties = { ...(P.link.ties || {}), line: Date.now() };
+    P.link.ties = { ...(P.link.ties || {}), [kind]: Date.now() };
     savePlayer(); kuPush(true);
-    S.link = 'main'; S.lkMsg = 'LINEと連携しました'; draw(); return;
+    S.link = 'main'; S.lkMsg = `${TIE_NAME[kind]}と連携しました`; draw(); return;
   }
   /* login：パスワードで引き継ぐときと同じ確かめの札へ進む */
   const g = await pullSave();
   if (!g.ok || !g.blob) { S.link = 'claim'; S.kuMsg = 'そのIDには、まだバックアップがありません'; draw(); return; }
   const blob = g.blob;
-  blob.link = { ...(blob.link || {}), ties: { ...((blob.link || {}).ties || {}), line: Date.now() } };
+  blob.link = { ...(blob.link || {}), ties: { ...((blob.link || {}).ties || {}), [kind]: Date.now() } };
   S.kuTake = { rev: g.rev, blob, at: g.at };
   S.link = null; draw();
 }
-/* LINE の結び付けを外す。外したあとも引き継ぎIDとパスワードはそのまま使える */
-async function lineUntie() {
+/* 結び付けを外す。外したあとも引き継ぎIDとパスワードはそのまま使える */
+async function tieUntie(kind) {
   S.lkMsg = '解除しています…'; draw();
-  const r = await lineOff();
+  const r = await tieOff(kind);
   if (!r.ok) { S.lkMsg = r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || '解除できませんでした'); draw(); return; }
-  const t = { ...(P.link.ties || {}) }; delete t.line; P.link.ties = t;
+  const t = { ...(P.link.ties || {}) }; delete t[kind]; P.link.ties = t;
   savePlayer(); kuPush(true);
-  S.lineOffAsk = false; S.lkMsg = 'LINE連携を解除しました'; draw();
+  S.tieOffAsk = null; S.lkMsg = `${TIE_NAME[kind]}連携を解除しました`; draw();
 }
-/* 起きたとき・アプリに戻ってきたときに、LINE の戻りを拾う */
-function lineListen() {
-  /* ウェブ：URL の ?line=… を読んで、すぐ消す（履歴や画面の写しに残さない） */
+/* 起きたとき・アプリに戻ってきたときに、向こうからの戻りを拾う */
+function tieListen() {
+  /* ウェブ：URL の ?tie=… を読んで、すぐ消す（履歴や画面の写しに残さない） */
   try {
     const q = new URLSearchParams(location.search || '');
-    const t = q.get('line'), e = q.get('lineerr');
+    const t = q.get('tie'), e = q.get('tieerr');
     if (t || e) {
-      q.delete('line'); q.delete('lineerr');
+      q.delete('tie'); q.delete('tieerr');
       const rest = q.toString();
       history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
-      setTimeout(() => lineBack(t, e), 0);
+      setTimeout(() => tieBack(t, e), 0);
     }
   } catch (e) { /* 読めなくても遊べる */ }
-  /* アプリ：wankodaisengoku://line?line=… で起こされる */
+  /* アプリ：wankodaisengoku://tie?tie=… で起こされる */
   const A = IN_APP() && appPlugin('App');
   if (A && A.addListener) {
     try {
       A.addListener('appUrlOpen', ev => {
         const url = String((ev && ev.url) || '');
-        if (!url.startsWith('wankodaisengoku://line')) return;
+        if (!url.startsWith('wankodaisengoku://')) return;
         const B = appPlugin('Browser'); if (B) B.close().catch(() => {});
         let t = null, e = null;
-        try { const u = new URL(url); t = u.searchParams.get('line'); e = u.searchParams.get('lineerr'); } catch (_) {}
-        lineBack(t, e);
+        try { const u = new URL(url); t = u.searchParams.get('tie'); e = u.searchParams.get('tieerr'); } catch (_) {}
+        tieBack(t, e);
       });
     } catch (e) { /* 受けられなくても遊べる */ }
   }
@@ -1585,8 +1605,11 @@ function linkSheet() {
       S.kuMsg ? el('p', { class: 'lkmsg' }, S.kuMsg) : null,
       el('button', { class: 'go wide', ...(S.kuBusy ? { disabled: true } : {}), onclick: kuClaim }, '引き継ぐ'),
       /* LINE で入り直す（2026-10-15）。前の端末で「LINEと連携」を済ませていれば、IDもパスワードも要らない */
-      KURA ? el('button', { class: 'lkbyline', ...(S.lineBusy ? { disabled: true } : {}),
-        onclick: () => { SFX.pick(); lineGo('login'); } }, el('i', {}, 'L'), 'LINEで引き継ぐ') : null,
+      KURA ? el('button', { class: 'lkbyline', ...(S.tieBusy ? { disabled: true } : {}),
+        onclick: () => { SFX.pick(); tieGo('line', 'login'); } }, el('i', {}, 'L'), 'LINEで引き継ぐ') : null,
+      /* Apple で入り直す（2026-10-15）。Apple の決まりの黒い釦 */
+      KURA ? el('button', { class: 'lkbyapple', ...(S.tieBusy ? { disabled: true } : {}),
+        onclick: () => { SFX.pick(); tieGo('apple', 'login'); } }, el('i', {}, APPLE_MARK), 'Appleで引き継ぐ') : null,
       el('button', { class: 'ghost wide', onclick: () => { S.link = P.link.code ? 'main' : 'intro'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; draw(); } }, 'キャンセル'));
   }
 
@@ -1627,18 +1650,18 @@ function linkSheet() {
     el('div', { class: 'lkties' },
       el('b', {}, `アカウント連携　${tied} / ${LK_TIES.length}`),
       ...LK_TIES.map(t => {
-        /* LINE だけ先に動かす（2026-10-15）。ほかはまだ灰のまま */
-        if (t.id === 'line' && KURA) {
-          const on = !!(P.link.ties || {}).line;
+        /* LINE と Apple は動く（2026-10-15）。ほかはまだ灰のまま */
+        if ((t.id === 'line' || t.id === 'apple') && KURA) {
+          const on = !!(P.link.ties || {})[t.id];
           return el('div', { class: 'lkline' },
-            el('button', { class: 'lkty line' + (on ? ' on' : ''), ...(S.lineBusy ? { disabled: true } : {}),
-              onclick: () => { SFX.pick(); if (on) { S.lineOffAsk = !S.lineOffAsk; draw(); } else lineGo('tie'); } },
-              el('i', {}, 'L'),
+            el('button', { class: 'lkty ' + t.id + (on ? ' on' : ''), ...(S.tieBusy ? { disabled: true } : {}),
+              onclick: () => { SFX.pick(); if (on) { S.tieOffAsk = S.tieOffAsk === t.id ? null : t.id; draw(); } else tieGo(t.id, 'tie'); } },
+              el('i', {}, t.id === 'line' ? 'L' : APPLE_MARK),
               el('span', { class: 'n' }, t.name),
               el('span', { class: 'o' }, on ? '連携済み' : '連携する')),
-            (on && S.lineOffAsk) ? el('div', { class: 'lkoff' },
+            (on && S.tieOffAsk === t.id) ? el('div', { class: 'lkoff' },
               el('span', {}, '連携を解除しますか？'),
-              el('button', { class: 'ghost sm', onclick: lineUntie }, '解除する')) : null);
+              el('button', { class: 'ghost sm', onclick: () => tieUntie(t.id) }, '解除する')) : null);
         }
         return el('button', { class: 'lkty soon', disabled: true },
           el('i', {}, t.name.slice(0, 1)),

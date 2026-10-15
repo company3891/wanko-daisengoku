@@ -7343,3 +7343,31 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
   border-radius:6px;background:#fff;color:#06C755;font-style:normal;font-size:12px;font-weight:800}
 .lkbyline:active{transform:translateY(1px)}
 .lkbyline[disabled]{opacity:.6}
+/* Apple（2026-10-15）。Apple の決まりどおり 黒地に白。印（）は Apple の機器でだけ出る */
+.lkty.apple i{background:#000;color:#fff;font-size:14px;font-weight:400}
+.lkty.apple i:empty{display:none}
+.lkty.apple .o{color:var(--text);font-weight:700}
+.lkty.apple.on .o{color:var(--text3);font-weight:400}
+.lkbyapple{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;
+  margin:6px 0 2px;padding:11px 14px;border:0;border-radius:10px;cursor:pointer;
+  background:#000;color:#fff;font-size:14px;font-weight:700;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 2px 0 rgba(0,0,0,.25)}
+.lkbyapple i{font-style:normal;font-size:17px;font-weight:400;line-height:1}
+.lkbyapple i:empty{display:none}
+.lkbyapple:active{transform:translateY(1px)}
+.lkbyapple[disabled]{opacity:.6}
+/* 題の画面の「前の端末のデータで続ける」（2026-10-15）。まっさらな端末のときだけ出る */
+.ttlcont{display:flex;flex-direction:column;align-items:center;gap:6px;margin:10px auto 2px;
+  padding:7px 10px 8px;border-radius:12px;background:rgba(18,16,14,.55);backdrop-filter:blur(4px);
+  width:max-content;max-width:calc(100% - 32px)}
+.ttlcont>span{font-size:11px;color:#f5e2a8;letter-spacing:.06em}
+.ttlcont>div{display:flex;gap:6px}
+.ttlcont button{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:0;
+  font-size:12.5px;font-weight:700;cursor:pointer}
+.ttlcont button i{font-style:normal}
+.ttlln{background:#06C755;color:#fff}
+.ttlln i{display:flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;
+  background:#fff;color:#06C755;font-size:10px;font-weight:800}
+.ttlap{background:#000;color:#fff}
+.ttlap i{font-size:14px;font-weight:400}
+.ttlid{background:rgba(245,226,168,.15);color:#f5e2a8;border:1px solid rgba(216,169,74,.5)!important}

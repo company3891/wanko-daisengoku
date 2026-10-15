@@ -188,16 +188,18 @@ export function sekiRoom(party, { pid, name, round, owners, npcs }, on) {
   };
 }
 
-/* ---- LINE 連携（2026-10-15）----
-   mode … 'tie'（いまのIDにLINEを結ぶ）／'login'（LINEで入り直す）
-   back … 'app'（iPhoneアプリ）／'web'（ブラウザ）。LINE から戻る先が変わる
-   start で LINE の入口の URL をもらい、そこへ行く。戻ってきたら URL に引換札（line=…）が付くので、
+/* ---- アカウント連携 LINE・Apple（2026-10-15）----
+   kind … 'line' ／ 'apple'
+   mode … 'tie'（いまのIDに結ぶ）／'login'（それで入り直す）
+   back … 'app'（iPhoneアプリ）／'web'（ブラウザ）。向こうから戻る先が変わる
+   start で入口の URL をもらい、そこへ行く。戻ってきたら URL に引換札（tie=…）が付くので、
    take で結果を受け取る。login のときは、claim と同じく札がここで入る */
-export const lineStart = (mode, back) => call('/v1/line/start', { method: 'POST',
+export const tieStart = (kind, mode, back) => call(`/v1/${kind}/start`, { method: 'POST',
   body: { mode, back, device: deviceKey() } });
-export async function lineTake(ticket) {
+export async function tieTake(ticket) {
+  /* 引換札は種類によらず同じ机にあるので、道はどちらでもよい */
   const r = await call('/v1/line/take', { method: 'POST', auth: false, body: { ticket } });
   if (r.ok && r.mode === 'login' && r.token) { ls.set(LS_TOK, r.token); ls.set(LS_REV, String(r.rev || 0)); }
   return r;
 }
-export const lineOff = () => call('/v1/line/off', { method: 'POST' });
+export const tieOff = (kind) => call(`/v1/${kind}/off`, { method: 'POST' });

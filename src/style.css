@@ -7324,3 +7324,22 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 /* 不具合報告用のデータをコピー（2026-10-15）。目立たない字の釦 */
 .lkbug{display:block;margin:6px auto 0;background:none;border:0;color:#8d8270;font-size:11.5px;
   text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 8px}
+
+/* ---- LINE 連携（2026-10-15）----
+   LINE の印は LINE の決まりの緑（#06C755）。ほかの連携の金とは分けて、押せることが分かるように */
+.lkline{margin-bottom:6px}
+.lkline .lkty{margin-bottom:0}
+.lkty.line i{background:#06C755;color:#fff}
+.lkty.line .o{color:#06C755;font-weight:700}
+.lkty.line.on .o{color:var(--text3);font-weight:400}
+.lkoff{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 4px 2px 12px;font-size:11.5px;color:var(--text2)}
+.lkoff .ghost.sm{flex:0 0 auto;min-width:0;padding:6px 12px}
+.lkbyline{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  margin:8px 0 2px;padding:11px 14px;border:0;border-radius:10px;cursor:pointer;
+  background:#06C755;color:#fff;font-size:14px;font-weight:700;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.18)}
+.lkbyline i{display:flex;align-items:center;justify-content:center;width:22px;height:22px;
+  border-radius:6px;background:#fff;color:#06C755;font-style:normal;font-size:12px;font-weight:800}
+.lkbyline:active{transform:translateY(1px)}
+.lkbyline[disabled]{opacity:.6}

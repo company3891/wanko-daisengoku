@@ -43,7 +43,8 @@ import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce,
          duelOpen, duelJoin,
          palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel,
          palGift, palGiftTake, palTeam, palRaid, palRaidTake,
-         sekiLook, sekiMake, sekiJoin, sekiUnits, sekiLeave, sekiOpenSet, sekiInvite, sekiNpc, sekiStart, sekiBack, sekiRoom } from './net.js';
+         sekiLook, sekiMake, sekiJoin, sekiUnits, sekiLeave, sekiOpenSet, sekiInvite, sekiNpc, sekiStart, sekiBack, sekiRoom,
+         lineStart, lineTake, lineOff } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt, rkName,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -197,6 +198,8 @@ setTimeout(() => {
     }
   }).catch(() => { /* 繋がらなくても端末の中だけで遊べる */ });
 }, 0);
+/* LINE から戻ってきたかを見る（2026-10-15）。S ができてから動かす */
+setTimeout(() => lineListen(), 0);
 soundEnabled(!!P.sound);   // 覚えている音の入り切りを渡す（2026-09-28）
 setMix({ bgm: sndOf('bgm'), amb: sndOf('amb'), se: sndOf('se') });
 const saveSquads = savePlayer;
@@ -772,6 +775,95 @@ function lkOpen() {
   SFX.pick(); draw();
 }
 const lkClose = () => { S.link = null; S.lkMsg = ''; S.lkP1 = ''; S.lkP2 = ''; S.kuMsg = ''; S.kuCode = ''; draw(); };
+
+/* ---- LINE 連携（2026-10-15・悠さんの指図「アプリ化するにあたってライン連携とかも作ろうか」）----
+   ★ここの言葉も戦国口調にしない（データ引き継ぎの決め）。
+   tie   … いまの引き継ぎIDに LINE を結ぶ。バックアップに接続済みであることが前提
+   login … 別の端末で LINE だけで入り直す。パスワードを忘れても戻れる道
+   LINE の頁へ行って戻ってくる。戻り先は ウェブなら同じ頁（?line=引換札）、
+   アプリなら wankodaisengoku://line?line=引換札（下の lineListen が受ける） */
+async function lineGo(mode) {
+  const say = m => { if (mode === 'login') S.kuMsg = m; else S.lkMsg = m; draw(); };
+  if (mode === 'tie' && !linked()) { say('先に「バックアップ」の接続を済ませてください'); return; }
+  if (S.lineBusy) return;
+  S.lineBusy = true; say('LINEを開いています…');
+  const r = await lineStart(mode, IN_APP() ? 'app' : 'web');
+  S.lineBusy = false;
+  if (!r.ok || !r.url) {
+    say(r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || 'LINE連携を始められませんでした'));
+    return;
+  }
+  say('');
+  if (IN_APP()) {
+    /* アプリの中では、アプリの上に重ねたブラウザで開く（閉じればゲームに戻る） */
+    const B = appPlugin('Browser');
+    if (B) { try { await B.open({ url: r.url }); return; } catch (e) { /* 下の道へ */ } }
+  }
+  savePlayer();                 // 頁を離れるので、念のため書いておく
+  location.href = r.url;
+}
+/* LINE から戻ってきた。引換札を出して、結果を受け取る */
+async function lineBack(ticket, err) {
+
+  S.link = P.link.code ? 'main' : 'claim';
+  if (err || !ticket) { S.lkMsg = S.kuMsg = err || 'LINE連携に失敗しました'; draw(); return; }
+  S.lkMsg = S.kuMsg = '確かめています…'; draw();
+  const r = await lineTake(ticket);
+  S.lkMsg = S.kuMsg = '';
+  if (!r.ok) {
+    const m = r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || 'LINE連携に失敗しました');
+    S.lkMsg = S.kuMsg = m; draw(); return;
+  }
+  if (r.mode === 'tie') {
+    P.link.ties = { ...(P.link.ties || {}), line: Date.now() };
+    savePlayer(); kuPush(true);
+    S.link = 'main'; S.lkMsg = 'LINEと連携しました'; draw(); return;
+  }
+  /* login：パスワードで引き継ぐときと同じ確かめの札へ進む */
+  const g = await pullSave();
+  if (!g.ok || !g.blob) { S.link = 'claim'; S.kuMsg = 'そのIDには、まだバックアップがありません'; draw(); return; }
+  const blob = g.blob;
+  blob.link = { ...(blob.link || {}), ties: { ...((blob.link || {}).ties || {}), line: Date.now() } };
+  S.kuTake = { rev: g.rev, blob, at: g.at };
+  S.link = null; draw();
+}
+/* LINE の結び付けを外す。外したあとも引き継ぎIDとパスワードはそのまま使える */
+async function lineUntie() {
+  S.lkMsg = '解除しています…'; draw();
+  const r = await lineOff();
+  if (!r.ok) { S.lkMsg = r.err === 'net' ? 'つながりませんでした。通信を確かめてください' : (r.err || '解除できませんでした'); draw(); return; }
+  const t = { ...(P.link.ties || {}) }; delete t.line; P.link.ties = t;
+  savePlayer(); kuPush(true);
+  S.lineOffAsk = false; S.lkMsg = 'LINE連携を解除しました'; draw();
+}
+/* 起きたとき・アプリに戻ってきたときに、LINE の戻りを拾う */
+function lineListen() {
+  /* ウェブ：URL の ?line=… を読んで、すぐ消す（履歴や画面の写しに残さない） */
+  try {
+    const q = new URLSearchParams(location.search || '');
+    const t = q.get('line'), e = q.get('lineerr');
+    if (t || e) {
+      q.delete('line'); q.delete('lineerr');
+      const rest = q.toString();
+      history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+      setTimeout(() => lineBack(t, e), 0);
+    }
+  } catch (e) { /* 読めなくても遊べる */ }
+  /* アプリ：wankodaisengoku://line?line=… で起こされる */
+  const A = IN_APP() && appPlugin('App');
+  if (A && A.addListener) {
+    try {
+      A.addListener('appUrlOpen', ev => {
+        const url = String((ev && ev.url) || '');
+        if (!url.startsWith('wankodaisengoku://line')) return;
+        const B = appPlugin('Browser'); if (B) B.close().catch(() => {});
+        let t = null, e = null;
+        try { const u = new URL(url); t = u.searchParams.get('line'); e = u.searchParams.get('lineerr'); } catch (_) {}
+        lineBack(t, e);
+      });
+    } catch (e) { /* 受けられなくても遊べる */ }
+  }
+}
 
 /* パスワードを決める（はじめて発行するときも、変えるときも同じ札） */
 function lkSavePass(first) {
@@ -1492,7 +1584,10 @@ function linkSheet() {
           oninput: e => { S.lkP1 = e.target.value; } })),
       S.kuMsg ? el('p', { class: 'lkmsg' }, S.kuMsg) : null,
       el('button', { class: 'go wide', ...(S.kuBusy ? { disabled: true } : {}), onclick: kuClaim }, '引き継ぐ'),
-      el('button', { class: 'ghost wide', onclick: () => { S.link = 'main'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; draw(); } }, 'キャンセル'));
+      /* LINE で入り直す（2026-10-15）。前の端末で「LINEと連携」を済ませていれば、IDもパスワードも要らない */
+      KURA ? el('button', { class: 'lkbyline', ...(S.lineBusy ? { disabled: true } : {}),
+        onclick: () => { SFX.pick(); lineGo('login'); } }, el('i', {}, 'L'), 'LINEで引き継ぐ') : null,
+      el('button', { class: 'ghost wide', onclick: () => { S.link = P.link.code ? 'main' : 'intro'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; draw(); } }, 'キャンセル'));
   }
 
   /* ふだんの画面 */
@@ -1531,10 +1626,25 @@ function linkSheet() {
     /* 連携。サーバーができるまでは灰のまま並べておく（何につながるかだけ見せる） */
     el('div', { class: 'lkties' },
       el('b', {}, `アカウント連携　${tied} / ${LK_TIES.length}`),
-      ...LK_TIES.map(t => el('button', { class: 'lkty soon', disabled: true },
-        el('i', {}, t.name.slice(0, 1)),
-        el('span', { class: 'n' }, t.name),
-        el('span', { class: 'o' }, (P.link.ties || {})[t.id] ? '連携済み' : '準備中')))),
+      ...LK_TIES.map(t => {
+        /* LINE だけ先に動かす（2026-10-15）。ほかはまだ灰のまま */
+        if (t.id === 'line' && KURA) {
+          const on = !!(P.link.ties || {}).line;
+          return el('div', { class: 'lkline' },
+            el('button', { class: 'lkty line' + (on ? ' on' : ''), ...(S.lineBusy ? { disabled: true } : {}),
+              onclick: () => { SFX.pick(); if (on) { S.lineOffAsk = !S.lineOffAsk; draw(); } else lineGo('tie'); } },
+              el('i', {}, 'L'),
+              el('span', { class: 'n' }, t.name),
+              el('span', { class: 'o' }, on ? '連携済み' : '連携する')),
+            (on && S.lineOffAsk) ? el('div', { class: 'lkoff' },
+              el('span', {}, '連携を解除しますか？'),
+              el('button', { class: 'ghost sm', onclick: lineUntie }, '解除する')) : null);
+        }
+        return el('button', { class: 'lkty soon', disabled: true },
+          el('i', {}, t.name.slice(0, 1)),
+          el('span', { class: 'n' }, t.name),
+          el('span', { class: 'o' }, (P.link.ties || {})[t.id] ? '連携済み' : '準備中'));
+      })),
     KURA
       ? el('button', { class: 'ghost wide', onclick: () => {
           S.link = 'claim'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; SFX.pick(); draw();
@@ -12247,8 +12357,11 @@ function gdBubble(g, hit) {
       /* やめた歩を覚えておく（2026-10-02）。
          前は 0 に戻すだけだったので、途中でやめると二度と出てこなかった。
          三本線（環境設定）から、やめた所のつづきに戻れるようにする */
-      el('button', { class: 'gdquit', title: '手引きをやめる',
-        onclick: () => { gdQuit(); SFX.pick(); draw(); } }, 'やめる'));
+      /* 2026-10-15（悠さんの指図）：「やめる」は外した。
+         押したあと手引きが出てこなくなり、遊ぶ人が何をすればいいか分からなくなっていたため。
+         指す先が見つからないときは釦を錠さない作りなので（上の !hit の道）、行き止まりにはならない。
+         gdQuit() はもう呼ばれないが、のちに戻すときのために残してある */
+      null);
     if (g.done) say.classList.add('fin');
     document.body.append(say);
   }

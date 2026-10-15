@@ -187,3 +187,17 @@ export function sekiRoom(party, { pid, name, round, owners, npcs }, on) {
     close: () => { clearInterval(beat); try { ws.close(); } catch (_) {} },
   };
 }
+
+/* ---- LINE 連携（2026-10-15）----
+   mode … 'tie'（いまのIDにLINEを結ぶ）／'login'（LINEで入り直す）
+   back … 'app'（iPhoneアプリ）／'web'（ブラウザ）。LINE から戻る先が変わる
+   start で LINE の入口の URL をもらい、そこへ行く。戻ってきたら URL に引換札（line=…）が付くので、
+   take で結果を受け取る。login のときは、claim と同じく札がここで入る */
+export const lineStart = (mode, back) => call('/v1/line/start', { method: 'POST',
+  body: { mode, back, device: deviceKey() } });
+export async function lineTake(ticket) {
+  const r = await call('/v1/line/take', { method: 'POST', auth: false, body: { ticket } });
+  if (r.ok && r.mode === 'login' && r.token) { ls.set(LS_TOK, r.token); ls.set(LS_REV, String(r.rev || 0)); }
+  return r;
+}
+export const lineOff = () => call('/v1/line/off', { method: 'POST' });

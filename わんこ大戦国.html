@@ -7336,6 +7336,10 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 .trmfr{width:16px;height:16px;object-fit:contain;margin:0 1px 0 3px;vertical-align:-3px}
 .trmttl.nl{display:flex;margin-left:3.4em}
 
+/* 不具合報告用のデータをコピー（2026-10-15）。目立たない字の釦 */
+.lkbug{display:block;margin:6px auto 0;background:none;border:0;color:#8d8270;font-size:11.5px;
+  text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 8px}
+
 </style>
 </head>
 <body>
@@ -7454,6 +7458,7 @@ function targetOf(s, fallback) {
   if (/(?:自身の)?周囲1マス(?:以内)?の敵/.test(s)) return 'around1';
   if (/対象とその周囲1マス/.test(s)) return 'targetAround1';
   if (/敵全体|敵全員/.test(s)) return 'allEnemies';
+  if (/(?:HP|兵量)割合が最も低い敵/.test(s)) return 'lowestHpEnemy';   // 2026-10-15
   if (/正面の敵とその左右/.test(s)) return 'frontRow3';
   if (/正面の敵/.test(s)) return 'front1';
   if (/敵後衛|最も遠い敵/.test(s)) return 'backEnemy';
@@ -7494,6 +7499,8 @@ function condOf(s) {
   if ((m = s.match(new RegExp('(?:兵量|HP)が' + N + '%以上')))) return { type: 'hpAbove', v: parseFloat(m[1]) / 100 };
   // 汎用特技の編成・生存条件（2026-09-20 特技の汎用化で追加）
   if (/味方に女性武将がいる|味方に女武将がいる/.test(s)) return { type: 'allyTag', v: '女性' };
+  // 「自身が女武将の場合」（2026-10-15・美濃の妖華◆）。継いだ男武将では効かない
+  if (/自身が女(?:性)?武将の場合/.test(s)) return { type: 'selfTag', v: '女性' };
   if (/味方に総大将がいる|味方の総大将が健在/.test(s)) return { type: 'generalAlive' };
   if (/味方に同じ勢力がいる|同じ勢力の味方がいる|同勢力の味方がいる/.test(s)) return { type: 'sameClanAlly' };
   if ((m = s.match(new RegExp('味方が' + N + '体以下')))) return { type: 'alliesAtMost', v: +m[1] };
@@ -7583,7 +7590,7 @@ function parseSentence(s, out) {
 
   // --- 回復 ---
   if ((m = s.match(new RegExp('回復力?' + N + '%で回復')))) push({ kind: 'heal', rate: +m[1] / 100, target: targetOf(s, 'self') });
-  if ((m = s.match(new RegExp('(?:最大HP|最大兵量|HP|兵量)を?の?' + N + '%を?回復'))))
+  if ((m = s.match(new RegExp('(?:最大HP|最大兵量|HP|兵量)を?の?' + N + '%を?(?:即時)?回復'))))   // 「即時回復」も（2026-10-15・不屈の大御所）
     push({ kind: 'healPctMaxHp', pct: +m[1] / 100, target: targetOf(s, 'self') });
   if ((m = s.match(new RegExp('終了時に(?:HP|兵量)' + N + '%回復'))))
     push({ kind: 'healPctMaxHp', pct: +m[1] / 100, target: 'self' });
@@ -7598,6 +7605,20 @@ function parseSentence(s, out) {
     const one = /(?:HP|兵量)1で(?:復活|蘇生)/.test(s);
     push({ kind: 'reviveAll', pct: pm ? +pm[1] / 100 : (one ? 0 : 0) });
   }
+
+  /* ---- 全特技の検めで見つけた読み漏れ（2026-10-15） ---- */
+  // 「自身が3ターン伏兵状態になる」（引き犬の機転・極）
+  if ((m = s.match(new RegExp('自身が' + N + 'ターン伏兵(?:状態)?になる'))))
+    push({ kind: 'hide', turns: +m[1], target: 'self', cond: null });
+  // 「Nターンの間、味方全員の火力を1.5倍にし」（天下布ワン・極◆）。倍はその分の強化として持つ
+  if ((m = s.match(new RegExp('(?:' + N + 'ターンの間[、,]?\\s*)?味方(?:全員|全体)の(' + ST5 + ')を' + N + '倍に'))))
+    push({ kind: 'buff', stat: normalizeStat(m[2]), pct: +m[3] - 1, dur: m[1] ? +m[1] * SEC_PER_TURN : D, target: 'allAllies', cond: null });
+  // 「（ダメージを与え、）回避-12%を3ターン付与する」。的は直前のダメージの的（parseEffect で付け替える）
+  if ((m = s.match(new RegExp('(?<!自身の)回避(?:率)?([+\\-−])' + N + '%を' + N + 'ターン付与'))) && /ダメージ/.test(s))
+    push({ kind: 'mod', key: 'eva', pct: (m[1] === '+' ? 1 : -1) * +m[2] / 100, dur: +m[3] * SEC_PER_TURN, target: '__lastDamage' });
+  // 「姫属性の味方はさらに+5%」（平和の祈り）。数値は前の文のもの（parseEffect で付け替える）
+  if ((m = s.match(new RegExp('姫(?:属性)?の味方はさらに\\+' + N + '%'))))
+    push({ kind: 'buff', stat: '__prev', pct: +m[1] / 100, dur: null, target: 'allAllies', tag: '姫', cond: null });
 
   // --- 状態異常の付与 ---
   if ((m = s.match(new RegExp(N + '%(?:の確率)?で(?:' + N + '(秒間|ターン)[、,]?)?(?:.{0,6})?(ひるみ|混乱|感電)')))) {
@@ -7803,7 +7824,11 @@ function parseSentence(s, out) {
       let shape = 'enemy1';
       for (const k of Object.keys(SH)) if (tail.indexOf(k) >= 0) { shape = SH[k]; break; }
       const rm = tail.match(new RegExp(N + '%'));
-      push({ kind: 'damage', stat: normalizeStat(mm[1]), rate: rm ? +rm[1] / 100 : 1, hits: 1,
+      /* 「N回与える」と「HP割合が最も低い敵」を読む（2026-10-15・全特技の検め）。
+         前は 1回・近い敵 に落ちていた（雷迅・双牙突き、手裏剣・八方乱れ） */
+      const hm = tail.match(new RegExp('ダメージを' + N + '回'));
+      if (shape === 'enemy1' && /(?:HP|兵量)割合が最も低い敵/.test(tail)) shape = 'lowestHpEnemy';
+      push({ kind: 'damage', stat: normalizeStat(mm[1]), rate: rm ? +rm[1] / 100 : 1, hits: hm ? +hm[1] : 1,
              target: shape, statAsAttack: true });
     }
   }
@@ -8044,10 +8069,32 @@ const DAMAGE_KINDS = new Set(['damage', 'dyingStrike', 'supportFire', 'charge', 
 function parseEffect(text) {
   if (!text) return { effects: [], unparsed: [], violations: [] };
   const effects = [], unparsed = [], violations = [];
+  let lastDmgT = null, lastBuffStat = null;
   for (const s of splitSentences(text)) {
     const before = effects.length;
     const ok = parseSentence(s, effects);
     if (!ok && effects.length === before) unparsed.push(s);
+    /* 文をまたいだ付け替え（2026-10-15・全特技の検め）
+         ・「敵全体に…ダメージ。70%の確率で混乱」── 的を書いていない状態異常は、直前のダメージの的に掛ける
+         ・「回避-12%を3ターン付与」── 同じく直前のダメージの的に
+         ・「姫の味方はさらに+5%」── 数値は前の文の強化と同じもの */
+    for (let i = before; i < effects.length; i++) {
+      if (effects[i].kind === 'damage') lastDmgT = effects[i].target;
+      if (effects[i].kind === 'buff' && effects[i].stat && effects[i].stat !== '__prev') lastBuffStat = effects[i].stat;
+    }
+    for (let i = before; i < effects.length; i++) {
+      const e = effects[i];
+      if (e.kind === 'status' && e.target === 'enemy1' && !/1体|単体/.test(s) && lastDmgT && lastDmgT !== 'enemy1') e.target = lastDmgT;
+      if (e.target === '__lastDamage') e.target = lastDmgT || 'target';
+      if (e.stat === '__prev') e.stat = lastBuffStat || '回復';
+    }
+  }
+  /* 「Nターンの間、…通常攻撃の範囲が十字になる」── 範囲の変化にもターンの限りを付け、二重に読まれた分は一つにする（2026-10-15） */
+  {
+    const tm = String(text).match(/(?:^|】)(\d+)ターンの間/);
+    const shapes = effects.filter(e => e.kind === 'attackShape');
+    if (shapes.length > 1) for (const e of shapes.slice(1)) effects.splice(effects.indexOf(e), 1);
+    if (tm && shapes[0] && !shapes[0].cond) shapes[0].cond = { type: 'turnUntil', v: +tm[1] };
   }
   /* 道連れと同じ一撃が、ふつうのダメージ技としても二重に読まれることがある（2026-10-04）。
      「自身が死亡時、…を攻撃力とし、…150%のダメージ」は
@@ -8657,6 +8704,7 @@ function condOk(u, m) {
     case 'row': return c.v === 'back' ? u.fy >= 2 : u.fy <= 1;
     case 'turnFrom': return (u._turn || 0) >= c.v;
     case 'turnUntil': return (u._turn || 0) <= c.v;
+    case 'selfTag': return (u.tags || []).includes(c.v);   // 自身が女武将 など（2026-10-15）
     default: return true;
   }
 }
@@ -8782,16 +8830,27 @@ function statDelta(u, pend) {
   }
   return Object.keys(o).length ? o : undefined;
 }
+/* 顔の列に出す上下の矢印（2026-10-15 改・悠さんの指図
+   「常にではなく、かかった時だけしか表示されてないので常に表示して。
+     戦闘開始後にかかった効果のみ。地形や陣形効果は表示しない」）。
+   ・開戦の前に乗っているもの（陣の枠・大将特性・常時の特技・地形・陣形・天候・縁）は出さない（m.pre）
+     ただし「兵量50%以下のあいだ」のように戦の途中で灯るものは、灯っているあいだ出す
+   ・戦のさなかに掛かったものは、時限でも終わりの無いものでも、効いているあいだずっと出す
+   ・敵を倒すたびの積み上げ（stacks）・失った兵量で伸びるもの・「自身と同じにする」も出す */
+const LIVE_COND = new Set(['hpBelow', 'hpAbove', 'alliesAtMost', 'alliesAtLeast', 'frontEnemies', 'turnFrom']);
 function buffSigns(u) {
   const agg = {};
+  const put = (k, v) => { if (k) agg[k] = (agg[k] || 0) + v; };
   for (const m of (u.mods || [])) {
-    if (!Number.isFinite(m.left)) continue;          // 常時のものは出さない
+    if (m.pre && !(m.cond && LIVE_COND.has(m.cond.type))) continue;
     if (m.cond && !condOk(u, m)) continue;
     const k = m.stat || (m.key === 'taken' ? '防御' : m.key === 'dealt' ? '火力'
                        : m.key === 'eva' ? '速さ' : null);
-    if (!k) continue;
-    agg[k] = (agg[k] || 0) + (m.key === 'taken' ? -m.pct : m.pct);
+    if (m.share) { if (m.share.alive && m.share !== u) put(k, 0.01); continue; }
+    put(k, m.key === 'taken' ? -m.pct : m.pct);
   }
+  for (const [k, v] of Object.entries(u.stacks || {})) if (v) put(k, v);
+  if (u.scaleOnHpLost && u.hp < u.maxHp) put(u.scaleOnHpLost.stat, 0.01);
   return Object.entries(agg)
     .filter(([, v]) => Math.abs(v) > 0.005)
     .map(([stat, v]) => ({ stat, up: v > 0 }));
@@ -8861,6 +8920,8 @@ function resolveTargets(eff, self, allies, enemies, primary, rules) {
     return live(enemies).filter(e => Math.max(Math.abs(e.x - primary.x), Math.abs(e.y - primary.y)) <= 1);
   }
   if (t === 'allEnemies') return live(enemies);
+  /* 兵量の割合がいちばん低い敵（2026-10-15）。狙う技なので伏兵は選ばない */
+  if (t === 'lowestHpEnemy') { const l = live(aimed); return l.length ? [l.slice().sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp || a.no - b.no)[0]] : []; }
   /* 遠い順・近い順に N 体（2026-09-28）。三段撃ちのように「どれを狙うか」を書ける技のため。
      同じ距離のときは配置番号の小さいほうから選び、毎回おなじ答えになるようにする */
   if (String(t).startsWith('farEnemies:') || String(t).startsWith('nearEnemies:')) {
@@ -8978,14 +9039,16 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         const plus = (eff.kind === 'buff' && eff.pct > 0 && self._durPlus)
           ? self._durPlus * (ctx.rules.time?.secPerTurn ?? 2) : 0;
         // 敵への下げは、かばわれていれば身代わりへ（2026-10-15）
-        const tgB = eff.pct < 0 ? tg.map(e => coverRedirect(self, e, ctx)) : tg;
+        let tgB = eff.pct < 0 ? tg.map(e => coverRedirect(self, e, ctx)) : tg;
+        if (eff.tag) tgB = tgB.filter(e => (e.tags || []).includes(eff.tag));   // 「姫の味方はさらに」（2026-10-15）
         for (const e of tgB) e.mods.push({ stat: eff.stat, pct: eff.pct * k,
           left: eff.dur != null ? eff.dur + plus : Infinity, cond: eff.cond });
         /* 掛かった その場で矢印を出す（2026-10-04）。
            矢印はターンの頭の写しにしか乗っていなかったので、
            技が光ってから次のターンまで、誰に効いたのか分からなかった。
            持続時間のあるものだけ（常時のものは全員が持っていて印にならない） */
-        if (ctx.log && eff.dur != null)
+        // 終わりの無い強化も、戦のさなかに掛かったなら矢印を出す（2026-10-15）。大将特性など開戦前のぶんは出さない
+        if (ctx.log && (eff.dur != null || ctx.t > 0 || ctx._started))
           for (const e of tgB) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'buff',
             tgt: e.id, stat: eff.stat, up: eff.pct > 0 });
         break;
@@ -10200,7 +10263,7 @@ function fireSkills(u, timing, allies, enemies, target, ctx) {
          二度目からは光と音だけ ── 同じ札が何度も画面を覆うと盤が見えない */
       const shown = !u._uniqShown; u._uniqShown = true;
       if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'unique', src: u.id, name: u.name,
-                                  skills: u.uniqNames || [], timing, first: shown });
+                                  skills: u.uniqNames || [], timing, first: shown, trig: ut.name });   // trig＝撃った◆の名（2026-10-15・検めの道具が数える）
       const es2 = atStart ? stretchAtStart(effs, ctx) : effs;
       withVia(ctx, 'unique', () => applyEffects(es2, u, allies, enemies, target, ctx));
     }
@@ -10423,6 +10486,7 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
          ここは自分にしか足しておらず、濃姫の固有が本人しか満たしていなかった。
          発動のときに通る applyEffects のほうは allAllies を見ていたので、
          戦のはじめに一度きり効く この筋だけが取りこぼしていた */
+      if (e.kind === 'startGauge' && e.cond && !condOk(u, e)) continue;   // 「自身が女武将の場合」（2026-10-15）
       if (e.kind === 'startGauge') {
         const add = e.gauge != null ? e.gauge : rules.ultimate.maxGauge * (e.pct / 100);
         const who = e.target === 'allAllies' ? (A.includes(u) ? A : B) : [u];
@@ -10469,9 +10533,13 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
       if (log) log.push({ t: 0, type: 'status', src: u.id, tgt: f.id, name: '回復不能' });
     }
   }
+  /* ここまでに乗ったもの（陣の枠・大将特性・常時の特技）は「開戦の前から」の印を付ける（2026-10-15）。
+     顔の列の矢印は、戦が始まってから掛かったものだけを出すため（buffSigns が見る） */
+  for (const u of A.concat(B)) for (const m of u.mods) m.pre = true;
+  ctx._started = true;
   // 「戦闘開始時」の特技を発動させる（2026-09-20）
   {
-    const ctx0 = { rules, rng, log, t: 0, A, B, _actionId: 0 };
+    const ctx0 = { rules, rng, log, t: 0, A, B, _actionId: 0, _started: true };
     for (const u of A.concat(B)) {
       if (!u.alive) continue;
       const mine = u.side === 'A' ? A : B, foes = u.side === 'A' ? B : A;
@@ -13875,14 +13943,21 @@ function rewardMulOf(chars) {
    一度取った国や級をもう一度攻めても石は湧かない。
    小判・魂・経験・稽古の書は、いつ戦っても付く。
    石は くじを引く元手なので、早送りで回し続けられると値打ちが消える */
-function giveReward(won, mul = 1, food = 0, noStone = false) {
+/* 獲得経験値を増やす大将特性（2026-10-15・全特技の検め。豊臣ヒデヨシバ「出世の采配」）。
+   大将特性なので、総大将に据えているときだけ効く。戦いの外の話なのでエンジンではなくここで */
+function expMulOf(chars, generalNo) {
+  const g = (chars || []).find(c => c && c.no === generalNo);
+  const m = g && g.generalTrait && /獲得経験値\+(\d+(?:\.\d+)?)%/.exec(g.generalTrait.text || '');
+  return m ? 1 + parseFloat(m[1]) / 100 : 1;
+}
+function giveReward(won, mul = 1, food = 0, noStone = false, expMul = 1) {
   P.battles++;
   if (!won) { savePlayer(); return { lost: true }; }
   const r = {
     stone: noStone ? 0 : Math.round(REWARD.winStone * mul),
     koban: Math.round(REWARD.winKoban * mul),
     soul: Math.round(REWARD.winSoul * mul),
-    exp: expForFood(food),
+    exp: Math.round(expForFood(food) * expMul),
     mul: mul > 1 ? mul : undefined,
   };
   addFreeStones(r.stone); P.koban += r.koban; P.soul += r.soul;
@@ -30277,6 +30352,33 @@ function lkCopy() {
   S.lkMsg = '長押しで選択してコピーしてください'; draw();
 }
 
+/* 不具合報告用のデータをコピー（2026-10-15・悠さんの指図「このアカウントの特技データで、継承・強化したあとの姿で検証したい」）。
+   手持ちの武将の育った数値・継いだ特技・特技の位と、部隊の並びだけを写す。
+   ★IDとパスワード・石や小判の数は入れない（人に渡す前提の写しなので）。
+   戦に出すときと同じ grownFor を通すので、こちらで同じ部隊を組めば同じ戦が回せる */
+function bugDump() {
+  const chars = (P.own || []).map(no => {
+    const c = charOf(no); if (!c) return null;
+    const g = grownFor(c);
+    const nm = x => x && x.name ? x.name : null;
+    return { no, name: c.name, stats: g.stats, unique: nm(g.unique), normals: (g.normals || []).map(nm),
+             uniqExtra: (g.uniqExtra || []).map(nm), skillLv: g.skillLv, awake: (charState(no) || {}).awake || 0 };
+  }).filter(Boolean);
+  const squads = (P.squads || []).map(q => ({ name: q.name, nos: q.nos, general: q.general }));
+  return JSON.stringify({ v: 1, at: new Date().toISOString().slice(0, 16), lv: P.lv, chars, squads, active: P.active });
+}
+function bugCopy() {
+  const t = bugDump();
+  const done = () => { S.lkMsg = '不具合報告用のデータをコピーしました'; draw(); };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(done, () => { S.lkMsg = 'コピーできませんでした'; draw(); });
+      return;
+    }
+  } catch { /* 使えない環境でも落ちない */ }
+  S.lkMsg = 'コピーできませんでした'; draw();
+}
+
 /* IDを画像にして保存する（2026-09-25）。
    ★パスワードは画像に入れない。画像は人に見せやすく、
      写真を一枚渡すだけで乗っ取られてしまうため。IDだけを残す。 */
@@ -30963,6 +31065,7 @@ function linkSheet() {
           S.link = 'claim'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; SFX.pick(); draw();
         } }, '別の端末から引き継ぐ')
       : el('button', { class: 'ghost wide soon', disabled: true }, '別の端末から引き継ぐ（準備中）'),
+    el('button', { class: 'lkbug', onclick: bugCopy }, '不具合報告用のデータをコピー'),
     closeX(lkClose));
 }
 
@@ -33717,7 +33820,7 @@ function marchSkip(p, step) {
   const won = res.winner === 'A';
   miBump('battle'); miBump('camp'); miBump('skip');   // お役目の数
   BATTLE = { camp: { pref: p, step }, ev: null,
-             reward: giveReward(won, rewardMulOf(S.picked), marchFood(p, step), true),
+             reward: giveReward(won, rewardMulOf(S.picked), marchFood(p, step), true, expMulOf(S.picked, S.general)),
              march: null, skipped: true };
   if (won) BATTLE.march = advancePref(p.id);
   miAfterWin(won);
@@ -36315,7 +36418,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:58 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 11:13 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -39346,8 +39449,8 @@ function drawBattle() {
                     : BATTLE.tw ? null
                     : BATTLE.away ? (canSpar(BATTLE.away.id) ? sparReward(won0) : null)
                     : BATTLE.spar ? (canSpar(BATTLE.spar.id) ? sparReward(won0) : null)
-                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone)
-                    : giveReward(won0, rewardMulOf(S.picked), paid, noStone);
+                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general))
+                    : giveReward(won0, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general));
       /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
          戦いぶりのしばりをここで確かめ、そろって初めて一階のぼる。
          ふつうの褒美（小判など）は付けない。石だけを配る決まりにした */
@@ -40617,7 +40720,7 @@ function evSkip(id, rank) {
   /* 石だけは「その級を一度でも取ったか」で見る（2026-10-07）。盤を見る戦と同じ決まり */
   const evFirstEver2 = !evCleared(id, rank);
   BATTLE = { ev: { id, rank }, camp: null,
-             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2),
+             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2, expMulOf(S.picked, S.general)),
              march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）

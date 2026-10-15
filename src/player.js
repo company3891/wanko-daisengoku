@@ -1298,14 +1298,21 @@ export function rewardMulOf(chars) {
    一度取った国や級をもう一度攻めても石は湧かない。
    小判・魂・経験・稽古の書は、いつ戦っても付く。
    石は くじを引く元手なので、早送りで回し続けられると値打ちが消える */
-export function giveReward(won, mul = 1, food = 0, noStone = false) {
+/* 獲得経験値を増やす大将特性（2026-10-15・全特技の検め。豊臣ヒデヨシバ「出世の采配」）。
+   大将特性なので、総大将に据えているときだけ効く。戦いの外の話なのでエンジンではなくここで */
+export function expMulOf(chars, generalNo) {
+  const g = (chars || []).find(c => c && c.no === generalNo);
+  const m = g && g.generalTrait && /獲得経験値\+(\d+(?:\.\d+)?)%/.exec(g.generalTrait.text || '');
+  return m ? 1 + parseFloat(m[1]) / 100 : 1;
+}
+export function giveReward(won, mul = 1, food = 0, noStone = false, expMul = 1) {
   P.battles++;
   if (!won) { savePlayer(); return { lost: true }; }
   const r = {
     stone: noStone ? 0 : Math.round(REWARD.winStone * mul),
     koban: Math.round(REWARD.winKoban * mul),
     soul: Math.round(REWARD.winSoul * mul),
-    exp: expForFood(food),
+    exp: Math.round(expForFood(food) * expMul),
     mul: mul > 1 ? mul : undefined,
   };
   addFreeStones(r.stone); P.koban += r.koban; P.soul += r.soul;

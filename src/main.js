@@ -18,7 +18,7 @@ import { TR_KI, TR_DECK, TR_DUP, TR_ULT_MAX, TR_KIND_NAME, TR_STORY, TR_PARTS, T
          trRound, trLive, TR_ROWS, TR_COLS, TR_NODE, trNext, trRunNew, trFloorOf, trMaxHp, trRand,
          trTrait, TR_ITEMS, TR_ITEM_NAMES, TR_ITEM_MAX, trUseItem, trCardsFrom, trOffer, trPick, trUpKind } from './trail.js';
 import { setMix } from './replay.js';
-import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
+import { P, loadPlayer, savePlayer, today, miRoll, miBump, miSet, gainTitle, TICKET, TICKET_PRICE, newSquad, owns, stones, pull, gFreeOk, giveReward, rewardMulOf, expMulOf, sparReward, grantStarter, expNeed, expForFood, LV_MAX_PLAYER, SQUAD_MAX, COST_MAX, costMax, costBuff, costBuffLeft, useCostItem, RATES, PRICE, PITY, SOUL_BY_RARITY,
          STONE_PACKS, STONE_FREE_FROM, STONE_FREE_PCT, stonePack, addFreeStones,
          AWAKE_KOBAN, awakeKoban,
          setCampStart, prefStep, prefTaken, takenCount, regionTaken, openRegions, campLv, campBox, campLvOpen, setCampLv, canMarch, spendFood, marchFood, refillFood, foodWait, advancePref,
@@ -791,6 +791,33 @@ function lkCopy() {
   S.lkMsg = '長押しで選択してコピーしてください'; draw();
 }
 
+/* 不具合報告用のデータをコピー（2026-10-15・悠さんの指図「このアカウントの特技データで、継承・強化したあとの姿で検証したい」）。
+   手持ちの武将の育った数値・継いだ特技・特技の位と、部隊の並びだけを写す。
+   ★IDとパスワード・石や小判の数は入れない（人に渡す前提の写しなので）。
+   戦に出すときと同じ grownFor を通すので、こちらで同じ部隊を組めば同じ戦が回せる */
+function bugDump() {
+  const chars = (P.own || []).map(no => {
+    const c = charOf(no); if (!c) return null;
+    const g = grownFor(c);
+    const nm = x => x && x.name ? x.name : null;
+    return { no, name: c.name, stats: g.stats, unique: nm(g.unique), normals: (g.normals || []).map(nm),
+             uniqExtra: (g.uniqExtra || []).map(nm), skillLv: g.skillLv, awake: (charState(no) || {}).awake || 0 };
+  }).filter(Boolean);
+  const squads = (P.squads || []).map(q => ({ name: q.name, nos: q.nos, general: q.general }));
+  return JSON.stringify({ v: 1, at: new Date().toISOString().slice(0, 16), lv: P.lv, chars, squads, active: P.active });
+}
+function bugCopy() {
+  const t = bugDump();
+  const done = () => { S.lkMsg = '不具合報告用のデータをコピーしました'; draw(); };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(done, () => { S.lkMsg = 'コピーできませんでした'; draw(); });
+      return;
+    }
+  } catch { /* 使えない環境でも落ちない */ }
+  S.lkMsg = 'コピーできませんでした'; draw();
+}
+
 /* IDを画像にして保存する（2026-09-25）。
    ★パスワードは画像に入れない。画像は人に見せやすく、
      写真を一枚渡すだけで乗っ取られてしまうため。IDだけを残す。 */
@@ -1477,6 +1504,7 @@ function linkSheet() {
           S.link = 'claim'; S.lkP1 = ''; S.kuCode = ''; S.kuMsg = ''; SFX.pick(); draw();
         } }, '別の端末から引き継ぐ')
       : el('button', { class: 'ghost wide soon', disabled: true }, '別の端末から引き継ぐ（準備中）'),
+    el('button', { class: 'lkbug', onclick: bugCopy }, '不具合報告用のデータをコピー'),
     closeX(lkClose));
 }
 
@@ -4231,7 +4259,7 @@ function marchSkip(p, step) {
   const won = res.winner === 'A';
   miBump('battle'); miBump('camp'); miBump('skip');   // お役目の数
   BATTLE = { camp: { pref: p, step }, ev: null,
-             reward: giveReward(won, rewardMulOf(S.picked), marchFood(p, step), true),
+             reward: giveReward(won, rewardMulOf(S.picked), marchFood(p, step), true, expMulOf(S.picked, S.general)),
              march: null, skipped: true };
   if (won) BATTLE.march = advancePref(p.id);
   miAfterWin(won);
@@ -9860,8 +9888,8 @@ function drawBattle() {
                     : BATTLE.tw ? null
                     : BATTLE.away ? (canSpar(BATTLE.away.id) ? sparReward(won0) : null)
                     : BATTLE.spar ? (canSpar(BATTLE.spar.id) ? sparReward(won0) : null)
-                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone)
-                    : giveReward(won0, rewardMulOf(S.picked), paid, noStone);
+                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general))
+                    : giveReward(won0, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general));
       /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
          戦いぶりのしばりをここで確かめ、そろって初めて一階のぼる。
          ふつうの褒美（小判など）は付けない。石だけを配る決まりにした */
@@ -11131,7 +11159,7 @@ function evSkip(id, rank) {
   /* 石だけは「その級を一度でも取ったか」で見る（2026-10-07）。盤を見る戦と同じ決まり */
   const evFirstEver2 = !evCleared(id, rank);
   BATTLE = { ev: { id, rank }, camp: null,
-             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2),
+             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2, expMulOf(S.picked, S.general)),
              march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）

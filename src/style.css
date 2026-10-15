@@ -7320,3 +7320,7 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 .trmttl{display:inline-flex;align-items:center;gap:3px}
 .trmfr{width:16px;height:16px;object-fit:contain;margin:0 1px 0 3px;vertical-align:-3px}
 .trmttl.nl{display:flex;margin-left:3.4em}
+
+/* 不具合報告用のデータをコピー（2026-10-15）。目立たない字の釦 */
+.lkbug{display:block;margin:6px auto 0;background:none;border:0;color:#8d8270;font-size:11.5px;
+  text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 8px}

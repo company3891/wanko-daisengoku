@@ -7311,3 +7311,7 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 .adbtns .adbtn{flex:0 0 auto !important;min-width:0 !important;width:auto;height:38px;min-height:0;
   padding:0 16px;border-radius:10px;font-size:13px;letter-spacing:.04em;white-space:nowrap;flex-direction:row}
 .adbtns .adbtn.go{padding:0 26px}
+
+/* 解散・解雇のたずね札も、取引所の出す札と同じ横並びに（2026-10-15・悠さんの指図
+   「このボタン横並びにしてコンパクトにしなかったっけ？」）。字の長い朱の釦だけ幅を字に合わせる */
+.acts2.mkacts > button.go.sm.danger{flex:0 0 auto;width:auto;min-width:128px;padding:11px 16px;white-space:nowrap}

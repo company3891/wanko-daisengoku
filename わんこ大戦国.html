@@ -7327,6 +7327,10 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
   padding:0 16px;border-radius:10px;font-size:13px;letter-spacing:.04em;white-space:nowrap;flex-direction:row}
 .adbtns .adbtn.go{padding:0 26px}
 
+/* 解散・解雇のたずね札も、取引所の出す札と同じ横並びに（2026-10-15・悠さんの指図
+   「このボタン横並びにしてコンパクトにしなかったっけ？」）。字の長い朱の釦だけ幅を字に合わせる */
+.acts2.mkacts > button.go.sm.danger{flex:0 0 auto;width:auto;min-width:128px;padding:11px 16px;white-space:nowrap}
+
 </style>
 </head>
 <body>
@@ -34663,7 +34667,7 @@ function fireSheet() {
                 ? '手持ちが 0 枚になる。図鑑には残るが、育てたレベル・魂・継承は失われる'
                 : '育てたレベル・魂・継承は、手持ちが 0 枚になったときに失われる'),
             el('p', { class: 'note' }, `武士の魂 ${num(soul)} を得る（1枚 ${num(one)}）`)),
-      el('div', { class: 'acts2' },
+      el('div', { class: 'acts2 mkacts' },   // 横並び・小さめ（2026-10-15・取引所の出す札と同じ形）
         el('button', { class: 'ghost sm', onclick: close }, 'やめる'),
         el('button', {
           class: 'go sm danger', disabled: max < 1 ? true : null,
@@ -36295,7 +36299,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:42 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 10:45 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -37640,7 +37644,7 @@ function disbandSheet() {
         const o = charOf(n); if (!o) return null;
         return el('div', { class: 'mc on' }, cardImg(o), el('span', { class: 'mcn' }, o.name.slice(0, 5)));
       })),
-      el('div', { class: 'acts2' },
+      el('div', { class: 'acts2 mkacts' },   // 横並び・小さめ（2026-10-15・取引所の出す札と同じ形）
         el('button', { class: 'ghost sm', onclick: close }, 'やめる'),
         el('button', {
           class: 'go sm danger',

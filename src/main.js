@@ -5197,7 +5197,7 @@ function fireSheet() {
                 ? '手持ちが 0 枚になる。図鑑には残るが、育てたレベル・魂・継承は失われる'
                 : '育てたレベル・魂・継承は、手持ちが 0 枚になったときに失われる'),
             el('p', { class: 'note' }, `武士の魂 ${num(soul)} を得る（1枚 ${num(one)}）`)),
-      el('div', { class: 'acts2' },
+      el('div', { class: 'acts2 mkacts' },   // 横並び・小さめ（2026-10-15・取引所の出す札と同じ形）
         el('button', { class: 'ghost sm', onclick: close }, 'やめる'),
         el('button', {
           class: 'go sm danger', disabled: max < 1 ? true : null,
@@ -8174,7 +8174,7 @@ function disbandSheet() {
         const o = charOf(n); if (!o) return null;
         return el('div', { class: 'mc on' }, cardImg(o), el('span', { class: 'mcn' }, o.name.slice(0, 5)));
       })),
-      el('div', { class: 'acts2' },
+      el('div', { class: 'acts2 mkacts' },   // 横並び・小さめ（2026-10-15・取引所の出す札と同じ形）
         el('button', { class: 'ghost sm', onclick: close }, 'やめる'),
         el('button', {
           class: 'go sm danger',

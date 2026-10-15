@@ -7642,6 +7642,16 @@ function parseSentence(s, out) {
   if (/敵の回復効果を無効/.test(s)) push({ kind: 'healBlock' });
   if (/味方全員の状態異常を解除|味方全体の状態異常を解除/.test(s))
     push({ kind: 'cleanse', target: 'allAllies' });
+  /* 「状態異常を各1つ解除」（2026-10-15）。仁将の奥義16体がこの書き方で、
+     読めずに解除の部分だけ抜け落ちていた（40戦で解除0回）。
+     的は同じ文の回復の的にそろえる（味方全体なら全体、味方1体ならその1体） */
+  else if (/状態異常を(?:各)?[1１]つ解除/.test(s))
+    push({ kind: 'cleanse', count: 1, target: /味方[1１]体/.test(s) ? 'ally1' : 'allAllies' });
+  /* 「各味方の弱体効果を1つ解除」（2026-10-15）。榊原・朝倉の奥義。
+     悠さんの言葉の決まり：弱体化＝数値が下がること、状態異常（バフ）＝混乱・回復不能・麻痺のような縛り。
+     だからこちらは数値の下げ（負の強化）を一つ消す。状態異常は消さない */
+  if (/弱体効果を(?:各)?[1１]つ解除/.test(s))
+    push({ kind: 'debuffClear', count: 1, target: 'allAllies' });
   // 仁将：援護射撃（味方が攻撃したとき、同じ相手に追撃する）
   if ((m = s.match(new RegExp('味方が(?:通常)?攻撃したとき[、,]?\\s*(?:' + N + '%(?:の確率)?で)?(?:自身の)?(火力|賢さ|知力|知略|防御|守備|回復|速さ)' + N + '%で(?:追撃|援護射撃)')))) {
     push({ kind: 'supportFire', chance: m[1] ? +m[1] / 100 : 1, stat: normalizeStat(m[2]), rate: +m[3] / 100 });
@@ -8761,17 +8771,14 @@ const teamOf = (ctx, side) => ctx.A.concat(ctx.B).filter(x => effSide(x) === sid
 const mineOf = (ctx, u) => teamOf(ctx, effSide(u));
 const foesOf = (ctx, u) => teamOf(ctx, effSide(u) === 'A' ? 'B' : 'A');
 
-/* 「敵の回復効果を無効にする」（豊後の祈り◆）が効いているか（2026-10-15・悠さんの見立て
-   「豊後の祈りが発動してない気がする」）。
-   前は 'heal'（回復力で癒す技）の一か所でしか見ておらず、次の癒しは素通りしていた
-   （実測：大友ソウプードルを置いても 敵の回復 430回／止めたのは 187回）。
-     ・毎ターン確率で味方全員を癒す（一期一会など healEveryTurn）
-     ・最大兵量の割合で癒す（healPctMaxHp）
-     ・攻撃されたらそのダメージを回復する（三成の采配など damageToHeal）
-     ・敵が回復したとき自身も同量回復する（mirrorHeal）
-   癒される者（who）から見た敵の側に、生きている healBlock 持ちが一人でも居れば止める */
-const healBanned = (ctx, who) =>
-  live(foesOf(ctx, who)).some(f => (f.passives || []).some(p => p.kind === 'healBlock' && condOk(f, p)));
+/* 回復を受け付けない者か（2026-10-15 改）。
+   豊後の祈り◆（敵の回復効果を無効にする）は、開戦に敵全員へ状態異常「回復不能」を掛ける形にした
+   （悠さんの指図「この効果もバフ扱いにして、バフ解除で溶けるならどう？」。
+   悠さんの言葉では バフ＝混乱・回復不能・麻痺のような縛り＝状態異常）。
+   だから 状態異常の解除（仁将の奥義・千姫の姫の加護）で払える。
+   癒しの入口（heal・healEveryTurn・healPctMaxHp・damageToHeal・mirrorHeal）はみな
+   「癒される者に 回復不能 が付いているか」だけを見る */
+const healBanned = (ctx, who) => !!(who && who.statuses && who.statuses['回復不能']);
 const facing = (u) => (u.side === 'A' ? -1 : 1);
 
 /* 薙ぎ払いの巻き添えを選ぶ（2026-10-03）。
@@ -8898,11 +8905,7 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
       }
       case 'heal': {
         // 敵に「回復効果を無効にする」持ちが居れば、この回復は通らない
-        const foes = foesOf(ctx, self);
-        if (live(foes).some(f => (f.passives || []).some(p => p.kind === 'healBlock' && condOk(f, p)))) {
-          if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'healBlocked', src: self.id });
-          break;
-        }
+        const foes = foesOf(ctx, self);   // 下の mirrorHeal で使う
         const amt = stat(self, '回復') * eff.rate * (ctx.rules.damage.healScale ?? 1) * (1 + modSum(self, 'healGiven'));
       // 回復不能を受けている相手は回復しない（2026-09-20）
         // 「回復の対象が味方全体になる」持ちは、対象を味方全体に広げる
@@ -8924,8 +8927,8 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         break;
       }
       case 'healPctMaxHp':
-        if (healBanned(ctx, self)) { if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'healBlocked', src: self.id }); break; }
         for (const e of tg) {
+          if (healBanned(ctx, e)) { if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'healBlocked', tgt: e.id }); continue; }
           const was = e.hp;                                   // 癒した量を控える（2026-10-01）
           e.hp = Math.min(e.maxHp, e.hp + e.maxHp * eff.pct * (ctx.rules.damage.healScale ?? 1));
           if (ctx.log && e.hp > was)
@@ -9049,10 +9052,27 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
         break;
       }
       case 'cleanse':
-        // 仁将：味方全員の状態異常を解除する
-        for (const e of tg) e.statuses = {};
+        // 仁将：味方全員の状態異常を解除する。count があれば各自その数だけ（2026-10-15）
+        /* 洗脳は寝返りの仕組みなので、ここでは解かない */
+        for (const e of tg) {
+          const ks = Object.keys(e.statuses).filter(k => k !== '洗脳');
+          for (const k of (eff.count ? ks.slice(0, eff.count) : ks)) delete e.statuses[k];
+        }
         if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'cleanse', src: self.id, n: tg.length });
         uniqProc(self, 'cleanse', ctx);
+        break;
+      case 'debuffClear':
+        /* 弱体効果（数値の下げ）を各自 count だけ消す（2026-10-15）。榊原・朝倉の奥義。
+           下げ＝ mods のうち pct が負で、時限のもの。いちばん重いものから消す */
+        for (const e of tg) {
+          for (let i = 0; i < (eff.count || 1); i++) {
+            let w = -1;
+            e.mods.forEach((m, j) => { if (m.pct < 0 && m.left !== Infinity && (w < 0 || m.pct < e.mods[w].pct)) w = j; });
+            if (w < 0) break;
+            e.mods.splice(w, 1);
+          }
+        }
+        if (ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'cleanse', src: self.id, n: tg.length });
         break;
       case 'cover':
         self.cover = { who: eff.who, ratio: eff.ratio, left: eff.dur ?? Infinity };
@@ -9421,6 +9441,15 @@ function kill(src, tgt, ctx) {
     if (!tgt.alive) return;
   }
   tgt.hp = 0; tgt.alive = false; src.kills++;
+  /* 豊後の祈りの持ち主が倒れたら、その祈りで掛けた回復不能（終わりの無いもの）を解く（2026-10-15）。
+     同じ側に祈りの持ち主がまだ生きていれば解かない */
+  if ((tgt.passives || []).some(p => p.kind === 'healBlock')) {
+    const mine = (ctx.A || []).includes(tgt) ? ctx.A : (ctx.B || []);
+    if (!live(mine).some(x => (x.passives || []).some(p => p.kind === 'healBlock'))) {
+      const other = mine === ctx.A ? (ctx.B || []) : (ctx.A || []);
+      for (const e of other) if (e.statuses && e.statuses['回復不能'] === Infinity) delete e.statuses['回復不能'];
+    }
+  }
   if (log) log.push({ t: +t.toFixed(1), type: 'ko', tgt: tgt.id });
   // 味方が倒れたことがトリガーの特技（2026-09-20）
   {
@@ -10353,6 +10382,16 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
     }
   }
 
+  /* 豊後の祈り◆（2026-10-15）。開戦に、敵全員へ終わりの無い「回復不能」を掛ける。
+     確率も耐性も見ない（祈りは必ず届く）。払えるのは状態異常の解除だけ。持ち主が倒れても解ける */
+  for (const u of A.concat(B)) {
+    if (!u.alive || !(u.passives || []).some(p => p.kind === 'healBlock')) continue;
+    const foes = u.side === 'A' ? B : A;
+    for (const f of live(foes)) {
+      f.statuses['回復不能'] = Infinity;
+      if (log) log.push({ t: 0, type: 'status', src: u.id, tgt: f.id, name: '回復不能' });
+    }
+  }
   // 「戦闘開始時」の特技を発動させる（2026-09-20）
   {
     const ctx0 = { rules, rng, log, t: 0, A, B, _actionId: 0 };
@@ -10497,12 +10536,23 @@ function runBattle(teamA, teamB, rules, seed = 1, opts = {}) {
               u._critTurn = turn + (e.turns || 1) - 1;
               if (log) log.push({ t: +t.toFixed(1), type: 'critTurn', src: u.id, turn: u._critTurn });
             }
+          } else if (e.kind === 'cleanse' && e.every) {
+            /* 姫の加護◆「味方全員の状態異常を毎ターン50%の確率で解除」（2026-10-15）。
+               技としては読めていたが、毎ターン撃つ筋がどこにも無く 一度も出ていなかった */
+            if (!rng.chance(e.chance ?? 1)) continue;
+            const hit = live(TEAM(effSide(u))).filter(a => Object.keys(a.statuses).some(k => k !== '洗脳'));
+            if (!hit.length) continue;
+            for (const a of hit) for (const k of Object.keys(a.statuses)) if (k !== '洗脳') delete a.statuses[k];
+            if (log) log.push({ t: +t.toFixed(1), type: 'cleanse', src: u.id, n: hit.length });
+            uniqProc(u, 'cleanse', ctx);
           } else if (e.kind === 'healEveryTurn') {
             if (!rng.chance(e.chance)) continue;
-            if (healBanned(ctx, u)) { if (log) log.push({ t: +t.toFixed(1), type: 'healBlocked', src: u.id }); continue; }
             const mine = TEAM(effSide(u));
             const amt = stat(u, '回復') * (e.rate || 1) * (rules.damage.healScale ?? 1);
-            for (const a of live(mine)) a.hp = Math.min(a.maxHp, a.hp + amt);
+            for (const a of live(mine)) {
+              if (healBanned(ctx, a)) { if (log) log.push({ t: +t.toFixed(1), type: 'healBlocked', tgt: a.id }); continue; }
+              a.hp = Math.min(a.maxHp, a.hp + amt);
+            }
             if (log) log.push({ t: +t.toFixed(1), type: 'heal', src: u.id, v: amt, all: true });
             uniqProc(u, 'healEveryTurn', ctx);
           } else if (e.kind === 'focusTurn') {
@@ -36186,7 +36236,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 08:46 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 09:34 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

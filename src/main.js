@@ -218,7 +218,7 @@ const S = { stage: '地形なし', filter: 'すべて', screen: 'home', manual: 
   ad: null, skIntro: null,   // skIntro＝関ヶ原の手ほどきの何枚目か（2026-10-12）
   /* 戦のさなかに札を開いたときだけ入る（2026-10-08）。
      { 火力: +120, 防御: -30 } のように、素からの差だけを持つ */
-  detailMod: null,
+  detailMod: null, detailAbs: null,
   /* 取引所の品を札で見るとき（2026-10-01）。
      detailSt＝その品の育ち（売り主が育てた値）／detailBuy＝買える品そのもの */
   detailSt: null, detailBuy: null, mkPEdit: false,
@@ -6230,10 +6230,10 @@ const ROLE_BOX = {
 };
 /* 札を閉じる。取引所から開いたときの覚えもここで消す（2026-10-01） */
 function closeDetail() {
-  S.detail = null; S.side = null; S.detailRO = false; S.detailBase = false; S.detailMod = null;
+  S.detail = null; S.side = null; S.detailRO = false; S.detailBase = false; S.detailMod = null; S.detailAbs = null;
   S.detailSt = null; S.detailBuy = null; draw();
 }
-function cardStatOverlay(c, ro, mod) {
+function cardStatOverlay(c, ro, mod, abs) {
   if (!c || c.no == null || c.no === '未奉公') return [];
   const lay = cardLayout(c.no);
   if (!lay || !lay.stat) return [];
@@ -6246,7 +6246,8 @@ function cardStatOverlay(c, ro, mod) {
      友の主役を覗くときに使う。相手の lv や振った魂は手元に無く、
      預かっているのは「育ち終わった五つの数」だけなので、そのまま出す。
      取引所の品はこれまでどおり lv と魂から組み立てる（ds.lv / ds.sp） */
-  const g = (ds && ds.abs) ? ds.abs
+  const g = abs ? abs
+    : (ds && ds.abs) ? ds.abs
     : ds ? (() => {
         const base = c.stats || {}, mul = 1 + ((ds.lv || 1) - 1) * 0.02, o = {};
         for (const s of SP_STATS) o[s] = Math.round((base[s] || 0) * mul) + ((ds.sp || {})[s] || 0);
@@ -6366,7 +6367,7 @@ function cardSheet(c) {
     const pc = (v, base) => (v / base * 100).toFixed(3) + '%';
     const fs = v => (v / 864 * 100).toFixed(3) + 'cqw';
     const out = [];
-    if (side === 'front') out.push(...cardStatOverlay(c, cardRaw(), S.detailMod));
+    if (side === 'front') out.push(...cardStatOverlay(c, cardRaw(), S.detailMod, S.detailAbs));
     if (side === 'back' && lay.slot) {
       /* 特技の枠は3つ。焼いてあるのは元の技なので、継承で中身が入れ替わった枠だけ
          和紙で塗りつぶして描き直す（2026-09-27）。
@@ -8417,7 +8418,7 @@ function cardArt(c) {
    base … 釦は出すが、札の数と技は「手に入れたときのまま」を見せる（図鑑）
    図鑑は「どんな武将がいるか」を見る台帳なので、
    自分が育てたぶんを混ぜると、素の強さが どこにも見られなくなる */
-function openCard(c, ro, base, mod) {
+function openCard(c, ro, base, mod, abs) {
   if (!c) return;
   /* 取引所の覚えを消してから開く（2026-10-05）。
      取引所で品の札を開くと S.detailBuy（買える品）と S.detailSt（売り主の育ち）が立つ。
@@ -8428,6 +8429,9 @@ function openCard(c, ro, base, mod) {
   /* 一時の増減は、戦のさなかに開いたときだけ（2026-10-08）。
      開くたびに入れ替えるので、戦が終わってから図鑑を開いても残らない */
   S.detailMod = (mod && Object.keys(mod).length) ? mod : null;
+  /* 戦のさなかは、盤で本当に使っている素の数を出す（2026-10-15・悠さんの指図）。
+     敵は位や難しさで底上げされているので、焼いた札の数のままだと低く見えていた */
+  S.detailAbs = abs || null;
   S.detail = c.no; S.side = null; S.detailRO = !!ro; S.detailBase = !!base; draw();
 }
 /* 札の上に いまの値を重ねるか、焼いたまま（素）を出すか。
@@ -9989,7 +9993,7 @@ function battleStat(res) {
   let crit = 0, hits = 0, taken = 0, cover = 0, heal = 0;
   /* 武将ごとの控え。傷を与えなかった者も並べたいので、作るところを一つにまとめた */
   const uOf = no => unit[no] || (unit[no] = { no, all: 0, normal: 0, skill: 0, unique: 0,
-                                              ult: 0, kaeshi: 0, cover: 0, heal: 0 });
+                                              ult: 0, kaeshi: 0, cover: 0, heal: 0, oi: 0, sen: 0 });
   for (const e of (res.log || [])) {
     const mine = String(e.src || '').startsWith(mySide() + '-');
     if (e.type === 'dmg') {
@@ -9999,6 +10003,8 @@ function battleStat(res) {
         const u = uOf(parseInt(String(e.src).split('-')[1], 10));
         u.all += e.v; u[DMG_FOLD[v] || 'normal'] += e.v;
         if (v === 'counter') u.kaeshi++;
+        /* 追撃（援護射撃）の回数（2026-10-15・悠さんの指図） */
+        if (v === 'support') u.oi++;
       } else taken += e.v;
       continue;
     }
@@ -10007,6 +10013,8 @@ function battleStat(res) {
     /* かばった数と癒した量も数える（2026-10-01）。
        守り役と癒し役は傷の数字に出ないので、働きが見えなかった */
     if (e.type === 'cover') { uOf(no).cover++; cover++; }
+    /* 洗脳した回数（2026-10-15・悠さんの指図）。毎ターンの魅了も、技で掛けたものも数える */
+    else if (e.type === 'charm' || (e.type === 'status' && e.name === '洗脳')) uOf(no).sen++;
     else if (e.type === 'heal') { uOf(no).heal += (e.v || 0); heal += (e.v || 0); }
   }
   for (const k of Object.keys(by)) by[k] = Math.round(by[k]);
@@ -10029,6 +10037,8 @@ function battleStat(res) {
     taken: Math.round(taken), crit, hits, by, units,
     cover, heal: Math.round(heal),
     kaeshi: Object.values(unit).reduce((a, u) => a + u.kaeshi, 0),
+    oi: Object.values(unit).reduce((a, u) => a + u.oi, 0),
+    sen: Object.values(unit).reduce((a, u) => a + u.sen, 0),
     turn: (res.log || []).reduce((a, e) => (e.turn > a ? e.turn : a), 0),
   };
 }
@@ -10161,6 +10171,10 @@ function dmgUnitRow(u, top) {
           el('i', {}, '反撃'), el('b', {}, num(u.kaeshi) + '回')),
         el('span', { class: 'dgc' + (u.cover ? '' : ' zero') },
           el('i', {}, 'かばう'), el('b', {}, num(u.cover) + '回')),
+        el('span', { class: 'dgc' + (u.oi ? '' : ' zero') },
+          el('i', {}, '追撃'), el('b', {}, num(u.oi || 0) + '回')),
+        el('span', { class: 'dgc' + (u.sen ? '' : ' zero') },
+          el('i', {}, '洗脳'), el('b', {}, num(u.sen || 0) + '回')),
         el('span', { class: 'dgc' + (u.heal ? ' heal' : ' zero') },
           el('i', {}, '癒し'), el('b', {}, num(u.heal))))));
 }
@@ -10185,6 +10199,8 @@ function dmgSheet() {
       el('div', { class: 'dgsub sub2' },
         el('span', {}, 'かばう ', el('b', {}, num(st.cover || 0) + '回')),
         el('span', {}, '反撃 ', el('b', {}, num(st.kaeshi || 0) + '回')),
+        el('span', {}, '追撃 ', el('b', {}, num(st.oi || 0) + '回')),
+        el('span', {}, '洗脳 ', el('b', {}, num(st.sen || 0) + '回')),
         el('span', { class: 'heal' }, '癒し ', el('b', {}, num(st.heal || 0)))),
       us.length ? el('div', { class: 'dglist' }, us.map(u => dmgUnitRow(u, top)))
                 : el('p', { class: 'note' }, '戦いぶりが残っておらぬ'),
@@ -11542,7 +11558,7 @@ function rosterRow(box, side) {
          敵は こちらの育ちと関わりが無いので素のまま */
       /* 一時の増減（u.sd）も渡す（2026-10-08・悠さんの指図）。
          この戦のあいだだけ上がっているぶんを、札の数の下に色で出す */
-      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true, side === 'B', u.sd); }) : null,
+      onclick: c ? (e => { e.stopPropagation(); SFX.pick(); openCard(c, true, side === 'B', u.sd, u.bs); }) : null,
     },
       el('div', { class: 'rf' },
         art ? el('img', { src: art, alt: '' }) : el('i', { style: c ? chipStyle(c) : '' }),

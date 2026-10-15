@@ -12368,6 +12368,14 @@ function trCardEl(who, kd, o, opt = {}) {
     el('span', { class: 'trcw' }, (opt.full ? w : w.slice(0, 3)).join('\n')));
 }
 
+/* 道中で手に入る称号の階（2026-10-15）。TITLES の道中の条件と同じ数。t＝段（0初級・1中級・2上級） */
+const TR_TITLE_MILE = [
+  { t: 0, at: 10, n: '落ち延びし者' },
+  { t: 0, at: 20, n: '山越えの犬' },
+  { t: 0, at: 30, n: '帰り着きし者' },
+  { t: 1, at: 30, n: '抜け道の主' },
+  { t: 2, at: 30, n: '不帰を越えし者' },
+];
 function screenTrail() {
   const no = trCur();
   if (!no) return { body: el('div', { class: 'trpage' }, el('p', { class: 'note' }, 'まだ武将がおらぬ。わんこみくじで武将を集めよ')), nav: true };
@@ -12438,9 +12446,28 @@ function screenTrail() {
           el('div', { class: 'trtrait' },
             el('i', {}, '特'),
             el('div', {}, el('b', {}, trait.name || '特性'), el('span', {}, trait.words))),
-          el('div', { class: 'trmiles' }, TR_MILE.filter(m => m.t === tier).map(m =>
-            el('span', { class: 'trmile' + (prog >= m.at ? ' on' : '') },
-              `${m.at}階　`, [m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean).join('・')))),
+          /* 階ごとの褒美の行（2026-10-15・悠さんの指図）。上限が開く階に、称号が手に入る階も並べる。
+             初級は上限の行が無く空に見えていたため。同じ階は一行にまとめる。
+             上限はその武将の到達で、称号はどれか一体の到達（trBest）で灯る ── 渡し方がそうなっているので */
+          el('div', { class: 'trmiles' }, (() => {
+            const rows = {};
+            for (const m of TR_MILE.filter(m => m.t === tier)) {
+              const r = rows[m.at] || (rows[m.at] = { at: m.at, txt: [], on: true, ttl: null });
+              r.txt.push(...[m.sp ? `魂の上限＋${m.sp}` : '', m.lv ? `レベル上限＋${m.lv}` : ''].filter(Boolean));
+              r.on = r.on && prog >= m.at;
+            }
+            for (const m of TR_TITLE_MILE.filter(m => m.t === tier)) {
+              const r = rows[m.at] || (rows[m.at] = { at: m.at, txt: [], on: true, ttl: null });
+              r.ttl = m.n; r.on = r.on && trBest(tier) >= m.at;
+            }
+            return Object.values(rows).sort((a, b) => a.at - b.at).map(r =>
+              el('span', { class: 'trmile' + (r.on ? ' on' : '') },
+                `${r.at}階　`, r.txt.join('・'),
+                // 上限の行と同じ階なら、称号は次の行に下げる（一行に詰めると折り返しが「・称号」から始まって読みにくい）
+                r.ttl ? el('span', { class: 'trmttl' + (r.txt.length ? ' nl' : '') }, '称号',
+                  frameUrl(r.ttl) ? keepImg({ class: 'trmfr', src: frameUrl(r.ttl), alt: '' }) : null,
+                  r.ttl) : null));
+          })()),
           el('div', { class: 'trbtns' },
             el('button', { class: 'ghost', onclick: () => { S.trPick = true; SFX.pick(); draw(); } }, '武将をかえる'),
             /* 手ほどきをもう一度（2026-10-11）。控えを空にすると、場面ごとにまた出る */

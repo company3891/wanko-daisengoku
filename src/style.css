@@ -7315,3 +7315,8 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 /* 解散・解雇のたずね札も、取引所の出す札と同じ横並びに（2026-10-15・悠さんの指図
    「このボタン横並びにしてコンパクトにしなかったっけ？」）。字の長い朱の釦だけ幅を字に合わせる */
 .acts2.mkacts > button.go.sm.danger{flex:0 0 auto;width:auto;min-width:128px;padding:11px 16px;white-space:nowrap}
+
+/* 道中の階の褒美に称号を並べた（2026-10-15）。額の絵を字の高さで小さく添える */
+.trmttl{display:inline-flex;align-items:center;gap:3px}
+.trmfr{width:16px;height:16px;object-fit:contain;margin:0 1px 0 3px;vertical-align:-3px}
+.trmttl.nl{display:flex;margin-left:3.4em}

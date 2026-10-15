@@ -44,7 +44,7 @@ import { KURA, linked, hello, claim, setPass, pullSave, pushSave, pushSaveForce,
          palMe, palList, palFind, palAsk, palOk, palNo, palBye, palDuel,
          palGift, palGiftTake, palTeam, palRaid, palRaidTake,
          sekiLook, sekiMake, sekiJoin, sekiUnits, sekiLeave, sekiOpenSet, sekiInvite, sekiNpc, sekiStart, sekiBack, sekiRoom,
-         tieStart, tieTake, tieOff } from './net.js';
+         tieStart, tieTake, tieOff, tieList } from './net.js';
 import { RK_TIERS, RK_SEATS, RK_UP, RK_DOWN, RK_TICKET, RK_NEAR, RK_RAID, RK_PIN, RK_PRIZE, RK_POWER,
          RK_BANDS, RK_SHOP, rkBandOf, rkPrizeOf, rkPoint, rkSide, rkRand, rkSeed, rkRoom, rkNpcPt, rkName,
          rkMonth, rkDayOfMonth, rkDaysInMonth, rkNextTier, rkMoveWord } from './rank.js';
@@ -789,6 +789,20 @@ function lkOpen() {
   S.link = P.link.code ? 'main' : 'intro';
   S.lkMsg = ''; S.lkP1 = ''; S.lkP2 = ''; S.lkShow = false;
   SFX.pick(); draw();
+  tieSync();
+}
+/* 連携の印をサーバーに合わせる（2026-10-15）。
+   LINE アプリで確かめると、戻り先が LINE の中のブラウザになり、
+   もとのブラウザでは「連携する」のままに見えていた（実機で踏んだ）。サーバーの記録を正とする */
+async function tieSync() {
+  if (!linked()) return;
+  const r = await tieList();
+  if (!r.ok || !r.ties) return;
+  const was = JSON.stringify(Object.keys(P.link.ties || {}).sort());
+  const t = { ...(P.link.ties || {}) };
+  for (const k of ['line', 'apple']) { if (r.ties[k]) t[k] = t[k] || Date.now(); else delete t[k]; }
+  if (JSON.stringify(Object.keys(t).sort()) === was) return;
+  P.link.ties = t; savePlayer(); draw();
 }
 const lkClose = () => { S.link = null; S.lkMsg = ''; S.lkP1 = ''; S.lkP2 = ''; S.kuMsg = ''; S.kuCode = ''; draw(); };
 
@@ -835,6 +849,12 @@ async function tieBack(ticket, err) {
   }
   const kind = r.kind === 'apple' ? 'apple' : 'line';
   if (r.mode === 'tie') {
+    /* 戻ってきた所が、連携を始めたのとは別のブラウザ（LINE の中のブラウザなど）だったとき。
+       サーバーでは結べているので、もとの画面に戻ってもらう（2026-10-15・実機で踏んだ） */
+    if (!P.link.code) {
+      S.link = 'intro';
+      S.lkMsg = `${TIE_NAME[kind]}と連携しました。もとのブラウザ（またはアプリ）に戻ってください`; draw(); return;
+    }
     P.link.ties = { ...(P.link.ties || {}), [kind]: Date.now() };
     savePlayer(); kuPush(true);
     S.link = 'main'; S.lkMsg = `${TIE_NAME[kind]}と連携しました`; draw(); return;

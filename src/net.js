@@ -203,3 +203,4 @@ export async function tieTake(ticket) {
   return r;
 }
 export const tieOff = (kind) => call(`/v1/${kind}/off`, { method: 'POST' });
+export const tieList = () => call('/v1/ties');

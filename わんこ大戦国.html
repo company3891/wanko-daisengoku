@@ -7640,6 +7640,11 @@ function parseSentence(s, out) {
   if (/回復の(?:対象|範囲)が味方全体になる/.test(s)) push({ kind: 'healShape', shape: 'allAllies' });
   if (/敵が回復したとき[、,]?\s*自身も同量回復する/.test(s)) push({ kind: 'mirrorHeal' });
   if (/敵の回復効果を無効/.test(s)) push({ kind: 'healBlock' });
+  /* 「敵の伏兵状態を解除」（2026-10-15）。大友ソウプードルの奥義。読めておらず効いていなかった。
+     伏兵＝敵の攻撃対象にならない状態（雷迅の槍・毘沙ワン天・引き犬の機転 など）。
+     的は味方（allAllies）にしておく ── 敵がみな伏兵のときこそ撃ちたい技なので、
+     「敵に的が無ければ撃たない」の止めに掛からないように。解く相手は効き目の側で敵を見る */
+  if (/敵の伏兵(?:状態)?を解除/.test(s)) push({ kind: 'unhide', target: 'allAllies' });
   if (/味方全員の状態異常を解除|味方全体の状態異常を解除/.test(s))
     push({ kind: 'cleanse', target: 'allAllies' });
   /* 「状態異常を各1つ解除」（2026-10-15）。仁将の奥義16体がこの書き方で、
@@ -9031,6 +9036,14 @@ function applyEffects(effects, self, allies, enemies, primary, ctx) {
       // --- 固有の常時効果（2026-09-18 追加）---
       case 'dyingStrike': case 'attackShape': case 'attackStatus':
       case 'endure': case 'healShape': case 'mirrorHeal': case 'healBlock':
+      case 'unhide': {
+        /* 敵の伏兵を解く（2026-10-15）。時限の伏兵は残りを 0 に、
+           常時の「攻撃対象にならない」は その戦のあいだ見破られたままにする（_exposed） */
+        let n = 0;
+        for (const e of live(enemies)) if (isHidden(e)) { e._hideLeft = 0; e._exposed = true; n++; }
+        if (n && ctx.log) ctx.log.push({ t: +ctx.t.toFixed(1), type: 'reveal', src: self.id, n });
+        break;
+      }
       case 'untargetable': case 'moveTiles':
         // 常時効果は戦闘開始時に u.passives へ収集済み。ここでは何もしない
         break;
@@ -9484,7 +9497,7 @@ function kill(src, tgt, ctx) {
    盤の記録にも「隠れ身」として出して、頭の上に印を立てる */
 function isHidden(e) {
   return e._hideLeft > 0
-    || (e.passives || []).some(p => p.kind === 'untargetable' && condOk(e, p));
+    || (!e._exposed && (e.passives || []).some(p => p.kind === 'untargetable' && condOk(e, p)));
 }
 /* 洗脳された者は、もとの仲間からは斬られない（2026-10-04）。
    寝返っているあいだは向こう側として動くが、昨日までの身内である。
@@ -36251,7 +36264,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 09:47 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 09:55 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -38950,6 +38963,11 @@ async function showEvent(e, my) {
       applyEvent(live, e); drawBattle(); SFX.heal();
       fxBurst(cellOf(e.tgt), 'heal', { scale: 1.2, ms: 560 });
       popNumber(cellOf(e.tgt), '復活', 'heal'); await sleep(320); return;
+    case 'reveal':
+      /* 敵の伏兵を見破った（2026-10-15・大友ソウプードルの奥義）。盤は次の絵で伏兵の印が消える */
+      applyEvent(live, e); drawBattle(); SFX.pick();
+      fxBurst(cellOf(e.src), 'buff_down', { ms: 420 });
+      popNumber(cellOf(e.src), '見破り', ''); await sleep(220); return;
     case 'cleanse':
       applyEvent(live, e); drawBattle(); SFX.heal();
       fxBurst(cellOf(e.tgt || e.src), 'heal', { ms: 420 });

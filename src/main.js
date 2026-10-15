@@ -9528,6 +9528,11 @@ async function showEvent(e, my) {
       applyEvent(live, e); drawBattle(); SFX.heal();
       fxBurst(cellOf(e.tgt), 'heal', { scale: 1.2, ms: 560 });
       popNumber(cellOf(e.tgt), '復活', 'heal'); await sleep(320); return;
+    case 'reveal':
+      /* 敵の伏兵を見破った（2026-10-15・大友ソウプードルの奥義）。盤は次の絵で伏兵の印が消える */
+      applyEvent(live, e); drawBattle(); SFX.pick();
+      fxBurst(cellOf(e.src), 'buff_down', { ms: 420 });
+      popNumber(cellOf(e.src), '見破り', ''); await sleep(220); return;
     case 'cleanse':
       applyEvent(live, e); drawBattle(); SFX.heal();
       fxBurst(cellOf(e.tgt || e.src), 'heal', { ms: 420 });

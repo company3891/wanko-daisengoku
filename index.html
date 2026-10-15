@@ -30114,6 +30114,32 @@ async function askPersist() {
 }
 let KEEP_OK = null;   // true=持ちきり／false=断られた／null=まだ分からない
 
+/* アプリ（iPhone）の中かどうか（2026-10-15）。
+   アプリは Capacitor で包んでいて、その中では window.Capacitor が立つ。
+   ウェブ版ではどちらも無いので、これまでどおりの道を通る */
+const IN_APP = () => !!(window.WANKO_NATIVE
+  || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()));
+const appPlugin = n => {
+  const C = window.Capacitor;
+  return C && ((C.Plugins && C.Plugins[n]) || (C.registerPlugin && C.registerPlugin(n)));
+};
+/* ファイルを手元に渡す（2026-10-15）。
+   アプリの中では <a download> が効かない（押しても何も落ちてこない）。
+   いったん一時の置き場に書いてから、共有の画面を出して「ファイルに保存」や「写真に保存」を選んでもらう。
+   data は文字（json）か、data: で始まる絵。うまくいけば true */
+async function appSaveFile(name, data) {
+  const FS = appPlugin('Filesystem'), SH = appPlugin('Share');
+  if (!FS || !SH) return false;
+  const isUrl = data.startsWith('data:');
+  const w = await FS.writeFile({
+    path: name, directory: 'CACHE',
+    data: isUrl ? data.slice(data.indexOf(',') + 1) : data,
+    ...(isUrl ? {} : { encoding: 'utf8' }),
+  });
+  try { await SH.share({ title: name, files: [w.uri] }); }
+  catch (e) { if (!/cancel/i.test(String(e && (e.message || e)))) throw e; }   // 閉じただけなら しくじりではない
+  return true;
+}
 /* 保存の控えを一つのファイルに出す（2026-09-30）。
    ★ここの言葉は戦国口調にしない。間違えると本当に記録が消えるため。 */
 function saveExport() {
@@ -30121,11 +30147,13 @@ function saveExport() {
     app: 'wanko-daisengoku', kind: 'save', ver: 1,
     at: new Date().toISOString(), data: { ...P, own: [...P.own] },
   });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
   const d = new Date();
   const pad = n => String(n).padStart(2, '0');
-  a.download = `わんこ大戦国_控え_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`;
+  const fname = `わんこ大戦国_控え_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`;
+  if (IN_APP()) { appSaveFile(fname, body).catch(() => {}); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  a.download = fname;
   /* 体に貼ってから押す（2026-09-30）。浮いたままだと、機器によって名が付かずに落ちてくる */
   a.style.display = 'none';
   document.body.append(a);
@@ -30420,9 +30448,17 @@ function lkCard() {
     g.fillStyle = '#6a6256';
     g.font = '20px sans-serif';
     g.fillText('この画像は他人に見せないでください', W / 2, 470);
+    const fname = `わんこ大戦国_引き継ぎID_${P.link.code}.png`;
+    if (IN_APP()) {
+      /* アプリの中では共有の画面から「画像を保存」を選んでもらう（2026-10-15） */
+      appSaveFile(fname, c.toDataURL('image/png'))
+        .then(ok => { S.lkMsg = ok ? '' : '画像を保存できませんでした'; draw(); })
+        .catch(() => { S.lkMsg = '画像を保存できませんでした'; draw(); });
+      return;
+    }
     const a = document.createElement('a');
     a.href = c.toDataURL('image/png');
-    a.download = `わんこ大戦国_引き継ぎID_${P.link.code}.png`;
+    a.download = fname;
     a.click();
     S.lkMsg = '画像を保存しました';
   } catch { S.lkMsg = '画像を保存できませんでした'; }
@@ -36410,9 +36446,11 @@ function menuSheet() {
            ★ここの言葉は戦国口調にしない。間違えると本当に記録が消えるため */
         row('保存の控えを書き出す', 'ファイル', () => { S.menu = false; saveExport(); SFX.pick(); draw(); }),
         row('控えから戻す', '読み込む', () => { S.menu = false; S.keepMsg = ''; saveImportPick(); }),
-        row('保存の持ち', KEEP_OK === true ? '消えない' : KEEP_OK === false ? 'ふつう' : '確かめ中',
+        /* アプリの中では記録はブラウザに消されないので、この行は出さない（2026-10-15）。
+           「ホーム画面に追加して」の案内も、アプリでは意味をなさない */
+        IN_APP() ? null : row('保存の持ち', KEEP_OK === true ? '消えない' : KEEP_OK === false ? 'ふつう' : '確かめ中',
           () => { S.keepHelp = !S.keepHelp; SFX.pick(); draw(); }),
-        S.keepHelp ? el('p', { class: 'note keepnote' },
+        (S.keepHelp && !IN_APP()) ? el('p', { class: 'note keepnote' },
           KEEP_OK === true
             ? 'この端末では、しばらく遊ばなくても記録は消えません。'
             : 'ブラウザは、しばらく使われていない置き場から順に記録を消すことがあります。'
@@ -36430,7 +36468,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 13:01 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/15 15:09 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

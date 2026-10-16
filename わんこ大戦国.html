@@ -7469,6 +7469,16 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 .trendsheet .opveil{background:linear-gradient(180deg,#0b0908e6 0,#0b0908c0 34%,#0b090840 52%,#0b090800 64%,#0b090800 86%,#0b0908b0 100%)}
 .trendcrawl{bottom:48%}
 
+/* 宿場の「休む／鍛える」を立体の黒漆に（2026-10-16・悠さんの指図「ここのボタンも立体に統一」）。
+   色と照りと段差は共通の .ghost に任せ、ここでは形だけ決める */
+button.ghost.trevbig{flex:1;min-width:0;width:auto;margin:0 0 4px;padding:14px 6px;border-radius:12px;
+  display:flex;flex-direction:column;gap:4px;align-items:center}
+button.ghost.trevbig b{font-family:var(--mincho,serif);font-size:18px;color:#f5e2a8}
+button.ghost.trevbig small{font-size:min(11px,2.9vw);color:#d9cfb6;font-weight:500;white-space:nowrap;letter-spacing:0}
+/* 鍛える札えらびの「もどる」は小さく真ん中に */
+button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;margin:10px auto 4px;
+  padding:8px 30px;font-size:13px;border-radius:10px}
+
 </style>
 </head>
 <body>
@@ -36812,7 +36822,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 13:33 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 18:59 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -42857,16 +42867,17 @@ function trEvSheet() {
               en.up = 1; e.msg = `${trName(kd.sk.name)} を鍛えた`; SFX.get(); savePlayer(); draw(); } }),
             el('small', { class: 'trupw' }, trUpWords(who, kd)));
         })),
-        el('button', { class: 'ghost wide', onclick: () => { e.step = null; SFX.pick(); draw(); } }, 'もどる'));
+        /* やめるは脇役なので小さく（2026-10-16・悠さんの指図） */
+        el('button', { class: 'ghost trevback', onclick: () => { e.step = null; SFX.pick(); draw(); } }, 'もどる'));
     }
     const can = run.cards.some(x => !x.up);
     return box(el('b', { class: 'trresh' }, head('宿場')),
       el('p', {}, '囲炉裏の火があたたかい。どう過ごす？'),
       el('div', { class: 'trevpick' },
-        el('button', { class: 'trevbig', onclick: () => {
+        el('button', { class: 'ghost trevbig', onclick: () => {
           const h = Math.round(mx * 0.3); run.hp = Math.min(mx, run.hp + h); e.msg = 'ぐっすり眠った。兵量が戻った'; SFX.heal(); savePlayer(); draw(); } },
           el('b', {}, '休む'), el('small', {}, '兵量が戻る')),
-        el('button', { class: 'trevbig', disabled: can ? null : true, onclick: () => {
+        el('button', { class: 'ghost trevbig', disabled: can ? null : true, onclick: () => {
           const R = { rs: (run.seed ^ ((run.path || []).length * 7777)) >>> 0 };
           e.step = 'up'; e.picks = trPick(R, run.cards.map((x, i) => x.up ? -1 : i).filter(i => i >= 0), 3); SFX.pick(); draw(); } },
           el('b', {}, '鍛える'), el('small', {}, '手持ちの札を一枚強くする'))));

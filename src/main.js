@@ -13112,16 +13112,17 @@ function trEvSheet() {
               en.up = 1; e.msg = `${trName(kd.sk.name)} を鍛えた`; SFX.get(); savePlayer(); draw(); } }),
             el('small', { class: 'trupw' }, trUpWords(who, kd)));
         })),
-        el('button', { class: 'ghost wide', onclick: () => { e.step = null; SFX.pick(); draw(); } }, 'もどる'));
+        /* やめるは脇役なので小さく（2026-10-16・悠さんの指図） */
+        el('button', { class: 'ghost trevback', onclick: () => { e.step = null; SFX.pick(); draw(); } }, 'もどる'));
     }
     const can = run.cards.some(x => !x.up);
     return box(el('b', { class: 'trresh' }, head('宿場')),
       el('p', {}, '囲炉裏の火があたたかい。どう過ごす？'),
       el('div', { class: 'trevpick' },
-        el('button', { class: 'trevbig', onclick: () => {
+        el('button', { class: 'ghost trevbig', onclick: () => {
           const h = Math.round(mx * 0.3); run.hp = Math.min(mx, run.hp + h); e.msg = 'ぐっすり眠った。兵量が戻った'; SFX.heal(); savePlayer(); draw(); } },
           el('b', {}, '休む'), el('small', {}, '兵量が戻る')),
-        el('button', { class: 'trevbig', disabled: can ? null : true, onclick: () => {
+        el('button', { class: 'ghost trevbig', disabled: can ? null : true, onclick: () => {
           const R = { rs: (run.seed ^ ((run.path || []).length * 7777)) >>> 0 };
           e.step = 'up'; e.picks = trPick(R, run.cards.map((x, i) => x.up ? -1 : i).filter(i => i >= 0), 3); SFX.pick(); draw(); } },
           el('b', {}, '鍛える'), el('small', {}, '手持ちの札を一枚強くする'))));

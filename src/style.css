@@ -7453,3 +7453,13 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
    語りの通る上の三分の一だけ夜の帳を下ろし、下の絵は明るいまま見せる */
 .trendsheet .opveil{background:linear-gradient(180deg,#0b0908e6 0,#0b0908c0 34%,#0b090840 52%,#0b090800 64%,#0b090800 86%,#0b0908b0 100%)}
 .trendcrawl{bottom:48%}
+
+/* 宿場の「休む／鍛える」を立体の黒漆に（2026-10-16・悠さんの指図「ここのボタンも立体に統一」）。
+   色と照りと段差は共通の .ghost に任せ、ここでは形だけ決める */
+button.ghost.trevbig{flex:1;min-width:0;width:auto;margin:0 0 4px;padding:14px 6px;border-radius:12px;
+  display:flex;flex-direction:column;gap:4px;align-items:center}
+button.ghost.trevbig b{font-family:var(--mincho,serif);font-size:18px;color:#f5e2a8}
+button.ghost.trevbig small{font-size:min(11px,2.9vw);color:#d9cfb6;font-weight:500;white-space:nowrap;letter-spacing:0}
+/* 鍛える札えらびの「もどる」は小さく真ん中に */
+button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;margin:10px auto 4px;
+  padding:8px 30px;font-size:13px;border-radius:10px}

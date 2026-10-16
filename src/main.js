@@ -13768,7 +13768,8 @@ function trEndSheet() {
   const E = S.trEnd; if (!E) return null;
   const c = charOf(E.no);
   const last = TR_STORY[TR_STORY.length - 1] || {};
-  const bg = stageUrl((last.g || '草原') + '_背景') || stageUrl(last.g || '草原') || bgUrl('battle');
+  /* 背は踏破の一枚絵（bg/trail_end）。無ければ最後の階の戦場（2026-10-16・悠さんの指図「背景微妙なのでこの画像を」） */
+  const bg = bgUrl('trail_end') || stageUrl((last.g || '草原') + '_背景') || stageUrl(last.g || '草原') || bgUrl('battle');
   const fig = (c && (pawnUrl(c.no) || heroUrl(c.no))) || null;
   const go = () => {
     if (Date.now() - (E.at || 0) < 1200) return;

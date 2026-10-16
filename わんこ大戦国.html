@@ -14030,14 +14030,17 @@ function expMulOf(chars, generalNo) {
   const m = g && g.generalTrait && /獲得経験値\+(\d+(?:\.\d+)?)%/.exec(g.generalTrait.text || '');
   return m ? 1 + parseFloat(m[1]) / 100 : 1;
 }
-function giveReward(won, mul = 1, food = 0, noStone = false, expMul = 1) {
+/* noExp … 位の経験を入れない（2026-10-16・悠さんの指図）。
+   お祭りの級を二度目からも早送りで回すと、経験が入る → 位が上がる → 兵糧が満ちる → また回せる、
+   と兵糧が尽きずに位をいくらでも上げられた。お祭りで経験が入るのは、その級を初めて取ったときだけにする */
+function giveReward(won, mul = 1, food = 0, noStone = false, expMul = 1, noExp = false) {
   P.battles++;
   if (!won) { savePlayer(); return { lost: true }; }
   const r = {
     stone: noStone ? 0 : Math.round(REWARD.winStone * mul),
     koban: Math.round(REWARD.winKoban * mul),
     soul: Math.round(REWARD.winSoul * mul),
-    exp: Math.round(expForFood(food) * expMul),
+    exp: noExp ? 0 : Math.round(expForFood(food) * expMul),
     mul: mul > 1 ? mul : undefined,
   };
   addFreeStones(r.stone); P.koban += r.koban; P.soul += r.soul;
@@ -36714,7 +36717,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 09:44 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 09:53 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -39845,7 +39848,7 @@ function drawBattle() {
                     : BATTLE.tw ? null
                     : BATTLE.away ? (canSpar(BATTLE.away.id) ? sparReward(won0) : null)
                     : BATTLE.spar ? (canSpar(BATTLE.spar.id) ? sparReward(won0) : null)
-                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general))
+                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general), !evFirstEver)   // 経験は初めて取った級だけ（2026-10-16）
                     : giveReward(won0, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general));
       /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
          戦いぶりのしばりをここで確かめ、そろって初めて一階のぼる。
@@ -41128,7 +41131,7 @@ function evSkip(id, rank) {
   /* 石だけは「その級を一度でも取ったか」で見る（2026-10-07）。盤を見る戦と同じ決まり */
   const evFirstEver2 = !evCleared(id, rank);
   BATTLE = { ev: { id, rank }, camp: null,
-             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2, expMulOf(S.picked, S.general)),
+             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2, expMulOf(S.picked, S.general), !evFirstEver2),   // 経験は初めて取った級だけ（2026-10-16）
              march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）

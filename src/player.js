@@ -1305,14 +1305,17 @@ export function expMulOf(chars, generalNo) {
   const m = g && g.generalTrait && /獲得経験値\+(\d+(?:\.\d+)?)%/.exec(g.generalTrait.text || '');
   return m ? 1 + parseFloat(m[1]) / 100 : 1;
 }
-export function giveReward(won, mul = 1, food = 0, noStone = false, expMul = 1) {
+/* noExp … 位の経験を入れない（2026-10-16・悠さんの指図）。
+   お祭りの級を二度目からも早送りで回すと、経験が入る → 位が上がる → 兵糧が満ちる → また回せる、
+   と兵糧が尽きずに位をいくらでも上げられた。お祭りで経験が入るのは、その級を初めて取ったときだけにする */
+export function giveReward(won, mul = 1, food = 0, noStone = false, expMul = 1, noExp = false) {
   P.battles++;
   if (!won) { savePlayer(); return { lost: true }; }
   const r = {
     stone: noStone ? 0 : Math.round(REWARD.winStone * mul),
     koban: Math.round(REWARD.winKoban * mul),
     soul: Math.round(REWARD.winSoul * mul),
-    exp: Math.round(expForFood(food) * expMul),
+    exp: noExp ? 0 : Math.round(expForFood(food) * expMul),
     mul: mul > 1 ? mul : undefined,
   };
   addFreeStones(r.stone); P.koban += r.koban; P.soul += r.soul;

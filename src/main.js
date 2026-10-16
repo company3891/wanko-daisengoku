@@ -10186,7 +10186,7 @@ function drawBattle() {
                     : BATTLE.tw ? null
                     : BATTLE.away ? (canSpar(BATTLE.away.id) ? sparReward(won0) : null)
                     : BATTLE.spar ? (canSpar(BATTLE.spar.id) ? sparReward(won0) : null)
-                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general))
+                    : BATTLE.ev ? giveReward(won0 && evFirst, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general), !evFirstEver)   // 経験は初めて取った級だけ（2026-10-16）
                     : giveReward(won0, rewardMulOf(S.picked), paid, noStone, expMulOf(S.picked, S.general));
       /* 塔は勝ってもそれだけでは抜けられない（2026-10-01）。
          戦いぶりのしばりをここで確かめ、そろって初めて一階のぼる。
@@ -11469,7 +11469,7 @@ function evSkip(id, rank) {
   /* 石だけは「その級を一度でも取ったか」で見る（2026-10-07）。盤を見る戦と同じ決まり */
   const evFirstEver2 = !evCleared(id, rank);
   BATTLE = { ev: { id, rank }, camp: null,
-             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2, expMulOf(S.picked, S.general)),
+             reward: giveReward(won && evFirst2, rewardMulOf(S.picked), EV_FOOD[rank], !evFirstEver2, expMulOf(S.picked, S.general), !evFirstEver2),   // 経験は初めて取った級だけ（2026-10-16）
              march: null, skipped: true };
   BATTLE.evWon = won ? evWin(id, rank) : null;
   if (won) miBump('evOk');   // お役目の数（門出・2026-09-26）

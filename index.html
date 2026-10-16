@@ -7399,6 +7399,15 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
   display:flex;justify-content:center}
 .omenvid{width:100%;max-width:520px;height:100%;object-fit:cover;object-position:center bottom}
 
+/* 城の座の名札（2026-10-16・悠さんの指図）。絵の一字だけでは何の座か伝わらなかったので、
+   絵の下の縁に半分かけて重ねる。並びの高さは変えない（左上の列も右下の列もずれない） */
+.hmb .hmcap{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);z-index:2;
+  font-size:9px;font-weight:700;letter-spacing:.02em;line-height:1.35;white-space:nowrap;
+  color:#f5e2a8;background:#12100ee6;border:1px solid #d8a94a99;border-radius:999px;padding:0 6px;
+  text-shadow:0 1px 2px #000;box-shadow:0 1px 4px #000a;pointer-events:none}
+.home .hmenu.bottom .hmsq .hmb .hmcap{font-size:10px;bottom:-6px;padding:0 7px}
+.hmb.locked .hmcap{color:#8f8a80;border-color:#5a554c}
+
 </style>
 </head>
 <body>
@@ -31622,11 +31631,13 @@ function tutorDetail(c) {
 /* file は app/assets/ui/<file>.png（2026-09-23 に届いた絵）。
    無ければ menu_<名>.png / banner_<名>.png、それも無ければ漢字一文字の札に落ちる */
 const HOME_MENU = [
-  { side: 'TL', name: 'お知らせ', mark: '報', file: 'home_notice',
+  /* cap ＝ 絵の下に添える名札（2026-10-16・悠さんの指図「各種ボタンが何かわからないと意見があった」）。
+     絵の一字（報・袋・友・店・任）だけでは何の座か伝わらなかった。旅・取引所・イベント・番付・塔は絵に名が入っているので付けない */
+  { side: 'TL', name: 'お知らせ', mark: '報', file: 'home_notice', cap: 'お知らせ',
     go: () => { S.news = true; S.newsTab = NEWS_TAGS[0]; S.newsId = null; },
     badge: () => newsUnread() },
-  { side: 'TL', name: '道具',     mark: '袋', file: 'home_items',   go: () => { S.bag = true; S.bagTab = '稽古'; S.bagSel = null; S.bagMsg = ''; } },
-  { side: 'TL', name: '仲間',     mark: '友', file: 'home_friend',
+  { side: 'TL', name: '道具',     mark: '袋', file: 'home_items', cap: 'アイテム', go: () => { S.bag = true; S.bagTab = '稽古'; S.bagSel = null; S.bagMsg = ''; } },
+  { side: 'TL', name: '仲間',     mark: '友', file: 'home_friend', cap: 'フレンド',
     go: () => { S.fr = true; S.frId = null; S.frMsg = ''; S.frTab = 'my'; S.frQ = ''; palTick(true); },
     /* 赤丸は 返礼＋友の願い＋果たし合いの誘い（2026-10-06）。
        誘いは押し掛ける仕掛けが無いので、ここで気づけるようにしておく */
@@ -31634,7 +31645,7 @@ const HOME_MENU = [
   /* 店は育成の中からホームへ移した（2026-09-26）。
      買い物は育てることとは別の用事なので、城の画面から直に入れるほうが早い。
      絵は ui/home_shop.png（無ければ menu_店.png、それも無ければ「店」の一字） */
-  { side: 'TL', name: '店',       mark: '店', file: 'home_shop',
+  { side: 'TL', name: '店',       mark: '店', file: 'home_shop', cap: 'ショップ',
     go: () => { S.screen = 'shop'; S.shopTab = 'furi'; S.shopMsg = ''; } },
   /* お役目は右下の列のいちばん上（2026-09-24）。
      右手の親指が届くところに置きたいので左上から移した。
@@ -31651,7 +31662,7 @@ const HOME_MENU = [
   { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, noname: true,
     lock: () => towerOpen() ? null : LOCK_CH1,
     go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; S.trScroll = true; } },
-  { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
+  { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true, cap: 'ミッション',
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
   { side: 'BR', name: 'イベント', mark: '祭', file: 'home_event',   go: () => { S.screen = 'event'; S.evId = null; S.evMsg = ''; } },
@@ -31743,6 +31754,8 @@ function homeMenuBtn(m) {
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
     (art || m.noname || m.name === m.mark) ? null
       : el('span', { class: 'hml' }, m.label || m.name),
+    /* 絵があっても添える名札（2026-10-16）。絵の下の縁に半分かけて重ね、座の大きさは変えない */
+    (art && m.cap) ? el('span', { class: 'hmcap' }, m.cap) : null,
     /* 未読の数を赤丸で出す（2026-09-24）。badge は数を返す関数。
        0 のときは丸そのものを出さない */
     (() => {
@@ -36730,7 +36743,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 09:55 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/16 10:10 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

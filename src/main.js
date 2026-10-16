@@ -1947,11 +1947,13 @@ function tutorDetail(c) {
 /* file は app/assets/ui/<file>.png（2026-09-23 に届いた絵）。
    無ければ menu_<名>.png / banner_<名>.png、それも無ければ漢字一文字の札に落ちる */
 const HOME_MENU = [
-  { side: 'TL', name: 'お知らせ', mark: '報', file: 'home_notice',
+  /* cap ＝ 絵の下に添える名札（2026-10-16・悠さんの指図「各種ボタンが何かわからないと意見があった」）。
+     絵の一字（報・袋・友・店・任）だけでは何の座か伝わらなかった。旅・取引所・イベント・番付・塔は絵に名が入っているので付けない */
+  { side: 'TL', name: 'お知らせ', mark: '報', file: 'home_notice', cap: 'お知らせ',
     go: () => { S.news = true; S.newsTab = NEWS_TAGS[0]; S.newsId = null; },
     badge: () => newsUnread() },
-  { side: 'TL', name: '道具',     mark: '袋', file: 'home_items',   go: () => { S.bag = true; S.bagTab = '稽古'; S.bagSel = null; S.bagMsg = ''; } },
-  { side: 'TL', name: '仲間',     mark: '友', file: 'home_friend',
+  { side: 'TL', name: '道具',     mark: '袋', file: 'home_items', cap: 'アイテム', go: () => { S.bag = true; S.bagTab = '稽古'; S.bagSel = null; S.bagMsg = ''; } },
+  { side: 'TL', name: '仲間',     mark: '友', file: 'home_friend', cap: 'フレンド',
     go: () => { S.fr = true; S.frId = null; S.frMsg = ''; S.frTab = 'my'; S.frQ = ''; palTick(true); },
     /* 赤丸は 返礼＋友の願い＋果たし合いの誘い（2026-10-06）。
        誘いは押し掛ける仕掛けが無いので、ここで気づけるようにしておく */
@@ -1959,7 +1961,7 @@ const HOME_MENU = [
   /* 店は育成の中からホームへ移した（2026-09-26）。
      買い物は育てることとは別の用事なので、城の画面から直に入れるほうが早い。
      絵は ui/home_shop.png（無ければ menu_店.png、それも無ければ「店」の一字） */
-  { side: 'TL', name: '店',       mark: '店', file: 'home_shop',
+  { side: 'TL', name: '店',       mark: '店', file: 'home_shop', cap: 'ショップ',
     go: () => { S.screen = 'shop'; S.shopTab = 'furi'; S.shopMsg = ''; } },
   /* お役目は右下の列のいちばん上（2026-09-24）。
      右手の親指が届くところに置きたいので左上から移した。
@@ -1976,7 +1978,7 @@ const HOME_MENU = [
   { side: 'BR', name: '落ち延び道中', mark: '旅', file: 'home_trail', square: true, noname: true,
     lock: () => towerOpen() ? null : LOCK_CH1,
     go: () => { S.screen = P.trail.fight ? 'trfight' : 'trail'; S.trView = 'list'; S.trRes = null; S.trScroll = true; } },
-  { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true,
+  { side: 'BR', name: 'お役目',   mark: '任', file: 'home_mission', square: true, cap: 'ミッション',
     go: () => { S.mi = true; S.miTab = miTab0(); S.miMsg = ''; },
     badge: () => miReadyCount() },
   { side: 'BR', name: 'イベント', mark: '祭', file: 'home_event',   go: () => { S.screen = 'event'; S.evId = null; S.evMsg = ''; } },
@@ -2068,6 +2070,8 @@ function homeMenuBtn(m) {
        同じ字を二度並べても読むものが増えないし、札の高さが他とそろわなくなる */
     (art || m.noname || m.name === m.mark) ? null
       : el('span', { class: 'hml' }, m.label || m.name),
+    /* 絵があっても添える名札（2026-10-16）。絵の下の縁に半分かけて重ね、座の大きさは変えない */
+    (art && m.cap) ? el('span', { class: 'hmcap' }, m.cap) : null,
     /* 未読の数を赤丸で出す（2026-09-24）。badge は数を返す関数。
        0 のときは丸そのものを出さない */
     (() => {

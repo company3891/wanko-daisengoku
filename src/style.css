@@ -7383,3 +7383,12 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 .gomen{position:fixed;inset:0;z-index:40;background:#000;pointer-events:auto;cursor:pointer;
   display:flex;justify-content:center}
 .omenvid{width:100%;max-width:520px;height:100%;object-fit:cover;object-position:center bottom}
+
+/* 城の座の名札（2026-10-16・悠さんの指図）。絵の一字だけでは何の座か伝わらなかったので、
+   絵の下の縁に半分かけて重ねる。並びの高さは変えない（左上の列も右下の列もずれない） */
+.hmb .hmcap{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);z-index:2;
+  font-size:9px;font-weight:700;letter-spacing:.02em;line-height:1.35;white-space:nowrap;
+  color:#f5e2a8;background:#12100ee6;border:1px solid #d8a94a99;border-radius:999px;padding:0 6px;
+  text-shadow:0 1px 2px #000;box-shadow:0 1px 4px #000a;pointer-events:none}
+.home .hmenu.bottom .hmsq .hmb .hmcap{font-size:10px;bottom:-6px;padding:0 7px}
+.hmb.locked .hmcap{color:#8f8a80;border-color:#5a554c}

@@ -4461,7 +4461,7 @@ button.go.big.out.pic:not(:disabled):active{transform:scale(.985);animation:none
 .rvb:active{transform:scale(.97)}
 .rvb.again{background:linear-gradient(180deg,#5a4212f2,#3a2c10f2);border-color:var(--gold);
   box-shadow:0 4px 16px #000a,0 0 14px #d8a94a33 inset}
-.rvb.back{background:#12100ed9}
+.rvb.back,.rvb.rvback{background:#12100ed9}
 @media (prefers-reduced-motion:reduce){
   .rvall,.rvg,.rvg.top::after{animation:none;opacity:1}
 }
@@ -7372,14 +7372,23 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
 .ttlap i{font-size:14px;font-weight:400}
 .ttlid{background:rgba(245,226,168,.15);color:#f5e2a8;border:1px solid rgba(216,169,74,.5)!important}
 
-/* ---- 新しい宝箱の動画と狼煙（2026-10-16・試し）----
-   箱は動画に映っているので、字だけを箱の下に置く。
-   箱の位置は 動画 704×1280 の下から2割あたり。cover で上ぞろえなので、画面の下寄りになる */
+/* ---- 社殿の宝箱の動画（2026-10-16）----
+   開く前は閉じた箱の絵（ui/gacha_box）を、動画の箱を覆うように重ねる。
+   動画は 720×1280 を cover・上ぞろえで敷くので、その拡大率 --vs で位置を合わせる。
+   動画の箱の胴は x147〜573・下端 y1125。絵（760×404）は胴が x118〜640 なので、
+   胴を合わせると 0.816 倍、そこから 1.15 倍に広げて開いたふたまで隠す（760×0.816×1.15＝713×--vs） */
+.gbox.vid{--vs:max(calc(min(100vw,520px) / 720), calc(100vh / 1280))}
 .gbox.vid .gblight{display:none}
-.gbox.vid .gbwrap{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 7vh);transform:translateX(-50%)}
-.gbox.vid .gbtxt{position:relative;left:auto;top:auto;transform:none;animation:gbtxtv 2.6s ease-in-out infinite}
+.gbox.vid .gbwrap{left:50%;top:calc(var(--vs) * 1130);width:calc(var(--vs) * 713);
+  transform:translate(-50%,-100%)}
+.gbox.vid .gbtxt{top:auto;bottom:calc(var(--vs) * -95);transform:translateX(-50%)}
 @keyframes gbtxtv{0%,100%{opacity:.85}50%{opacity:1}}
-.gbox.vid.opening .gbtxt{display:none}
+.gbox.vid .gbtxt{animation:gbtxtv 2.6s ease-in-out infinite}
+/* 絵の箱から動画の箱へ入れ替わる瞬間を、金の光で包んで大きさの違いを見せない */
+.gbflash{position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:radial-gradient(circle at 50% 72%,#fff8e0 0%,#f5e2a8cc 30%,#d8a94a55 60%,#0000 85%);
+  animation:gbflash .5s ease-out forwards}
+@keyframes gbflash{0%{opacity:1}100%{opacity:0}}
 .gomen{position:fixed;inset:0;z-index:40;background:#000;pointer-events:auto;cursor:pointer;
   display:flex;justify-content:center}
 .omenvid{width:100%;max-width:520px;height:100%;object-fit:cover;object-position:center bottom}
@@ -7392,3 +7401,16 @@ h2 .jchno{font-size:11px;margin-bottom:2px}
   text-shadow:0 1px 2px #000;box-shadow:0 1px 4px #000a;pointer-events:none}
 .home .hmenu.bottom .hmsq .hmb .hmcap{font-size:10px;bottom:-6px;padding:0 7px}
 .hmb.locked .hmcap{color:#8f8a80;border-color:#5a554c}
+
+/* 十連の締めの釦を立体の決まりに乗せる（2026-10-16）。.go の flex:1・min-width を打ち消し、大きさは前のまま */
+.rvacts .rvb.go,.rvacts .rvb.ghost{flex:0 0 auto;min-width:0;width:130px;height:60px;padding:0}
+.rvb.go span{color:inherit;opacity:.8}
+
+/* 開く前の止め絵。動画と同じく cover・上ぞろえで敷く（2026-10-16） */
+.gbox.vid .gbstill{position:absolute;left:50%;top:0;transform:translateX(-50%);width:100%;max-width:520px;
+  height:100vh;object-fit:cover;object-position:center top;z-index:0;pointer-events:none}
+.gbox.vid .gbwrap{z-index:1}
+/* 左上の列の座の間をあける（2026-10-16・悠さん「詰まりすぎ。テキスト分くらい隙間を」）。
+   名札が下に7pxはみ出すので、そのぶん＋一行ぶん */
+.home .hmenu.topleft{gap:16px}
+@media (max-width:380px){ .home .hmenu.topleft{gap:13px} }

@@ -8077,7 +8077,10 @@ function omenEl() {
 function gachaBox() {
   /* 動画に箱が映っているときは、絵の箱を重ねない（2026-10-16） */
   const vid = !!bgVideoUrl('gacha_chest');
-  const art = vid ? null : uiUrl('gacha_box');
+  /* 開く前は閉じた箱の絵を、動画の箱の上に重ねる（2026-10-16・悠さん「宝箱が開いてる絵から始まるのはおかしい」）。
+     動画の1コマ目はふたが少し開いているので、それを覆う大きさで置く。
+     押すと震えて、ぱっと光ったところで絵を外し、動画の箱に入れ替わる（S.gbVidGo） */
+  const art = (vid && S.gbVidGo) ? null : uiUrl('gacha_box');
   return el('div', {
     class: 'gbox' + (S.gboxing ? ' opening' : '') + (vid ? ' vid' : ''),
     onclick: S.gboxing ? null : openBox,
@@ -8086,6 +8089,10 @@ function gachaBox() {
        ふれると飛ばせる（毎回3秒待たされるのはつらい） */
     S.gomen && OMV ? omenEl() : null,
     el('div', { class: 'gblight' }),
+    vid && S.gbVidGo ? el('i', { class: 'gbflash' }) : null,
+    /* 開く前の景色（bg/gacha_chest_shut）。動画の1コマ目の、開いたふたのあたりを金の光で包んだ止め絵。
+       閉じた箱の絵をこの上に重ねるので、ふたがはみ出して見えない */
+    vid && !S.gbVidGo && bgUrl('gacha_chest_shut') ? keepImg({ class: 'gbstill', src: bgUrl('gacha_chest_shut'), alt: '' }) : null,
     /* 字は宝箱の絵の上に重ねる（2026-09-26）。帯を敷くと札が増えて見え、
        景色のにぎやかさに負ける。金字に濃い影だけで読ませる */
     el('div', { class: 'gbwrap' },
@@ -8134,7 +8141,9 @@ async function openBox() {
        動画は先に取り込んであるので、動き出しの待ちはほぼ無い */
     SFX.box();
     await hold(850);
+    S.gbVidGo = true; draw();
     await playOnce(GVID, 4300);
+    S.gbVidGo = false;
   } else if (mv && GVID) {
     /* 箱の音は、箱の絵が動き出した瞬間に鳴らす（2026-10-16）。先に鳴らすと読み込みの待ちぶん ずれる */
     const pl = playOnce(GVID, 5000);
@@ -8267,7 +8276,9 @@ function revealView(rv, bgEl) {
      置いていない位は これまでの CSS の光のまま（絵が無くても動く） */
   /* 新しい輪の動画（2026-10-16・試し）。fx/rar2_<位>.mp4 は継ぎ目なしの4秒なので、くり返して流す */
   /* N は動画を出さない（2026-10-16・悠さん「ノーマルの線が回るのはいらない」）。札だけを静かに見せる */
-  const isN = x.rarity === 'N';
+  /* 2026-10-16 改：N と R にも SR と同じ輪の動画（rar2_N／rar2_R・SR の輪を銅色と蒼に染めたもの）を置いた。
+     悠さん「SR以降と N・R の演出の差が激しい」。前の回る線（rar_N）には戻さない */
+  const isN = x.rarity === 'N' && !fxVideoUrl('rar2_N');
   const fx2 = isN ? null : (fxVideoUrl('rar2_' + x.rarity) && vidNow(fxVideoUrl('rar2_' + x.rarity)));
   const fxv = isN ? null : (fx2 || fxVideoUrl('rar_' + x.rarity));
   /* 前触れ：まだ最後の一枚に着いていないあいだ、画面のふちに金のもやを残す */
@@ -8402,9 +8413,10 @@ function revealAll(res) {
     /* おみくじの帯（天井）は 札の下に敷く。節目の褒美をもらっていたら、その下に一行 */
     el('div', { class: 'rvbar' }, pityBar(), giftRow(res)),
     el('div', { class: 'rvacts' },
-      el('button', { class: 'rvb back', onclick: tut ? tutGoHome : closeRvAll },
+      /* 立体の釦（2026-10-16・悠さん「10連結果のボタンが立体になってない」）。ghost／go の決まりに乗せる */
+      el('button', { class: 'ghost rvb rvback', onclick: tut ? tutGoHome : closeRvAll },   // back は丸い×の名なので使わない
         tut ? '城へ戻る' : 'もどる'),
-      tut ? null : el('button', { class: 'rvb again', onclick: againPull },
+      tut ? null : el('button', { class: 'go rvb again', onclick: againPull },
         el('b', {}, n === 1 ? 'もう一祈り' : 'もう十連'),
         el('span', {}, `${num(price)} 石`))));
 }
@@ -8469,9 +8481,10 @@ async function doPull(count, noDup) {
     /* 二度目に引くと、前に開いた箱の最後のコマ（光の柱）のまま止まっていた（2026-10-16・実機の録画）。
        動画の節は使い回すので、頭に巻き戻してから宝の前に立たせる */
     if (GVID) { try { GVID.pause(); GVID.currentTime = 0; } catch { /* まだ読めていない */ } }
+    S.gbVidGo = false;
     /* 結果が決まった時点で、出番のある動画（狼煙の色・出た位の輪）を取り込みはじめる（2026-10-16） */
     { const om = omenColor(r); vidFetch(om && fxVideoUrl('omen_' + om));
-      for (const rr of new Set(r.items.map(x => x.rarity))) if (rr !== 'N') vidFetch(fxVideoUrl('rar2_' + rr)); }
+      for (const rr of new Set(r.items.map(x => x.rarity))) vidFetch(fxVideoUrl('rar2_' + rr)); }
     S.gacha = null; S.gbox = r; S.gpre = pre; S.gopen = true; draw(); return;
   }
   S.gacha = null; draw();

@@ -1262,6 +1262,19 @@ if (typeof document !== 'undefined') {
   /* iOS は本体を閉じたとき visibilitychange が来ないことがあるので、pagehide でも受ける */
   window.addEventListener('pagehide', soundSleep);
   window.addEventListener('pageshow', soundWake);
+  /* アプリ（iPhone）では、ほかのアプリへ移っても visibilitychange が来ず、
+     わんこの囃子が他のゲームの上で鳴り続けていた（2026-10-16・悠さんの実機）。
+     Capacitor が知らせる「裏に回った／前に出た」でも眠らせ、起こす。
+     pause／resume は Capacitor が document に投げる知らせ。App の appStateChange は念のための二本目。
+     ウェブ版ではどちらも来ないので、これまでどおり */
+  document.addEventListener('pause', soundSleep);
+  document.addEventListener('resume', soundWake);
+  try {
+    const C = window.Capacitor;
+    const A = C && C.isNativePlatform && C.isNativePlatform()
+      && ((C.Plugins && C.Plugins.App) || (C.registerPlugin && C.registerPlugin('App')));
+    if (A && A.addListener) A.addListener('appStateChange', st => (st && st.isActive ? soundWake() : soundSleep()));
+  } catch { /* App が無い古い殻でも、ほかの道で眠る */ }
   for (const t of ['pointerdown', 'touchend', 'click', 'keydown'])
     document.addEventListener(t, soundKick, { passive: true, capture: true });
   setInterval(() => soundKick(true), 4000);

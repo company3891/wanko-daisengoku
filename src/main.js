@@ -2432,11 +2432,19 @@ function japanMap(maps, open, reg) {
       drag = null;
     });
   // いまの章が真ん中に来るように寄せる（縦も合わせる：2026-09-30）
+  /* 上の帯（制覇の数・章のタブ・章の題）の背のぶんだけ、地図の上に空きを足す（2026-10-16・悠さんの指図
+     「山名家とかスクロールしても被ってて押しずらい。地方のバーより下までスクロールできる様に」）。
+     前は 26px の決め打ちで、絵の上のほうの国は帯の下から出てこられなかった。
+     帯の背は端末と章の題の絵で変わるので、組むたびに測る。
+     真ん中に寄せるときも、帯の下に見えている場所の真ん中に置く */
   const center = () => {
     const first = prefsOf(S.region)[0];
     if (!first || !inner.clientWidth) return;
+    const top = Math.max(26, (over.offsetHeight || 0) - 24);
+    inner.style.marginTop = top + 'px';
     scroller.scrollLeft = Math.max(0, mapX(first) / 100 * inner.clientWidth - scroller.clientWidth / 2);
-    scroller.scrollTop = Math.max(0, mapY(first) / 100 * inner.clientHeight - scroller.clientHeight / 2);
+    const seen = scroller.clientHeight - top;
+    scroller.scrollTop = Math.max(0, top + mapY(first) / 100 * inner.clientHeight - (top + seen / 2));
   };
   requestAnimationFrame(center);
   setTimeout(center, 300);
@@ -10364,6 +10372,10 @@ function resSteps() {
      取り返すたびに出すと、同じ国を往復する遊びで毎回同じ札が挟まって煩わしい。
      褒美も advancePref が first のときしか配っていないので、札もそこへ合わせる */
   if (S.res.won && mr && mr.first) out.push('taken');
+  /* 章の平定（2026-10-16・悠さんの指図「第一章とかクリアしたとき何の演出もなく進むので、制覇の時みたいに」）。
+     この国で章の国がすべてそろったときだけ。天下統一の一戦は天下統一の札に任せる */
+  const pr = BATTLE.camp && BATTLE.camp.pref;
+  if (S.res.won && mr && mr.first && !mr.unified && pr && regionTaken(pr.region)) out.push('chapter');
   if (S.res.won && mr && mr.unified) out.push('unified');
   /* お祭りの褒美は別の札にせず、勝ちの札にまとめて並べる（2026-09-29）。
      「勝利」と「お祭りの褒美」を続けて出すと、同じことを二度見せることになる */
@@ -10545,6 +10557,16 @@ function takenTalk(p, foeGen) {
   const lord = p && LORD_TALK[p.id] ? LORD_TALK[p.id].after : null;
   return lord ? `「${lord}」　${word}` : `「${word}」`;
 }
+/* 章を平定したときの一言（2026-10-16）。章の題（REGIONS.label）の下に小さく添える */
+const CHAPTER_TALK = {
+  kyushu:  '西の海の狼煙は、いま我が旗の色に染まったワン',
+  chugoku: '山陽の道は開けた。都の噂が、風に乗って届くワン',
+  shikoku: '海峡を越えた先も、もはや我らの庭ワン',
+  kinki:   '都に旗を立てた。天下の目が、こちらを向いたワン',
+  chubu:   '天下の分け目を制した。もう誰も引き返せぬワン',
+  kanto:   '坂東の嵐も、いまは静かに旗を揺らすだけワン',
+  oshu:    'みちのくの果てまで、我が名は届いたワン',
+};
 /* 制覇の褒美を、勝ちの札と同じ大きさの絵で並べる（2026-09-29） */
 function bonusRow(b) {
   if (!b) return null;
@@ -10672,6 +10694,29 @@ function resSheet() {
         el('span', { class: 'wptsp' }),
         el('button', { class: 'go wide wptake', onclick: next }, '受け取る'),
         infoMark()) : null);
+  }
+  /* 章の平定（2026-10-16）。札も釦も出さず、天下統一・国の制覇と同じ落ち方で
+     「第〇章」「制覇」を二段に一字ずつ。その下に章の題と一言を小さく。画面を押して次へ */
+  if (kind === 'chapter' && p) {
+    const reg = REGIONS.find(r => r.id === p.region) || {};
+    const no = chapterNo(p.region);
+    const row1 = [...`第${KANSUJI[no] || no}章`], row2 = [...'制覇'];
+    const D0 = 0.25, STEP = 0.18, n = row1.length + row2.length;
+    if (BATTLE && BATTLE._chSnd !== S.res.i) {
+      BATTLE._chSnd = S.res.i;
+      for (let i = 0; i < n; i++) setTimeout(() => { try { SFX.hanko(); } catch (_) {} }, (D0 + i * STEP) * 1000 + 120);
+    }
+    const end = (D0 + n * STEP).toFixed(2);
+    const line = (chs, off) => el('div', { class: 'tkttl big chttl', style: `--n:${Math.max(row1.length, 3)};--utend:${end}s` },
+      chs.map((ch, i) => el('span', { class: 'utc', style: `animation-delay:${(D0 + (off + i) * STEP).toFixed(2)}s` }, ch)));
+    const at = (S.res._chAt = S.res._chAt || Date.now());
+    const minMs = (D0 + n * STEP) * 1000 + 300;
+    return el('div', { class: 'sheet ressheet utsheet tksheet chsheet',
+      onclick: () => { if (Date.now() - at < minMs) return; S.res._chAt = 0; next(); } },
+      el('div', { class: 'chwrap' },
+        line(row1, 0), line(row2, row1.length),
+        el('p', { class: 'chsub', style: `animation-delay:${end}s` },
+          el('b', {}, `「${reg.label || ''}」`), el('span', {}, CHAPTER_TALK[p.region] || ''))));
   }
   let box;
   if (kind === 'win' || kind === 'lose') {
@@ -13588,7 +13633,7 @@ function trFinish() {
   const F = P.trail.fight; if (!F || !F.over) return;
   const win = F.over === 'win';
   const no = F.no, ft = F.tier || 0, run = trRunOf(no, ft), rk = trRK(no, ft);
-  const res = { win, i: F.i, no, rw: null, mile: null, boss: false, part: run.part };
+  const res = { win, i: F.i, no, rw: null, mile: null, boss: false, part: run.part, tier: ft };
   if (win) {
     run.hp = Math.max(1, F.pl.hp);
     /* 勝ちの褒美（2026-10-10・悠さんの指図）。毎回、持ち帰れる小判と、札を一枚えらぶ権と、兵量の戻り。
@@ -13630,7 +13675,13 @@ function trFinish() {
 function trResSheet() {
   const r = S.trRes; if (!r) return null;
   const c = charOf(r.no);
-  const close = () => { S.trRes = null; S.screen = 'trail'; S.trView = 'list'; SFX.pick(); draw(); };
+  /* 三十階を抜けたら、道へは戻さず踏破の語りを流してから城へ（2026-10-16・悠さんの指図
+     「30階クリアして報酬もらってもまた次に戻るだけなので、演出を入れて一回ホームに戻ろう」） */
+  const close = () => {
+    S.trRes = null; SFX.pick();
+    if (r.end && r.win) { S.trEnd = { no: r.no, tier: r.tier || 0, at: Date.now() }; draw(); return; }
+    S.screen = 'trail'; S.trView = 'list'; draw();
+  };
   const head = !r.win ? '道半ばで倒れた' : r.end ? '道を踏破した' : r.boss ? '国主を討った' : '道は開けた';
   /* 国主を討ったら題は「勝利」の絵（2026-10-10 夕）。絵が無ければ字 */
   const headEl = (r.boss && uiUrl('title_勝利'))
@@ -13641,7 +13692,7 @@ function trResSheet() {
   if (r.spoil) { sum.koban += r.spoil.kb || 0; sum.heal += r.spoil.heal || 0; if (r.spoil.book) sum.books['稽古の書'] = (sum.books['稽古の書'] || 0) + r.spoil.book; }
   if (r.rw) { sum.koban += r.rw.koban || 0; sum.soul += r.rw.soul || 0; for (const [nm, n] of Object.entries(r.rw.books || {})) sum.books[nm] = (sum.books[nm] || 0) + n; }
   const msg = !r.win ? `${['一', '二', '三'][r.part]}の部のはじめから、もう一度`
-    : r.end ? '三つの部をすべて抜けた。また一の部から歩める'
+    : r.end ? '三十の階を、すべて抜けた'
     : r.boss ? `${['二', '三'][r.part]}の部「${TR_PARTS[r.part + 1]}」へ`
     : `${r.i + 1}階を抜けた`;
   return el('div', { class: 'sheet' },
@@ -13687,8 +13738,49 @@ function trResSheet() {
           close();
         };
         return el('button', { class: 'go wide', onclick: go },
-          !open ? '道へ戻る' : sp.sel != null ? 'この札をくわえて道へ' : '札はとらずに道へ');
+          /* 三十階を抜けたときは道へ戻らず踏破の語りへ（2026-10-16） */
+          r.end && r.win ? (open && sp.sel != null ? 'この札をくわえて先へ' : '先へ')
+          : !open ? '道へ戻る' : sp.sel != null ? 'この札をくわえて道へ' : '札はとらずに道へ');
       })()));
+}
+
+/* ---- 道中の踏破（2026-10-16・悠さんの指図）----
+   オープニングと同じ作り。三の部の最後の戦の地を背に、抜けた武将を立たせ、語りを下から上へ流す。
+   画面を押すと城へ戻る（開いてすぐの指は受けない） */
+function trEndLines(c, t) {
+  const nm = c ? c.name : '';
+  return [
+    '燃える御殿をあとにして、いくつの夜を越えたか。',
+    '都を落ち、山を越え、帰り道をたどった。',
+    '三十の階を、ただ一騎で踏みしめた。',
+    '',
+    '行く手をふさいだ国主は、もういない。',
+    '握りしめた札の一枚一枚が、',
+    'ここまでの道のりを覚えている。',
+    '',
+    `${nm}の名は、`,
+    '道の果てまで語りつがれるだろう。',
+    '',
+    `―― ${(TR_TIER[t] || TR_TIER[0]).n}の道　踏破 ――`,
+  ];
+}
+function trEndSheet() {
+  const E = S.trEnd; if (!E) return null;
+  const c = charOf(E.no);
+  const last = TR_STORY[TR_STORY.length - 1] || {};
+  const bg = stageUrl((last.g || '草原') + '_背景') || stageUrl(last.g || '草原') || bgUrl('battle');
+  const fig = (c && (pawnUrl(c.no) || heroUrl(c.no))) || null;
+  const go = () => {
+    if (Date.now() - (E.at || 0) < 1200) return;
+    S.trEnd = null; S.screen = 'home'; SFX.pick(); draw();
+  };
+  return el('div', { class: 'opsheet trendsheet', onclick: go },
+    bg ? el('div', { class: 'opbg2', style: `background-image:url("${bg}")` }) : null,
+    el('div', { class: 'opveil' }),
+    fig ? el('img', { class: 'trendfig', src: fig, alt: c ? c.name : '' }) : null,
+    el('div', { class: 'trendcrawl' },
+      el('div', { class: 'trendroll' }, trEndLines(c, E.tier).map(t => t ? el('p', {}, t) : el('p', { class: 'gap' })))),
+    el('div', { class: 'ophint' }, '画面をたたいて城へ'));
 }
 
 /* 出陣も題の帯を出さない（2026-09-29）。
@@ -14545,6 +14637,7 @@ function draw() {
     S.spAsk != null ? sparAskSheet() : null,
     S.trPick ? trPickSheet() : null,
     S.trRes ? trResSheet() : null,
+    S.trEnd ? trEndSheet() : null,   // 道中の踏破（2026-10-16）
     trEvSheet(),                     // 道の出来事・品・札束（2026-10-10）。出すものが無ければ null
     trTipSheet(),                    // 道中の手ほどき（2026-10-11）。はじめての場面だけ
     S.sqp ? sqSheet() : null,

@@ -14718,6 +14718,12 @@ function draw() {
   if (!FX_USED) FX_KEY = null;
   FX_USED = false;
   const app = $('#app');
+  /* 描き直しで札がぶれる（2026-10-17・悠さんの録画「読み込んだ時のブレが気になる」）。
+     関ヶ原の待ち合わせは3秒ごと・残り時間は毎秒描き直すので、そのたびに札（.card2）が作り直され、
+     出てくるときの動き（下から14pxせり上がる）が頭からかかって、札が上下にぶれていた。
+     描き直す前に開いていた札を覚えておき、同じ札が続けて出るときは動きを付けない */
+  const cardKey = c => c.className + '|' + ((c.querySelector('.mittl,.sqttl,.trresh,b') || {}).textContent || '');
+  const shownCards = new Set([...app.querySelectorAll('.sheet .card2')].map(cardKey));
   app.innerHTML = '';
   // append に null を渡すと文字の "null" が出るので、先にふるい落とす
   /* スタートの画面はヘッダーもナビも出さない（2026-09-25）。一枚絵を画面いっぱいに見せたい */
@@ -14813,6 +14819,7 @@ function draw() {
     S.vs ? vsSheet() : null,
   ];
   app.append(...parts.filter(Boolean));
+  if (shownCards.size) for (const c of app.querySelectorAll('.sheet .card2')) if (shownCards.has(cardKey(c))) c.style.animation = 'none';
   guidePaint();                      // はじめての手引きの指差し（2026-09-30）
   /* ヘッダーの高さを CSS に渡す（2026-09-22）。ヘッダーが二段になって高くなったぶん、
      ガチャの背景（題字が絵の上端に入っている）が下に潜らないよう、ここぶんだけ下げる */

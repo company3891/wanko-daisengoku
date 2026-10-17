@@ -2333,7 +2333,7 @@ function prefCard(p) {
   },
     kamon(p.house),
     el('div', { class: 'pci' },
-      el('b', {}, p.name),
+      el('b', {}, p.name, p.ken ? el('small', { class: 'pcken' }, p.ken) : null),   // 今の県名を小さく（2026-10-17）
       el('span', { class: 'lord' }, p.house),
       el('span', { class: 'pcst' }, taken ? '制覇' : (p.battles > 1 ? `${step} / ${p.battles} 戦` : '未征服'))));
 }
@@ -4505,7 +4505,7 @@ function screenMarch() {
           el('div', { class: 'gtbub' },
             el('b', {}, `${p.house}　${lordName(p)}`),
             el('p', {},
-              el('em', {}, p.name + (taken ? '　制覇' : '')),
+              el('em', {}, p.name, p.ken ? el('small', { class: 'pcken' }, p.ken) : null, taken ? '　制覇' : ''),
               talk ? `「${talk}」` : where),
             talk ? el('span', { class: 'mtwhere' }, where) : null));
       })(),
@@ -10810,8 +10810,11 @@ function resSheet() {
           style: `animation-delay:${(D0 + i * STEP).toFixed(2)}s` }, ch)));
       const at = (S.res._tkAt = S.res._tkAt || Date.now());
       const minMs = (D0 + word.length * STEP) * 1000 + 200;   // 字が出そろう前の指はうけない
+      /* 国名は戦国の名なので、今の県名を下に小さく添える（2026-10-17・悠さんの指図「尾張 制覇、下に小さく愛知」） */
+      const ken = p && p.ken ? el('p', { class: 'tkken', style: `animation-delay:${(D0 + word.length * STEP).toFixed(2)}s` }, p.ken) : null;
       return el('div', { class: 'sheet ressheet utsheet tksheet',
-        onclick: () => { if (Date.now() - at < minMs) return; S.res._tkSeen = S.res.i; S.res._tkAt = 0; SFX.pick(); draw(); } }, ttl);
+        onclick: () => { if (Date.now() - at < minMs) return; S.res._tkSeen = S.res.i; S.res._tkAt = 0; SFX.pick(); draw(); } },
+        ken ? el('div', { class: 'chwrap' }, ttl, ken) : ttl);
     }
     box.append(el('button', { class: 'go wide', onclick: next }, '報酬を受け取る'));
     return el('div', { class: 'sheet ressheet tksheet' }, el('div', { class: 'tkwrap' }, box));

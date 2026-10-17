@@ -2610,9 +2610,11 @@ const TITLES = [
   { n: '第六天魔王',   g: '魔王', t: 6, f: () => campLvOpen(2) && !!campBox(2).clear },
   /* 落ち延び道中（2026-10-10・悠さんの指図「初級は特技の品・魂・称号で報いる」）。
      どれか一体でその段の階まで抜ければ渡す。名は額の絵の名になるので、あとから変えない */
-  { n: '落ち延びし者', g: '道中', t: 1, f: () => trBest(0) >= 10 },
-  { n: '山越えの犬',   g: '道中', t: 2, f: () => trBest(0) >= 20 },
-  { n: '帰り着きし者', g: '道中', t: 3, f: () => trBest(0) >= 30 },
+  /* 初級の三つは 2026-10-17 に褒美から外した（悠さんの指図「フレーム多すぎる」）。
+     もう配らないが、取った人から消えないよう表には残す（ここに無い称号は checkTitles が落とす） */
+  { n: '落ち延びし者', g: '道中', t: 1, f: () => false },
+  { n: '山越えの犬',   g: '道中', t: 2, f: () => false },
+  { n: '帰り着きし者', g: '道中', t: 3, f: () => false },
   { n: '抜け道の主',   g: '道中', t: 4, f: () => trBest(1) >= 30 },
   { n: '不帰を越えし者', g: '道中', t: 6, f: () => trBest(2) >= 30 },
   /* 番付 ─ 総合力と勝ち星 */
@@ -12772,13 +12774,27 @@ function trCardEl(who, kd, o, opt = {}) {
 }
 
 /* 道中で手に入る称号の階（2026-10-15）。TITLES の道中の条件と同じ数。t＝段（0初級・1中級・2上級） */
+/* 2026-10-17 悠さんの指図で作り直した（額が多すぎる・はじめは覚醒の品がうれしい・上級は特技の品）。
+   初級は「いま歩いている将の属性」の軍配、上級は特技の品。称号は中級30階と上級30階だけに減らした。
+   品はその武将がその段のその階を初めて抜けたときに渡す（trFloorDone）。称号はこれまでどおり
+   どれか一体の到達で渡す（TITLES）。g は属性を受けて { 品名: 数 } を返す */
 const TR_TITLE_MILE = [
-  { t: 0, at: 10, n: '落ち延びし者' },
-  { t: 0, at: 20, n: '山越えの犬' },
-  { t: 0, at: 30, n: '帰り着きし者' },
+  { t: 0, at: 10, g: a => ({ [badgeMat(a, 0)]: 10 }) },
+  { t: 0, at: 20, g: a => ({ [badgeMat(a, 1)]: 5 }) },
+  { t: 0, at: 30, g: a => ({ [badgeMat(a, 2)]: 3 }) },
   { t: 1, at: 30, n: '抜け道の主' },
-  { t: 2, at: 30, n: '不帰を越えし者' },
+  { t: 2, at: 10, g: () => ({ '特技の伝書': 3 }) },
+  { t: 2, at: 20, g: () => ({ '相伝の護符・中': 1 }) },
+  { t: 2, at: 30, g: () => ({ '相伝の護符・大': 1 }), n: '不帰を越えし者' },
 ];
+/* 道中の将の属性。ATTRS に無い名なら猛将に落とす（軍配の名が組めなくなるので） */
+const trAttrOf = no => { const a = (charOf(no) || {}).attr; return ATTRS.includes(a) ? a : ATTRS[0]; };
+const trGiftOf = (no, t, at) => {
+  const out = {};
+  for (const m of TR_TITLE_MILE) if (m.t === t && m.at === at && m.g)
+    for (const [k, v] of Object.entries(m.g(trAttrOf(no)))) out[k] = (out[k] || 0) + v;
+  return out;
+};
 function screenTrail() {
   const no = trCur();
   if (!no) return { body: el('div', { class: 'trpage' }, el('p', { class: 'note' }, 'まだ武将がおらぬ。わんこみくじで武将を集めよ')), nav: true };
@@ -12860,14 +12876,20 @@ function screenTrail() {
               r.on = r.on && prog >= m.at;
             }
             for (const m of TR_TITLE_MILE.filter(m => m.t === tier)) {
-              const r = rows[m.at] || (rows[m.at] = { at: m.at, txt: [], on: true, ttl: null });
-              r.ttl = m.n; r.on = r.on && trBest(tier) >= m.at;
+              const r = rows[m.at] || (rows[m.at] = { at: m.at, txt: [], on: true, ttl: null, gift: null });
+              if (m.n) { r.ttl = m.n; r.on = r.on && trBest(tier) >= m.at; }
+              if (m.g) { r.gift = trGiftOf(no, tier, m.at); r.on = r.on && prog >= m.at; }
             }
             return Object.values(rows).sort((a, b) => a.at - b.at).map(r =>
               el('span', { class: 'trmile' + (r.on ? ' on' : '') },
                 `${r.at}階　`, r.txt.join('・'),
+                /* 品は絵と数で（2026-10-17）。上限の行があれば次の行に下げ、称号も同じ行に並べる（背を低く保つ） */
+                r.gift ? el('span', { class: 'trmgift' + (r.txt.length ? ' nl' : '') }, ...Object.entries(r.gift).map(([k, v]) =>
+                  el('span', { class: 'trmgi' }, itemIcon(k), `×${v}`)),
+                  r.ttl ? el('span', { class: 'trmttl' }, '称号',
+                    frameUrl(r.ttl) ? keepImg({ class: 'trmfr', src: frameUrl(r.ttl), alt: '' }) : null, r.ttl) : null) : null,
                 // 上限の行と同じ階なら、称号は次の行に下げる（一行に詰めると折り返しが「・称号」から始まって読みにくい）
-                r.ttl ? el('span', { class: 'trmttl' + (r.txt.length ? ' nl' : '') }, '称号',
+                (r.ttl && !r.gift) ? el('span', { class: 'trmttl' + (r.txt.length ? ' nl' : '') }, '称号',
                   frameUrl(r.ttl) ? keepImg({ class: 'trmfr', src: frameUrl(r.ttl), alt: '' }) : null,
                   r.ttl) : null));
           })()),
@@ -13069,6 +13091,8 @@ function trFloorDone(no, floor, t = 0) {
   const before = trBonus(no);
   trSetProg(no, t, floor + 1);
   const rw = trReward(floor, t);
+  /* 節目の品（2026-10-17）。決着の札の褒美の列にもそのまま並ぶよう books に足す */
+  for (const [k, v] of Object.entries(trGiftOf(no, t, floor + 1))) rw.books[k] = (rw.books[k] || 0) + v;
   P.koban += rw.koban; P.soul += rw.soul || 0;
   for (const [nm, n] of Object.entries(rw.books || {})) addItem(nm, n);
   const after = trBonus(no);

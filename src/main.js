@@ -14693,6 +14693,25 @@ function searchRow(id, val, onQ, place, extra) {
                        SFX.pick(); draw(); } }, '×'));
 }
 
+/* ---- 描き直しで出てくる動きを繰り返さない（2026-10-17）---- */
+const STAY_SKIP = '.field,.reveal,.gbox,.utsheet,.tksheet,.chsheet,.trendsheet,.opsheet,.lmsheet,.winsheet,.losesheet,.ressheet,.cutin,.battlebody';
+function stayList(root) {
+  const out = [], seen = new Map();
+  for (const e of root.querySelectorAll('*')) {
+    const cs = getComputedStyle(e);
+    if (!cs.animationName || cs.animationName === 'none') continue;
+    if (cs.animationIterationCount === 'infinite') continue;   // 回り続ける飾りは触らない
+    if (e.closest(STAY_SKIP)) continue;
+    const base = e.tagName + '|' + (typeof e.className === 'string' ? e.className : '') + '|' + (e.textContent || '').slice(0, 24);
+    const n = (seen.get(base) || 0) + 1; seen.set(base, n);
+    out.push([base + '#' + n, e]);
+  }
+  return out;
+}
+const stayKeys = root => new Set(stayList(root).map(x => x[0]));
+function stayApply(root, keys) {
+  for (const [k, e] of stayList(root)) if (keys.has(k)) e.style.animation = 'none';
+}
 function draw() {
   IMG_USED = new Set();          // 絵の使い回しは1回の描画につき1か所まで
   saveSquads();                                   // 画面が変わるたびに保存する
@@ -14722,8 +14741,12 @@ function draw() {
      関ヶ原の待ち合わせは3秒ごと・残り時間は毎秒描き直すので、そのたびに札（.card2）が作り直され、
      出てくるときの動き（下から14pxせり上がる）が頭からかかって、札が上下にぶれていた。
      描き直す前に開いていた札を覚えておき、同じ札が続けて出るときは動きを付けない */
-  const cardKey = c => c.className + '|' + ((c.querySelector('.mittl,.sqttl,.trresh,b') || {}).textContent || '');
-  const shownCards = new Set([...app.querySelectorAll('.sheet .card2')].map(cardKey));
+  /* 2026-10-17 改：札だけでなく画面ぜんぶに広げた（悠さんの指図「いろんなところで起きてる。リアルタイムじゃない限り抑えたい」）。
+     出てくる動き（一度きりのアニメーション）を持つ部品を、描き直す前に名札で覚えておき、
+     描き直したあとに同じ名札の部品があれば動きを付けない。名札は 種類＋クラス名＋字の頭＋同じ名札の何番目か。
+     合戦の盤・くじの見せ場・制覇の題など「動いて見せる」ところは名札を付けない（STAY_SKIP） */
+  const animKeys = draw._animKeys ? stayKeys(app) : new Set();
+  draw._animKeys = true;
   app.innerHTML = '';
   // append に null を渡すと文字の "null" が出るので、先にふるい落とす
   /* スタートの画面はヘッダーもナビも出さない（2026-09-25）。一枚絵を画面いっぱいに見せたい */
@@ -14819,7 +14842,7 @@ function draw() {
     S.vs ? vsSheet() : null,
   ];
   app.append(...parts.filter(Boolean));
-  if (shownCards.size) for (const c of app.querySelectorAll('.sheet .card2')) if (shownCards.has(cardKey(c))) c.style.animation = 'none';
+  if (animKeys.size) stayApply(app, animKeys);
   guidePaint();                      // はじめての手引きの指差し（2026-09-30）
   /* ヘッダーの高さを CSS に渡す（2026-09-22）。ヘッダーが二段になって高くなったぶん、
      ガチャの背景（題字が絵の上端に入っている）が下に潜らないよう、ここぶんだけ下げる */

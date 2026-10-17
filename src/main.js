@@ -7104,7 +7104,7 @@ const HELP = [
     '出陣には兵糧が要る。兵糧は時とともに戻るが、道具でも戻せる。道具で戻したぶんは上限を超えて貯められる。',
   ] },
   { t: 'オートと手動', p: [
-    '盤面の右上のボタンで、戦のさなかにいつでも切り替えられる。',
+    '盤面の左下のボタンで、戦のさなかにいつでも切り替えられる。',
     '戦の前に決めておくなら、三本線の「戦のやり方」で選べる。',
     '合戦の進む速さは、三本線の「合戦の速さ」で変えられる。通常・1.5倍・2倍の三つ。',
     'オートから手動に変えたときは、見せ終わったターンをやり直さないよう次のターンから効く。',
@@ -8327,9 +8327,13 @@ function revealView(rv, bgEl) {
         el('div', { class: 'rvring' }),
         /* keepImg を使わないのは、毎回あたらしい節にして動きを出しなおすため。
            絵が読めなかったら、その場で属性色の札に差し替える（絵が無くても動く） */
-        art ? el('img', { class: 'rvart', src: art, alt: c.name || '',
-                onerror: e => { const box = e.target.parentNode; e.target.remove();
-                  if (box) box.append(el('div', { class: 'rvfall', style: chipStyle(c) })); } })
+        /* 札の絵には数値の升が空いている（育てば変わるので焼いていない）。
+           図鑑と同じ重ね方で、いまの数を書き込む（2026-10-17・悠さんの指図「ガチャで出たキャラのステータス数値入ってない」） */
+        art ? el('div', { class: 'rvface' },
+                el('img', { class: 'rvart', src: art, alt: c.name || '',
+                  onerror: e => { const box = e.target.parentNode; if (!box) return;
+                    box.replaceChildren(el('div', { class: 'rvfall', style: chipStyle(c) })); } }),
+                ...(cardUrl(c.no, 'front') ? cardStatOverlay(c, false) : []))   // コマ絵に落ちたときは重ねない
             : el('div', { class: 'rvfall', style: chipStyle(c) }))),
     el('b', { class: 'rvname' }, c.name || ''),
     /* 十連のときだけ、右下に「スキップ」（2026-09-30）。
@@ -9817,6 +9821,9 @@ async function play() {
   const stop = () => { if (BATTLE) BATTLE.busy = false; };
   while (BATTLE && BATTLE.shown < log.length) {
     if (my !== fxToken) { stop(); return; }
+    /* 合戦の手引きを開いているあいだは、戦を止めておく（2026-10-17）。読んでいるうちに進むと困るので */
+    while (S.bguide && BATTLE && my === fxToken) await sleep(150);
+    if (!BATTLE || my !== fxToken) { stop(); return; }
     const e = log[BATTLE.shown++];
     await showEvent(e, my);
     if (!BATTLE || my !== fxToken) { stop(); return; }
@@ -10738,7 +10745,9 @@ function resSheet() {
           el('div', { class: 'lmtag' }, el('span', {}, g.dup ? '重ねが一つ増えた' : '新たな武将が加わった')),
           el('div', { class: 'lmcard' },
             el('i', { class: 'lmray' }),
-            art ? keepImg({ class: 'lmimg', src: art, alt: c.name }) : el('b', { class: 'lmimg txt' }, c.name),
+            art ? el('div', { class: 'lmface' }, keepImg({ class: 'lmimg', src: art, alt: c.name }),
+                    ...(cardUrl(c.no, 'front') ? cardStatOverlay(c, false) : []))   // 札の数値を重ねる（2026-10-17）
+                : el('b', { class: 'lmimg txt' }, c.name),
             art ? null : (rarUrl(c.rarity) ? keepImg({ class: 'lmrar', src: rarUrl(c.rarity), alt: c.rarity }) : null)),   // 札の絵に位が描いてあるので重ねない
           el('b', { class: 'lmname' }, c.name),
           el('button', { class: 'go wide lmtake', onclick: () => { SFX.get(); next(); } }, '受け取る')));
@@ -11903,6 +11912,11 @@ function screenBattle() {
         uiUrl('ult_btn') ? null : el('span', { class: 'lbl' }, '奥義'),
         el('span', { class: 'g' }, '0/5'),
         el('span', { class: 'ring' })),
+      /* 合戦の手引きの印（2026-10-17・悠さんの指図）。盤の右上、前に手動オートがあった場所へ。
+         押すと戦を止めて、属性の相性・数のはたらき・状態異常の印を開く */
+      el('button', { class: 'bginfo' + (uiUrl('btn_手引き') ? ' art' : ''), title: '合戦の手引き',
+        onclick: e => { e.stopPropagation(); S.bguide = true; S.bgTab = S.bgTab || 0; SFX.pick(); draw(); } },
+        uiUrl('btn_手引き') ? el('img', { src: uiUrl('btn_手引き'), alt: '手引き' }) : el('i', {}, 'i')),
       // ターンは盤面の下ぎわに、四角の札で（2026-09-23）
       el('div', { class: 'turnbox', id: 'turnBox' },
         el('em', {}, 'ターン'), el('b', { id: 'turnNum' }, '—')))),
@@ -11915,6 +11929,69 @@ function screenBattle() {
 /* ---- 盤面の外に並べる顔（2026-09-23）----
    敵は上、味方は下。一体ずつ、兵量の帯・状態異常・強化弱化・総大将の印を添える。
    drawBattle から毎回組み直すので、中身はいつでも今の盤面と合っている。 */
+/* ================= 合戦の手引き（2026-10-17・悠さんの指図）=================
+   盤の右上の「i」から開く。わかりにくいところ ── 属性の相性、五つの数が何に効くか、
+   状態異常と強化・弱化の印 ── だけを、絵と短い言葉で。数（何％など）は出さない。
+   開いているあいだは戦が止まる（play() が S.bguide を見て待つ） */
+const BG_ATTR = ['猛将', '智将', '守将', '仁将', '神速'];
+const BG_WEAK = { 猛将: '智将', 智将: '守将', 守将: '仁将', 仁将: '神速', 神速: '猛将' };   // rules.json affinity.cycle と同じ
+const BG_STAT = [
+  ['火力', 'ふつうの攻めと、火力で撃つ技の強さ。炎上の焼ける痛みも、かけた者の火力で決まる。'],
+  ['賢さ', '賢さで撃つ技の強さ。高いほど会心（ひときわ大きな一撃）が出やすい。'],
+  ['防御', '火力の攻めを受け止める。'],
+  ['回復', '癒す量と、強化・弱化の効き目の大きさ。賢さの攻めを受け止める守りにもなる。'],
+  ['速さ', '手番がはやく回る。高いほど攻めをかわしやすい。'],
+];
+const BG_STATUS = [
+  ['炎上', '手番がめぐるたびに兵量が焼ける。かけた者の火力が高いほど痛い。'],
+  ['感電', 'しびれて兵量がじわじわ削られる。味方をかばうこともできない。'],
+  ['混乱', '指図を受けつけず、敵味方かまわず斬りかかる。'],
+  ['ひるみ', '手番を休む。'],
+  ['回復不能', '癒しを受けつけない。'],
+  ['挑発', '挑発した相手ばかりを狙ってしまう。'],
+  ['洗脳', '向こう側の一員として動く。総大将にはかからない。'],
+  ['伏兵', '姿を隠していて、狙われない。斬り返しも届かない。'],
+];
+function battleGuideSheet() {
+  const close = () => { S.bguide = false; SFX.pick(); draw(); };
+  const tabs = ['相性', '五つの数', '印'];
+  const t = S.bgTab || 0;
+  const aIcon = a => attrUrl(a) ? el('img', { class: 'bgai', src: attrUrl(a), alt: a }) : el('b', { class: 'bgat a' + a }, a);
+  const sIcon = n => statusIconUrl(n) ? el('img', { class: 'bgsi', src: statusIconUrl(n), alt: n })
+    : el('span', { class: 'bgsi txt' }, STATUS_MARK[n] || n[0]);
+  const body =
+    t === 0 ? [
+      el('p', { class: 'bglead' }, '五つの属性は、ぐるりと回る五すくみ。'),
+      el('div', { class: 'bgcyc' }, BG_ATTR.map(a => el('div', { class: 'bgcr' },
+        aIcon(a), el('span', {}, 'は'), aIcon(BG_WEAK[a]), el('span', {}, 'に弱い')))),
+      el('p', {}, '苦手な属性の敵が多いほど、その武将の力は落ちる。'),
+      el('p', {}, '技にも属性がある。相手の苦手を突けばよく効き、相手の得意にぶつけると鈍る。'),
+      el('p', { class: 'bgnote' }, '盤の左上の五角の印でも、いつでも確かめられる。'),
+    ]
+    : t === 1 ? [
+      el('div', { class: 'bgstats' }, BG_STAT.map(([k, d]) => el('div', { class: 'bgsr' },
+        el('b', { class: 'bgsk s-' + k }, k), el('span', {}, d)))),
+      el('p', { class: 'bgnote' }, '攻めは「火力」と「賢さ」の二通り。受けるほうは、火力には防御、賢さには回復で耐える。'),
+    ]
+    : [
+      el('h4', {}, '状態異常'),
+      el('div', { class: 'bgstl' }, BG_STATUS.map(([n, d]) => el('div', { class: 'bgsr' },
+        sIcon(n), el('b', {}, n), el('span', {}, d)))),
+      el('h4', {}, '強化と弱化'),
+      el('div', { class: 'bgstl' },
+        el('div', { class: 'bgsr' }, el('i', { class: 'bgma up s-火力' }), el('b', {}, '上向き'), el('span', {}, 'その数が上がっている。')),
+        el('div', { class: 'bgsr' }, el('i', { class: 'bgma dn s-火力' }), el('b', {}, '下向き'), el('span', {}, 'その数が下がっている。'))),
+      el('div', { class: 'bgcols' }, BG_STAT.map(([k]) => el('span', { class: 'bgcol' }, el('i', { class: 'bgma up s-' + k }), k))),
+      el('p', { class: 'bgnote' }, '矢印の色で、どの数が動いたかが分かる。顔を押すと、札の数の下に増減が出る。'),
+    ];
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 bgbox' },
+      el('b', { class: 'mittl' }, '合戦の手引き'),
+      el('div', { class: 'bgtabs' }, tabs.map((nm, i) => el('button', {
+        class: 'ghost bgtab' + (i === t ? ' on' : ''), onclick: () => { S.bgTab = i; SFX.pick(); draw(); } }, nm))),
+      el('div', { class: 'bgbody' }, ...body),
+      el('button', { class: 'go wide bgclose', onclick: close }, '戦にもどる')));
+}
 const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function rosterRow(box, side) {
   if (!box) return;
@@ -14711,6 +14788,7 @@ function draw() {
     S.spAsk != null ? sparAskSheet() : null,
     S.trPick ? trPickSheet() : null,
     S.trRes ? trResSheet() : null,
+    (S.bguide && S.screen === 'battle') ? battleGuideSheet() : null,   // 合戦の手引き（2026-10-17）
     S.trEnd ? trEndSheet() : null,   // 道中の踏破（2026-10-16）
     trEvSheet(),                     // 道の出来事・品・札束（2026-10-10）。出すものが無ければ null
     trTipSheet(),                    // 道中の手ほどき（2026-10-11）。はじめての場面だけ

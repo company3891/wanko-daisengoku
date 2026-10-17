@@ -7524,6 +7524,56 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .lmsheet .lmtake{flex:0 0 auto;width:min(70vw,260px);min-width:0;margin-top:4px;animation:chsub .4s ease-out 1.1s both}
 @keyframes lmIn{0%{opacity:0;transform:scale(.35) rotateY(90deg)}60%{opacity:1;transform:scale(1.06) rotateY(0)}100%{transform:none}}
 
+/* くじ・関ヶ原の札に数値を重ねる入れ物（2026-10-17）。字の大きさは札の幅（cqw）で決まる */
+.rvface,.lmface{position:relative;width:100%;container-type:inline-size}
+.rvface .rvart{width:100%}
+.lmface{z-index:1}
+/* 札の外（くじ・関ヶ原）でも、役割の塗りと家紋を図鑑の札と同じに置く（2026-10-17） */
+:is(.rvface,.lmface) .crolebg{position:absolute;z-index:2;border-radius:.4cqw;pointer-events:none}
+:is(.rvface,.lmface) .clkam{position:absolute;z-index:3;object-fit:contain;pointer-events:none}
+
+/* ---- 手動オートは盤の左下へ、右上には手引きの「i」（2026-10-17・悠さんの指図） ---- */
+.field.tilt .autobtn{top:auto;right:auto;left:8px;bottom:8px}
+.bginfo{position:absolute;right:8px;top:8px;z-index:50;width:34px;height:34px;border-radius:50%;padding:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:radial-gradient(circle at 50% 35%,#3d3329,#12100e);border:1.5px solid #d8a94a;
+  box-shadow:0 2px 6px #000a,inset 0 1px 0 #ffffff2a}
+.bginfo i{font-style:normal;font-family:var(--mincho);font-weight:900;font-size:19px;color:#f5e2a8;line-height:1}
+.bginfo.art{background:none;border:0;box-shadow:none;width:40px;height:40px}
+.bginfo.art img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 4px #000a)}
+.bginfo:active{transform:scale(.93)}
+/* 手引きの札 */
+.bgbox{display:flex;flex-direction:column;gap:10px}
+.bgtabs{display:flex;gap:6px}
+.bgtabs button.ghost.bgtab{flex:1;min-width:0;width:auto;margin:0 0 4px;padding:8px 4px;font-size:13px}
+.bgbody{display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.7;color:#3a2f22}
+.bgbody p{margin:0}
+.bgbody h4{margin:4px 0 0;font-family:var(--mincho);font-size:14px;color:#8a5a14;letter-spacing:.1em}
+.bglead{font-family:var(--mincho);font-weight:700;color:#8a5a14}
+.bgnote{font-size:12px;color:#6b5f4c}
+.bgcyc{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:10px;background:#00000010}
+.bgcr{display:flex;align-items:center;gap:6px}
+.bgai{width:26px;height:26px;object-fit:contain}
+.bgat{display:inline-block;padding:1px 6px;border-radius:5px;color:#fff;font-size:12px}
+.bgat.a猛将{background:#d9544d}.bgat.a智将{background:#7a7ee0}.bgat.a守将{background:#4fa36b}.bgat.a仁将{background:#d98fc0}.bgat.a神速{background:#e0c04a}
+.bgstats,.bgstl{display:flex;flex-direction:column;gap:6px}
+.bgsr{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:8px}
+.bgstats .bgsr{grid-template-columns:3.6em 1fr}
+.bgsk{display:inline-block;text-align:center;padding:2px 0;border-radius:6px;color:#fff;font-size:12px;min-width:3.4em}
+.bgsk.s-火力{background:#d9544d}.bgsk.s-賢さ{background:#8a6fe0}.bgsk.s-防御{background:#3f9e66}.bgsk.s-回復{background:#2fa8b8}.bgsk.s-速さ{background:#c99a14}
+.bgsi{width:26px;height:26px;object-fit:contain}
+.bgsi.txt{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#12100e;color:#f5e2a8;font-size:12px}
+.bgstl .bgsr b{font-size:12.5px;white-space:nowrap}
+.bgma{display:inline-block;width:15px;height:17px;background:currentColor;margin:0 5px;
+  clip-path:polygon(50% 0,100% 46%,72% 46%,72% 100%,28% 100%,28% 46%,0 46%);
+  filter:drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)}
+.bgma.dn{transform:rotate(180deg)}
+.bgma.s-火力{color:#f2695c}.bgma.s-防御{color:#5fc287}.bgma.s-回復{color:#6fd8e8}.bgma.s-速さ{color:#f0cf55}.bgma.s-賢さ{color:#ab8cf5}
+.bgcols{display:flex;gap:4px 10px;flex-wrap:wrap;padding:6px 8px;border-radius:10px;background:#12100e}
+.bgcol{display:inline-flex;align-items:center;font-size:12px;color:#f5e2a8}
+.bgcol .bgma{margin:0 3px 0 0}
+.bgclose{flex:0 0 auto;margin-top:2px}
+
 </style>
 </head>
 <body>
@@ -36901,7 +36951,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/17 09:31 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/17 09:44 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -36918,7 +36968,7 @@ const HELP = [
     '出陣には兵糧が要る。兵糧は時とともに戻るが、道具でも戻せる。道具で戻したぶんは上限を超えて貯められる。',
   ] },
   { t: 'オートと手動', p: [
-    '盤面の右上のボタンで、戦のさなかにいつでも切り替えられる。',
+    '盤面の左下のボタンで、戦のさなかにいつでも切り替えられる。',
     '戦の前に決めておくなら、三本線の「戦のやり方」で選べる。',
     '合戦の進む速さは、三本線の「合戦の速さ」で変えられる。通常・1.5倍・2倍の三つ。',
     'オートから手動に変えたときは、見せ終わったターンをやり直さないよう次のターンから効く。',
@@ -38141,9 +38191,13 @@ function revealView(rv, bgEl) {
         el('div', { class: 'rvring' }),
         /* keepImg を使わないのは、毎回あたらしい節にして動きを出しなおすため。
            絵が読めなかったら、その場で属性色の札に差し替える（絵が無くても動く） */
-        art ? el('img', { class: 'rvart', src: art, alt: c.name || '',
-                onerror: e => { const box = e.target.parentNode; e.target.remove();
-                  if (box) box.append(el('div', { class: 'rvfall', style: chipStyle(c) })); } })
+        /* 札の絵には数値の升が空いている（育てば変わるので焼いていない）。
+           図鑑と同じ重ね方で、いまの数を書き込む（2026-10-17・悠さんの指図「ガチャで出たキャラのステータス数値入ってない」） */
+        art ? el('div', { class: 'rvface' },
+                el('img', { class: 'rvart', src: art, alt: c.name || '',
+                  onerror: e => { const box = e.target.parentNode; if (!box) return;
+                    box.replaceChildren(el('div', { class: 'rvfall', style: chipStyle(c) })); } }),
+                ...(cardUrl(c.no, 'front') ? cardStatOverlay(c, false) : []))   // コマ絵に落ちたときは重ねない
             : el('div', { class: 'rvfall', style: chipStyle(c) }))),
     el('b', { class: 'rvname' }, c.name || ''),
     /* 十連のときだけ、右下に「スキップ」（2026-09-30）。
@@ -39631,6 +39685,9 @@ async function play() {
   const stop = () => { if (BATTLE) BATTLE.busy = false; };
   while (BATTLE && BATTLE.shown < log.length) {
     if (my !== fxToken) { stop(); return; }
+    /* 合戦の手引きを開いているあいだは、戦を止めておく（2026-10-17）。読んでいるうちに進むと困るので */
+    while (S.bguide && BATTLE && my === fxToken) await sleep(150);
+    if (!BATTLE || my !== fxToken) { stop(); return; }
     const e = log[BATTLE.shown++];
     await showEvent(e, my);
     if (!BATTLE || my !== fxToken) { stop(); return; }
@@ -40552,7 +40609,9 @@ function resSheet() {
           el('div', { class: 'lmtag' }, el('span', {}, g.dup ? '重ねが一つ増えた' : '新たな武将が加わった')),
           el('div', { class: 'lmcard' },
             el('i', { class: 'lmray' }),
-            art ? keepImg({ class: 'lmimg', src: art, alt: c.name }) : el('b', { class: 'lmimg txt' }, c.name),
+            art ? el('div', { class: 'lmface' }, keepImg({ class: 'lmimg', src: art, alt: c.name }),
+                    ...(cardUrl(c.no, 'front') ? cardStatOverlay(c, false) : []))   // 札の数値を重ねる（2026-10-17）
+                : el('b', { class: 'lmimg txt' }, c.name),
             art ? null : (rarUrl(c.rarity) ? keepImg({ class: 'lmrar', src: rarUrl(c.rarity), alt: c.rarity }) : null)),   // 札の絵に位が描いてあるので重ねない
           el('b', { class: 'lmname' }, c.name),
           el('button', { class: 'go wide lmtake', onclick: () => { SFX.get(); next(); } }, '受け取る')));
@@ -41717,6 +41776,11 @@ function screenBattle() {
         uiUrl('ult_btn') ? null : el('span', { class: 'lbl' }, '奥義'),
         el('span', { class: 'g' }, '0/5'),
         el('span', { class: 'ring' })),
+      /* 合戦の手引きの印（2026-10-17・悠さんの指図）。盤の右上、前に手動オートがあった場所へ。
+         押すと戦を止めて、属性の相性・数のはたらき・状態異常の印を開く */
+      el('button', { class: 'bginfo' + (uiUrl('btn_手引き') ? ' art' : ''), title: '合戦の手引き',
+        onclick: e => { e.stopPropagation(); S.bguide = true; S.bgTab = S.bgTab || 0; SFX.pick(); draw(); } },
+        uiUrl('btn_手引き') ? el('img', { src: uiUrl('btn_手引き'), alt: '手引き' }) : el('i', {}, 'i')),
       // ターンは盤面の下ぎわに、四角の札で（2026-09-23）
       el('div', { class: 'turnbox', id: 'turnBox' },
         el('em', {}, 'ターン'), el('b', { id: 'turnNum' }, '—')))),
@@ -41729,6 +41793,69 @@ function screenBattle() {
 /* ---- 盤面の外に並べる顔（2026-09-23）----
    敵は上、味方は下。一体ずつ、兵量の帯・状態異常・強化弱化・総大将の印を添える。
    drawBattle から毎回組み直すので、中身はいつでも今の盤面と合っている。 */
+/* ================= 合戦の手引き（2026-10-17・悠さんの指図）=================
+   盤の右上の「i」から開く。わかりにくいところ ── 属性の相性、五つの数が何に効くか、
+   状態異常と強化・弱化の印 ── だけを、絵と短い言葉で。数（何％など）は出さない。
+   開いているあいだは戦が止まる（play() が S.bguide を見て待つ） */
+const BG_ATTR = ['猛将', '智将', '守将', '仁将', '神速'];
+const BG_WEAK = { 猛将: '智将', 智将: '守将', 守将: '仁将', 仁将: '神速', 神速: '猛将' };   // rules.json affinity.cycle と同じ
+const BG_STAT = [
+  ['火力', 'ふつうの攻めと、火力で撃つ技の強さ。炎上の焼ける痛みも、かけた者の火力で決まる。'],
+  ['賢さ', '賢さで撃つ技の強さ。高いほど会心（ひときわ大きな一撃）が出やすい。'],
+  ['防御', '火力の攻めを受け止める。'],
+  ['回復', '癒す量と、強化・弱化の効き目の大きさ。賢さの攻めを受け止める守りにもなる。'],
+  ['速さ', '手番がはやく回る。高いほど攻めをかわしやすい。'],
+];
+const BG_STATUS = [
+  ['炎上', '手番がめぐるたびに兵量が焼ける。かけた者の火力が高いほど痛い。'],
+  ['感電', 'しびれて兵量がじわじわ削られる。味方をかばうこともできない。'],
+  ['混乱', '指図を受けつけず、敵味方かまわず斬りかかる。'],
+  ['ひるみ', '手番を休む。'],
+  ['回復不能', '癒しを受けつけない。'],
+  ['挑発', '挑発した相手ばかりを狙ってしまう。'],
+  ['洗脳', '向こう側の一員として動く。総大将にはかからない。'],
+  ['伏兵', '姿を隠していて、狙われない。斬り返しも届かない。'],
+];
+function battleGuideSheet() {
+  const close = () => { S.bguide = false; SFX.pick(); draw(); };
+  const tabs = ['相性', '五つの数', '印'];
+  const t = S.bgTab || 0;
+  const aIcon = a => attrUrl(a) ? el('img', { class: 'bgai', src: attrUrl(a), alt: a }) : el('b', { class: 'bgat a' + a }, a);
+  const sIcon = n => statusIconUrl(n) ? el('img', { class: 'bgsi', src: statusIconUrl(n), alt: n })
+    : el('span', { class: 'bgsi txt' }, STATUS_MARK[n] || n[0]);
+  const body =
+    t === 0 ? [
+      el('p', { class: 'bglead' }, '五つの属性は、ぐるりと回る五すくみ。'),
+      el('div', { class: 'bgcyc' }, BG_ATTR.map(a => el('div', { class: 'bgcr' },
+        aIcon(a), el('span', {}, 'は'), aIcon(BG_WEAK[a]), el('span', {}, 'に弱い')))),
+      el('p', {}, '苦手な属性の敵が多いほど、その武将の力は落ちる。'),
+      el('p', {}, '技にも属性がある。相手の苦手を突けばよく効き、相手の得意にぶつけると鈍る。'),
+      el('p', { class: 'bgnote' }, '盤の左上の五角の印でも、いつでも確かめられる。'),
+    ]
+    : t === 1 ? [
+      el('div', { class: 'bgstats' }, BG_STAT.map(([k, d]) => el('div', { class: 'bgsr' },
+        el('b', { class: 'bgsk s-' + k }, k), el('span', {}, d)))),
+      el('p', { class: 'bgnote' }, '攻めは「火力」と「賢さ」の二通り。受けるほうは、火力には防御、賢さには回復で耐える。'),
+    ]
+    : [
+      el('h4', {}, '状態異常'),
+      el('div', { class: 'bgstl' }, BG_STATUS.map(([n, d]) => el('div', { class: 'bgsr' },
+        sIcon(n), el('b', {}, n), el('span', {}, d)))),
+      el('h4', {}, '強化と弱化'),
+      el('div', { class: 'bgstl' },
+        el('div', { class: 'bgsr' }, el('i', { class: 'bgma up s-火力' }), el('b', {}, '上向き'), el('span', {}, 'その数が上がっている。')),
+        el('div', { class: 'bgsr' }, el('i', { class: 'bgma dn s-火力' }), el('b', {}, '下向き'), el('span', {}, 'その数が下がっている。'))),
+      el('div', { class: 'bgcols' }, BG_STAT.map(([k]) => el('span', { class: 'bgcol' }, el('i', { class: 'bgma up s-' + k }), k))),
+      el('p', { class: 'bgnote' }, '矢印の色で、どの数が動いたかが分かる。顔を押すと、札の数の下に増減が出る。'),
+    ];
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 bgbox' },
+      el('b', { class: 'mittl' }, '合戦の手引き'),
+      el('div', { class: 'bgtabs' }, tabs.map((nm, i) => el('button', {
+        class: 'ghost bgtab' + (i === t ? ' on' : ''), onclick: () => { S.bgTab = i; SFX.pick(); draw(); } }, nm))),
+      el('div', { class: 'bgbody' }, ...body),
+      el('button', { class: 'go wide bgclose', onclick: close }, '戦にもどる')));
+}
 const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function rosterRow(box, side) {
   if (!box) return;
@@ -44525,6 +44652,7 @@ function draw() {
     S.spAsk != null ? sparAskSheet() : null,
     S.trPick ? trPickSheet() : null,
     S.trRes ? trResSheet() : null,
+    (S.bguide && S.screen === 'battle') ? battleGuideSheet() : null,   // 合戦の手引き（2026-10-17）
     S.trEnd ? trEndSheet() : null,   // 道中の踏破（2026-10-16）
     trEvSheet(),                     // 道の出来事・品・札束（2026-10-10）。出すものが無ければ null
     trTipSheet(),                    // 道中の手ほどき（2026-10-11）。はじめての場面だけ

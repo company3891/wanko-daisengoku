@@ -11935,62 +11935,63 @@ function screenBattle() {
    開いているあいだは戦が止まる（play() が S.bguide を見て待つ） */
 const BG_ATTR = ['猛将', '智将', '守将', '仁将', '神速'];
 const BG_WEAK = { 猛将: '智将', 智将: '守将', 守将: '仁将', 仁将: '神速', 神速: '猛将' };   // rules.json affinity.cycle と同じ
+/* 言葉は現代語で（2026-10-17・悠さんの指図「説明文がわかりにくいから現代用語で」）。
+   ゲームの手引きなので、ここだけは 通常攻撃・ダメージ・毎ターン などをそのまま使う */
 const BG_STAT = [
-  ['火力', 'ふつうの攻めと、火力で撃つ技の強さ。炎上の焼ける痛みも、かけた者の火力で決まる。'],
-  ['賢さ', '賢さで撃つ技の強さ。高いほど会心（ひときわ大きな一撃）が出やすい。'],
-  ['防御', '火力の攻めを受け止める。'],
-  ['回復', '癒す量と、強化・弱化の効き目の大きさ。賢さの攻めを受け止める守りにもなる。'],
-  ['速さ', '手番がはやく回る。高いほど攻めをかわしやすい。'],
+  ['火力', '通常攻撃と、火力系スキルのダメージが上がる。炎上のダメージも、かけた側の火力で決まる。'],
+  ['賢さ', '賢さ系スキルのダメージが上がる。クリティカル（会心）が出やすくなる。'],
+  ['防御', '火力系の攻撃から受けるダメージを減らす。'],
+  ['回復', '回復量と、バフ・デバフの効果量が上がる。賢さ系の攻撃から受けるダメージも減らす。'],
+  ['速さ', '行動順が早くなる。攻撃を回避しやすくなる。'],
 ];
 const BG_STATUS = [
-  ['炎上', '手番がめぐるたびに兵量が焼ける。かけた者の火力が高いほど痛い。'],
-  ['感電', 'しびれて兵量がじわじわ削られる。味方をかばうこともできない。'],
-  ['混乱', '指図を受けつけず、敵味方かまわず斬りかかる。'],
-  ['ひるみ', '手番を休む。'],
-  ['回復不能', '癒しを受けつけない。'],
-  ['挑発', '挑発した相手ばかりを狙ってしまう。'],
-  ['洗脳', '向こう側の一員として動く。総大将にはかからない。'],
-  ['伏兵', '姿を隠していて、狙われない。斬り返しも届かない。'],
+  ['炎上', '毎ターンダメージを受ける。かけた側の火力が高いほどダメージが大きい。'],
+  ['感電', '時間とともにダメージを受け続ける。味方をかばえなくなる。'],
+  ['混乱', '操作できなくなり、敵味方関係なく攻撃する。'],
+  ['ひるみ', '行動できない。'],
+  ['回復不能', '回復を受けられない。'],
+  ['挑発', '挑発した敵を優先して攻撃してしまう。'],
+  ['洗脳', '敵側について行動する。総大将にはかからない。'],
+  ['伏兵', '姿を隠していて、攻撃の対象にならない。反撃も受けない。'],
 ];
 function battleGuideSheet() {
   const close = () => { S.bguide = false; SFX.pick(); draw(); };
-  const tabs = ['相性', '五つの数', '印'];
+  const tabs = ['属性相性', 'ステータス', '状態異常'];
   const t = S.bgTab || 0;
   const aIcon = a => attrUrl(a) ? el('img', { class: 'bgai', src: attrUrl(a), alt: a }) : el('b', { class: 'bgat a' + a }, a);
   const sIcon = n => statusIconUrl(n) ? el('img', { class: 'bgsi', src: statusIconUrl(n), alt: n })
     : el('span', { class: 'bgsi txt' }, STATUS_MARK[n] || n[0]);
   const body =
     t === 0 ? [
-      el('p', { class: 'bglead' }, '五つの属性は、ぐるりと回る五すくみ。'),
       el('div', { class: 'bgcyc' }, BG_ATTR.map(a => el('div', { class: 'bgcr' },
         aIcon(a), el('span', {}, 'は'), aIcon(BG_WEAK[a]), el('span', {}, 'に弱い')))),
-      el('p', {}, '苦手な属性の敵が多いほど、その武将の力は落ちる。'),
-      el('p', {}, '技にも属性がある。相手の苦手を突けばよく効き、相手の得意にぶつけると鈍る。'),
-      el('p', { class: 'bgnote' }, '盤の左上の五角の印でも、いつでも確かめられる。'),
+      el('p', {}, '弱点の属性の敵が多いほど、その武将のステータスが下がる。'),
+      el('p', {}, 'スキルにも属性がある。相手の弱点を突くとダメージが上がり、相手が有利な属性だとダメージが下がる。'),
+      el('p', { class: 'bgnote' }, '盤面の左上の図でも、いつでも確認できる。'),
     ]
     : t === 1 ? [
       el('div', { class: 'bgstats' }, BG_STAT.map(([k, d]) => el('div', { class: 'bgsr' },
         el('b', { class: 'bgsk s-' + k }, k), el('span', {}, d)))),
-      el('p', { class: 'bgnote' }, '攻めは「火力」と「賢さ」の二通り。受けるほうは、火力には防御、賢さには回復で耐える。'),
+      el('p', { class: 'bgnote' }, '攻撃は「火力系」と「賢さ系」の2種類。火力系は防御で、賢さ系は回復で受けるダメージが減る。'),
     ]
     : [
       el('h4', {}, '状態異常'),
       el('div', { class: 'bgstl' }, BG_STATUS.map(([n, d]) => el('div', { class: 'bgsr' },
         sIcon(n), el('b', {}, n), el('span', {}, d)))),
-      el('h4', {}, '強化と弱化'),
+      el('h4', {}, 'バフ・デバフ'),
       el('div', { class: 'bgstl' },
-        el('div', { class: 'bgsr' }, el('i', { class: 'bgma up s-火力' }), el('b', {}, '上向き'), el('span', {}, 'その数が上がっている。')),
-        el('div', { class: 'bgsr' }, el('i', { class: 'bgma dn s-火力' }), el('b', {}, '下向き'), el('span', {}, 'その数が下がっている。'))),
+        el('div', { class: 'bgsr' }, el('i', { class: 'bgma up s-火力' }), el('b', {}, '上向き'), el('span', {}, 'そのステータスが上がっている（バフ）。')),
+        el('div', { class: 'bgsr' }, el('i', { class: 'bgma dn s-火力' }), el('b', {}, '下向き'), el('span', {}, 'そのステータスが下がっている（デバフ）。'))),
       el('div', { class: 'bgcols' }, BG_STAT.map(([k]) => el('span', { class: 'bgcol' }, el('i', { class: 'bgma up s-' + k }), k))),
-      el('p', { class: 'bgnote' }, '矢印の色で、どの数が動いたかが分かる。顔を押すと、札の数の下に増減が出る。'),
+      el('p', { class: 'bgnote' }, '矢印の色で、どのステータスが変化したか分かる。顔アイコンを押すと、カードの数値の下に増減が表示される。'),
     ];
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 bgbox' },
-      el('b', { class: 'mittl' }, '合戦の手引き'),
+      el('b', { class: 'mittl' }, '戦闘のヒント'),
       el('div', { class: 'bgtabs' }, tabs.map((nm, i) => el('button', {
         class: 'ghost bgtab' + (i === t ? ' on' : ''), onclick: () => { S.bgTab = i; SFX.pick(); draw(); } }, nm))),
       el('div', { class: 'bgbody' }, ...body),
-      el('button', { class: 'go wide bgclose', onclick: close }, '戦にもどる')));
+      el('button', { class: 'go wide bgclose', onclick: close }, '戦闘にもどる')));
 }
 const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function rosterRow(box, side) {

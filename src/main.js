@@ -193,9 +193,7 @@ setTimeout(() => {
   if (!linked()) return;
   kuWatch();
   pullSave().then(g => {
-    if (g && g.ok && g.blob && (g.rev || 0) > revOf()) {
-      S.kuWar = { rev: g.rev, blob: g.blob, at: g.at }; draw();
-    }
+    if (g && g.ok && g.blob && (g.rev || 0) > revOf()) kuClash({ rev: g.rev, blob: g.blob, at: g.at });
   }).catch(() => { /* 繋がらなくても端末の中だけで遊べる */ });
 }, 0);
 /* LINE・Apple から戻ってきたかを見る（2026-10-15）。S ができてから動かす */
@@ -1081,8 +1079,28 @@ async function kuPush(force) {
   if (!force && text === kuLast) return { ok: true, same: true };
   const r = await pushSave(blob);
   if (r.ok) kuLast = text;
-  else if (r.status === 409) { S.kuWar = { rev: r.rev, blob: r.blob, at: r.at }; draw(); }
+  else if (r.status === 409) kuClash({ rev: r.rev, blob: r.blob, at: r.at });
   return r;
+}
+
+/* 版が食い違ったときの見きわめ（2026-10-17・悠さんの指図）。
+   「記録が二つあります」が毎回出ていた。画面を離れたときの控え（pagehide）は送りっぱなしで、
+   アプリが裏に回ると返事（新しい版の数）を受け取れないまま終わる。中身は同じなのに、
+   次に開くと「サーバーの版が新しい」と見えていた。
+   悠さんの決め：ふだんはこの端末を残す。尋ねるのは、サーバーのほうが先に進んでいるとき
+   （強制終了で端末の記録が巻き戻った／ほかの端末で遊んだ）だけ。
+   引き継ぎ・接続のときの札（kuJoin・claim）は、これまでどおり必ず尋ねる */
+const kuProg = b => b ? [b.lv || 1, b.exp || 0, (b.own || []).length, b.battles || 0, b.draws || 0] : [0, 0, 0, 0, 0];
+function kuServerAhead(server, local) {
+  const s = kuProg(server), l = kuProg(local);
+  if (s[0] !== l[0]) return s[0] > l[0];                // レベルが上なら先
+  return s.slice(1).some((v, i) => v > l[i + 1]);        // 経験・武将・戦の数・くじの数のどれかが上なら先
+}
+async function kuClash(w) {
+  if (kuServerAhead(w.blob, kuBlob())) { S.kuWar = w; draw(); return; }
+  /* 端末のほうが同じか先 → 黙って端末を残す。版をサーバーに合わせて送り直す */
+  const r = await pushSaveForce(kuBlob(), w.rev);
+  if (r.ok) { kuLast = JSON.stringify(kuBlob()); S.kuPend = null; S.kuHold = false; }
 }
 
 /* 控えの送りどき。遊んでいる最中に止めたくないので、

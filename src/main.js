@@ -2215,6 +2215,10 @@ function sqSheet() {
   const ok = a.edit || (q.nos.length && (a.solo || (!over && !dups.length)));
   return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
     el('div', { class: 'card2 sqbox' },
+      /* 出陣前にも戦闘のヒントを（2026-10-17・悠さんの指図）。札の右上に、盤と同じ「i」 */
+      el('button', { class: 'bginfo sqinfo' + (uiUrl('btn_手引き') ? ' art' : ''), title: '戦闘のヒント',
+        onclick: e => { e.stopPropagation(); S.bguide = true; S.bgTab = S.bgTab || 0; SFX.pick(); draw(); } },
+        uiUrl('btn_手引き') ? el('img', { src: uiUrl('btn_手引き'), alt: 'ヒント' }) : el('i', {}, 'i')),
       el('b', { class: 'sqttl' }, a.title),
       a.note ? el('p', { class: 'note' }, a.note) : null,
       el('div', { class: 'sqlist' }, P.squads.map((sq2, i) => squadCard(sq2, i))),
@@ -11997,7 +12001,7 @@ function battleGuideSheet() {
       el('div', { class: 'bgtabs' }, tabs.map((nm, i) => el('button', {
         class: 'ghost bgtab' + (i === t ? ' on' : ''), onclick: () => { S.bgTab = i; SFX.pick(); draw(); } }, nm))),
       el('div', { class: 'bgbody' }, ...body),
-      el('button', { class: 'go wide bgclose', onclick: close }, '戦闘にもどる')));
+      el('button', { class: 'go wide bgclose', onclick: close }, S.screen === 'battle' ? '戦闘にもどる' : '閉じる')));
 }
 const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function rosterRow(box, side) {
@@ -14795,11 +14799,11 @@ function draw() {
     S.spAsk != null ? sparAskSheet() : null,
     S.trPick ? trPickSheet() : null,
     S.trRes ? trResSheet() : null,
-    (S.bguide && S.screen === 'battle') ? battleGuideSheet() : null,   // 合戦の手引き（2026-10-17）
     S.trEnd ? trEndSheet() : null,   // 道中の踏破（2026-10-16）
     trEvSheet(),                     // 道の出来事・品・札束（2026-10-10）。出すものが無ければ null
     trTipSheet(),                    // 道中の手ほどき（2026-10-11）。はじめての場面だけ
     S.sqp ? sqSheet() : null,
+    S.bguide ? battleGuideSheet() : null,   // 戦闘のヒント（2026-10-17）。合戦の盤と出陣前の部隊えらびから開く
     S.food ? foodSheet() : null,
     S.cp ? pickSheet() : null,
     S.fire != null ? fireSheet() : null,

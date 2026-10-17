@@ -14036,25 +14036,32 @@ function grantStones(no, receipt) {
 }
 
 /* ================= ガチャ =================
-   排出率（仕様書 §16）: UR 2% / SSR 8% / SR 20% / R 30% / N 40%
+   排出率: UR 0.75% / SSR 2.75% / SR 17.5% / R 29% / N 50%（2026-10-18）
    価格: 単発 300石 / 10連 3000石
-   確定: 10連にSR以上1体 ／ 80連でSSR以上1体 ／ 150連でUR1体
+   確定: 10連にSR以上1体 ／ 60連でSSR以上1体 ／ 100連でUR1体（2026-10-18）
    重複したら武士の魂になる（N1 / R3 / SR10 / SSR30 / UR100）
 
    ★ 抽選は戦闘と同じく決定論にしてある。
    通算n回目の引きは seed = hash(おみくじの元種, n) だけで決まるので、
    「御籤番号」を控えておけば、あとから同じ結果を再現して検証できる。
    サーバーは1回ぶんの結果を保存しなくても、申告が正しいか確かめられる。 */
-const RATES = { UR: 0.02, SSR: 0.08, SR: 0.20, R: 0.30, N: 0.40 };
+/* 排出率を絞った（2026-10-18）。前は UR2 / SSR8 / SR20 / R30 / N40。
+   URを出にくくした代わりに、帯の天井を150から100に縮めて支える */
+const RATES = { UR: 0.0075, SSR: 0.0275, SR: 0.175, R: 0.29, N: 0.50 };
 const SOUL_BY_RARITY = { N: 1, R: 3, SR: 10, SSR: 30, UR: 100, PR: 10 }; // PR（催しの武将）は SR と同じ重さ 2026-10-11
 const PRICE = { single: 300, ten: 3000 };
 /* おみくじの帯の節目（2026-09-26）。帯は「URまでの積み」を見せている。
    30 … SR以上が確定　60 … SSR以上が確定
    90 … 相伝の護符・大 を1つ　120 … 上達の護符・大 を1つ　150 … URが確定
    品の褒美は、その積みにちょうど届いた一引きで一度だけ配る（URが出ると積みは0に戻る） */
+/* 2026-10-18 に組み替えた。URの天井 150→100、SR以上の天井（30）は外した
+   （十連の「SR以上1体」は残るので、SRで止まることはない）。
+   品の節目は帯の中に収まるよう 90→30・120→80 に寄せた。
+   30 … 相伝の護符・大　60 … SSR以上が確定　80 … 上達の護符・大　100 … URが確定
+   sr を 0 にしておくと SR の天井は働かない（pull で見ている） */
 const PITY = {
-  sr: 30, ssr: 60, ur: 150,
-  gifts: { 90: '相伝の護符・大', 120: '上達の護符・大' },
+  sr: 0, ssr: 60, ur: 100,
+  gifts: { 30: '相伝の護符・大', 80: '上達の護符・大' },
 };
 const RANK = ['N', 'R', 'SR', 'SSR', 'UR'];
 
@@ -14145,7 +14152,7 @@ function pull(count, pool, gid, opt = {}) {
        もとは さらに i を足していて、十連のうしろほど天井が早く来ていた（2026-09-26 に直した） */
     if (Q.ur + 1 >= PITY.ur) floor = 'UR';
     else if (Q.ssr + 1 >= PITY.ssr) floor = 'SSR';
-    else if (Q.sr + 1 >= PITY.sr) floor = 'SR';
+    else if (PITY.sr && Q.sr + 1 >= PITY.sr) floor = 'SR';   // sr=0 なら働かない（2026-10-18）
     // 10連の最後まで SR 以上が出ていなければ、最後の1枠を SR 以上にする
     else if (count === 10 && i === 9 && !items.some(x => RANK.indexOf(x.rarity) >= 2)) floor = 'SR';
     const it = drawOne(base, n, pool, floor);
@@ -36977,7 +36984,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/17 14:49 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/18 00:35 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -37811,13 +37818,13 @@ function screenStone() {
    下ナビのすぐ上に常駐させ、「URの天井まであと何回か」を一目で見せる。
    数えているのは最後にURが出てからの回数。URを引いた時点で 0 に戻る。
    SSR以上の天井は別の数えなので、右端に小さく添えるだけにする。 */
-const PITY_MARKS = [30, 60, 90, 120, 150];
+const PITY_MARKS = [30, 60, 80, 100];   // 2026-10-18 に 100 までの帯へ
 /* 帯の節目に置く褒美の絵（2026-09-26）。
    30 … SR以上が確定　60 … SSR以上が確定
    90 … 相伝の護符・大 が1つ　120 … 上達の護符・大 が1つ　150 … URが確定
    絵が無ければ 節目の矢印のままになる（絵が無くても動く決まり） */
 const pityGift = m => {
-  const rank = { [PITY.ur]: 'UR', [PITY.ssr]: 'SSR', [PITY.sr]: 'SR' }[m];
+  const rank = { [PITY.ur]: 'UR', [PITY.ssr]: 'SSR', ...(PITY.sr ? { [PITY.sr]: 'SR' } : {}) }[m];
   if (rank) return rarUrl(rank) ? { src: rarUrl(rank), alt: rank } : null;
   const item = (PITY.gifts || {})[m];
   if (item) { const u = itemUrl(item); return u ? { src: u, alt: item } : null; }
@@ -37879,7 +37886,7 @@ function ratesSheet(toSSR, toUR) {
       el('h3', {}, '排出率'),
       el('div', { class: 'rtab' }, RAR.map(r =>
         el('div', { class: 'rw' }, el('span', { class: 'r-' + r }, rarTag(r, 'sm')),
-          el('b', {}, `${(RATES[r] * 100).toFixed(0)}%`)))),
+          el('b', {}, `${+(RATES[r] * 100).toFixed(2)}%`)))),   // 0.75% も丸めずに出す（2026-10-18）
       el('h3', {}, '価格'),
       /* 祭りのくじは札で引ける（2026-09-30）。札が先、尽きたら石 */
       el('div', { class: 'rtab' },
@@ -37892,7 +37899,7 @@ function ratesSheet(toSSR, toUR) {
       el('h3', {}, '確定と天井'),
       el('div', { class: 'rtab' },
         row('十連', '10体目までにSR以上が1体確定'),
-        row('SR以上の天井', `${PITY.sr}連`),
+        PITY.sr ? row('SR以上の天井', `${PITY.sr}連`) : null,
         row('SSR以上の天井', `${PITY.ssr}連（あと ${toSSR} 回）`),
         row('URの天井', `${PITY.ur}連（あと ${toUR} 回）`)),
       el('h3', {}, 'おみくじの帯の褒美'),

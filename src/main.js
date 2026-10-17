@@ -7925,13 +7925,13 @@ function screenStone() {
    下ナビのすぐ上に常駐させ、「URの天井まであと何回か」を一目で見せる。
    数えているのは最後にURが出てからの回数。URを引いた時点で 0 に戻る。
    SSR以上の天井は別の数えなので、右端に小さく添えるだけにする。 */
-const PITY_MARKS = [30, 60, 90, 120, 150];
+const PITY_MARKS = [30, 60, 80, 100];   // 2026-10-18 に 100 までの帯へ
 /* 帯の節目に置く褒美の絵（2026-09-26）。
    30 … SR以上が確定　60 … SSR以上が確定
    90 … 相伝の護符・大 が1つ　120 … 上達の護符・大 が1つ　150 … URが確定
    絵が無ければ 節目の矢印のままになる（絵が無くても動く決まり） */
 const pityGift = m => {
-  const rank = { [PITY.ur]: 'UR', [PITY.ssr]: 'SSR', [PITY.sr]: 'SR' }[m];
+  const rank = { [PITY.ur]: 'UR', [PITY.ssr]: 'SSR', ...(PITY.sr ? { [PITY.sr]: 'SR' } : {}) }[m];
   if (rank) return rarUrl(rank) ? { src: rarUrl(rank), alt: rank } : null;
   const item = (PITY.gifts || {})[m];
   if (item) { const u = itemUrl(item); return u ? { src: u, alt: item } : null; }
@@ -7993,7 +7993,7 @@ function ratesSheet(toSSR, toUR) {
       el('h3', {}, '排出率'),
       el('div', { class: 'rtab' }, RAR.map(r =>
         el('div', { class: 'rw' }, el('span', { class: 'r-' + r }, rarTag(r, 'sm')),
-          el('b', {}, `${(RATES[r] * 100).toFixed(0)}%`)))),
+          el('b', {}, `${+(RATES[r] * 100).toFixed(2)}%`)))),   // 0.75% も丸めずに出す（2026-10-18）
       el('h3', {}, '価格'),
       /* 祭りのくじは札で引ける（2026-09-30）。札が先、尽きたら石 */
       el('div', { class: 'rtab' },
@@ -8006,7 +8006,7 @@ function ratesSheet(toSSR, toUR) {
       el('h3', {}, '確定と天井'),
       el('div', { class: 'rtab' },
         row('十連', '10体目までにSR以上が1体確定'),
-        row('SR以上の天井', `${PITY.sr}連`),
+        PITY.sr ? row('SR以上の天井', `${PITY.sr}連`) : null,
         row('SSR以上の天井', `${PITY.ssr}連（あと ${toSSR} 回）`),
         row('URの天井', `${PITY.ur}連（あと ${toUR} 回）`)),
       el('h3', {}, 'おみくじの帯の褒美'),

@@ -7476,3 +7476,35 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .pcken{font-size:.62em;font-weight:500;opacity:.7;margin-left:.45em;letter-spacing:.04em;font-family:var(--gothic,inherit)}
 .tkken{margin:10px 0 0;text-align:center;font-size:15px;letter-spacing:.3em;color:#f0cd72;text-shadow:0 1px 3px #000,0 0 10px #000;
   opacity:0;animation:chsub .6s ease-out both}
+
+/* 盤の上の犬を、どの端末でも 2D の引き伸ばしで起こす（2026-10-17・悠さんの実機「アプリ版でもキャラが潰れる」）。
+   3D の起こし直しは iPhone で黙って落ちるので使わない。中身は盤の面に平らに乗せ、
+   盤の倒れ具合（--flatfix ＝ 1 ÷ 倒れ具合。check3d が測る）ぶん縦に伸ばして背丈を戻す */
+.field.tilt .cell,.field.tilt .pawn,.field.tilt .stand{transform-style:flat;-webkit-transform-style:flat}
+.field.tilt.flat3d .stand,
+.field.tilt.flat3d .popwrap,
+.field.tilt.flat3d .fxw,
+.field.tilt.flat3d .pawn.keep{transform:scaleY(var(--flatfix,1.35));transform-origin:50% 100%}
+.field.tilt.flat3d .terwrap.terstand{transform:scaleY(var(--flatfix,1.35)) scale(var(--st,1.18))}
+
+/* 関ヶ原の限定の武将の札（2026-10-17） */
+.lmsheet{background:radial-gradient(ellipse at 50% 42%,#3a2208ee 0,#0b0908f2 62%)}
+.lmwrap{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(86vw,340px)}
+.lmtag{display:flex;flex-direction:column;align-items:center;gap:4px;animation:chsub .5s ease-out .1s both}
+.lmtag em{font-style:normal;font-family:var(--mincho);font-weight:900;font-size:22px;letter-spacing:.4em;padding:2px 6px 2px 16px;
+  color:#fff1e6;background:linear-gradient(180deg,#f6a08c,#e0654f 50%,#b8402e);border-radius:6px;
+  box-shadow:0 0 0 1.5px #5a160c,0 0 18px #e0654faa}
+.lmtag span{font-size:13px;color:#f5e2a8;letter-spacing:.12em;text-shadow:0 1px 3px #000}
+.lmcard{position:relative;width:min(70vw,260px);animation:lmIn .9s cubic-bezier(.2,1.4,.4,1) .25s both}
+.lmray{position:absolute;inset:-45%;z-index:0;pointer-events:none;border-radius:50%;
+  background:repeating-conic-gradient(#ffd77a40 0 9deg,transparent 9deg 22deg);
+  -webkit-mask:radial-gradient(circle,#000 30%,transparent 68%);mask:radial-gradient(circle,#000 30%,transparent 68%);
+  animation:trSpin 9s linear infinite}
+.lmimg{position:relative;z-index:1;display:block;width:100%;height:auto;border-radius:10px;
+  box-shadow:0 0 0 2px #f5e2a8,0 0 26px #ffcf5acc,0 10px 24px #000c}
+.lmimg.txt{padding:60px 0;text-align:center;background:#12100e;color:#f5e2a8;font-family:var(--mincho);font-size:22px}
+.lmrar{position:absolute;z-index:2;left:-10px;top:-12px;width:30%;height:auto;filter:drop-shadow(0 2px 4px #000)}
+.lmname{font-family:var(--mincho);font-size:22px;letter-spacing:.1em;color:#f5e2a8;text-shadow:0 2px 6px #000;
+  animation:chsub .5s ease-out .9s both}
+.lmsheet .lmtake{flex:0 0 auto;width:min(70vw,260px);min-width:0;margin-top:4px;animation:chsub .4s ease-out 1.1s both}
+@keyframes lmIn{0%{opacity:0;transform:scale(.35) rotateY(90deg)}60%{opacity:1;transform:scale(1.06) rotateY(0)}100%{transform:none}}

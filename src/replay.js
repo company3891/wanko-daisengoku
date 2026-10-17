@@ -152,19 +152,27 @@ export function check3d(field) {
   const bh = board.offsetHeight, sh = st.offsetHeight;
   if (!bh || !sh) return;
   const tilt = board.getBoundingClientRect().height / bh;     // 倒れ具合（0.74 くらい）
-  const stand = st.getBoundingClientRect().height / sh;        // 起きていれば 1 前後
   if (tilt > 0.98) return;                                     // そもそも倒れていない
-  const flat = stand < tilt * 1.05;                            // 起きていない＝落ちている
-  field.classList.toggle('flat3d', flat);
-  // 倒れ具合は端末と画面の大きさで変わるので、測った値から引き伸ばしの量を決める
-  if (flat) field.style.setProperty('--flatfix', (1 / Math.max(.4, tilt)).toFixed(3));
-  else field.style.removeProperty('--flatfix');
+  /* 2026-10-17 改：測って見分けるのをやめ、どの端末でも「2D の引き伸ばし」で起こす。
+     iPhone（アプリ版・ウェブ版とも）でまだ犬が潰れていた（悠さんの実機）。
+     WebKit は getBoundingClientRect では 3D の計算どおりの高さを返すのに、
+     描くときだけ平らに落とすことがあり、測っても「起きている」と出て逃げ道に入れなかった。
+     起こし直しの 3D をやめれば、Chromium と iPhone で同じ見え方になり、ここで確かめられる */
+  field.classList.add('flat3d');
+  /* 伸ばす量は「マスの見かけの横 ÷ 縦」。奥のマスは遠くて横も縮むので、盤ぜんたいの縦の縮みで
+     割ると伸ばしすぎる。いちばん奥と手前のマスを測って、その平らにした値を使う */
+  const cs = board.querySelectorAll('.cell');
+  const ratio = el => { const r = el.getBoundingClientRect(); return (r.width / el.offsetWidth) / (r.height / el.offsetHeight); };
+  let fix = 1 / Math.max(.4, tilt);
+  if (cs.length > 1 && cs[0].offsetHeight) fix = (ratio(cs[0]) + ratio(cs[cs.length - 1])) / 2;
+  field.style.setProperty('--flatfix', Math.min(1.6, Math.max(1, fix)).toFixed(3));
 }
 export function fieldEl(board, theme, ...extras) {
   const f = document.createElement('div');
-  f.className = 'field tilt';
-  // 盤面が画面に出たあとで、3Dが効いているかを一度だけ測る
+  f.className = 'field tilt flat3d';
+  // 盤面が画面に出たあとで倒れ具合を測り、引き伸ばしの量を決める（大きさが変わったら測り直す）
   setTimeout(() => check3d(f), 0);
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => check3d(f));
   const bg = theme ? stageBgUrl(theme) : null;
   if (bg) {
     const b = document.createElement('div');
@@ -186,6 +194,7 @@ export function fieldEl(board, theme, ...extras) {
   const fit = () => {
     const w = board.clientWidth;
     if (w) f.style.setProperty('--persp', Math.round(w * PERSP_RATIO) + 'px');
+    check3d(f);
   };
   fit();
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(fit);

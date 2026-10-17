@@ -7492,6 +7492,38 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .tkken{margin:10px 0 0;text-align:center;font-size:15px;letter-spacing:.3em;color:#f0cd72;text-shadow:0 1px 3px #000,0 0 10px #000;
   opacity:0;animation:chsub .6s ease-out both}
 
+/* 盤の上の犬を、どの端末でも 2D の引き伸ばしで起こす（2026-10-17・悠さんの実機「アプリ版でもキャラが潰れる」）。
+   3D の起こし直しは iPhone で黙って落ちるので使わない。中身は盤の面に平らに乗せ、
+   盤の倒れ具合（--flatfix ＝ 1 ÷ 倒れ具合。check3d が測る）ぶん縦に伸ばして背丈を戻す */
+.field.tilt .cell,.field.tilt .pawn,.field.tilt .stand{transform-style:flat;-webkit-transform-style:flat}
+.field.tilt.flat3d .stand,
+.field.tilt.flat3d .popwrap,
+.field.tilt.flat3d .fxw,
+.field.tilt.flat3d .pawn.keep{transform:scaleY(var(--flatfix,1.35));transform-origin:50% 100%}
+.field.tilt.flat3d .terwrap.terstand{transform:scaleY(var(--flatfix,1.35)) scale(var(--st,1.18))}
+
+/* 関ヶ原の限定の武将の札（2026-10-17） */
+.lmsheet{background:radial-gradient(ellipse at 50% 42%,#3a2208ee 0,#0b0908f2 62%)}
+.lmwrap{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(86vw,340px)}
+.lmtag{display:flex;flex-direction:column;align-items:center;gap:4px;animation:chsub .5s ease-out .1s both}
+.lmtag em{font-style:normal;font-family:var(--mincho);font-weight:900;font-size:22px;letter-spacing:.4em;padding:2px 6px 2px 16px;
+  color:#fff1e6;background:linear-gradient(180deg,#f6a08c,#e0654f 50%,#b8402e);border-radius:6px;
+  box-shadow:0 0 0 1.5px #5a160c,0 0 18px #e0654faa}
+.lmtag span{font-size:13px;color:#f5e2a8;letter-spacing:.12em;text-shadow:0 1px 3px #000}
+.lmcard{position:relative;width:min(70vw,260px);animation:lmIn .9s cubic-bezier(.2,1.4,.4,1) .25s both}
+.lmray{position:absolute;inset:-45%;z-index:0;pointer-events:none;border-radius:50%;
+  background:repeating-conic-gradient(#ffd77a40 0 9deg,transparent 9deg 22deg);
+  -webkit-mask:radial-gradient(circle,#000 30%,transparent 68%);mask:radial-gradient(circle,#000 30%,transparent 68%);
+  animation:trSpin 9s linear infinite}
+.lmimg{position:relative;z-index:1;display:block;width:100%;height:auto;border-radius:10px;
+  box-shadow:0 0 0 2px #f5e2a8,0 0 26px #ffcf5acc,0 10px 24px #000c}
+.lmimg.txt{padding:60px 0;text-align:center;background:#12100e;color:#f5e2a8;font-family:var(--mincho);font-size:22px}
+.lmrar{position:absolute;z-index:2;left:-10px;top:-12px;width:30%;height:auto;filter:drop-shadow(0 2px 4px #000)}
+.lmname{font-family:var(--mincho);font-size:22px;letter-spacing:.1em;color:#f5e2a8;text-shadow:0 2px 6px #000;
+  animation:chsub .5s ease-out .9s both}
+.lmsheet .lmtake{flex:0 0 auto;width:min(70vw,260px);min-width:0;margin-top:4px;animation:chsub .4s ease-out 1.1s both}
+@keyframes lmIn{0%{opacity:0;transform:scale(.35) rotateY(90deg)}60%{opacity:1;transform:scale(1.06) rotateY(0)}100%{transform:none}}
+
 </style>
 </head>
 <body>
@@ -11218,19 +11250,27 @@ function check3d(field) {
   const bh = board.offsetHeight, sh = st.offsetHeight;
   if (!bh || !sh) return;
   const tilt = board.getBoundingClientRect().height / bh;     // 倒れ具合（0.74 くらい）
-  const stand = st.getBoundingClientRect().height / sh;        // 起きていれば 1 前後
   if (tilt > 0.98) return;                                     // そもそも倒れていない
-  const flat = stand < tilt * 1.05;                            // 起きていない＝落ちている
-  field.classList.toggle('flat3d', flat);
-  // 倒れ具合は端末と画面の大きさで変わるので、測った値から引き伸ばしの量を決める
-  if (flat) field.style.setProperty('--flatfix', (1 / Math.max(.4, tilt)).toFixed(3));
-  else field.style.removeProperty('--flatfix');
+  /* 2026-10-17 改：測って見分けるのをやめ、どの端末でも「2D の引き伸ばし」で起こす。
+     iPhone（アプリ版・ウェブ版とも）でまだ犬が潰れていた（悠さんの実機）。
+     WebKit は getBoundingClientRect では 3D の計算どおりの高さを返すのに、
+     描くときだけ平らに落とすことがあり、測っても「起きている」と出て逃げ道に入れなかった。
+     起こし直しの 3D をやめれば、Chromium と iPhone で同じ見え方になり、ここで確かめられる */
+  field.classList.add('flat3d');
+  /* 伸ばす量は「マスの見かけの横 ÷ 縦」。奥のマスは遠くて横も縮むので、盤ぜんたいの縦の縮みで
+     割ると伸ばしすぎる。いちばん奥と手前のマスを測って、その平らにした値を使う */
+  const cs = board.querySelectorAll('.cell');
+  const ratio = el => { const r = el.getBoundingClientRect(); return (r.width / el.offsetWidth) / (r.height / el.offsetHeight); };
+  let fix = 1 / Math.max(.4, tilt);
+  if (cs.length > 1 && cs[0].offsetHeight) fix = (ratio(cs[0]) + ratio(cs[cs.length - 1])) / 2;
+  field.style.setProperty('--flatfix', Math.min(1.6, Math.max(1, fix)).toFixed(3));
 }
 function fieldEl(board, theme, ...extras) {
   const f = document.createElement('div');
-  f.className = 'field tilt';
-  // 盤面が画面に出たあとで、3Dが効いているかを一度だけ測る
+  f.className = 'field tilt flat3d';
+  // 盤面が画面に出たあとで倒れ具合を測り、引き伸ばしの量を決める（大きさが変わったら測り直す）
   setTimeout(() => check3d(f), 0);
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => check3d(f));
   const bg = theme ? stageBgUrl(theme) : null;
   if (bg) {
     const b = document.createElement('div');
@@ -11252,6 +11292,7 @@ function fieldEl(board, theme, ...extras) {
   const fit = () => {
     const w = board.clientWidth;
     if (w) f.style.setProperty('--persp', Math.round(w * PERSP_RATIO) + 'px');
+    check3d(f);
   };
   fit();
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(fit);
@@ -36842,7 +36883,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/17 09:15 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/17 09:24 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -40152,6 +40193,9 @@ function resSteps() {
   const pr = BATTLE.camp && BATTLE.camp.pref;
   if (S.res.won && mr && mr.first && !mr.unified && pr && regionTaken(pr.region)) out.push('chapter');
   if (S.res.won && mr && mr.unified) out.push('unified');
+  /* 関ヶ原の限定の武将（2026-10-17・悠さんの指図「限定カードが手に入った演出がない。
+     勝利の報酬を受け取ったあとに限定カードを表示して、受け取る様に」） */
+  if (S.res.won && BATTLE.seki && BATTLE.reward && (BATTLE.reward.got || []).length) out.push('limited');
   /* お祭りの褒美は別の札にせず、勝ちの札にまとめて並べる（2026-09-29）。
      「勝利」と「お祭りの褒美」を続けて出すと、同じことを二度見せることになる */
   return out;
@@ -40220,7 +40264,8 @@ function prizeRow(rw, ev) {
   }
   /* もらった武将はコマ絵で。新しく来たのか、重なったのかを下に添える。
      関ヶ原は勝ちの褒美（rw）に武将が入るので、ev の外に出した（2026-10-11） */
-  for (const g of [...((rw && !rw.lost && rw.got) || []), ...((ev && ev.got) || [])]) {
+  /* 関ヶ原の武将は次の札（limited）で大きく見せるので、ここには並べない（2026-10-17） */
+  for (const g of [...((rw && !rw.lost && !(BATTLE && BATTLE.seki) && rw.got) || []), ...((ev && ev.got) || [])]) {
     const o = charOf(g.no); if (!o) continue;
     t.push(prizeTile(pawnUrl(g.no) || faceUrl(g.no, '通常'), (o.name || '')[0] || '将',
                      g.dup ? '重ね' : '新', null));
@@ -40472,6 +40517,28 @@ function resSheet() {
   }
   /* 章の平定（2026-10-16）。札も釦も出さず、天下統一・国の制覇と同じ落ち方で
      「第〇章」「制覇」を二段に一字ずつ。その下に章の題と一言を小さく。画面を押して次へ */
+  /* 関ヶ原の限定の武将を一枚の札で見せる（2026-10-17）。光の輪の上に札の表を大きく、
+     下に「限定」の印と名。「受け取る」で次へ（勝手に閉じない） */
+  if (kind === 'limited') {
+    const g = ((BATTLE.reward && BATTLE.reward.got) || [])[0];
+    const c = g && charOf(g.no);
+    if (c) {
+      if (BATTLE._lmSnd !== S.res.i) {
+        BATTLE._lmSnd = S.res.i;
+        setTimeout(() => { try { (SFX.rare ? SFX.rare(c.rarity) : SFX.win()); } catch (_) {} }, 350);
+      }
+      const art = cardUrl(c.no, 'front') || pawnUrl(c.no);
+      return el('div', { class: 'sheet ressheet lmsheet' },
+        el('div', { class: 'lmwrap' },
+          el('div', { class: 'lmtag' }, el('em', {}, '限定'), el('span', {}, g.dup ? '重ねが一つ増えた' : '新たな武将が加わった')),
+          el('div', { class: 'lmcard' },
+            el('i', { class: 'lmray' }),
+            art ? keepImg({ class: 'lmimg', src: art, alt: c.name }) : el('b', { class: 'lmimg txt' }, c.name),
+            art ? null : (rarUrl(c.rarity) ? keepImg({ class: 'lmrar', src: rarUrl(c.rarity), alt: c.rarity }) : null)),   // 札の絵に位が描いてあるので重ねない
+          el('b', { class: 'lmname' }, c.name),
+          el('button', { class: 'go wide lmtake', onclick: () => { SFX.get(); next(); } }, '受け取る')));
+    }
+  }
   if (kind === 'chapter' && p) {
     const reg = REGIONS.find(r => r.id === p.region) || {};
     const no = chapterNo(p.region);

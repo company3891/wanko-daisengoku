@@ -10379,6 +10379,9 @@ function resSteps() {
   const pr = BATTLE.camp && BATTLE.camp.pref;
   if (S.res.won && mr && mr.first && !mr.unified && pr && regionTaken(pr.region)) out.push('chapter');
   if (S.res.won && mr && mr.unified) out.push('unified');
+  /* 関ヶ原の限定の武将（2026-10-17・悠さんの指図「限定カードが手に入った演出がない。
+     勝利の報酬を受け取ったあとに限定カードを表示して、受け取る様に」） */
+  if (S.res.won && BATTLE.seki && BATTLE.reward && (BATTLE.reward.got || []).length) out.push('limited');
   /* お祭りの褒美は別の札にせず、勝ちの札にまとめて並べる（2026-09-29）。
      「勝利」と「お祭りの褒美」を続けて出すと、同じことを二度見せることになる */
   return out;
@@ -10447,7 +10450,8 @@ function prizeRow(rw, ev) {
   }
   /* もらった武将はコマ絵で。新しく来たのか、重なったのかを下に添える。
      関ヶ原は勝ちの褒美（rw）に武将が入るので、ev の外に出した（2026-10-11） */
-  for (const g of [...((rw && !rw.lost && rw.got) || []), ...((ev && ev.got) || [])]) {
+  /* 関ヶ原の武将は次の札（limited）で大きく見せるので、ここには並べない（2026-10-17） */
+  for (const g of [...((rw && !rw.lost && !(BATTLE && BATTLE.seki) && rw.got) || []), ...((ev && ev.got) || [])]) {
     const o = charOf(g.no); if (!o) continue;
     t.push(prizeTile(pawnUrl(g.no) || faceUrl(g.no, '通常'), (o.name || '')[0] || '将',
                      g.dup ? '重ね' : '新', null));
@@ -10699,6 +10703,28 @@ function resSheet() {
   }
   /* 章の平定（2026-10-16）。札も釦も出さず、天下統一・国の制覇と同じ落ち方で
      「第〇章」「制覇」を二段に一字ずつ。その下に章の題と一言を小さく。画面を押して次へ */
+  /* 関ヶ原の限定の武将を一枚の札で見せる（2026-10-17）。光の輪の上に札の表を大きく、
+     下に「限定」の印と名。「受け取る」で次へ（勝手に閉じない） */
+  if (kind === 'limited') {
+    const g = ((BATTLE.reward && BATTLE.reward.got) || [])[0];
+    const c = g && charOf(g.no);
+    if (c) {
+      if (BATTLE._lmSnd !== S.res.i) {
+        BATTLE._lmSnd = S.res.i;
+        setTimeout(() => { try { (SFX.rare ? SFX.rare(c.rarity) : SFX.win()); } catch (_) {} }, 350);
+      }
+      const art = cardUrl(c.no, 'front') || pawnUrl(c.no);
+      return el('div', { class: 'sheet ressheet lmsheet' },
+        el('div', { class: 'lmwrap' },
+          el('div', { class: 'lmtag' }, el('em', {}, '限定'), el('span', {}, g.dup ? '重ねが一つ増えた' : '新たな武将が加わった')),
+          el('div', { class: 'lmcard' },
+            el('i', { class: 'lmray' }),
+            art ? keepImg({ class: 'lmimg', src: art, alt: c.name }) : el('b', { class: 'lmimg txt' }, c.name),
+            art ? null : (rarUrl(c.rarity) ? keepImg({ class: 'lmrar', src: rarUrl(c.rarity), alt: c.rarity }) : null)),   // 札の絵に位が描いてあるので重ねない
+          el('b', { class: 'lmname' }, c.name),
+          el('button', { class: 'go wide lmtake', onclick: () => { SFX.get(); next(); } }, '受け取る')));
+    }
+  }
   if (kind === 'chapter' && p) {
     const reg = REGIONS.find(r => r.id === p.region) || {};
     const no = chapterNo(p.region);

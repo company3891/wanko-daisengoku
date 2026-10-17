@@ -7558,3 +7558,20 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .bgcol{display:inline-flex;align-items:center;font-size:12px;color:#f5e2a8}
 .bgcol .bgma{margin:0 3px 0 0}
 .bgclose{flex:0 0 auto;margin-top:2px}
+
+/* ステータスの印（2026-10-17）。絵を上に、名を下に */
+.bgstats .bgsr{grid-template-columns:3.4em 1fr}
+.bgsic{display:flex;flex-direction:column;align-items:center;gap:1px}
+.bgsic img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 1px 2px #0006)}
+.bgsic i.bgsk{min-width:0;width:30px;height:30px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal}
+.bgsic b{font-size:11.5px;letter-spacing:.06em}
+.bgsic.s-火力 b{color:#c4443a}.bgsic.s-賢さ b{color:#7a5fd0}.bgsic.s-防御 b{color:#3a8f5c}.bgsic.s-回復 b{color:#2a96a6}.bgsic.s-速さ b{color:#b08510}
+/* 絵の無い印（洗脳💕・伏兵👣）は丸い黒地をやめ、字だけを大きく（2026-10-17・悠さんの指図） */
+.bgsi.txt{background:none;color:inherit;font-size:21px;border-radius:0}
+/* 戦闘のヒントの属性の円（2026-10-17）。盤の左上の図を大きく。地は黒漆の丸にして矢印を見せる */
+.bgwheel{display:flex;justify-content:center;padding:4px 0}
+.bgwheel .affw{position:relative;left:auto;top:auto;width:min(62vw,230px);height:min(62vw,230px);
+  background:radial-gradient(circle,#2a2219 0,#12100e 72%);box-shadow:0 0 0 2px #d8a94a,0 4px 12px #0006}
+.bgwheel .affi{width:26%;height:26%}
+.bgwheel .affi i{width:60%;height:60%;margin:20%}
+.bgwheel .affarc svg g{stroke-width:2.2}

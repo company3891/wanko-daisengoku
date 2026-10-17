@@ -11963,15 +11963,21 @@ function battleGuideSheet() {
     : el('span', { class: 'bgsi txt' }, STATUS_MARK[n] || n[0]);
   const body =
     t === 0 ? [
-      el('div', { class: 'bgcyc' }, BG_ATTR.map(a => el('div', { class: 'bgcr' },
-        aIcon(a), el('span', {}, 'は'), aIcon(BG_WEAK[a]), el('span', {}, 'に弱い')))),
+      /* 円の図で見せる（2026-10-17・悠さんの指図「円の図を使って説明する方がわかりやすい」）。
+         盤の左上の図（affWheel）を大きくして使う。矢印の先が、その属性が強く出られる相手 */
+      el('div', { class: 'bgwheel' }, affWheel()),
+      el('p', { class: 'bglead' }, '矢印の先の属性に強く、矢印の元の属性に弱い。'),
       el('p', {}, '弱点の属性の敵が多いほど、その武将のステータスが下がる。'),
       el('p', {}, 'スキルにも属性がある。相手の弱点を突くとダメージが上がり、相手が有利な属性だとダメージが下がる。'),
-      el('p', { class: 'bgnote' }, '盤面の左上の図でも、いつでも確認できる。'),
+      el('p', { class: 'bgnote' }, '盤面の左上にも同じ図がある。'),
     ]
     : t === 1 ? [
+      /* ステータスは絵の印を上に、名を下に（2026-10-17・悠さんの指図）。絵が無ければ色の札に落ちる */
       el('div', { class: 'bgstats' }, BG_STAT.map(([k, d]) => el('div', { class: 'bgsr' },
-        el('b', { class: 'bgsk s-' + k }, k), el('span', {}, d)))),
+        el('div', { class: 'bgsic s-' + k },
+          statUrl(k) ? el('img', { src: statUrl(k), alt: k }) : el('i', { class: 'bgsk s-' + k }, k[0]),
+          el('b', {}, k)),
+        el('span', {}, d)))),
       el('p', { class: 'bgnote' }, '攻撃は「火力系」と「賢さ系」の2種類。火力系は防御で、賢さ系は回復で受けるダメージが減る。'),
     ]
     : [

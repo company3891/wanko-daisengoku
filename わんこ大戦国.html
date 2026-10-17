@@ -7574,6 +7574,23 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .bgcol .bgma{margin:0 3px 0 0}
 .bgclose{flex:0 0 auto;margin-top:2px}
 
+/* ステータスの印（2026-10-17）。絵を上に、名を下に */
+.bgstats .bgsr{grid-template-columns:3.4em 1fr}
+.bgsic{display:flex;flex-direction:column;align-items:center;gap:1px}
+.bgsic img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 1px 2px #0006)}
+.bgsic i.bgsk{min-width:0;width:30px;height:30px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal}
+.bgsic b{font-size:11.5px;letter-spacing:.06em}
+.bgsic.s-火力 b{color:#c4443a}.bgsic.s-賢さ b{color:#7a5fd0}.bgsic.s-防御 b{color:#3a8f5c}.bgsic.s-回復 b{color:#2a96a6}.bgsic.s-速さ b{color:#b08510}
+/* 絵の無い印（洗脳💕・伏兵👣）は丸い黒地をやめ、字だけを大きく（2026-10-17・悠さんの指図） */
+.bgsi.txt{background:none;color:inherit;font-size:21px;border-radius:0}
+/* 戦闘のヒントの属性の円（2026-10-17）。盤の左上の図を大きく。地は黒漆の丸にして矢印を見せる */
+.bgwheel{display:flex;justify-content:center;padding:4px 0}
+.bgwheel .affw{position:relative;left:auto;top:auto;width:min(62vw,230px);height:min(62vw,230px);
+  background:radial-gradient(circle,#2a2219 0,#12100e 72%);box-shadow:0 0 0 2px #d8a94a,0 4px 12px #0006}
+.bgwheel .affi{width:26%;height:26%}
+.bgwheel .affi i{width:60%;height:60%;margin:20%}
+.bgwheel .affarc svg g{stroke-width:2.2}
+
 </style>
 </head>
 <body>
@@ -36951,7 +36968,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/17 09:50 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/17 10:50 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -41827,15 +41844,21 @@ function battleGuideSheet() {
     : el('span', { class: 'bgsi txt' }, STATUS_MARK[n] || n[0]);
   const body =
     t === 0 ? [
-      el('div', { class: 'bgcyc' }, BG_ATTR.map(a => el('div', { class: 'bgcr' },
-        aIcon(a), el('span', {}, 'は'), aIcon(BG_WEAK[a]), el('span', {}, 'に弱い')))),
+      /* 円の図で見せる（2026-10-17・悠さんの指図「円の図を使って説明する方がわかりやすい」）。
+         盤の左上の図（affWheel）を大きくして使う。矢印の先が、その属性が強く出られる相手 */
+      el('div', { class: 'bgwheel' }, affWheel()),
+      el('p', { class: 'bglead' }, '矢印の先の属性に強く、矢印の元の属性に弱い。'),
       el('p', {}, '弱点の属性の敵が多いほど、その武将のステータスが下がる。'),
       el('p', {}, 'スキルにも属性がある。相手の弱点を突くとダメージが上がり、相手が有利な属性だとダメージが下がる。'),
-      el('p', { class: 'bgnote' }, '盤面の左上の図でも、いつでも確認できる。'),
+      el('p', { class: 'bgnote' }, '盤面の左上にも同じ図がある。'),
     ]
     : t === 1 ? [
+      /* ステータスは絵の印を上に、名を下に（2026-10-17・悠さんの指図）。絵が無ければ色の札に落ちる */
       el('div', { class: 'bgstats' }, BG_STAT.map(([k, d]) => el('div', { class: 'bgsr' },
-        el('b', { class: 'bgsk s-' + k }, k), el('span', {}, d)))),
+        el('div', { class: 'bgsic s-' + k },
+          statUrl(k) ? el('img', { src: statUrl(k), alt: k }) : el('i', { class: 'bgsk s-' + k }, k[0]),
+          el('b', {}, k)),
+        el('span', {}, d)))),
       el('p', { class: 'bgnote' }, '攻撃は「火力系」と「賢さ系」の2種類。火力系は防御で、賢さ系は回復で受けるダメージが減る。'),
     ]
     : [

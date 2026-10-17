@@ -7494,7 +7494,7 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .lmtag em{font-style:normal;font-family:var(--mincho);font-weight:900;font-size:22px;letter-spacing:.4em;padding:2px 6px 2px 16px;
   color:#fff1e6;background:linear-gradient(180deg,#f6a08c,#e0654f 50%,#b8402e);border-radius:6px;
   box-shadow:0 0 0 1.5px #5a160c,0 0 18px #e0654faa}
-.lmtag span{font-size:13px;color:#f5e2a8;letter-spacing:.12em;text-shadow:0 1px 3px #000}
+.lmtag span{font-family:var(--mincho);font-size:17px;color:#f5e2a8;letter-spacing:.16em;text-shadow:0 1px 3px #000,0 0 12px #000}
 .lmcard{position:relative;width:min(70vw,260px);animation:lmIn .9s cubic-bezier(.2,1.4,.4,1) .25s both}
 .lmray{position:absolute;inset:-45%;z-index:0;pointer-events:none;border-radius:50%;
   background:repeating-conic-gradient(#ffd77a40 0 9deg,transparent 9deg 22deg);

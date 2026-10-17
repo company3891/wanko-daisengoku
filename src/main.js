@@ -10734,7 +10734,8 @@ function resSheet() {
       const art = cardUrl(c.no, 'front') || pawnUrl(c.no);
       return el('div', { class: 'sheet ressheet lmsheet' },
         el('div', { class: 'lmwrap' },
-          el('div', { class: 'lmtag' }, el('em', {}, '限定'), el('span', {}, g.dup ? '重ねが一つ増えた' : '新たな武将が加わった')),
+          /* 「限定」の印は外した（2026-10-17・悠さんの指図「限定はダサい」）。何が起きたかだけを添える */
+          el('div', { class: 'lmtag' }, el('span', {}, g.dup ? '重ねが一つ増えた' : '新たな武将が加わった')),
           el('div', { class: 'lmcard' },
             el('i', { class: 'lmray' }),
             art ? keepImg({ class: 'lmimg', src: art, alt: c.name }) : el('b', { class: 'lmimg txt' }, c.name),

@@ -11860,7 +11860,12 @@ function rwChips(rw) {
 /* 属性の巡り（2026-10-11・悠さんの指図）。盤の左上、兵量の帯と同じ段に絵だけで出す。
    矢印は「強い → 弱い」。sim/rules.json の affinity.cycle（キー＝自分、値＝自分が弱い相手）から
    組むので、巡りを変えても絵がついてくる。並びは時計回りに 猛将→神速→仁将→守将→智将→猛将 */
-function affWheel() {
+/* opt.ink で矢印の色、opt.id で矢じりの印の名を変えられる（2026-10-18）。
+   手引きの円は 地のないクリームの上に置くので灰色の矢印にする。
+   盤の円と手引きの円が同じ画面に並ぶとき、矢じりの id が重なると
+   先にある盤のほうの色が使われてしまうので、名も分ける */
+function affWheel(opt = {}) {
+  const ink = opt.ink || '#f5e2a8', mid = opt.id || 'affh';
   const cyc = (RULES.affinity && RULES.affinity.cycle) || {};
   /* beats[x] ＝ x が強く出られる相手 */
   const beats = {}; for (const [me, weakTo] of Object.entries(cyc)) beats[weakTo] = me;
@@ -11873,11 +11878,11 @@ function affWheel() {
   const arcs = order.map((_, i) => {
     const t0 = (-90 + i * 72 + 20) * Math.PI / 180, t1 = (-90 + (i + 1) * 72 - 20) * Math.PI / 180;
     const x0 = C + R * Math.cos(t0), y0 = C + R * Math.sin(t0), x1 = C + R * Math.cos(t1), y1 = C + R * Math.sin(t1);
-    return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}" marker-end="url(#affh)"/>`;
+    return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}" marker-end="url(#${mid})"/>`;
   }).join('');
   const COL = { 猛将: '#d9544d', 智将: '#7a7ee0', 守将: '#4fa36b', 仁将: '#d98fc0', 神速: '#e0c04a' };
   return el('div', { class: 'affw', 'aria-label': '属性の巡り' },
-    el('div', { class: 'affarc', html: `<svg viewBox="0 0 64 64"><defs><marker id="affh" viewBox="0 0 6 6" refX="4" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L6 3L0 6z" fill="#f5e2a8"/></marker></defs><g fill="none" stroke="#f5e2a8" stroke-width="1.6" stroke-linecap="round">${arcs}</g></svg>` }),
+    el('div', { class: 'affarc', html: `<svg viewBox="0 0 64 64"><defs><marker id="${mid}" viewBox="0 0 6 6" refX="4" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L6 3L0 6z" fill="${ink}"/></marker></defs><g fill="none" stroke="${ink}" stroke-width="1.6" stroke-linecap="round">${arcs}</g></svg>` }),
     ...order.map((at, i) => {
       const [x, y] = pt(i); const u = attrUrl(at);
       return el('span', { class: 'affi', style: `left:${(x / 64 * 100).toFixed(1)}%;top:${(y / 64 * 100).toFixed(1)}%;--ac:${COL[at]}` },
@@ -11974,7 +11979,7 @@ function battleGuideSheet() {
     t === 0 ? [
       /* 円の図で見せる（2026-10-17・悠さんの指図「円の図を使って説明する方がわかりやすい」）。
          盤の左上の図（affWheel）を大きくして使う。矢印の先が、その属性が強く出られる相手 */
-      el('div', { class: 'bgwheel' }, affWheel()),
+      el('div', { class: 'bgwheel' }, affWheel({ ink: '#8f8a83', id: 'affhg' })),   // 地なし・灰の矢印（2026-10-18）
       el('p', { class: 'bglead' }, '矢印の先の属性に強く、矢印の元の属性に弱い。'),
       el('p', {}, '弱点の属性の敵が多いほど、その武将のステータスが下がる。'),
       el('p', {}, 'スキルにも属性がある。相手の弱点を突くとダメージが上がり、相手が有利な属性だとダメージが下がる。'),

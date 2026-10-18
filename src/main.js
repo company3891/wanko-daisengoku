@@ -10667,8 +10667,13 @@ function resSheet() {
       S.twMsg = twW ? '' : `届かなんだ　― ${(twN || []).join('／')}`;
       SFX.pick(); draw(); return;
     }
+    /* 全国の一戦のあとは、戦った国の出陣の札へ返す（2026-10-18・悠さんの指図
+       「報酬受け取ったら、戻る画面が対戦した場所にして！負けた時も同じで！」）。
+       前は全国の地図まで戻していて、同じ国で続けて戦うのに毎回 国を選び直していた */
+    const campPref = toMap && BATTLE.camp.pref ? BATTLE.camp.pref : null;
     if (toMap || toEv || toFr || toRk || toAway) { fxToken++; const id = BATTLE.ev && BATTLE.ev.id; BATTLE = null;
-      S.screen = (toEv ? 'event' : (toFr || toRk || toFirst || toAway) ? 'home' : 'map');
+      S.screen = (toEv ? 'event' : (toFr || toRk || toFirst || toAway) ? 'home' : campPref ? 'march' : 'map');
+      if (campPref && !toFirst) { S.pref = campPref.id; S.sqp = null; if (campPref.region) S.region = campPref.region; }
       if (toAway) { S.fr = true; S.frId = null; S.frTab = 'my'; S.frMsg = ''; }
       if (toEv) { S.evId = id; S.evMsg = ''; }
       // 稽古のあとは、その友の家へ返す（ホームの上に札が乗る）

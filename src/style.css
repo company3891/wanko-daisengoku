@@ -7580,3 +7580,16 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .sqbox{position:relative}
 .sqbox .bginfo.sqinfo{position:absolute;right:12px;top:12px;width:32px;height:32px}
 .sqbox .bginfo.sqinfo i{font-size:17px}
+
+/* 道中の戦の右上（2026-10-18）。逃走と手引きの i を一列に。i は合戦と同じ丸だが、帯の中に並べるので置き方だけ変える */
+.trfhd .bginfo.trinfo{position:static;width:30px;height:30px;flex:none;margin-left:8px}
+.trfhd .bginfo.trinfo.art{width:34px;height:34px}
+.trfhd .bginfo.trinfo i{font-size:17px}
+.trfhd .trquit{margin-left:10px}
+/* 手引きの言葉の札。名を左にそろえ、敵の印（攻・守など）は丸にする */
+.bgbox .trgr{grid-template-columns:5.4em 1fr;align-items:start}
+.bgbox .trgr.it{grid-template-columns:4.6em 1fr;align-items:center}
+.bgbox .trgr.it .trgw{justify-self:start}
+.bgbox .trgw{color:#7a4a1c;font-family:var(--mincho)}
+.bgbox .trgw.it{min-width:2em;width:auto;padding:0 .45em;box-sizing:border-box;height:2em;line-height:2em;text-align:center;border-radius:1em;font-size:13px;
+  background:#2a2219;color:#f5e2a8;margin-right:6px}

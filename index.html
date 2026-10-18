@@ -7596,6 +7596,19 @@ button.ghost.trevback{flex:0 0 auto;align-self:center;width:auto;min-width:0;mar
 .sqbox .bginfo.sqinfo{position:absolute;right:12px;top:12px;width:32px;height:32px}
 .sqbox .bginfo.sqinfo i{font-size:17px}
 
+/* 道中の戦の右上（2026-10-18）。逃走と手引きの i を一列に。i は合戦と同じ丸だが、帯の中に並べるので置き方だけ変える */
+.trfhd .bginfo.trinfo{position:static;width:30px;height:30px;flex:none;margin-left:8px}
+.trfhd .bginfo.trinfo.art{width:34px;height:34px}
+.trfhd .bginfo.trinfo i{font-size:17px}
+.trfhd .trquit{margin-left:10px}
+/* 手引きの言葉の札。名を左にそろえ、敵の印（攻・守など）は丸にする */
+.bgbox .trgr{grid-template-columns:5.4em 1fr;align-items:start}
+.bgbox .trgr.it{grid-template-columns:4.6em 1fr;align-items:center}
+.bgbox .trgr.it .trgw{justify-self:start}
+.bgbox .trgw{color:#7a4a1c;font-family:var(--mincho)}
+.bgbox .trgw.it{min-width:2em;width:auto;padding:0 .45em;box-sizing:border-box;height:2em;line-height:2em;text-align:center;border-radius:1em;font-size:13px;
+  background:#2a2219;color:#f5e2a8;margin-right:6px}
+
 </style>
 </head>
 <body>
@@ -36984,7 +36997,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/18 13:16 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/18 13:59 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),
@@ -41906,6 +41919,68 @@ function battleGuideSheet() {
       el('div', { class: 'bgbody' }, ...body),
       el('button', { class: 'go wide bgclose', onclick: close }, S.screen === 'battle' ? '戦闘にもどる' : '閉じる')));
 }
+/* 道中（札の戦）の手引き（2026-10-18・悠さんの指図「道中の戦闘シーンの右上にもインフォメーションボタンつけて」）。
+   合戦とは遊び方がまるで違うので、別の札にした。見た目は合戦の手引き（bgbox）と同じ。
+   数は出さず、何が起きるかだけを書く（遊ぶ人への見せ方の決まり） */
+const TR_GUIDE_ME = [
+  ['勢い', '与えるダメージが増える'], ['削がれ', '与えるダメージが減る'],
+  ['かわし', '次の攻撃を一度かわす'], ['冴え', '次の一撃が会心になる'],
+  ['返し', '攻撃されたら打ち返す'], ['踏ん張り', '倒れるはずの一撃を、一度だけ踏みとどまる'],
+  ['奥義が軽い', '奥義に使う気が少なくなる'], ['崩れ', '受けるダメージが増える'],
+  ['炎', '毎ターンのはじめにダメージを受ける'], ['封', '回復できない'],
+  ['ひるみ', '次のターンの気が1つ減る'],
+];
+const TR_GUIDE_FOE = [
+  ['攻', '次に攻撃してくる。数はダメージの目安。×2 は二回攻撃'],
+  ['奥', '奥義を撃ってくる。ふつうの攻撃よりずっと重い'],
+  ['守', '構えて、受けるダメージを減らす'],
+  ['昂', '気を高めて、このあとの攻撃を強める'],
+  ['ひるみ', '次の手番は動けない'],
+];
+const TR_GUIDE_FOETAG = [
+  ['昂り', '攻撃が強まっている'], ['溜め', '次の攻撃が重い'], ['崩れ', '受けるダメージが増える'],
+  ['削がれ', '与えるダメージが減る'], ['炎', '毎ターンダメージを受ける'], ['封', '回復できない'], ['返し', '攻撃すると打ち返される'],
+];
+function trGuideSheet() {
+  const close = () => { S.trGuide = false; SFX.pick(); draw(); };
+  const tabs = ['遊び方', '敵の動き', '状態'];
+  const t = S.bgTab || 0;
+  const row = (a, b, cls) => el('div', { class: 'bgsr trgr' + (cls ? ' ' + cls : '') }, el('b', { class: 'trgw' + (cls ? ' ' + cls : '') }, a), el('span', {}, b));
+  const body =
+    t === 0 ? [
+      el('div', { class: 'bgstl' },
+        row('気', '毎ターン5つ。札の左上の数だけ気を使う。使わなかった気は次へ持ち越せない'),
+        row('札を使う', '敵を狙う札は、その敵の上まで引っぱって放す。自分にかける札は、盤の上へ引っぱって放す'),
+        row('札を見る', '札を押すと、何が起きるかが下に出る'),
+        row('山と捨', '毎ターン5枚引く。山が尽きたら、捨てた札をまぜて山に戻す'),
+        row('ターン終了', '残った手札は捨て札へ。そのあと敵が動く'),
+        row('構え', '受けるダメージを先に引き受ける。自分の手番のはじめに消える'),
+        row('道中の品', 'まん中の欄の品を押すと、中身と「使う」が出る')),
+      el('h4', {}, '札の種類'),
+      el('div', { class: 'bgstl' },
+        row('特技', 'ふだんの札。軽くて何度も使える'),
+        row('固有', 'その武将だけの札'),
+        row('奥義', '重いが、いちばん強い'),
+        row('大将特性', 'この戦のあいだずっと効く。一戦に一度だけ')),
+    ]
+    : t === 1 ? [
+      el('p', { class: 'bglead' }, '敵の頭の上の印で、次に何をしてくるかが分かる。'),
+      el('div', { class: 'bgstl' }, TR_GUIDE_FOE.map(([a, b]) => row(a, b, 'it'))),
+      el('h4', {}, '敵についている言葉'),
+      el('div', { class: 'bgstl' }, TR_GUIDE_FOETAG.map(([a, b]) => row(a, b))),
+    ]
+    : [
+      el('p', { class: 'bglead' }, '自分の名の下に出る言葉。'),
+      el('div', { class: 'bgstl' }, TR_GUIDE_ME.map(([a, b]) => row(a, b))),
+    ];
+  return el('div', { class: 'sheet', onclick: e => { if (e.target.classList.contains('sheet')) close(); } },
+    el('div', { class: 'card2 bgbox' },
+      el('b', { class: 'mittl' }, '戦闘のヒント'),
+      el('div', { class: 'bgtabs' }, tabs.map((nm, i) => el('button', {
+        class: 'ghost bgtab' + (i === t ? ' on' : ''), onclick: () => { S.bgTab = i; SFX.pick(); draw(); } }, nm))),
+      el('div', { class: 'bgbody' }, ...body),
+      el('button', { class: 'go wide bgclose', onclick: close }, '戦闘にもどる')));
+}
 const STATUS_MARK = { 炎上: '炎', 感電: '電', 混乱: '乱', ひるみ: '怯', 回復不能: '癒', 挑発: '挑', 洗脳: '💕', 伏兵: '👣' };
 function rosterRow(box, side) {
   if (!box) return;
@@ -43554,11 +43629,16 @@ function screenTrFight() {
         el('div', { class: 'trfhd' },
           el('span', {}, el('em', {}, `${F.i + 1}階`), s.t),
           el('span', { class: 'trturn' }, `${F.turn}手め`),
-          el('button', { class: 'trquit' + (S.trQuit ? ' on' : ''), onclick: () => {
+          /* 「退く」は分かりにくいので「逃走」に。押したらすぐ抜ける（2026-10-18・悠さんの指図）。
+             前は二度押しで確かめていた */
+          el('button', { class: 'trquit', onclick: () => {
             if (busy) return;
-            if (!S.trQuit) { S.trQuit = true; draw(); return; }
-            P.trail.fight = null; S.trQuit = false; S.screen = 'trail'; SFX.pick(); draw();
-          } }, S.trQuit ? 'もう一度で退く' : '退く')),
+            P.trail.fight = null; S.trQuit = false; S.trGuide = false; S.screen = 'trail'; SFX.pick(); draw();
+          } }, '逃走'),
+          /* 道中の戦の手引き（2026-10-18）。合戦の「i」と同じ見た目で、逃走の右に並べる */
+          el('button', { class: 'bginfo trinfo' + (uiUrl('btn_手引き') ? ' art' : ''), title: '戦闘のヒント',
+            onclick: e => { e.stopPropagation(); S.trGuide = true; S.bgTab = 0; SFX.pick(); draw(); } },
+            uiUrl('btn_手引き') ? el('img', { src: uiUrl('btn_手引き'), alt: '手引き' }) : el('i', {}, 'i'))),
         /* 自分（左） */
         el('div', { class: 'trme', style: `--ac:${TR_ATTR_COL[who.attr]}` },
           keepImg({ class: 'trmeimg', src: pawnUrl(who.no), alt: who.name }),
@@ -44736,6 +44816,7 @@ function draw() {
     trTipSheet(),                    // 道中の手ほどき（2026-10-11）。はじめての場面だけ
     S.sqp ? sqSheet() : null,
     S.bguide ? battleGuideSheet() : null,   // 戦闘のヒント（2026-10-17）。合戦の盤と出陣前の部隊えらびから開く
+    S.trGuide && S.screen === 'trfight' ? trGuideSheet() : null,   // 道中の戦の手引き（2026-10-18）
     S.food ? foodSheet() : null,
     S.cp ? pickSheet() : null,
     S.fire != null ? fireSheet() : null,

@@ -13174,6 +13174,7 @@ const P = {
   cnt: {},
   cntV2: false,          // 旧形式（本体＋重ね）から読み替えたか。P に置かないと保存から戻らない
   awakeV3: false,        // 覚醒の品を「無銘＋軍配（属性つき）」に読み替えたか（2026-09-23）
+  unify0Rw: false,       // 並の天下統一の3000石を、もう制していた人に後から配ったか（2026-10-21）
   trKabuto: false,       // 道中の中級10階の兜を、すでに越えていた武将のぶん後から配ったか（2026-10-21）
 
 };
@@ -14403,6 +14404,9 @@ function campBox(lv = campLv()) {
 }
 /* 道を制した褒美（2026-10-10）。石は無料ストーン */
 const UNIFY_RW = {
+  /* 並の道にも褒美（2026-10-21・悠さんの指図「全国の天下統一ごとに3000ストーンぐらいの報酬はほしい」）。
+     前は称号「天下統一」だけだった。石だけにして、品は修羅・魔王に取っておく */
+  0: { stone: 3000, items: {} },
   1: { stone: 3000,  items: { '相伝の護符・大': 3,  '上達の護符・大': 3,  '皆伝の書': 5,  '特技の伝書': 20 } },
   2: { stone: 10000, items: { '相伝の護符・大': 10, '上達の護符・大': 10, '皆伝の書': 15, '特技の伝書': 60 } },
 };
@@ -14471,7 +14475,7 @@ function advancePref(id) {
   let unified = false;
   if (taken && takenCount() >= PREFS.length && !box.clear) { box.clear = true; unified = true; }
   /* 修羅・魔王を制した褒美（2026-10-10・悠さんの指図「報酬や称号などの追加は必要だね」）。
-     道ごとに一度だけ。並の天下統一は前から褒美なし（称号「天下統一」だけ）なので触らない */
+     道ごとに一度だけ。並の天下統一も 2026-10-21 から3000石（UNIFY_RW[0]） */
   let unifyRw = null;
   if (unified && UNIFY_RW[lv]) {
     unifyRw = UNIFY_RW[lv];
@@ -30095,6 +30099,11 @@ buildStars(C);                 // 特技の★（その特技を持つ最低レ�
 loadPlayer(FORMS);
 /* 中級10階の兜を後から配る（2026-10-21）。褒美を足す前に中級10階を越えていた武将のぶん、
    一人につき無銘の兜×25 を一度だけ。印は P.trKabuto（P に置かないと保存から戻らない） */
+/* 並の天下統一の3000石を後から配る（2026-10-21）。褒美を足す前にもう並の道を制していた人へ一度だけ */
+if (!P.unify0Rw) {
+  if (P.camp && P.camp.clear) addFreeStones(3000);
+  P.unify0Rw = true; savePlayer();
+}
 if (!P.trKabuto) {
   const done = Object.keys(((P.trail && P.trail.progT) || {})[1] || {}).filter(no => trProg(+no, 1) >= 10).length;
   if (done) addItem(freeMat(2), 25 * done);
@@ -37005,7 +37014,7 @@ function menuSheet() {
         }),
         row('遊び方', '合戦の手引き', () => { S.menu = false; S.help = true; SFX.pick(); draw(); }),
         row('お問い合わせ', '近日')),
-      el('p', { class: 'ver' }, 'わんこ大戦国　10/21 12:57 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
+      el('p', { class: 'ver' }, 'わんこ大戦国　10/21 12:58 の版'),   // 束ねた時刻（2026-10-12・端末の版を見分けるため）
       /* 書体の表記（2026-09-23）。SIL Open Font License は表示が要る */
       el('p', { class: 'ver credit' },
         '書体：源ノ明朝／源ノ角ゴシック', el('br', {}),

@@ -188,6 +188,11 @@ buildStars(C);                 // 特技の★（その特技を持つ最低レ�
 loadPlayer(FORMS);
 /* 中級10階の兜を後から配る（2026-10-21）。褒美を足す前に中級10階を越えていた武将のぶん、
    一人につき無銘の兜×25 を一度だけ。印は P.trKabuto（P に置かないと保存から戻らない） */
+/* 並の天下統一の3000石を後から配る（2026-10-21）。褒美を足す前にもう並の道を制していた人へ一度だけ */
+if (!P.unify0Rw) {
+  if (P.camp && P.camp.clear) addFreeStones(3000);
+  P.unify0Rw = true; savePlayer();
+}
 if (!P.trKabuto) {
   const done = Object.keys(((P.trail && P.trail.progT) || {})[1] || {}).filter(no => trProg(+no, 1) >= 10).length;
   if (done) addItem(freeMat(2), 25 * done);
